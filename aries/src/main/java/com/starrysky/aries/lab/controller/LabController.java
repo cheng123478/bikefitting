@@ -1,0 +1,29 @@
+package com.starrysky.aries.lab.controller;
+
+import com.starrysky.aries.entity.User;
+import com.starrysky.aries.lab.schema.LabDashboardVO;
+import com.starrysky.aries.lab.service.LabService;
+import jakarta.annotation.Resource;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+/**
+ * 实验室控制器
+ *
+ * @author adi
+ * @version 1.0
+ * @since 2026/2/18 20:20
+ */
+@RestController
+@RequestMapping("/lab")
+public class LabController {
+    @Resource
+    private LabService labService;
+
+    @GetMapping("/dashboard")
+    public LabDashboardVO getDashboard(@AuthenticationPrincipal User user) {
+        return labService.getDashboard(user.getId());
+    }
+}
