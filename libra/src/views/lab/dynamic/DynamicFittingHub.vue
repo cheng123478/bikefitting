@@ -381,7 +381,7 @@ const getViewDesc = (v) => {
 .hub-page {
   padding: 120px 0 80px;
   min-height: 100vh;
-  background: var(--bg-page);
+  background: transparent;
 }
 
 .main-content-area {
