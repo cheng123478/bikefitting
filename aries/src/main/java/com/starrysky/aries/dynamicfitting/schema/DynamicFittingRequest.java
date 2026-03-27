@@ -11,6 +11,7 @@ public class DynamicFittingRequest {
     private Long bikeId;
     private List<ViewDetailsDTO> views;
     private OffsetDateTime sessionTime;
+    private List<String> painLevels;
 
     @Data
     public static class ViewDetailsDTO {
@@ -18,6 +19,6 @@ public class DynamicFittingRequest {
         private Map<String, Object> summary;
         private Map<String, Object> triggerMetrics;
         private Map<String, String> snapshots; // tag -> base64
-        private Map<String, Object[]> motionData;
+        private List<Map<String, Object>> frameData;
     }
 }

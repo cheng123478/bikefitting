@@ -50,6 +50,10 @@ public class DynamicFittingSession {
     @Column(columnDefinition = "JSON")
     private String deviceInfo;
 
+    @Comment("痛点部位(如knee_anterior), JSON数组")
+    @Column(columnDefinition = "JSON")
+    private String painLevels;
+
     @Comment("前端采集时间")
     private LocalDateTime sessionTime;
 

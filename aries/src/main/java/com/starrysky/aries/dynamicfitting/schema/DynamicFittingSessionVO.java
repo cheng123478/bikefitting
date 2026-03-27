@@ -6,6 +6,7 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 /**
  * 动态Fitting会话VO
@@ -27,4 +28,5 @@ public class DynamicFittingSessionVO {
     private String deviceInfo;
     private LocalDateTime sessionTime;
     private LocalDateTime createTime;
+    private List<String> painLevels;
 }

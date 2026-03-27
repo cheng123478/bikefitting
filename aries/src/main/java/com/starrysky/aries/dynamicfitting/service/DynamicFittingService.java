@@ -65,6 +65,9 @@ public class DynamicFittingService {
         session.setUserBody(userBody);
         session.setStatus(FittingStatus.ANALYSING.getCode()); // 待分析
         session.setSessionTime(request.getSessionTime().toLocalDateTime());
+        if (request.getPainLevels() != null && !request.getPainLevels().isEmpty()) {
+            session.setPainLevels(JSON.toJSONString(request.getPainLevels()));
+        }
         session.setCreateTime(LocalDateTime.now());
         session = sessionRepository.save(session);
 
@@ -97,7 +100,7 @@ public class DynamicFittingService {
                 DynamicFittingMotionData motionData = new DynamicFittingMotionData();
                 motionData.setSession(sessionRepository.getReferenceById(sessionId));
                 motionData.setViewType(viewDetailsDTO.getViewType());
-                motionData.setDataJson(JSON.toJSONString(viewDetailsDTO.getMotionData()));
+                motionData.setDataJson(JSON.toJSONString(viewDetailsDTO.getFrameData()));
                 motionData.setTriggerMetricsJson(JSON.toJSONString(viewDetailsDTO.getTriggerMetrics()));
                 motionData.setFrameCount(Integer.valueOf(viewDetailsDTO.getSummary().get("frameCount").toString()));
                 motionDataRepository.save(motionData);
@@ -236,6 +239,10 @@ public class DynamicFittingService {
         // 处理关联的身体信息
         if (session.getUserBody() != null) {
             vo.setBodyId(session.getUserBody().getId());
+        }
+
+        if (session.getPainLevels() != null) {
+            vo.setPainLevels(JSON.parseArray(session.getPainLevels(), String.class));
         }
 
         return vo;
