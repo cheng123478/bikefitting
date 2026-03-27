@@ -27,7 +27,7 @@ public class StaticFittingController {
     /**
      * 计算静态Fitting结果
      *
-     * @param request    静态Fitting请求参数
+     * @param request 静态Fitting请求参数
      * @return 静态Fitting结果
      */
     @PostMapping("/calculate")
