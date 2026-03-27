@@ -15,7 +15,11 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * 动态 Fitting 控制器
+ * 动态Fitting控制器
+ *
+ * @author adice
+ * @version 1.0
+ * @since 2025-08-08 11:19:57
  */
 @RestController
 @RequestMapping("/dynamic-fitting")

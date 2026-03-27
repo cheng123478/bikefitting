@@ -2,6 +2,13 @@ package com.starrysky.aries.bikemodel.schema;
 
 import lombok.Data;
 
+/**
+ * 单车模型视图对象
+ *
+ * @author adi
+ * @version 1.0
+ * @since 2026/3/11 14:10
+ */
 @Data
 public class BikeModelVO {
     private Long id;
@@ -11,7 +18,7 @@ public class BikeModelVO {
     private String modelYear;
     private String size;
     private Integer bikeType;
-    
+
     // Geometry
     private Integer stack;
     private Integer reach;
@@ -20,7 +27,7 @@ public class BikeModelVO {
     private Integer bbDrop;
     private Integer wheelBase;
     private Integer standOverHeight;
-    
+
     // Extra
     private String imageUrl;
 }

@@ -39,7 +39,7 @@ public class ResponseResultAdvice implements ResponseBodyAdvice<Object> {
         if (returnType.hasMethodAnnotation(NoResponseWrap.class)) {
             return false;
         }
-        // 如果 Controller 类上加了 @NoResponseWrap，不包装
+        // 如果Controller类上加了 @NoResponseWrap，不包装
         return !returnType.getContainingClass().isAnnotationPresent(NoResponseWrap.class);
     }
 
@@ -50,7 +50,6 @@ public class ResponseResultAdvice implements ResponseBodyAdvice<Object> {
                                   @NotNull ServerHttpRequest request, @NotNull ServerHttpResponse response) {
 
         // 1. 如果返回值是 String，Spring 默认使用 StringHttpMessageConverter
-        // 它期望返回 String，如果返回 ResponseResult 对象会报错，所以需要手动转 JSON 字符串
         if (body instanceof String) {
             try {
                 return objectMapper.writeValueAsString(ResponseResult.success(body));

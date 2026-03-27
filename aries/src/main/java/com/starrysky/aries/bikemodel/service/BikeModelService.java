@@ -28,6 +28,9 @@ public class BikeModelService {
 
     /**
      * 模糊搜索品牌和型号名
+     *
+     * @param keyword 搜索关键字
+     * @return 搜索结果
      */
     public List<BikeModelSearchVO> searchModels(String keyword) {
         List<Object[]> results = bikeModelRepository.findDistinctBrandAndModelByKeyword(keyword);
@@ -37,7 +40,11 @@ public class BikeModelService {
     }
 
     /**
-     * 获取选定型号的所有变体 (VO格式)
+     * 获取单车模型树
+     *
+     * @param brand 品牌
+     * @param model 型号
+     * @return 单车模型树
      */
     public List<BikeModelVO> getModelTree(String brand, String model) {
         List<BikeModel> models = bikeModelRepository.findByBrandAndModel(brand, model);
@@ -45,7 +52,10 @@ public class BikeModelService {
     }
 
     /**
-     * 保存或更新单车模型
+     * 保存单车模型
+     *
+     * @param dto 模型数据
+     * @return 模型ID
      */
     @Transactional
     public Long saveModel(BikeModelDTO dto) {
@@ -61,18 +71,26 @@ public class BikeModelService {
         if (dto.getStack() != null) bikeModel.setStack(dto.getStack());
         if (dto.getReach() != null) bikeModel.setReach(dto.getReach());
         if (dto.getStandOverHeight() != null) bikeModel.setStandOverHeight(dto.getStandOverHeight());
-        
+
         return bikeModelRepository.save(bikeModel).getId();
     }
 
     /**
      * 删除单车模型
+     *
+     * @param id 模型ID
      */
     @Transactional
     public void deleteModel(Long id) {
         bikeModelRepository.deleteById(id);
     }
 
+    /**
+     * 单车模型实体转换为VO
+     *
+     * @param entity 单车模型实体
+     * @return 单车模型VO
+     */
     private BikeModelVO convertToVO(BikeModel entity) {
         BikeModelVO vo = new BikeModelVO();
         BeanUtils.copyProperties(entity, vo);

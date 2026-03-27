@@ -62,6 +62,11 @@ public class JacksonConfig {
         }
     }
 
+    /**
+     * 自定义Jackson2ObjectMapperBuilderCustomizer，用于配置Jackson对象映射器
+     *
+     * @return Jackson2ObjectMapperBuilderCustomizer
+     */
     @Bean
     public Jackson2ObjectMapperBuilderCustomizer customizer() {
         return builder ->

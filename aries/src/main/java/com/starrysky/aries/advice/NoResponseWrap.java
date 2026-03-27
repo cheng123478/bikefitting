@@ -7,7 +7,7 @@ import java.lang.annotation.Target;
 
 /**
  * NoResponseWrap
- * 标记在 Controller 类或方法上，表示该接口的返回值不需要被全局包装
+ * 标记在Controller类或方法上，表示该接口的返回值不需要被全局包装
  *
  * @author adi
  * @version 1.0

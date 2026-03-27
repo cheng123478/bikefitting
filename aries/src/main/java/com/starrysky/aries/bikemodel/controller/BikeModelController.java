@@ -26,6 +26,9 @@ public class BikeModelController {
 
     /**
      * 模糊搜索品牌和型号名
+     *
+     * @param keyword 搜索关键字
+     * @return 搜索结果
      */
     @GetMapping("/search")
     public ResponseResult<List<BikeModelSearchVO>> search(@RequestParam String keyword) {
@@ -33,7 +36,11 @@ public class BikeModelController {
     }
 
     /**
-     * 获取选定型号的所有变体 (年份/尺码/几何)
+     * 获取单车模型树
+     *
+     * @param brand 品牌
+     * @param model 型号
+     * @return 单车模型树
      */
     @GetMapping("/tree")
     public ResponseResult<List<BikeModelVO>> getTree(@RequestParam String brand, @RequestParam String model) {
@@ -42,6 +49,9 @@ public class BikeModelController {
 
     /**
      * 保存单车模型
+     *
+     * @param dto 模型数据
+     * @return 模型ID
      */
     @PostMapping("/save")
     public ResponseResult<Long> save(@RequestBody BikeModelDTO dto) {
@@ -50,6 +60,9 @@ public class BikeModelController {
 
     /**
      * 删除单车模型
+     *
+     * @param id 模型ID
+     * @return 无返回值
      */
     @DeleteMapping("/{id}")
     public ResponseResult<Void> delete(@PathVariable Long id) {

@@ -51,7 +51,7 @@ public class GlobalExceptionHandler {
      */
     @ExceptionHandler(AccessDeniedException.class)
     public ResponseResult<Void> handleAccessDenied(HttpServletRequest request, AccessDeniedException e) {
-        log.warn("[权限不足] IP: {} | URI: {}", IpUtil.getRequestIp(request), request.getRequestURI());
+        log.warn("[权限不足] IP: {} | URI: {}，{}", IpUtil.getRequestIp(request), request.getRequestURI(), e.getMessage());
         return ResponseResult.failure(ResponseResultStatus.FORBIDDEN.getCode(), "权限不足，无法访问");
     }
 
