@@ -93,7 +93,7 @@ export function usePoseEstimation(viewModeRef = 'side') {
         if (!isReady.value) isReady.value = true;
 
         const lm = results.poseLandmarks;
-        const extract = (pt) => (pt ? { x: pt.x, y: pt.y, visibility: pt.visibility } : null);
+        const extract = (pt) => (pt ? { x: pt.x, y: pt.y, v: pt.visibility } : null);
 
         const mode = getMode();
 
@@ -163,7 +163,7 @@ export function usePoseEstimation(viewModeRef = 'side') {
                 } else {
                     if (toeX < collectedData.value.triggerMetrics.min_toe_x) {
                         collectedData.value.triggerMetrics.min_toe_x = toeX;
-                        metrics.value.kopsOffset = Math.round((toeX - lm[idx.knee].x) * w); 
+                        metrics.value.kopsOffset = Math.round((toeX - lm[idx.knee].x) * w);
                     }
                 }
 

@@ -515,11 +515,11 @@ const drawSkeleton = (ctx, w, h) => {
     }
     ctx.stroke();
     ctx.setLineDash([]);
-    
+
     // 绘制圆点
     ctx.fillStyle = '#D4AF37';
     [...Object.values(dual.left), ...Object.values(dual.right)].forEach(p => {
-      if (p && p.visibility > 0.5) {
+      if (p && p.v > 0.5) {
         ctx.beginPath();
         ctx.arc(p.x * w, p.y * h, 5, 0, 2 * Math.PI);
         ctx.fill();
@@ -562,7 +562,7 @@ const drawSkeleton = (ctx, w, h) => {
   }
   if (pts.hip && pts.knee) ctx.lineTo(pts.knee.x * w, pts.knee.y * h);
   if (pts.knee && pts.ankle) ctx.lineTo(pts.ankle.x * w, pts.ankle.y * h);
-  
+
   if (pts.ankle && pts.heel && pts.toe) {
     ctx.moveTo(pts.ankle.x * w, pts.ankle.y * h);
     ctx.lineTo(pts.heel.x * w, pts.heel.y * h);
@@ -585,7 +585,7 @@ const drawSkeleton = (ctx, w, h) => {
   ctx.lineWidth = 2;
 
   joints.forEach(p => {
-    if (p && (p.visibility === undefined || p.visibility > 0.5)) {
+    if (p && (p.v === undefined || p.v > 0.5)) {
       ctx.beginPath();
       ctx.arc(p.x * w, p.y * h, 6, 0, 2 * Math.PI);
       ctx.fill();
@@ -691,7 +691,7 @@ const finishSession = () => {
   let localData = {};
   const rawTrigger = rawData.triggerMetrics || {};
   const frameData = rawData.frameData;
-  
+
   if (viewType.value === 'side') {
     const sideBdc = rawTrigger.bdcVal;
     const sideTdc = rawTrigger.tdcVal;
@@ -768,10 +768,10 @@ const finishSession = () => {
         maxElbowFlare: cleanNum(Math.max(getMax(leftElbowFlares || []), getMax(rightElbowFlares || []))),
         frameCount: frameData.length
       },
-      triggerMetrics: { 
-        max_wobbleVal: rawTrigger.max_wobbleVal, 
-        max_tiltVal: rawTrigger.max_tiltVal, 
-        k_extVal: rawTrigger.k_extVal 
+      triggerMetrics: {
+        max_wobbleVal: rawTrigger.max_wobbleVal,
+        max_tiltVal: rawTrigger.max_tiltVal,
+        k_extVal: rawTrigger.k_extVal
       },
       frameData: frameData,
       snapshots: {
@@ -896,7 +896,7 @@ onUnmounted(() => {
   if (recordTimer) clearInterval(recordTimer);
   if (animationFrameId) cancelAnimationFrame(animationFrameId);
   window.removeEventListener('deviceorientation', handleOrientation);
-  
+
   // 核心修复: 强制清理内存与模型上下文
   closePose();
   if (videoRef.value) {
