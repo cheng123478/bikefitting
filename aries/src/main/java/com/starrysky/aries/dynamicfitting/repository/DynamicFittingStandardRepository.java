@@ -19,6 +19,6 @@ public interface DynamicFittingStandardRepository extends JpaRepository<DynamicF
      * @param bikeType 单车类型 code
      * @return 标准列表
      */
-    @Cacheable(value = "fittingStandards", key = "#bikeType")
+    @Cacheable(value = "fittingStandards", key = "#p0", condition = "#p0 != null")
     List<DynamicFittingStandard> findByBikeType(Integer bikeType);
 }

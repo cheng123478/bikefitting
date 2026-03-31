@@ -37,7 +37,7 @@ public class DynamicFittingController {
             @RequestBody DynamicFittingRequest request) {
         DynamicFittingSessionVO sessionVO = dynamicFittingService.saveFittingSession(user, request);
         // 触发异步后台分析
-        dynamicFittingService.asyncProcessFittingSession(sessionVO.getId(), request, user, sessionVO.getBodyId());
+        dynamicFittingService.asyncProcessFittingSession(sessionVO.getId(), request, user.getId(), sessionVO.getBodyId());
         return ResponseResult.success("采集数据上传中，后台正在分析...", sessionVO);
     }
 
@@ -46,9 +46,9 @@ public class DynamicFittingController {
      */
     @GetMapping("/sessions")
     public ResponseResult<Page<DynamicFittingSessionVO>> getSessions(@AuthenticationPrincipal User user,
-            @RequestParam(required = false) Long bikeId,
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size) {
+            @RequestParam(value = "bikeId", required = false) Long bikeId,
+            @RequestParam(value = "page", defaultValue = "0") int page,
+            @RequestParam(value = "size", defaultValue = "10") int size) {
         PageRequest pageRequest = PageRequest.of(page - 1, size, Sort.by("createTime").descending());
         return ResponseResult.success(dynamicFittingService.getSessionsByUser(user.getId(), bikeId, pageRequest));
     }
@@ -57,7 +57,7 @@ public class DynamicFittingController {
      * 获取采集会话详情
      */
     @GetMapping("/sessions/{id}")
-    public ResponseResult<Map<String, Object>> getSessionDetail(@PathVariable Long id) {
+    public ResponseResult<Map<String, Object>> getSessionDetail(@PathVariable("id") Long id) {
         return ResponseResult.success(dynamicFittingService.getSessionDetail(id));
     }
 
@@ -65,7 +65,7 @@ public class DynamicFittingController {
      * 获取诊断结果
      */
     @GetMapping("/results/{sessionId}")
-    public ResponseResult<DynamicFittingReportVO> getResult(@PathVariable Long sessionId) {
+    public ResponseResult<DynamicFittingReportVO> getResult(@PathVariable("sessionId") Long sessionId) {
         return ResponseResult.success(dynamicFittingService.getFittingReport(sessionId));
     }
 
@@ -73,8 +73,8 @@ public class DynamicFittingController {
      * 获取原始轨迹数据
      */
     @GetMapping("/motion-data/{sessionId}/{viewType}")
-    public ResponseResult<DynamicFittingMotionDataVO> getMotionData(@PathVariable Long sessionId,
-            @PathVariable String viewType) {
+    public ResponseResult<DynamicFittingMotionDataVO> getMotionData(@PathVariable("sessionId") Long sessionId,
+            @PathVariable("viewType") String viewType) {
         return ResponseResult.success(dynamicFittingService.getMotionData(sessionId, viewType));
     }
 
@@ -82,8 +82,8 @@ public class DynamicFittingController {
      * 获取原始轨迹数据
      */
     @GetMapping("/snapshots/{sessionId}/{viewType}")
-    public ResponseResult<List<DynamicFittingSnapshotVO>> getSnapshot(@PathVariable Long sessionId,
-            @PathVariable String viewType) {
+    public ResponseResult<List<DynamicFittingSnapshotVO>> getSnapshot(@PathVariable("sessionId") Long sessionId,
+            @PathVariable("viewType") String viewType) {
         return ResponseResult.success(dynamicFittingService.getSnapshots(sessionId, viewType));
     }
 
@@ -91,7 +91,7 @@ public class DynamicFittingController {
      * 删除采集记录
      */
     @DeleteMapping("/sessions/{id}")
-    public ResponseResult<Object> deleteSession(@PathVariable Long id) {
+    public ResponseResult<Object> deleteSession(@PathVariable("id") Long id) {
         dynamicFittingService.deleteFittingSession(id);
         return ResponseResult.success("删除成功");
     }

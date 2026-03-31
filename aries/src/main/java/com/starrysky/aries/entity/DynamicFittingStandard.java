@@ -22,8 +22,6 @@ import java.io.Serializable;
 @Comment("动态Fitting标准表")
 @Setter
 @Getter
-@NoArgsConstructor
-@AllArgsConstructor
 public class DynamicFittingStandard implements Serializable {
     @Serial
     private static final long serialVersionUID = 1470464342392309427L;

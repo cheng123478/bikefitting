@@ -88,21 +88,30 @@ public class DynamicFittingService {
 
     @Async
     @Transactional(rollbackFor = Exception.class)
-    public void asyncProcessFittingSession(Long sessionId, DynamicFittingRequest request, User user,
+    public void asyncProcessFittingSession(Long sessionId, DynamicFittingRequest request, Long userId,
             Long bodyId) {
         log.info("开始后台分析会话: {}", sessionId);
         try {
+            // 前置抓取 Session 数据，避免后续因 getReferenceById 污染 Hibernate 一级缓存产生代理对象
+            DynamicFittingSession session = sessionRepository.findById(sessionId)
+                    .orElseThrow(() -> new BizException("找不到对应的会话记录: " + sessionId));
+
             // 2. 处理各个视角的数据
             Map<String, Object> overallSummary = new java.util.HashMap<>();
 
             for (DynamicFittingRequest.ViewDetailsDTO viewDetailsDTO : request.getViews()) {
+                String viewType = viewDetailsDTO.getViewType() != null ? viewDetailsDTO.getViewType().toLowerCase() : "unknown";
+                Map<String, Object> summary = viewDetailsDTO.getSummary() != null ? viewDetailsDTO.getSummary() : new HashMap<>();
+                
                 // 2.1 保存 MotionData
                 DynamicFittingMotionData motionData = new DynamicFittingMotionData();
-                motionData.setSession(sessionRepository.getReferenceById(sessionId));
-                motionData.setViewType(viewDetailsDTO.getViewType());
+                motionData.setSession(session);
+                motionData.setViewType(viewType);
                 motionData.setDataJson(JSON.toJSONString(viewDetailsDTO.getFrameData()));
                 motionData.setTriggerMetricsJson(JSON.toJSONString(viewDetailsDTO.getTriggerMetrics()));
-                motionData.setFrameCount(Integer.valueOf(viewDetailsDTO.getSummary().get("frameCount").toString()));
+                
+                int frameCount = summary.containsKey("frameCount") ? Integer.parseInt(summary.get("frameCount").toString()) : 0;
+                motionData.setFrameCount(frameCount);
                 motionDataRepository.save(motionData);
 
                 // 2.2 保存 Snapshots (Base64 -> COS)
@@ -111,12 +120,11 @@ public class DynamicFittingService {
                         String tag = snapEntry.getKey();
                         String base64 = snapEntry.getValue();
 
-                        String imageUrl = uploadBase64Image(base64, user.getId(), viewDetailsDTO.getViewType(),
-                                tag);
+                        String imageUrl = uploadBase64Image(base64, userId, viewType, tag);
 
                         DynamicFittingSnapshot snapshot = new DynamicFittingSnapshot();
-                        snapshot.setSession(sessionRepository.getReferenceById(sessionId));
-                        snapshot.setViewType(viewDetailsDTO.getViewType());
+                        snapshot.setSession(session);
+                        snapshot.setViewType(viewType);
                         snapshot.setTag(tag);
                         snapshot.setImageUrl(imageUrl);
                         // 尝试从 triggerMetrics 中获取对应数值
@@ -132,14 +140,11 @@ public class DynamicFittingService {
                 }
 
                 // 汇总 summary
-                overallSummary.put(viewDetailsDTO.getViewType(), viewDetailsDTO.getSummary());
+                overallSummary.put(viewType, summary);
             }
 
             // 3. 生成诊断结果 (Result)
-            DynamicFittingSession session = sessionRepository.findById(sessionId).orElseThrow();
-            DynamicFittingResultVO analysisResult = fittingAlgorithm.analyze(
-                    session.getUserBike().getBikeModel() != null ? session.getUserBike().getBikeModel().getBikeType()
-                            : 1,
+            DynamicFittingResultVO analysisResult = fittingAlgorithm.analyze(session.getUserBike().getBikeModel().getBikeType(),
                     overallSummary);
 
             // 提取稳定性指标 (Standard Deviation / CV)
@@ -468,7 +473,10 @@ public class DynamicFittingService {
     private String uploadBase64Image(String base64, Long userId, String viewType, String tag) {
         try {
             // 去掉 data:image/png;base64, 前缀
-            String data = base64.substring(base64.indexOf(",") + 1);
+            String data = base64;
+            if (base64.contains(",")) {
+                data = base64.substring(base64.indexOf(",") + 1);
+            }
             byte[] bytes = Base64.getDecoder().decode(data);
 
             String middlePath = "/" + userId + "/fitting/";
