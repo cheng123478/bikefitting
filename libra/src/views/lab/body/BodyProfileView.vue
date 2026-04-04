@@ -151,9 +151,9 @@
 <script setup>
 import { ref, reactive, onMounted, nextTick } from 'vue';
 import { useRoute } from 'vue-router';
-import CustomInput from '@/components/lab/CustomInput.vue';
-import GuideDisplay from '@/components/lab/GuideDisplay.vue';
-import ResultModal from '@/components/lab/ResultModal.vue';
+import CustomInput from '@/views/lab/components/CustomInput.vue';
+import GuideDisplay from '@/views/lab/components/GuideDisplay.vue';
+import ResultModal from '@/views/lab/components/ResultModal.vue';
 import { useUserStore } from '@/stores/user.js';
 import { showToast } from '@/utils/toast.js';
 import { saveUserBody, getLatestUserBody } from '@/api/userBody.js';

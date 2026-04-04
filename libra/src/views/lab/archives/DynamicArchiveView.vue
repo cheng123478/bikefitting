@@ -33,7 +33,16 @@
                 <div class="record-body">
                   <div class="bike-info-row">
                     <i class="fas fa-bicycle"></i>
-                    <span class="bike-name">{{ session.bikeName || '未知战车' }}</span>
+                    <span class="bike-name">
+                      {{ session.bikeName || '未知战车' }}
+                      <span v-if="session.remark" class="remark-text">({{ session.remark }})</span>
+                    </span>
+                  </div>
+                  <!-- 视角标签 -->
+                  <div class="view-tags" v-if="session.viewTypes">
+                    <span class="v-tag" v-if="session.viewTypes.includes('side')"><i class="fas fa-user"></i> 侧面</span>
+                    <span class="v-tag" v-if="session.viewTypes.includes('front')"><i class="fas fa-user-friends"></i> 正面</span>
+                    <span class="v-tag" v-if="session.viewTypes.includes('back')"><i class="fas fa-user-alt"></i> 背面</span>
                   </div>
                 </div>
               </div>
@@ -59,6 +68,11 @@
                 <h3>动态分析详情</h3>
               </div>
               <div class="dh-right">
+                <div class="pain-tags" v-if="selectedSession.painLevels && selectedSession.painLevels.length > 0">
+                  <span class="pain-tag" v-for="pain in selectedSession.painLevels" :key="pain">
+                    [{{ getPainLabel(pain) }}]
+                  </span>
+                </div>
                 <span class="bike-tag">
                    <i class="fas fa-tag"></i> {{ selectedSession.bikeName }}
                 </span>
@@ -92,7 +106,7 @@
                 <i class="fas fa-spinner fa-spin"></i> 正在调取诊断结论...
               </div>
 
-              <template v-else-if="diagnosisResult">
+              <template v-else>
                 <div class="result-hero">
                   <div class="score-viz">
                     <svg viewBox="0 0 100 100">
@@ -100,18 +114,31 @@
                       <circle class="progress" cx="50" cy="50" r="45" :style="scoreRingStyle"></circle>
                     </svg>
                     <div class="score-text">
-                      <span class="num">{{ diagnosisResult.matchScore }}</span>
+                      <span class="num">{{ selectedSession.matchScore || '--' }}</span>
                       <span class="unit">MATCH</span>
                     </div>
                   </div>
 
-                  <div class="summary-info">
-                    <h4 :class="getScoreClass(diagnosisResult.matchScore)">{{ diagnosisResult.matchLevel || '分析完成' }}</h4>
-                    <p class="summary-text">{{ diagnosisResult.summary || '已根据您的车型标准完成生物力学评估，建议查看完整报告。' }}</p>
-                    <div class="meta-info">
-                      <span><i class="far fa-clock"></i> 采样时刻：{{ formatDate(selectedSession.sessionTime, 'HH:mm') }}</span>
+                    <div class="summary-info">
+                      <h4 :class="getScoreClass(selectedSession.matchScore)">诊断摘要已就绪</h4>
+                      
+                      <!-- 总结性标语 -->
+                      <p class="summary-hero-text">快速预览您的核心调整建议，如需查看关节角度与轨迹剖析，请点击“查看深度报告”。</p>
+
+                      <!-- 详细清单 -->
+                      <div class="summary-text-list" v-if="selectedSession.equipmentSuggestions && selectedSession.equipmentSuggestions.length > 0">
+                        <p class="summary-text" v-for="(code, index) in selectedSession.equipmentSuggestions" :key="index">
+                          • {{ code }}
+                        </p>
+                      </div>
+                      <p class="summary-text" v-else>
+                        已根据您的车型标准完成生物力学评估，整体处于理想范围。
+                      </p>
+
+                      <div class="meta-info">
+                        <span><i class="far fa-clock"></i> 采样时刻：{{ formatDate(selectedSession.sessionTime, 'HH:mm') }}</span>
+                      </div>
                     </div>
-                  </div>
                 </div>
 
                 <div class="action-footer">
@@ -160,8 +187,22 @@ const router = useRouter();
 const loading = ref(true);
 const sessions = ref([]);
 const selectedSession = ref(null);
-const diagnosisResult = ref(null);
 const detailLoading = ref(false);
+
+// --- 字典映射开始 ---
+const painMapping = {
+  'knee_anterior': '膝盖前侧痛',
+  'knee_posterior': '膝盖后侧痛',
+  'knee_lateral': '膝盖外侧痛',
+  'knee_medial': '膝盖内侧痛',
+  'lower_back': '下背痛/腰痛',
+  'neck_shoulder': '肩颈酸痛',
+  'hand_numbness': '手掌发麻',
+  'foot_numbness': '脚掌发麻',
+  'saddle_sore': '会阴压迫'
+};
+
+const getPainLabel = (key) => painMapping[key] || key;
 
 // 分页逻辑
 const page = ref(1);
@@ -192,20 +233,7 @@ const loadHistory = async (isMore = false) => {
 
 const selectSession = async (session) => {
   selectedSession.value = session;
-  diagnosisResult.value = null;
-
-  // 只有分析完成时，才去后端查询具体的诊断结果（包含分值和建议）
-  if (session.status === 2) {
-    detailLoading.value = true;
-    try {
-      const res = await getDiagnosisResult(session.id);
-      diagnosisResult.value = res.data || res;
-    } catch (e) {
-      console.error("加载诊断结果失败", e);
-    } finally {
-      detailLoading.value = false;
-    }
-  }
+  // 直接利用从列表 API 下发过来的摘要信息（Summary Projection），拒绝 N+1 详情查询
 };
 
 const handleLoadMore = () => {
@@ -223,7 +251,7 @@ const getScoreClass = (score) => {
 };
 
 const scoreRingStyle = computed(() => {
-  const score = diagnosisResult.value?.matchScore || 0;
+  const score = selectedSession.value?.matchScore || 0;
   const circ = 2 * Math.PI * 45;
   return {
     strokeDasharray: circ,
@@ -364,6 +392,31 @@ onMounted(loadHistory);
   opacity: 0.7;
 }
 
+.remark-text {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  font-weight: normal;
+  margin-left: 5px;
+}
+
+.view-tags {
+  margin-top: 8px;
+  display: flex;
+  gap: 8px;
+}
+
+.v-tag {
+  font-size: 0.7rem;
+  background-color: #f1f4f1;
+  color: var(--primary-color);
+  padding: 3px 6px;
+  border-radius: 4px;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-weight: bold;
+}
+
 /* --- 右侧详情面板样式 --- */
 .detail-card {
   padding: 45px;
@@ -403,6 +456,22 @@ onMounted(loadHistory);
   border-radius: 6px;
   font-weight: bold;
   font-size: 0.9rem;
+}
+
+.pain-tags {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 8px;
+  justify-content: flex-end;
+}
+
+.pain-tag {
+  background-color: #fff1f0;
+  color: #ff4d4f;
+  padding: 3px 8px;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: bold;
 }
 
 /* 建模动画区域 */
@@ -526,7 +595,7 @@ onMounted(loadHistory);
 }
 
 .score-text .num {
-  font-size: 2.5rem;
+  font-size: 2rem;
   font-family: var(--font-serif);
   font-weight: 800;
   color: var(--text-main);
@@ -534,7 +603,7 @@ onMounted(loadHistory);
 }
 
 .score-text .unit {
-  font-size: 0.6rem;
+  font-size: 0.5rem;
   color: var(--text-muted);
   margin-top: 4px;
   letter-spacing: 1px;
@@ -546,10 +615,27 @@ onMounted(loadHistory);
   margin-bottom: 10px;
 }
 
+.summary-text-list {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  margin-top: 5px;
+  margin-bottom: 5px;
+}
+
+.summary-hero-text {
+  font-size: 1.1rem;
+  color: var(--text-main);
+  font-weight: 600;
+  line-height: 1.5;
+  margin-bottom: 12px;
+  /* 使用衬线体增加高级感 */
+  font-family: var(--font-serif);
+}
+
 .summary-text {
   color: var(--text-muted);
   line-height: 1.6;
-  font-style: italic;
   font-size: 0.95rem;
 }
 

@@ -18,7 +18,7 @@
 <script setup>
 import { ref } from 'vue';
 import { useRouter } from 'vue-router';
-import TeamForm from '@/components/TeamForm.vue';
+import TeamForm from '@/views/team/components/TeamForm.vue';
 
 const router = useRouter();
 const isSubmitting = ref(false);

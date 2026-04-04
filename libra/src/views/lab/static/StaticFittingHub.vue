@@ -139,7 +139,7 @@ import { useRoute, useRouter } from 'vue-router';
 import { useLabStore } from '@/stores/lab.js';
 import { staticFitting } from "@/api/staticFitting.js";
 import { showToast } from '@/utils/toast';
-import StaticFittingResultModal from "@/components/lab/StaticFittingResultModal.vue";
+import StaticFittingResultModal from "@/views/lab/components/StaticFittingResultModal.vue";
 
 const route = useRoute();
 const router = useRouter();

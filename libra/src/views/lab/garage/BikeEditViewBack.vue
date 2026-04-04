@@ -2,42 +2,42 @@
   <div class="bike-edit-page">
     <div class="container lab-container">
 
-      <!-- ================= 1. 头部工具栏 (严格同步 MyGarageView) ================= -->
+      <!-- ================= 1. 澶撮儴宸ュ叿鏍?(涓ユ牸鍚屾 MyGarageView) ================= -->
       <div class="toolbar-row" v-scroll-reveal>
         <div class="text-group">
-          <h1 class="page-title">{{ isEdit ? '单车校准' : '新增单车' }}</h1>
-          <p class="page-subtitle">BIKE CALIBRATION / 精密几何与设定录入</p>
+          <h1 class="page-title">{{ isEdit ? '鍗曡溅鏍″噯' : '鏂板鍗曡溅' }}</h1>
+          <p class="page-subtitle">BIKE CALIBRATION / 绮惧瘑鍑犱綍涓庤瀹氬綍鍏?/p>
         </div>
 
         <div class="tabs-group">
           <div class="header-actions">
             <button class="btn btn-outline" @click="$router.back()">
-              <i class="fas fa-chevron-left"></i> 返回车库
+              <i class="fas fa-chevron-left"></i> 杩斿洖杞﹀簱
             </button>
           </div>
         </div>
       </div>
 
-      <!-- ================= 2. 核心编辑区域 ================= -->
+      <!-- ================= 2. 鏍稿績缂栬緫鍖哄煙 ================= -->
       <div class="edit-content">
 
-        <!-- 左侧：录入表单 -->
+        <!-- 宸︿晶锛氬綍鍏ヨ〃鍗?-->
         <main class="form-section glass-card" v-scroll-reveal>
 
-          <!-- 模块 01：基础身份 -->
+          <!-- 妯″潡 01锛氬熀纭€韬唤 -->
           <div class="form-group">
-            <h4 class="group-title">01 基础身份</h4>
+            <h4 class="group-title">01 鍩虹韬唤</h4>
             <div class="input-grid">
 
-              <!-- 图片上传：带 /api 前缀回显 -->
+              <!-- 鍥剧墖涓婁紶锛氬甫 /api 鍓嶇紑鍥炴樉 -->
               <div class="zen-form-item full-width">
-                <label class="input-label">单车视觉快照</label>
+                <label class="input-label">鍗曡溅瑙嗚蹇収</label>
                 <div class="image-uploader" @click="triggerUpload" :class="{ 'has-img': formData.imageUrl }">
                   <img v-if="formData.imageUrl" :src="formData.imageUrl.startsWith('http') ? formData.imageUrl : '/api' + formData.imageUrl" class="preview-img" />
                   <div v-else class="upload-placeholder">
                     <i class="fas fa-camera-retro"></i>
-                    <span>上传实车美照</span>
-                    <p>建议使用白底或侧面无背景照片</p>
+                    <span>涓婁紶瀹炶溅缇庣収</span>
+                    <p>寤鸿浣跨敤鐧藉簳鎴栦晶闈㈡棤鑳屾櫙鐓х墖</p>
                   </div>
                   <input type="file" ref="fileInput" hidden @change="handleFileChange" accept="image/*" />
                   <div class="upload-mask" v-if="uploading">
@@ -47,7 +47,7 @@
               </div>
 
               <div class="zen-form-item" @click="activeField = 'type'">
-                <label class="input-label">单车类型</label>
+                <label class="input-label">鍗曡溅绫诲瀷</label>
                 <div class="type-selector">
                   <button v-for="type in bikeTypes" :key="type.code"
                           :class="{active: formData.bikeType === type.code}"
@@ -59,39 +59,39 @@
 
               <div class="grid-2">
                 <div class="zen-form-item">
-                  <label class="input-label">品牌型号</label>
-                  <input v-model="formData.brandModel" class="zen-input" placeholder="例如: Giant TCR Adv" @focus="activeField = 'brand'">
+                  <label class="input-label">鍝佺墝鍨嬪彿</label>
+                  <input v-model="formData.brandModel" class="zen-input" placeholder="渚嬪: Giant TCR Adv" @focus="activeField = 'brand'">
                 </div>
                 <div class="zen-form-item">
-                  <label class="input-label">车架尺码</label>
+                  <label class="input-label">杞︽灦灏虹爜</label>
                   <input v-model="formData.frameSize" class="zen-input" placeholder="52 / M / 540" @focus="activeField = 'size'">
                 </div>
               </div>
 
               <div class="zen-form-item">
-                <label class="input-label">单车备注</label>
-                <input v-model="formData.remark" class="zen-input" placeholder="例如：我的主力爬坡单车" @focus="activeField = 'remark'">
+                <label class="input-label">鍗曡溅澶囨敞</label>
+                <input v-model="formData.remark" class="zen-input" placeholder="渚嬪锛氭垜鐨勪富鍔涚埇鍧″崟杞? @focus="activeField = 'remark'">
               </div>
             </div>
           </div>
 
           <div class="divider"></div>
 
-          <!-- 模块 02：车架几何 (DNA) -->
+          <!-- 妯″潡 02锛氳溅鏋跺嚑浣?(DNA) -->
           <div class="form-group">
-            <h4 class="group-title">02 车架几何 (Frame Geometry)</h4>
-            <p class="group-desc">数据来源：厂商官网几何表。这是 Fitting 方案的基础。</p>
+            <h4 class="group-title">02 杞︽灦鍑犱綍 (Frame Geometry)</h4>
+            <p class="group-desc">鏁版嵁鏉ユ簮锛氬巶鍟嗗畼缃戝嚑浣曡〃銆傝繖鏄?Fitting 鏂规鐨勫熀纭€銆?/p>
             <div class="input-grid">
               <div class="grid-2">
                 <div class="zen-form-item">
-                  <label class="input-label">Stack (堆高 - M) *</label>
+                  <label class="input-label">Stack (鍫嗛珮 - M) *</label>
                   <div class="input-with-unit">
                     <input type="number" v-model.number="formData.frameStack" class="zen-input" @focus="activeField = 'frameStack'">
                     <span class="unit">mm</span>
                   </div>
                 </div>
                 <div class="zen-form-item">
-                  <label class="input-label">Reach (前伸量 - L) *</label>
+                  <label class="input-label">Reach (鍓嶄几閲?- L) *</label>
                   <div class="input-with-unit">
                     <input type="number" v-model.number="formData.frameReach" class="zen-input" @focus="activeField = 'frameReach'">
                     <span class="unit">mm</span>
@@ -100,21 +100,21 @@
               </div>
               <div class="grid-3">
                 <div class="zen-form-item">
-                  <label class="input-label">立管角度 (STA - B)</label>
+                  <label class="input-label">绔嬬瑙掑害 (STA - B)</label>
                   <div class="input-with-unit">
                     <input type="number" step="0.1" v-model.number="formData.seatTubeAngle" class="zen-input" @focus="activeField = 'seatTubeAngle'">
-                    <span class="unit">°</span>
+                    <span class="unit">掳</span>
                   </div>
                 </div>
                 <div class="zen-form-item">
-                  <label class="input-label">头管角度 (HTA - E)</label>
+                  <label class="input-label">澶寸瑙掑害 (HTA - E)</label>
                   <div class="input-with-unit">
                     <input type="number" step="0.1" v-model.number="formData.headTubeAngle" class="zen-input" @focus="activeField = 'headTubeAngle'">
-                    <span class="unit">°</span>
+                    <span class="unit">掳</span>
                   </div>
                 </div>
                 <div class="zen-form-item">
-                  <label class="input-label">五通下沉 (J)</label>
+                  <label class="input-label">浜旈€氫笅娌?(J)</label>
                   <div class="input-with-unit">
                     <input type="number" v-model.number="formData.bbDrop" class="zen-input" @focus="activeField = 'bbDrop'">
                     <span class="unit">mm</span>
@@ -123,14 +123,14 @@
               </div>
               <div class="grid-2">
                 <div class="zen-form-item">
-                  <label class="input-label">轴距 (H)</label>
+                  <label class="input-label">杞磋窛 (H)</label>
                   <div class="input-with-unit">
                     <input type="number" v-model.number="formData.wheelBase" class="zen-input" @focus="activeField = 'wheelBase'">
                     <span class="unit">mm</span>
                   </div>
                 </div>
                 <div class="zen-form-item">
-                  <label class="input-label">跨高 (SH / Q)</label>
+                  <label class="input-label">璺ㄩ珮 (SH / Q)</label>
                   <div class="input-with-unit">
                     <input type="number" v-model.number="formData.standOverHeight" class="zen-input" @focus="activeField = 'standoverHeight'">
                     <span class="unit">mm</span>
@@ -142,21 +142,21 @@
 
           <div class="divider"></div>
 
-          <!-- 模块 03：实车设定 (The Setup) -->
+          <!-- 妯″潡 03锛氬疄杞﹁瀹?(The Setup) -->
           <div class="form-group">
-            <h4 class="group-title">03 实车设定 (Current Setup)</h4>
-            <p class="group-desc">使用卷尺测量目前车辆的真实调整值。</p>
+            <h4 class="group-title">03 瀹炶溅璁惧畾 (Current Setup)</h4>
+            <p class="group-desc">浣跨敤鍗峰昂娴嬮噺鐩墠杞﹁締鐨勭湡瀹炶皟鏁村€笺€?/p>
             <div class="input-grid">
               <div class="grid-2">
                 <div class="zen-form-item">
-                  <label class="input-label">当前座高 (A)</label>
+                  <label class="input-label">褰撳墠搴ч珮 (A)</label>
                   <div class="input-with-unit">
                     <input type="number" v-model.number="formData.saddleHeight" class="zen-input" @focus="activeField = 'saddleHeight'">
                     <span class="unit">mm</span>
                   </div>
                 </div>
                 <div class="zen-form-item">
-                  <label class="input-label">座垫后移量 (Setback - C)</label>
+                  <label class="input-label">搴у灚鍚庣Щ閲?(Setback - C)</label>
                   <div class="input-with-unit">
                     <input type="number" v-model.number="formData.saddleSetback" class="zen-input" @focus="activeField = 'saddleSetback'">
                     <span class="unit">mm</span>
@@ -165,21 +165,21 @@
               </div>
               <div class="grid-3">
                 <div class="zen-form-item">
-                  <label class="input-label">把立长度</label>
+                  <label class="input-label">鎶婄珛闀垮害</label>
                   <div class="input-with-unit">
                     <input type="number" v-model.number="formData.stemLength" class="zen-input" @focus="activeField = 'stemLength'">
                     <span class="unit">mm</span>
                   </div>
                 </div>
                 <div class="zen-form-item">
-                  <label class="input-label">把立角度</label>
+                  <label class="input-label">鎶婄珛瑙掑害</label>
                   <div class="input-with-unit">
                     <input type="number" step="1" v-model.number="formData.stemAngle" class="zen-input" @focus="activeField = 'stemAngle'">
-                    <span class="unit">°</span>
+                    <span class="unit">掳</span>
                   </div>
                 </div>
                 <div class="zen-form-item">
-                  <label class="input-label">垫圈高度</label>
+                  <label class="input-label">鍨湀楂樺害</label>
                   <div class="input-with-unit">
                     <input type="number" v-model.number="formData.spacersHeight" class="zen-input" @focus="activeField = 'spacersHeight'">
                     <span class="unit">mm</span>
@@ -188,14 +188,14 @@
               </div>
               <div class="grid-2">
                 <div class="zen-form-item">
-                  <label class="input-label">把横宽度 (N)</label>
+                  <label class="input-label">鎶婃í瀹藉害 (N)</label>
                   <div class="input-with-unit">
                     <input type="number" v-model.number="formData.handlebarWidth" class="zen-input" @focus="activeField = 'handlebarWidth'">
                     <span class="unit">mm</span>
                   </div>
                 </div>
                 <div class="zen-form-item">
-                  <label class="input-label">曲柄长度 (P)</label>
+                  <label class="input-label">鏇叉焺闀垮害 (P)</label>
                   <div class="input-with-unit">
                     <input type="number" v-model.number="formData.crankLength" class="zen-input" @focus="activeField = 'crankLength'">
                     <span class="unit">mm</span>
@@ -205,23 +205,23 @@
             </div>
           </div>
 
-          <!-- 底部操作栏 -->
+          <!-- 搴曢儴鎿嶄綔鏍?-->
           <div class="form-actions-footer">
             <div class="footer-left">
               <button v-if="isEdit" type="button" class="btn-retire-text" @click="handleRetire">
-                <i class="fas fa-archive"></i> 退役这辆单车
+                <i class="fas fa-archive"></i> 閫€褰硅繖杈嗗崟杞?
               </button>
             </div>
             <div class="footer-right">
               <button class="btn btn-primary btn-xl btn-glow" :disabled="submitting" @click="submitForm">
                 <i class="fas" :class="submitting ? 'fa-circle-notch fa-spin' : 'fa-check'"></i>
-                {{ submitting ? '数据同步中...' : '保存并同步至车库' }}
+                {{ submitting ? '鏁版嵁鍚屾涓?..' : '淇濆瓨骞跺悓姝ヨ嚦杞﹀簱' }}
               </button>
             </div>
           </div>
         </main>
 
-        <!-- ================= 3. 右侧：动态可视化指引 (Sticky) ================= -->
+        <!-- ================= 3. 鍙充晶锛氬姩鎬佸彲瑙嗗寲鎸囧紩 (Sticky) ================= -->
         <aside class="guide-section">
           <div class="visualizer-container glass-card">
             <BikeVisualizer :activePart="activeField" :bikeType="formData.bikeType" />
@@ -232,7 +232,7 @@
               <h4>{{ activeFieldInfo.title }}</h4>
               <p>{{ activeFieldInfo.desc }}</p>
               <div class="fittor-tip" v-if="activeFieldInfo.tip">
-                <strong>Fittor 建议：</strong> {{ activeFieldInfo.tip }}
+                <strong>Fittor 寤鸿锛?/strong> {{ activeFieldInfo.tip }}
               </div>
             </div>
           </Transition>
@@ -249,7 +249,7 @@ import { useRoute, useRouter } from 'vue-router';
 import { useUserStore } from '@/stores/user.js';
 import { saveUserBike, getBikeDetail, uploadBikePic, retireUserBike } from '@/api/userBike.js';
 import { showToast, showConfirm } from '@/utils/toast.js';
-import BikeVisualizer from '@/components/lab/BikeVisualizer.vue';
+import BikeVisualizer from '@/views/lab/components/BikeVisualizer.vue';
 
 const route = useRoute();
 const router = useRouter();
@@ -260,8 +260,8 @@ const submitting = ref(false);
 const activeField = ref('brand');
 
 const bikeTypes = [
-  { name: '公路车', code: 1 }, { name: '山地车', code: 2 },
-  { name: '全地形', code: 3 }, { name: 'TT/计时', code: 4 }, { name: '城市车', code: 5 }
+  { name: '鍏矾杞?, code: 1 }, { name: '灞卞湴杞?, code: 2 },
+  { name: '鍏ㄥ湴褰?, code: 3 }, { name: 'TT/璁℃椂', code: 4 }, { name: '鍩庡競杞?, code: 5 }
 ];
 
 const formData = reactive({
@@ -291,21 +291,21 @@ const formData = reactive({
 });
 
 const fieldGuides = {
-  'brand': { title: '品牌与型号', desc: '记录您的单车身份，方便快速识别。' },
-  'remark': { title: '单车备注', desc: '为单车起个昵称（如：雨天备用车）。' },
-  'frameStack': { title: 'Stack (堆高 - M)', desc: '五通中心到头管顶部中心的垂直距离。', tip: '决定骑行姿态“高低”的最核心指标。' },
-  'frameReach': { title: 'Reach (前伸量 - L)', desc: '五通中心到头管顶部中心的水平距离。', tip: '衡量车架长短最客观的指标。' },
-  'seatTubeAngle': { title: '立管角度 (STA - B)', desc: '立管与水平线的夹角。角度越陡(>74°)，重心越靠前。' },
-  'headTubeAngle': { title: '头管角度 (HTA - E)', desc: '头管与水平线的夹角，直接影响操控灵敏度。' },
-  'saddleHeight': { title: '当前座高 (A)', desc: '五通中心沿立管中心线至座垫顶面的直线距离。' },
-  'saddleSetback': { title: '座垫后移量 (C)', desc: '座垫鼻尖相对于五通中心垂线的水平位移。', tip: '建议结合您的股胫比进行微调。' },
-  'bbDrop': { title: '五通下沉 (J)', desc: '前后轴连线与五通中心的垂直落差。', tip: '决定了车辆的重心稳定性和座垫离地间距。' },
-  'wheelBase': { title: '轴距 (H)', desc: '前后轮轴心之间的水平距离。' },
-  'standOverHeight': { title: '跨高 (Q/SH)', desc: '上管中心点到地面的高度，涉及上下车的安全性。' },
-  'headTubeLength': { title: '头管长度 (D)', desc: '头管自身的物理长度。' },
-  'stemLength': { title: '把立长度', desc: '把立中心盖到头管盖中心的直线距离。' },
-  'spacersHeight': { title: '垫圈高度', desc: '把立下方所有垫圈的累计高度。' },
-  'crankLength': { title: '曲柄长度 (P)', desc: '五通中心到脚踏轴心的距离。' }
+  'brand': { title: '鍝佺墝涓庡瀷鍙?, desc: '璁板綍鎮ㄧ殑鍗曡溅韬唤锛屾柟渚垮揩閫熻瘑鍒€? },
+  'remark': { title: '鍗曡溅澶囨敞', desc: '涓哄崟杞﹁捣涓樀绉帮紙濡傦細闆ㄥぉ澶囩敤杞︼級銆? },
+  'frameStack': { title: 'Stack (鍫嗛珮 - M)', desc: '浜旈€氫腑蹇冨埌澶寸椤堕儴涓績鐨勫瀭鐩磋窛绂汇€?, tip: '鍐冲畾楠戣濮挎€佲€滈珮浣庘€濈殑鏈€鏍稿績鎸囨爣銆? },
+  'frameReach': { title: 'Reach (鍓嶄几閲?- L)', desc: '浜旈€氫腑蹇冨埌澶寸椤堕儴涓績鐨勬按骞宠窛绂汇€?, tip: '琛￠噺杞︽灦闀跨煭鏈€瀹㈣鐨勬寚鏍囥€? },
+  'seatTubeAngle': { title: '绔嬬瑙掑害 (STA - B)', desc: '绔嬬涓庢按骞崇嚎鐨勫す瑙掋€傝搴﹁秺闄?>74掳)锛岄噸蹇冭秺闈犲墠銆? },
+  'headTubeAngle': { title: '澶寸瑙掑害 (HTA - E)', desc: '澶寸涓庢按骞崇嚎鐨勫す瑙掞紝鐩存帴褰卞搷鎿嶆帶鐏垫晱搴︺€? },
+  'saddleHeight': { title: '褰撳墠搴ч珮 (A)', desc: '浜旈€氫腑蹇冩部绔嬬涓績绾胯嚦搴у灚椤堕潰鐨勭洿绾胯窛绂汇€? },
+  'saddleSetback': { title: '搴у灚鍚庣Щ閲?(C)', desc: '搴у灚榧诲皷鐩稿浜庝簲閫氫腑蹇冨瀭绾跨殑姘村钩浣嶇Щ銆?, tip: '寤鸿缁撳悎鎮ㄧ殑鑲¤儷姣旇繘琛屽井璋冦€? },
+  'bbDrop': { title: '浜旈€氫笅娌?(J)', desc: '鍓嶅悗杞磋繛绾夸笌浜旈€氫腑蹇冪殑鍨傜洿钀藉樊銆?, tip: '鍐冲畾浜嗚溅杈嗙殑閲嶅績绋冲畾鎬у拰搴у灚绂诲湴闂磋窛銆? },
+  'wheelBase': { title: '杞磋窛 (H)', desc: '鍓嶅悗杞酱蹇冧箣闂寸殑姘村钩璺濈銆? },
+  'standOverHeight': { title: '璺ㄩ珮 (Q/SH)', desc: '涓婄涓績鐐瑰埌鍦伴潰鐨勯珮搴︼紝娑夊強涓婁笅杞︾殑瀹夊叏鎬с€? },
+  'headTubeLength': { title: '澶寸闀垮害 (D)', desc: '澶寸鑷韩鐨勭墿鐞嗛暱搴︺€? },
+  'stemLength': { title: '鎶婄珛闀垮害', desc: '鎶婄珛涓績鐩栧埌澶寸鐩栦腑蹇冪殑鐩寸嚎璺濈銆? },
+  'spacersHeight': { title: '鍨湀楂樺害', desc: '鎶婄珛涓嬫柟鎵€鏈夊灚鍦堢殑绱楂樺害銆? },
+  'crankLength': { title: '鏇叉焺闀垮害 (P)', desc: '浜旈€氫腑蹇冨埌鑴氳笍杞村績鐨勮窛绂汇€? }
 };
 
 const activeFieldInfo = computed(() => fieldGuides[activeField.value] || fieldGuides['brand']);
@@ -330,39 +330,39 @@ const handleFileChange = async (e) => {
   try {
     const res = await uploadBikePic(fd);
     formData.imageUrl = res.data || res;
-    showToast('快照已捕捉', 'success');
+    showToast('蹇収宸叉崟鎹?, 'success');
   } catch (error) {
-    showToast('上传失败', 'error');
+    showToast('涓婁紶澶辫触', 'error');
   } finally {
     uploading.value = false;
   }
 };
 
 const handleRetire = async () => {
-  const isConfirmed = await showConfirm(`确定要将这辆战车退役吗？历史记录将被封存。`, '战车退役');
+  const isConfirmed = await showConfirm(`纭畾瑕佸皢杩欒締鎴樿溅閫€褰瑰悧锛熷巻鍙茶褰曞皢琚皝瀛樸€俙, '鎴樿溅閫€褰?);
   if (isConfirmed) {
     try {
       await retireUserBikeInfo(formData.id);
-      showToast('战车已移至荣誉档案', 'success');
+      showToast('鎴樿溅宸茬Щ鑷宠崳瑾夋。妗?, 'success');
       router.push('/lab/garage');
     } catch (e) {
-      showToast('退役失败', 'error');
+      showToast('閫€褰瑰け璐?, 'error');
     }
   }
 };
 
 const submitForm = async () => {
   if (!formData.frameStack || !formData.frameReach) {
-    showToast('Stack 和 Reach 为核心基准，不可为空', 'warning');
+    showToast('Stack 鍜?Reach 涓烘牳蹇冨熀鍑嗭紝涓嶅彲涓虹┖', 'warning');
     return;
   }
   submitting.value = true;
   try {
     await saveUserBikeInfo(formData);
-    showToast('档案同步成功', 'success');
+    showToast('妗ｆ鍚屾鎴愬姛', 'success');
     router.push('/lab/garage');
   } catch (error) {
-    showToast('保存异常', 'error');
+    showToast('淇濆瓨寮傚父', 'error');
   } finally {
     submitting.value = false;
   }
@@ -370,11 +370,11 @@ const submitForm = async () => {
 </script>
 
 <style scoped>
-/* 1. 基础对齐 */
+/* 1. 鍩虹瀵归綈 */
 .bike-edit-page { padding-top: var(--header-height); min-height: 100vh; background: transparent; }
 .lab-container { padding-top: 40px; padding-bottom: 80px; }
 
-/* 2. 头部工具栏 (严格同步 GarageView) */
+/* 2. 澶撮儴宸ュ叿鏍?(涓ユ牸鍚屾 GarageView) */
 .toolbar-row {
   display: flex; justify-content: space-between; align-items: flex-end;
   margin-bottom: var(--space-xl); padding-bottom: 10px;
@@ -384,17 +384,17 @@ const submitForm = async () => {
 .page-subtitle { font-size: 1rem; color: var(--text-muted); font-family: var(--font-serif); font-style: italic; }
 .header-actions { display: flex; align-items: center; gap: 20px; }
 
-/* 3. 布局 */
+/* 3. 甯冨眬 */
 .edit-content {
   display: grid;
-  /* 修改点 1：调整比例，给右侧更多空间 */
-  /* 左侧表单占 55%，右侧展台占 45%，间距拉大到 50px */
+  /* 淇敼鐐?1锛氳皟鏁存瘮渚嬶紝缁欏彸渚ф洿澶氱┖闂?*/
+  /* 宸︿晶琛ㄥ崟鍗?55%锛屽彸渚у睍鍙板崰 45%锛岄棿璺濇媺澶у埌 50px */
   grid-template-columns: 1.2fr 1fr;
   gap: 50px;
   align-items: start;
 }
 
-/* 左侧表单 */
+/* 宸︿晶琛ㄥ崟 */
 .form-section {
   padding: 45px;
   background: var(--bg-surface);
@@ -427,7 +427,7 @@ const submitForm = async () => {
 .type-selector button { padding: 8px 14px; border-radius: 4px; border: 1px solid #EEE; background: white; font-size: 0.8rem; cursor: pointer; transition: 0.3s; color: var(--text-muted); }
 .type-selector button.active { background: var(--primary-color); color: white; border-color: var(--primary-color); }
 
-/* 4. 图片上传 */
+/* 4. 鍥剧墖涓婁紶 */
 .image-uploader {
   height: 220px; width: 100%; display: flex; align-items: center; justify-content: center;
   cursor: pointer; position: relative; overflow: hidden; border: 1.5px dashed #DDD;
@@ -442,7 +442,7 @@ const submitForm = async () => {
 .full-width { grid-column: 1 / -1; }
 .divider { height: 1px; background: rgba(0,0,0,0.05); margin: 40px 0; }
 
-/* 5. 底部操作 */
+/* 5. 搴曢儴鎿嶄綔 */
 .form-actions-footer {
   display: flex; justify-content: space-between; align-items: center;
   margin-top: 50px; padding-top: 30px; border-top: 1px solid rgba(0,0,0,0.05);
@@ -452,12 +452,12 @@ const submitForm = async () => {
 .btn-retire-text { background: none; border: none; color: var(--danger-color); font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 8px; opacity: 0.6; transition: 0.3s; }
 .btn-retire-text:hover { opacity: 1; text-decoration: underline; }
 
-/* 6. 右侧 Sticky */
+/* 6. 鍙充晶 Sticky */
 .guide-section {
   display: flex;
   flex-direction: column;
   gap: 25px;
-  /* Sticky 逻辑保持不变 */
+  /* Sticky 閫昏緫淇濇寔涓嶅彉 */
   position: sticky;
   top: calc(var(--header-height) + 30px);
   z-index: 10;
@@ -465,7 +465,7 @@ const submitForm = async () => {
 }
 
 .visualizer-container {
-  /* 修改点 2：高度大幅增加，让单车图“撑满” */
+  /* 淇敼鐐?2锛氶珮搴﹀ぇ骞呭鍔狅紝璁╁崟杞﹀浘鈥滄拺婊♀€?*/
   height: 460px;
   background: white;
   border: var(--border-glass);
@@ -474,13 +474,13 @@ const submitForm = async () => {
   justify-content: center;
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-sm);
-  /* 增加一点内阴影，增加深邃感 */
+  /* 澧炲姞涓€鐐瑰唴闃村奖锛屽鍔犳繁閭冩劅 */
   box-shadow: inset 0 0 20px rgba(0,0,0,0.02);
 }
-/* 文字说明盒 */
+/* 鏂囧瓧璇存槑鐩?*/
 .field-info-box {
   padding: 30px;
-  border-left: 6px solid var(--accent-gold); /* 加粗边框 */
+  border-left: 6px solid var(--accent-gold); /* 鍔犵矖杈规 */
   background: white;
   border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
   box-shadow: var(--shadow-sm);
@@ -489,49 +489,49 @@ const submitForm = async () => {
 .field-info-box h4 {
   color: var(--text-main);
   margin-bottom: 12px;
-  font-size: 1.2rem; /* 字号微调 */
+  font-size: 1.2rem; /* 瀛楀彿寰皟 */
   font-weight: 700;
 }
 
 .field-info-box p {
-  font-size: 0.95rem; /* 字号微调，更易读 */
+  font-size: 0.95rem; /* 瀛楀彿寰皟锛屾洿鏄撹 */
   color: var(--text-muted);
   line-height: 1.7;
 }
-/* Fittor 建议块 */
+/* Fittor 寤鸿鍧?*/
 .fittor-tip {
   margin-top: 18px;
   padding: 15px;
   background: rgba(212, 175, 55, 0.08);
   border-radius: 6px;
   font-size: 0.9rem;
-  color: #967d28; /* 加深一点金色文字，提升对比度 */
+  color: #967d28; /* 鍔犳繁涓€鐐归噾鑹叉枃瀛楋紝鎻愬崌瀵规瘮搴?*/
   line-height: 1.6;
   font-weight: 500;
   display: flex;
   gap: 8px;
 }
 .fittor-tip::before {
-  content: '💡'; /* 增加一个小图标 */
+  content: '馃挕'; /* 澧炲姞涓€涓皬鍥炬爣 */
   font-style: normal;
 }
-/* 动效 */
+/* 鍔ㄦ晥 */
 .fade-slide-enter-active, .fade-slide-leave-active { transition: all 0.3s ease; }
 .fade-slide-enter-from { opacity: 0; transform: translateX(20px); }
 .fade-slide-leave-to { opacity: 0; transform: translateX(-20px); }
 
 @media (max-width: 1280px) {
   .edit-content {
-    grid-template-columns: 1fr; /* 变为上下结构 */
+    grid-template-columns: 1fr; /* 鍙樹负涓婁笅缁撴瀯 */
   }
 
   .guide-section {
-    position: static; /* 取消 Sticky */
-    order: -1; /* 关键：在移动端/平板端，让图片显示在表单上方！方便对照 */
+    position: static; /* 鍙栨秷 Sticky */
+    order: -1; /* 鍏抽敭锛氬湪绉诲姩绔?骞虫澘绔紝璁╁浘鐗囨樉绀哄湪琛ㄥ崟涓婃柟锛佹柟渚垮鐓?*/
   }
 
   .visualizer-container {
-    height: 400px; /* 移动端高度适度减小 */
+    height: 400px; /* 绉诲姩绔珮搴﹂€傚害鍑忓皬 */
   }
 }
 </style>

@@ -2,45 +2,45 @@
   <div class="bike-edit-page">
     <div class="container lab-container">
 
-      <!-- ================= 1. 头部工具栏 (严格同步 MyGarageView) ================= -->
+      <!-- ================= 1. 澶撮儴宸ュ叿鏍?(涓ユ牸鍚屾 MyGarageView) ================= -->
       <div class="toolbar-row" v-scroll-reveal>
         <div class="text-group">
-          <h1 class="page-title">{{ isEdit ? '单车校准' : '新增单车' }}</h1>
-          <p class="page-subtitle">BIKE CALIBRATION / 精密几何与设定录入</p>
+          <h1 class="page-title">{{ isEdit ? '鍗曡溅鏍″噯' : '鏂板鍗曡溅' }}</h1>
+          <p class="page-subtitle">BIKE CALIBRATION / 绮惧瘑鍑犱綍涓庤瀹氬綍鍏?/p>
         </div>
 
         <div class="tabs-group">
           <div class="header-actions">
             <button class="btn btn-outline" @click="$router.back()">
-              <i class="fas fa-chevron-left"></i> 返回车库
+              <i class="fas fa-chevron-left"></i> 杩斿洖杞﹀簱
             </button>
           </div>
         </div>
       </div>
 
-      <!-- ================= 2. 核心编辑区域 ================= -->
+      <!-- ================= 2. 鏍稿績缂栬緫鍖哄煙 ================= -->
       <div class="edit-content">
 
-        <!-- 左侧：录入表单 -->
+        <!-- 宸︿晶锛氬綍鍏ヨ〃鍗?-->
         <main class="form-section glass-card" v-scroll-reveal>
 
-          <!-- 模块 01：基础信息 -->
+          <!-- 妯″潡 01锛氬熀纭€淇℃伅 -->
           <div class="form-group">
-            <h4 class="group-title">01 基础信息 (Basic Info)</h4>
+            <h4 class="group-title">01 鍩虹淇℃伅 (Basic Info)</h4>
             <div class="input-grid">
               <div class="identity-section" :class="{ 'locked-section': isGeometryLocked || isEdit }">
-                <!-- 品牌识别与搜索入口 -->
+                <!-- 鍝佺墝璇嗗埆涓庢悳绱㈠叆鍙?-->
                 <div class="zen-form-item full-width autocomplete-container">
                 <div class="label-row">
-                  <label class="input-label">品牌 (中/英文搜索) *</label>
-                  <button v-if="formData.brand && !isEdit" type="button" class="btn-reset" @click="resetSearch">重新检索型号</button>
+                  <label class="input-label">鍝佺墝 (涓?鑻辨枃鎼滅储) *</label>
+                  <button v-if="formData.brand && !isEdit" type="button" class="btn-reset" @click="resetSearch">閲嶆柊妫€绱㈠瀷鍙?/button>
                 </div>
                   <div class="search-input-wrapper">
                   <input
                       v-model="formData.brand"
                       class="zen-input"
                       :class="{ 'is-linked': formData.bikeModelId && !isManualMode }"
-                      placeholder="输入品牌，如: Giant / 捷安特"
+                      placeholder="杈撳叆鍝佺墝锛屽: Giant / 鎹峰畨鐗?
                       :disabled="isEdit || isGeometryLocked"
                       @input="onSearchInput"
                       @focus="showDropdown = true; activeField = 'brand'"
@@ -52,12 +52,12 @@
                     <i v-else class="fas fa-search"></i>
                   </div>
 
-                  <!-- 搜索结果下拉 -->
+                  <!-- 鎼滅储缁撴灉涓嬫媺 -->
                   <transition name="fade-slide-y">
                     <div class="search-dropdown glass-card" v-if="showDropdown && formData.brand && !isEdit && !isManualMode">
                       <div v-if="modelSuggestions.length === 0 && !isSearching" class="dropdown-empty">
-                        未在库中找到相关型号
-                        <button class="manual-entry-btn" @mousedown="enableManualEntry">手动录入</button>
+                        鏈湪搴撲腑鎵惧埌鐩稿叧鍨嬪彿
+                        <button class="manual-entry-btn" @mousedown="enableManualEntry">鎵嬪姩褰曞叆</button>
                       </div>
                       <div v-for="item in modelSuggestions" :key="item.model" class="suggestion-item" @mousedown="selectModelGroup(item)">
                         <div class="item-main">
@@ -68,29 +68,29 @@
                       </div>
                     </div>
                   </transition>
-                  <!-- 搜索辅助提示：当有品牌输入但没有型号且不是手动模式时显示 -->
+                  <!-- 鎼滅储杈呭姪鎻愮ず锛氬綋鏈夊搧鐗岃緭鍏ヤ絾娌℃湁鍨嬪彿涓斾笉鏄墜鍔ㄦā寮忔椂鏄剧ず -->
                   <div class="manual-entry-helper" v-if="formData.brand && !formData.model && !isManualMode && !showDropdown && !isEdit">
-                    未找到型号？<button type="button" class="btn-text-link" @click="enableManualEntry">手动录入</button>
+                    鏈壘鍒板瀷鍙凤紵<button type="button" class="btn-text-link" @click="enableManualEntry">鎵嬪姩褰曞叆</button>
                   </div>
                 </div>
               </div>
 
-              <!-- 关联身份信息：仅在 1.手动模式 2.已选型号 3.编辑模式 时显示 -->
+              <!-- 鍏宠仈韬唤淇℃伅锛氫粎鍦?1.鎵嬪姩妯″紡 2.宸查€夊瀷鍙?3.缂栬緫妯″紡 鏃舵樉绀?-->
               <template v-if="isManualMode || (formData.brand && formData.model) || isEdit">
                 <div class="grid-2">
                   <div class="zen-form-item">
-                    <label class="input-label">中文品牌</label>
+                    <label class="input-label">涓枃鍝佺墝</label>
                     <input v-model="formData.brandCn" class="zen-input" :disabled="isGeometryLocked || isEdit" @focus="activeField = 'brandCn'">
                   </div>
                   <div class="zen-form-item">
-                    <label class="input-label">具体型号 *</label>
+                    <label class="input-label">鍏蜂綋鍨嬪彿 *</label>
                     <input v-model="formData.model" class="zen-input" :disabled="isGeometryLocked || isEdit" @focus="activeField = 'model'">
                   </div>
                 </div>
 
-                <!-- 级联：年份选择药丸 -->
+                <!-- 绾ц仈锛氬勾浠介€夋嫨鑽父 -->
                 <div class="zen-form-item full-width" v-if="availableYears.length > 0 && !isManualMode && !formData.modelYear">
-                  <label class="input-label">选择生产年份</label>
+                  <label class="input-label">閫夋嫨鐢熶骇骞翠唤</label>
                   <div class="pill-group">
                     <button v-for="y in availableYears" :key="y"
                             class="pill-btn" :class="{ active: formData.modelYear === y }"
@@ -100,9 +100,9 @@
                   </div>
                 </div>
 
-                <!-- 级联：尺寸选择药丸 -->
+                <!-- 绾ц仈锛氬昂瀵搁€夋嫨鑽父 -->
                 <div class="zen-form-item full-width" v-if="formData.modelYear && availableSizes.length > 0 && !isManualMode && !formData.size">
-                  <label class="input-label">选择车架尺码</label>
+                  <label class="input-label">閫夋嫨杞︽灦灏虹爜</label>
                   <div class="pill-group">
                     <button v-for="s in availableSizes" :key="s"
                             class="pill-btn" :class="{ active: formData.size === s }"
@@ -114,18 +114,18 @@
 
                 <div class="grid-2">
                   <div class="zen-form-item">
-                    <label class="input-label">年份</label>
+                    <label class="input-label">骞翠唤</label>
                     <input v-model="formData.modelYear" class="zen-input" placeholder="2024" :disabled="isGeometryLocked || isEdit" @focus="activeField = 'modelYear'">
                   </div>
                   <div class="zen-form-item">
-                    <label class="input-label">尺码</label>
-                    <input v-model="formData.size" class="zen-input" placeholder="例如: 52/M" :disabled="isGeometryLocked || isEdit" @focus="activeField = 'size'">
+                    <label class="input-label">灏虹爜</label>
+                    <input v-model="formData.size" class="zen-input" placeholder="渚嬪: 52/M" :disabled="isGeometryLocked || isEdit" @focus="activeField = 'size'">
                   </div>
                 </div>
               </template>
 
               <div class="zen-form-item" @click="activeField = 'type'" v-if="isManualMode || (formData.brand && formData.model) || isEdit">
-                <label class="input-label">单车类型</label>
+                <label class="input-label">鍗曡溅绫诲瀷</label>
                 <div class="type-selector" :class="{ disabled: isGeometryLocked || isEdit }">
                   <button v-for="type in bikeTypes" :key="type.code"
                           :class="{active: formData.bikeType === type.code}"
@@ -136,19 +136,19 @@
               </div>
               </div>
               <div class="zen-form-item">
-                <label class="input-label">单车备注</label>
-                <input v-model="formData.remark" class="zen-input" placeholder="例如：我的主力爬坡单车" @focus="activeField = 'remark'">
+                <label class="input-label">鍗曡溅澶囨敞</label>
+                <input v-model="formData.remark" class="zen-input" placeholder="渚嬪锛氭垜鐨勪富鍔涚埇鍧″崟杞? @focus="activeField = 'remark'">
               </div>
 
-              <!-- 图片上传：带 /api 前缀回显 -->
+              <!-- 鍥剧墖涓婁紶锛氬甫 /api 鍓嶇紑鍥炴樉 -->
               <div class="zen-form-item full-width" v-if="isManualMode || (formData.brand && formData.model) || isEdit">
-                <label class="input-label">单车视觉快照</label>
+                <label class="input-label">鍗曡溅瑙嗚蹇収</label>
                 <div class="image-uploader" @click="triggerUpload" :class="{ 'has-img': formData.imageUrl }" @mouseenter="activeField = 'imageUrl'">
                   <img v-if="formData.imageUrl" :src="formData.imageUrl.startsWith('http') ? formData.imageUrl : '/api' + formData.imageUrl" class="preview-img" />
                   <div v-else class="upload-placeholder">
                     <i class="fas fa-camera-retro"></i>
-                    <span>上传实车美照</span>
-                    <p>建议使用白底或侧面无背景照片</p>
+                    <span>涓婁紶瀹炶溅缇庣収</span>
+                    <p>寤鸿浣跨敤鐧藉簳鎴栦晶闈㈡棤鑳屾櫙鐓х墖</p>
                   </div>
                   <input type="file" ref="fileInput" hidden @change="handleFileChange" accept="image/*" :disabled="isGeometryLocked || isEdit" />
                   <div class="upload-mask" v-if="uploading">
@@ -162,24 +162,24 @@
 
           <div class="divider"></div>
 
-          <!-- 模块 02：车架几何 (DNA) -->
+          <!-- 妯″潡 02锛氳溅鏋跺嚑浣?(DNA) -->
           <div class="form-group" :class="{ 'locked-section': isGeometryLocked || isEdit }">
             <div class="group-header">
-              <h4 class="group-title">02 车架几何 (Frame Geometry)</h4>
-              <div v-if="isGeometryLocked || isEdit" class="lock-tag"><i class="fas fa-shield-alt"></i> 数据已锁定</div>
+              <h4 class="group-title">02 杞︽灦鍑犱綍 (Frame Geometry)</h4>
+              <div v-if="isGeometryLocked || isEdit" class="lock-tag"><i class="fas fa-shield-alt"></i> 鏁版嵁宸查攣瀹?/div>
             </div>
-            <p class="group-desc">数据来源：厂商官网几何表。这是 Fitting 方案的基础。</p>
+            <p class="group-desc">鏁版嵁鏉ユ簮锛氬巶鍟嗗畼缃戝嚑浣曡〃銆傝繖鏄?Fitting 鏂规鐨勫熀纭€銆?/p>
             <div class="input-grid">
               <div class="grid-2">
                 <div class="zen-form-item">
-                  <label class="input-label">堆高 * </label>
+                  <label class="input-label">鍫嗛珮 * </label>
                   <div class="input-with-unit">
                     <input type="number" v-model.number="formData.stack" class="zen-input" :disabled="isGeometryLocked || isEdit" @focus="activeField = 'stack'">
                     <span class="unit">mm</span>
                   </div>
                 </div>
                 <div class="zen-form-item">
-                  <label class="input-label">前伸量 * </label>
+                  <label class="input-label">鍓嶄几閲?* </label>
                   <div class="input-with-unit">
                     <input type="number" v-model.number="formData.reach" class="zen-input" :disabled="isGeometryLocked || isEdit" @focus="activeField = 'reach'">
                     <span class="unit">mm</span>
@@ -188,21 +188,21 @@
               </div>
               <div class="grid-3">
                 <div class="zen-form-item">
-                  <label class="input-label">立管角度 * </label>
+                  <label class="input-label">绔嬬瑙掑害 * </label>
                   <div class="input-with-unit">
                     <input type="number" step="0.1" v-model.number="formData.seatTubeAngle" class="zen-input" :disabled="isGeometryLocked || isEdit" @focus="activeField = 'seatTubeAngle'">
-                    <span class="unit">°</span>
+                    <span class="unit">掳</span>
                   </div>
                 </div>
                 <div class="zen-form-item">
-                  <label class="input-label">头管角度</label>
+                  <label class="input-label">澶寸瑙掑害</label>
                   <div class="input-with-unit">
                     <input type="number" step="0.1" v-model.number="formData.headTubeAngle" class="zen-input" :disabled="isGeometryLocked || isEdit" @focus="activeField = 'headTubeAngle'">
-                    <span class="unit">°</span>
+                    <span class="unit">掳</span>
                   </div>
                 </div>
                 <div class="zen-form-item">
-                  <label class="input-label">五通下沉</label>
+                  <label class="input-label">浜旈€氫笅娌?/label>
                   <div class="input-with-unit">
                     <input type="number" v-model.number="formData.bbDrop" class="zen-input" :disabled="isGeometryLocked || isEdit" @focus="activeField = 'bbDrop'">
                     <span class="unit">mm</span>
@@ -211,14 +211,14 @@
               </div>
               <div class="grid-2">
                 <div class="zen-form-item">
-                  <label class="input-label">轴距</label>
+                  <label class="input-label">杞磋窛</label>
                   <div class="input-with-unit">
                     <input type="number" v-model.number="formData.wheelBase" class="zen-input" :disabled="isGeometryLocked || isEdit" @focus="activeField = 'wheelBase'">
                     <span class="unit">mm</span>
                   </div>
                 </div>
                 <div class="zen-form-item">
-                  <label class="input-label">跨高</label>
+                  <label class="input-label">璺ㄩ珮</label>
                   <div class="input-with-unit">
                     <input type="number" v-model.number="formData.standOverHeight" class="zen-input" :disabled="isGeometryLocked || isEdit" @focus="activeField = 'standOverHeight'">
                     <span class="unit">mm</span>
@@ -230,51 +230,51 @@
 
           <div class="divider"></div>
 
-          <!-- 模块 03：实车设定 (The Setup) -->
+          <!-- 妯″潡 03锛氬疄杞﹁瀹?(The Setup) -->
           <div class="form-group">
-            <h4 class="group-title">03 实车设定 (Current Setup)</h4>
-            <p class="group-desc">使用卷尺测量目前车辆的真实调整值。</p>
+            <h4 class="group-title">03 瀹炶溅璁惧畾 (Current Setup)</h4>
+            <p class="group-desc">浣跨敤鍗峰昂娴嬮噺鐩墠杞﹁締鐨勭湡瀹炶皟鏁村€笺€?/p>
             <div class="input-grid">
               <div class="grid-3">
                 <div class="zen-form-item">
-                  <label class="input-label">当前座高</label>
+                  <label class="input-label">褰撳墠搴ч珮</label>
                   <div class="input-with-unit">
                     <input type="number" v-model.number="formData.saddleHeight" class="zen-input" @focus="activeField = 'saddleHeight'">
                     <span class="unit">mm</span>
                   </div>
                 </div>
                 <div class="zen-form-item">
-                  <label class="input-label">座垫后移</label>
+                  <label class="input-label">搴у灚鍚庣Щ</label>
                   <div class="input-with-unit">
                     <input type="number" v-model.number="formData.saddleSetback" class="zen-input" @focus="activeField = 'saddleSetback'">
                     <span class="unit">mm</span>
                   </div>
                 </div>
                 <div class="zen-form-item">
-                  <label class="input-label">座垫角度</label>
+                  <label class="input-label">搴у灚瑙掑害</label>
                   <div class="input-with-unit">
                     <input type="number" v-model.number="formData.saddleTilt" class="zen-input" @focus="activeField = 'saddleTilt'">
-                    <span class="unit">°</span>
+                    <span class="unit">掳</span>
                   </div>
                 </div>
               </div>
               <div class="grid-3">
                 <div class="zen-form-item">
-                  <label class="input-label">把立长度</label>
+                  <label class="input-label">鎶婄珛闀垮害</label>
                   <div class="input-with-unit">
                     <input type="number" v-model.number="formData.stemLength" class="zen-input" @focus="activeField = 'stemLength'">
                     <span class="unit">mm</span>
                   </div>
                 </div>
                 <div class="zen-form-item">
-                  <label class="input-label">把立角度</label>
+                  <label class="input-label">鎶婄珛瑙掑害</label>
                   <div class="input-with-unit">
                     <input type="number" step="1" v-model.number="formData.stemAngle" class="zen-input" @focus="activeField = 'stemAngle'">
-                    <span class="unit">°</span>
+                    <span class="unit">掳</span>
                   </div>
                 </div>
                 <div class="zen-form-item">
-                  <label class="input-label">垫圈高度</label>
+                  <label class="input-label">鍨湀楂樺害</label>
                   <div class="input-with-unit">
                     <input type="number" v-model.number="formData.spacersHeight" class="zen-input" @focus="activeField = 'spacersHeight'">
                     <span class="unit">mm</span>
@@ -283,21 +283,21 @@
               </div>
               <div class="grid-3">
                 <div class="zen-form-item">
-                  <label class="input-label">把横宽度</label>
+                  <label class="input-label">鎶婃í瀹藉害</label>
                   <div class="input-with-unit">
                     <input type="number" v-model.number="formData.handlebarWidth" class="zen-input" @focus="activeField = 'handlebarWidth'">
                     <span class="unit">mm</span>
                   </div>
                 </div>
                 <div class="zen-form-item">
-                  <label class="input-label">曲柄长度</label>
+                  <label class="input-label">鏇叉焺闀垮害</label>
                   <div class="input-with-unit">
                     <input type="number" v-model.number="formData.crankLength" class="zen-input" @focus="activeField = 'crankLength'">
                     <span class="unit">mm</span>
                   </div>
                 </div>
                 <div class="zen-form-item">
-                  <label class="input-label">车把落差</label>
+                  <label class="input-label">杞︽妸钀藉樊</label>
                   <div class="input-with-unit">
                     <input type="number" v-model.number="formData.handlebarDrop" class="zen-input" @focus="activeField = 'handlebarDrop'">
                     <span class="unit">mm</span>
@@ -306,16 +306,16 @@
               </div>
               <div class="grid-2">
                 <div class="zen-form-item">
-                  <label class="input-label">座垫宽度</label>
+                  <label class="input-label">搴у灚瀹藉害</label>
                   <div class="input-with-unit">
                     <input type="number" v-model.number="formData.saddleWidth" class="zen-input" @focus="activeField = 'saddleWidth'">
                     <span class="unit">mm</span>
                   </div>
                 </div>
                 <div class="zen-form-item">
-                  <label class="input-label">踏板类型</label>
+                  <label class="input-label">韪忔澘绫诲瀷</label>
                   <select v-model="formData.pedalType" class="zen-input" @focus="activeField = 'pedalType'">
-                    <option :value="null">请选择踏板类型</option>
+                    <option :value="null">璇烽€夋嫨韪忔澘绫诲瀷</option>
                     <option v-for="opt in pedalOptions" :key="opt.value" :value="opt.value">{{ opt.label }}</option>
                   </select>
                 </div>
@@ -323,23 +323,23 @@
             </div>
           </div>
 
-          <!-- 底部操作栏 -->
+          <!-- 搴曢儴鎿嶄綔鏍?-->
           <div class="form-actions-footer">
             <div class="footer-left">
               <button v-if="isEdit" type="button" class="btn-retire-text" @click="handleRetire">
-                <i class="fas fa-archive"></i> 退役这辆单车
+                <i class="fas fa-archive"></i> 閫€褰硅繖杈嗗崟杞?
               </button>
             </div>
             <div class="footer-right">
               <button class="btn btn-primary btn-xl btn-glow" :disabled="submitting" @click="submitForm">
                 <i class="fas" :class="submitting ? 'fa-circle-notch fa-spin' : 'fa-check'"></i>
-                {{ submitting ? '数据同步中...' : '保存并同步至车库' }}
+                {{ submitting ? '鏁版嵁鍚屾涓?..' : '淇濆瓨骞跺悓姝ヨ嚦杞﹀簱' }}
               </button>
             </div>
           </div>
         </main>
 
-        <!-- ================= 3. 右侧：动态可视化指引 (Sticky) ================= -->
+        <!-- ================= 3. 鍙充晶锛氬姩鎬佸彲瑙嗗寲鎸囧紩 (Sticky) ================= -->
         <aside class="guide-section">
           <div class="visualizer-container glass-card">
             <BikeVisualizer :activePart="activeField" :bikeType="formData.bikeType" />
@@ -350,7 +350,7 @@
               <h4>{{ activeFieldInfo.title }}</h4>
               <p>{{ activeFieldInfo.desc }}</p>
               <div class="fittor-tip" v-if="activeFieldInfo.tip">
-                <strong>Fittor 建议：</strong> {{ activeFieldInfo.tip }}
+                <strong>Fittor 寤鸿锛?/strong> {{ activeFieldInfo.tip }}
               </div>
             </div>
           </Transition>
@@ -368,7 +368,7 @@ import { useUserStore } from '@/stores/user.js';
 import { saveUserBike, getBikeDetail, uploadBikePic, retireUserBike } from '@/api/userBike.js';
 import { searchModelNames, getBikeModelTree } from '@/api/bikeModel.js';
 import { showToast, showConfirm } from '@/utils/toast.js';
-import BikeVisualizer from '@/components/lab/BikeVisualizer.vue';
+import BikeVisualizer from '@/views/lab/components/BikeVisualizer.vue';
 
 const route = useRoute();
 const router = useRouter();
@@ -381,17 +381,17 @@ const isGeometryLocked = ref(false);
 const isManualMode = ref(false);
 
 const bikeTypes = [
-  { name: '公路车', code: 1 }, { name: '山地车', code: 2 },
-  { name: '全地形', code: 3 }, { name: '城市车', code: 4 }
+  { name: '鍏矾杞?, code: 1 }, { name: '灞卞湴杞?, code: 2 },
+  { name: '鍏ㄥ湴褰?, code: 3 }, { name: '鍩庡競杞?, code: 4 }
 ];
 
 const pedalOptions = [
-  { label: '平踏 + 运动鞋', value: 1 },
-  { label: '公路锁踏 + 锁鞋', value: 2 },
-  { label: '山地锁踏 + 锁鞋', value: 3 }
+  { label: '骞宠笍 + 杩愬姩闉?, value: 1 },
+  { label: '鍏矾閿佽笍 + 閿侀瀷', value: 2 },
+  { label: '灞卞湴閿佽笍 + 閿侀瀷', value: 3 }
 ];
 
-// --- 搜索与级联状态 ---
+// --- 鎼滅储涓庣骇鑱旂姸鎬?---
 const isSearching = ref(false);
 const showDropdown = ref(false);
 const modelSuggestions = ref([]);
@@ -430,14 +430,14 @@ const formData = reactive({
   imageUrl: ''
 });
 
-// 计算属性：从模型树中提取年份
+// 璁＄畻灞炴€э細浠庢ā鍨嬫爲涓彁鍙栧勾浠?
 const availableYears = computed(() => {
   if (!selectedModelTree.value.length) return [];
   const years = selectedModelTree.value.map(v => v.modelYear);
   return [...new Set(years)].filter(Boolean).sort((a, b) => b - a);
 });
 
-// 计算属性：根据选中年份提取尺寸
+// 璁＄畻灞炴€э細鏍规嵁閫変腑骞翠唤鎻愬彇灏哄
 const availableSizes = computed(() => {
   if (!formData.modelYear || !selectedModelTree.value.length) return [];
   return selectedModelTree.value
@@ -446,37 +446,37 @@ const availableSizes = computed(() => {
 });
 
 const fieldGuides = {
-  // --- 01 基础身份 (Identity) ---
-  'brand': { title: '品牌 (Brand English)', desc: '品牌全球通用名。', tip: '输入英文名称更易匹配官方数据库。' },
-  'brandCn': { title: '品牌 (Brand 中文)', desc: '品牌的中文译名。' },
-  'model': { title: '型号 (Model)', desc: '具体的系列与型号。', tip: '例如 TCR Advanced, Tarmac SL8 等。' },
-  'modelYear': { title: '款型年份 (Model Year)', desc: '车辆的设计年份。', tip: '同一型号不同年份的几何可能存在显著差异。' },
-  'size': { title: '官方尺码 (Size)', desc: '车架标签上的尺码。', tip: '如 52, S, 540 等。' },
-  'bikeType': { title: '单车类型 (Bike Type)', desc: '车辆的分类属性。', tip: '不同类型的车有完全不同的理想角度范围。' },
-  'remark': { title: '备注 (Remark)', desc: '您的个性化记录。' },
-  'imageUrl': { title: '单车视觉快照', desc: '车辆的真实照片。', tip: '这将作为档案封面，并辅助进行视觉对齐校验。' },
+  // --- 01 鍩虹韬唤 (Identity) ---
+  'brand': { title: '鍝佺墝 (Brand English)', desc: '鍝佺墝鍏ㄧ悆閫氱敤鍚嶃€?, tip: '杈撳叆鑻辨枃鍚嶇О鏇存槗鍖归厤瀹樻柟鏁版嵁搴撱€? },
+  'brandCn': { title: '鍝佺墝 (Brand 涓枃)', desc: '鍝佺墝鐨勪腑鏂囪瘧鍚嶃€? },
+  'model': { title: '鍨嬪彿 (Model)', desc: '鍏蜂綋鐨勭郴鍒椾笌鍨嬪彿銆?, tip: '渚嬪 TCR Advanced, Tarmac SL8 绛夈€? },
+  'modelYear': { title: '娆惧瀷骞翠唤 (Model Year)', desc: '杞﹁締鐨勮璁″勾浠姐€?, tip: '鍚屼竴鍨嬪彿涓嶅悓骞翠唤鐨勫嚑浣曞彲鑳藉瓨鍦ㄦ樉钁楀樊寮傘€? },
+  'size': { title: '瀹樻柟灏虹爜 (Size)', desc: '杞︽灦鏍囩涓婄殑灏虹爜銆?, tip: '濡?52, S, 540 绛夈€? },
+  'bikeType': { title: '鍗曡溅绫诲瀷 (Bike Type)', desc: '杞﹁締鐨勫垎绫诲睘鎬с€?, tip: '涓嶅悓绫诲瀷鐨勮溅鏈夊畬鍏ㄤ笉鍚岀殑鐞嗘兂瑙掑害鑼冨洿銆? },
+  'remark': { title: '澶囨敞 (Remark)', desc: '鎮ㄧ殑涓€у寲璁板綍銆? },
+  'imageUrl': { title: '鍗曡溅瑙嗚蹇収', desc: '杞﹁締鐨勭湡瀹炵収鐗囥€?, tip: '杩欏皢浣滀负妗ｆ灏侀潰锛屽苟杈呭姪杩涜瑙嗚瀵归綈鏍￠獙銆? },
 
-  // --- 02 车架几何 (DNA / Geometry) ---
-  'stack': { title: '堆高 (Stack)', desc: '五通中心到头管顶部中心的垂直距离。', tip: '决定骑行姿态“高低”的基准，Stack 越高姿态越直立。' },
-  'reach': { title: '前伸量 (Reach)', desc: '五通中心到头管顶部中心的水平距离。', tip: '衡量车架长短最客观的指标，不受立管角度干扰。' },
-  'seatTubeAngle': { title: '立管角度 (STA)', desc: '立管中心线与水平线的夹角。', tip: '直接影响座垫前后的可调范围及重心分布。' },
-  'headTubeAngle': { title: '头管角度 (HTA)', desc: '头管中心线与水平线的夹角。', tip: '角度越小（斜）操控越稳，角度越大（直）转向越灵敏。' },
-  'bbDrop': { title: '五通下沉量 (BB Drop)', desc: '前后轴连线与五通中心的垂直落差。', tip: '值越大重心越低，高速过弯更稳。' },
-  'wheelBase': { title: '轴距', desc: '前后轮轴心之间的水平距离。', tip: '长轴距利于平稳巡航，短轴距利于灵活爬坡。' },
-  'standOverHeight': { title: '跨高', desc: '车架上管中心点到地面的垂直距离。', tip: '关乎停车落脚时的安全性，建议与身体跨高保持 2-5cm 余量。'},
+  // --- 02 杞︽灦鍑犱綍 (DNA / Geometry) ---
+  'stack': { title: '鍫嗛珮 (Stack)', desc: '浜旈€氫腑蹇冨埌澶寸椤堕儴涓績鐨勫瀭鐩磋窛绂汇€?, tip: '鍐冲畾楠戣濮挎€佲€滈珮浣庘€濈殑鍩哄噯锛孲tack 瓒婇珮濮挎€佽秺鐩寸珛銆? },
+  'reach': { title: '鍓嶄几閲?(Reach)', desc: '浜旈€氫腑蹇冨埌澶寸椤堕儴涓績鐨勬按骞宠窛绂汇€?, tip: '琛￠噺杞︽灦闀跨煭鏈€瀹㈣鐨勬寚鏍囷紝涓嶅彈绔嬬瑙掑害骞叉壈銆? },
+  'seatTubeAngle': { title: '绔嬬瑙掑害 (STA)', desc: '绔嬬涓績绾夸笌姘村钩绾跨殑澶硅銆?, tip: '鐩存帴褰卞搷搴у灚鍓嶅悗鐨勫彲璋冭寖鍥村強閲嶅績鍒嗗竷銆? },
+  'headTubeAngle': { title: '澶寸瑙掑害 (HTA)', desc: '澶寸涓績绾夸笌姘村钩绾跨殑澶硅銆?, tip: '瑙掑害瓒婂皬锛堟枩锛夋搷鎺ц秺绋筹紝瑙掑害瓒婂ぇ锛堢洿锛夎浆鍚戣秺鐏垫晱銆? },
+  'bbDrop': { title: '浜旈€氫笅娌夐噺 (BB Drop)', desc: '鍓嶅悗杞磋繛绾夸笌浜旈€氫腑蹇冪殑鍨傜洿钀藉樊銆?, tip: '鍊艰秺澶ч噸蹇冭秺浣庯紝楂橀€熻繃寮洿绋炽€? },
+  'wheelBase': { title: '杞磋窛', desc: '鍓嶅悗杞酱蹇冧箣闂寸殑姘村钩璺濈銆?, tip: '闀胯酱璺濆埄浜庡钩绋冲贰鑸紝鐭酱璺濆埄浜庣伒娲荤埇鍧°€? },
+  'standOverHeight': { title: '璺ㄩ珮', desc: '杞︽灦涓婄涓績鐐瑰埌鍦伴潰鐨勫瀭鐩磋窛绂汇€?, tip: '鍏充箮鍋滆溅钀借剼鏃剁殑瀹夊叏鎬э紝寤鸿涓庤韩浣撹法楂樹繚鎸?2-5cm 浣欓噺銆?},
 
-  // --- 03 实车设定 (The Setup) ---
-  'saddleHeight': { title: '座垫高度 (Saddle Height)', desc: '五通中心沿立管至座垫顶面中心点的距离。', tip: 'Fitting 中最重要的参数，直接决定踩踏效率和膝盖健康。' },
-  'saddleSetback': { title: '座垫后移量 (Saddle Setback)', desc: '座垫鼻尖相对于五通中心垂直线的水平位移。', tip: '建议使用铅垂线从坐垫鼻头垂直向下对准五通轴心，测量其水平距离。' },
-  'saddleTilt': { title: '座垫倾角 (Saddle Tilt)', desc: '座垫中心线与垂直线的夹角。', tip: '决定了会阴压力。' },
-  'stemLength': { title: '把立长度 (Stem Length)', desc: '把立中心盖到车把夹持位中心点的距离。', tip: '调整上肢拉伸感（Reach）最直接的零件。' },
-  'stemAngle': { title: '把立角度 (Stem Angle)', desc: '把立中心线与垂直方向的夹角。', tip: '通过翻转把立可显著改变车头高度。' },
-  'spacersHeight': { title: '垫圈高度 (Spacers Height)', desc: '把立下方所有垫圈的总高度。', tip: '在不更换把立的情况下调节车头高低的唯一手段。' },
-  'handlebarWidth': { title: '把横宽度 (Handlebar Width)', desc: '左右手变头/握把中心点之间的距离。', tip: '通常与肩宽对齐，更窄利于气动，更宽利于呼吸与操控。' },
-  'crankLength': { title: '曲柄长度 (Crank Length)', desc: '五通中心到脚踏轴心的中心距离。', tip: '影响踩踏杠杆比及深蹲压力，小个子或高转频选手建议缩短。' },
-  'handlebarDrop': { title: '车把落差', desc: '座垫顶面与车把顶面之间的垂直高度差。',  tip: '体现了骑行的激进程度，数值越大躯干角度越低。' },
-  'saddleWidth': { title: '座垫宽度', desc: '座垫最宽处的横向距离。', tip: '需根据您的坐骨宽度来选择。' },
-  'pedalType': { title: '踏板类型', desc: '使用的脚踏与鞋具组合。', tip: '锁鞋会增加有效的“腿长”，对座高有显著影响。' }
+  // --- 03 瀹炶溅璁惧畾 (The Setup) ---
+  'saddleHeight': { title: '搴у灚楂樺害 (Saddle Height)', desc: '浜旈€氫腑蹇冩部绔嬬鑷冲骇鍨《闈腑蹇冪偣鐨勮窛绂汇€?, tip: 'Fitting 涓渶閲嶈鐨勫弬鏁帮紝鐩存帴鍐冲畾韪╄笍鏁堢巼鍜岃啙鐩栧仴搴枫€? },
+  'saddleSetback': { title: '搴у灚鍚庣Щ閲?(Saddle Setback)', desc: '搴у灚榧诲皷鐩稿浜庝簲閫氫腑蹇冨瀭鐩寸嚎鐨勬按骞充綅绉汇€?, tip: '寤鸿浣跨敤閾呭瀭绾夸粠鍧愬灚榧诲ご鍨傜洿鍚戜笅瀵瑰噯浜旈€氳酱蹇冿紝娴嬮噺鍏舵按骞宠窛绂汇€? },
+  'saddleTilt': { title: '搴у灚鍊捐 (Saddle Tilt)', desc: '搴у灚涓績绾夸笌鍨傜洿绾跨殑澶硅銆?, tip: '鍐冲畾浜嗕細闃村帇鍔涖€? },
+  'stemLength': { title: '鎶婄珛闀垮害 (Stem Length)', desc: '鎶婄珛涓績鐩栧埌杞︽妸澶规寔浣嶄腑蹇冪偣鐨勮窛绂汇€?, tip: '璋冩暣涓婅偄鎷変几鎰燂紙Reach锛夋渶鐩存帴鐨勯浂浠躲€? },
+  'stemAngle': { title: '鎶婄珛瑙掑害 (Stem Angle)', desc: '鎶婄珛涓績绾夸笌鍨傜洿鏂瑰悜鐨勫す瑙掋€?, tip: '閫氳繃缈昏浆鎶婄珛鍙樉钁楁敼鍙樿溅澶撮珮搴︺€? },
+  'spacersHeight': { title: '鍨湀楂樺害 (Spacers Height)', desc: '鎶婄珛涓嬫柟鎵€鏈夊灚鍦堢殑鎬婚珮搴︺€?, tip: '鍦ㄤ笉鏇存崲鎶婄珛鐨勬儏鍐典笅璋冭妭杞﹀ご楂樹綆鐨勫敮涓€鎵嬫銆? },
+  'handlebarWidth': { title: '鎶婃í瀹藉害 (Handlebar Width)', desc: '宸﹀彸鎵嬪彉澶?鎻℃妸涓績鐐逛箣闂寸殑璺濈銆?, tip: '閫氬父涓庤偐瀹藉榻愶紝鏇寸獎鍒╀簬姘斿姩锛屾洿瀹藉埄浜庡懠鍚镐笌鎿嶆帶銆? },
+  'crankLength': { title: '鏇叉焺闀垮害 (Crank Length)', desc: '浜旈€氫腑蹇冨埌鑴氳笍杞村績鐨勪腑蹇冭窛绂汇€?, tip: '褰卞搷韪╄笍鏉犳潌姣斿強娣辫共鍘嬪姏锛屽皬涓瓙鎴栭珮杞閫夋墜寤鸿缂╃煭銆? },
+  'handlebarDrop': { title: '杞︽妸钀藉樊', desc: '搴у灚椤堕潰涓庤溅鎶婇《闈箣闂寸殑鍨傜洿楂樺害宸€?,  tip: '浣撶幇浜嗛獞琛岀殑婵€杩涚▼搴︼紝鏁板€艰秺澶ц函骞茶搴﹁秺浣庛€? },
+  'saddleWidth': { title: '搴у灚瀹藉害', desc: '搴у灚鏈€瀹藉鐨勬í鍚戣窛绂汇€?, tip: '闇€鏍规嵁鎮ㄧ殑鍧愰瀹藉害鏉ラ€夋嫨銆? },
+  'pedalType': { title: '韪忔澘绫诲瀷', desc: '浣跨敤鐨勮剼韪忎笌闉嬪叿缁勫悎銆?, tip: '閿侀瀷浼氬鍔犳湁鏁堢殑鈥滆吙闀库€濓紝瀵瑰骇楂樻湁鏄捐憲褰卞搷銆? }
 };
 
 const activeFieldInfo = computed(() => fieldGuides[activeField.value] || fieldGuides['brand']);
@@ -488,7 +488,7 @@ onMounted(async () => {
       const data = res.data || res;
       console.log('Bike detail loaded:', data);
       
-      // 1. 基础信息平铺 (Top level fields)
+      // 1. 鍩虹淇℃伅骞抽摵 (Top level fields)
       Object.assign(formData, {
         id: data.id,
         userId: data.userId,
@@ -501,11 +501,11 @@ onMounted(async () => {
         bikeType: data.bikeType
       });
 
-      // 2. 几何信息平铺 (From bikeModelVO)
+      // 2. 鍑犱綍淇℃伅骞抽摵 (From bikeModelVO)
       if (data.bikeModelVO) {
         formData.bikeModelId = data.bikeModelVO.id;
         formData.size = data.bikeModelVO.size;
-        // 核心几何
+        // 鏍稿績鍑犱綍
         const geo = data.bikeModelVO;
         const geoFields = ['stack', 'reach', 'seatTubeAngle', 'headTubeAngle', 'bbDrop', 'wheelBase', 'standOverHeight'];
         geoFields.forEach(f => {
@@ -513,7 +513,7 @@ onMounted(async () => {
         });
       }
 
-      // 3. 实车设定平铺 (From currentSetupVO)
+      // 3. 瀹炶溅璁惧畾骞抽摵 (From currentSetupVO)
       if (data.currentSetupVO) {
         const setup = data.currentSetupVO;
         const setupFields = [
@@ -528,7 +528,7 @@ onMounted(async () => {
       isGeometryLocked.value = !!formData.bikeModelId;
     } catch (e) {
       console.error('Failed to load bike detail', e);
-      showToast('获取单车详情失败', 'error');
+      showToast('鑾峰彇鍗曡溅璇︽儏澶辫触', 'error');
     }
   }
 });
@@ -559,7 +559,7 @@ const selectModelGroup = async (item) => {
     formData.size = '';
     isGeometryLocked.value = false;
   } catch (e) {
-    showToast('无法从数据库调取型号变体', 'error');
+    showToast('鏃犳硶浠庢暟鎹簱璋冨彇鍨嬪彿鍙樹綋', 'error');
   }
 };
 
@@ -575,18 +575,18 @@ const onSizeSelect = (size) => {
   if (match) {
     formData.bikeModelId = match.id;
     formData.bikeType = match.bikeType || 1;
-    // 自动填充核心几何
+    // 鑷姩濉厖鏍稿績鍑犱綍
     formData.stack = match.stack;
     formData.reach = match.reach;
     formData.seatTubeAngle = match.seatTubeAngle;
     formData.bbDrop = match.bbDrop;
-    // 自动填充其他几何 (如果库里有)
+    // 鑷姩濉厖鍏朵粬鍑犱綍 (濡傛灉搴撻噷鏈?
     if (match.wheelBase) formData.wheelBase = match.wheelBase;
     if (match.standOverHeight) formData.standOverHeight = match.standOverHeight;
     if (match.imageUrl) formData.imageUrl = match.imageUrl;
 
     isGeometryLocked.value = true;
-    showToast('校准完成：官方数据已锁定', 'success');
+    showToast('鏍″噯瀹屾垚锛氬畼鏂规暟鎹凡閿佸畾', 'success');
   }
 };
 
@@ -595,7 +595,7 @@ const enableManualEntry = () => {
   formData.bikeModelId = null;
   isGeometryLocked.value = false;
   showDropdown.value = false;
-  showToast('请手动输入实车几何数据', 'info');
+  showToast('璇锋墜鍔ㄨ緭鍏ュ疄杞﹀嚑浣曟暟鎹?, 'info');
 };
 
 const resetSearch = () => {
@@ -608,7 +608,7 @@ const resetSearch = () => {
   formData.modelYear = '';
   formData.size = '';
   selectedModelTree.value = [];
-  showToast('搜索已重置', 'info');
+  showToast('鎼滅储宸查噸缃?, 'info');
 };
 
 const closeDropdown = () => setTimeout(() => showDropdown.value = false, 200);
@@ -626,39 +626,39 @@ const handleFileChange = async (e) => {
   try {
     const res = await uploadBikePic(fd);
     formData.imageUrl = res.data || res;
-    showToast('快照已捕捉', 'success');
+    showToast('蹇収宸叉崟鎹?, 'success');
   } catch (error) {
-    showToast('上传失败', 'error');
+    showToast('涓婁紶澶辫触', 'error');
   } finally {
     uploading.value = false;
   }
 };
 
 const handleRetire = async () => {
-  const isConfirmed = await showConfirm(`确定要将这辆单车退役吗？历史记录将被封存。`, '单车退役');
+  const isConfirmed = await showConfirm(`纭畾瑕佸皢杩欒締鍗曡溅閫€褰瑰悧锛熷巻鍙茶褰曞皢琚皝瀛樸€俙, '鍗曡溅閫€褰?);
   if (isConfirmed) {
     try {
       await retireUserBike(formData.id);
-      showToast('单车已移至荣誉档案', 'success');
+      showToast('鍗曡溅宸茬Щ鑷宠崳瑾夋。妗?, 'success');
       router.push('/lab/garage');
     } catch (e) {
-      showToast('退役失败', 'error');
+      showToast('閫€褰瑰け璐?, 'error');
     }
   }
 };
 
 const submitForm = async () => {
   if (!formData.stack || !formData.reach) {
-    showToast('Stack 和 Reach 为核心基准，不可为空', 'warning');
+    showToast('Stack 鍜?Reach 涓烘牳蹇冨熀鍑嗭紝涓嶅彲涓虹┖', 'warning');
     return;
   }
   submitting.value = true;
   try {
     await saveUserBike(formData);
-    showToast('档案同步成功', 'success');
+    showToast('妗ｆ鍚屾鎴愬姛', 'success');
     router.push('/lab/garage');
   } catch (error) {
-    showToast('保存异常', 'error');
+    showToast('淇濆瓨寮傚父', 'error');
   } finally {
     submitting.value = false;
   }
@@ -666,11 +666,11 @@ const submitForm = async () => {
 </script>
 
 <style scoped>
-/* 1. 基础对齐 */
+/* 1. 鍩虹瀵归綈 */
 .bike-edit-page { padding-top: var(--header-height); min-height: 100vh; background: transparent; }
 .lab-container { padding-top: 40px; padding-bottom: 80px; }
 
-/* 2. 头部工具栏 (严格同步 GarageView) */
+/* 2. 澶撮儴宸ュ叿鏍?(涓ユ牸鍚屾 GarageView) */
 .toolbar-row {
   display: flex; justify-content: space-between; align-items: flex-end;
   margin-bottom: var(--space-xl); padding-bottom: 10px;
@@ -680,17 +680,17 @@ const submitForm = async () => {
 .page-subtitle { font-size: 1rem; color: var(--text-muted); font-family: var(--font-serif); font-style: italic; }
 .header-actions { display: flex; align-items: center; gap: 20px; }
 
-/* 3. 布局 */
+/* 3. 甯冨眬 */
 .edit-content {
   display: grid;
-  /* 修改点 1：调整比例，给右侧更多空间 */
-  /* 左侧表单占 55%，右侧展台占 45%，间距拉大到 50px */
+  /* 淇敼鐐?1锛氳皟鏁存瘮渚嬶紝缁欏彸渚ф洿澶氱┖闂?*/
+  /* 宸︿晶琛ㄥ崟鍗?55%锛屽彸渚у睍鍙板崰 45%锛岄棿璺濇媺澶у埌 50px */
   grid-template-columns: 1.2fr 1fr;
   gap: 50px;
   align-items: start;
 }
 
-/* 左侧表单 */
+/* 宸︿晶琛ㄥ崟 */
 .form-section {
   padding: 45px;
   background: var(--bg-surface);
@@ -725,7 +725,7 @@ const submitForm = async () => {
 .type-selector button.active { background: var(--primary-color); color: white; border-color: var(--primary-color); }
 .type-selector.disabled { pointer-events: none; opacity: 0.7; }
 
-/* 4. 图片上传 */
+/* 4. 鍥剧墖涓婁紶 */
 .image-uploader {
   height: 220px; width: 100%; display: flex; align-items: center; justify-content: center;
   cursor: pointer; position: relative; overflow: hidden; border: 1.5px dashed #DDD;
@@ -740,7 +740,7 @@ const submitForm = async () => {
 .full-width { grid-column: 1 / -1; }
 .divider { height: 1px; background: rgba(0,0,0,0.05); margin: 40px 0; }
 
-/* --- 搜索与自动完成 --- */
+/* --- 鎼滅储涓庤嚜鍔ㄥ畬鎴?--- */
 .autocomplete-container { position: relative; }
 .search-input-wrapper { position: relative; }
 .search-status-icon { position: absolute; right: 15px; top: 50%; transform: translateY(-50%); color: #ccc; }
@@ -761,7 +761,7 @@ const submitForm = async () => {
 .btn-text-link:hover { opacity: 0.8; }
 .manual-entry-helper a { color: var(--primary-color); font-weight: 600; text-decoration: none; }
 
-/* --- 锁定状态视觉 --- */
+/* --- 閿佸畾鐘舵€佽瑙?--- */
 .locked-section { opacity: 0.85; pointer-events: none; }
 .locked-section .zen-input:disabled { background: #f8f8f8; cursor: not-allowed; border-color: #eee; color: #888; }
 .group-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
@@ -771,7 +771,7 @@ const submitForm = async () => {
 .identity-section.locked-section { opacity: 0.9; pointer-events: none; border: 1px dashed rgba(0,0,0,0.05); padding: 15px; margin: -15px; border-radius: 12px; }
 .identity-section.locked-section .zen-input { background: #f8f8f8; color: #888; }
 
-/* --- 药丸选择器 Pills --- */
+/* --- 鑽父閫夋嫨鍣?Pills --- */
 .pill-group { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 10px; margin-bottom: 5px; }
 .pill-btn {
   padding: 8px 20px; border-radius: 50px; border: 1.5px solid #EEE;
@@ -787,7 +787,7 @@ const submitForm = async () => {
 .btn-reset { background: none; border: none; color: var(--primary-color); font-size: 0.75rem; font-weight: 700; cursor: pointer; text-decoration: underline; opacity: 0.8; transition: 0.3s; }
 .btn-reset:hover { opacity: 1; }
 
-/* 5. 底部操作 */
+/* 5. 搴曢儴鎿嶄綔 */
 .form-actions-footer {
   display: flex; justify-content: space-between; align-items: center;
   margin-top: 50px; padding-top: 30px; border-top: 1px solid rgba(0,0,0,0.05);
@@ -797,12 +797,12 @@ const submitForm = async () => {
 .btn-retire-text { background: none; border: none; color: var(--danger-color); font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 8px; opacity: 0.6; transition: 0.3s; }
 .btn-retire-text:hover { opacity: 1; text-decoration: underline; }
 
-/* 6. 右侧 Sticky */
+/* 6. 鍙充晶 Sticky */
 .guide-section {
   display: flex;
   flex-direction: column;
   gap: 25px;
-  /* Sticky 逻辑保持不变 */
+  /* Sticky 閫昏緫淇濇寔涓嶅彉 */
   position: sticky;
   top: calc(var(--header-height) + 30px);
   z-index: 10;
@@ -810,7 +810,7 @@ const submitForm = async () => {
 }
 
 .visualizer-container {
-  /* 修改点 2：高度大幅增加，让单车图“撑满” */
+  /* 淇敼鐐?2锛氶珮搴﹀ぇ骞呭鍔狅紝璁╁崟杞﹀浘鈥滄拺婊♀€?*/
   height: 460px;
   background: white;
   border: var(--border-glass);
@@ -819,13 +819,13 @@ const submitForm = async () => {
   justify-content: center;
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-sm);
-  /* 增加一点内阴影，增加深邃感 */
+  /* 澧炲姞涓€鐐瑰唴闃村奖锛屽鍔犳繁閭冩劅 */
   box-shadow: inset 0 0 20px rgba(0,0,0,0.02);
 }
-/* 文字说明盒 */
+/* 鏂囧瓧璇存槑鐩?*/
 .field-info-box {
   padding: 30px;
-  border-left: 6px solid var(--accent-gold); /* 加粗边框 */
+  border-left: 6px solid var(--accent-gold); /* 鍔犵矖杈规 */
   background: white;
   border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
   box-shadow: var(--shadow-sm);
@@ -834,49 +834,49 @@ const submitForm = async () => {
 .field-info-box h4 {
   color: var(--text-main);
   margin-bottom: 12px;
-  font-size: 1.2rem; /* 字号微调 */
+  font-size: 1.2rem; /* 瀛楀彿寰皟 */
   font-weight: 700;
 }
 
 .field-info-box p {
-  font-size: 0.95rem; /* 字号微调，更易读 */
+  font-size: 0.95rem; /* 瀛楀彿寰皟锛屾洿鏄撹 */
   color: var(--text-muted);
   line-height: 1.7;
 }
-/* Fittor 建议块 */
+/* Fittor 寤鸿鍧?*/
 .fittor-tip {
   margin-top: 18px;
   padding: 15px;
   background: rgba(212, 175, 55, 0.08);
   border-radius: 6px;
   font-size: 0.9rem;
-  color: #967d28; /* 加深一点金色文字，提升对比度 */
+  color: #967d28; /* 鍔犳繁涓€鐐归噾鑹叉枃瀛楋紝鎻愬崌瀵规瘮搴?*/
   line-height: 1.6;
   font-weight: 500;
   display: flex;
   gap: 8px;
 }
 .fittor-tip::before {
-  content: '💡'; /* 增加一个小图标 */
+  content: '馃挕'; /* 澧炲姞涓€涓皬鍥炬爣 */
   font-style: normal;
 }
-/* 动效 */
+/* 鍔ㄦ晥 */
 .fade-slide-enter-active, .fade-slide-leave-active { transition: all 0.3s ease; }
 .fade-slide-enter-from { opacity: 0; transform: translateX(20px); }
 .fade-slide-leave-to { opacity: 0; transform: translateX(-20px); }
 
 @media (max-width: 1280px) {
   .edit-content {
-    grid-template-columns: 1fr; /* 变为上下结构 */
+    grid-template-columns: 1fr; /* 鍙樹负涓婁笅缁撴瀯 */
   }
 
   .guide-section {
-    position: static; /* 取消 Sticky */
-    order: -1; /* 关键：在移动端/平板端，让图片显示在表单上方！方便对照 */
+    position: static; /* 鍙栨秷 Sticky */
+    order: -1; /* 鍏抽敭锛氬湪绉诲姩绔?骞虫澘绔紝璁╁浘鐗囨樉绀哄湪琛ㄥ崟涓婃柟锛佹柟渚垮鐓?*/
   }
 
   .visualizer-container {
-    height: 400px; /* 移动端高度适度减小 */
+    height: 400px; /* 绉诲姩绔珮搴﹂€傚害鍑忓皬 */
   }
 }
 </style>

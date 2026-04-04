@@ -19,7 +19,7 @@
 <script setup>
 import { ref, computed } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
-import ShareCircleForm from '@/components/ShareCircleForm.vue';
+import ShareCircleForm from '@/views/sharecircle/components/ShareCircleForm.vue';
 import { showToast } from '@/utils/toast';
 
 const router = useRouter();

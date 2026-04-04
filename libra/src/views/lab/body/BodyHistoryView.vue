@@ -145,7 +145,7 @@ import { ref, computed, onMounted, reactive, watch, nextTick, onUnmounted } from
 import {createRouter as $router, useRouter} from 'vue-router';
 import { useUserStore } from '@/stores/user.js';
 import { getUserBodyHistory } from '@/api/userBody.js';
-import ResultModal from '@/components/lab/ResultModal.vue';
+import ResultModal from '@/views/lab/components/ResultModal.vue';
 import dayjs from 'dayjs';
 import * as echarts from 'echarts/core';
 import { LineChart } from 'echarts/charts';

@@ -24,7 +24,7 @@
 <script setup>
 import { ref, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import TeamForm from '@/components/TeamForm.vue';
+import TeamForm from '@/views/team/components/TeamForm.vue';
 
 const route = useRoute();
 const router = useRouter();

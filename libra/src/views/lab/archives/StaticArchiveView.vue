@@ -164,7 +164,7 @@
 <script setup>
 import { ref, onMounted, nextTick } from 'vue';
 import {getFittingResultHistory} from '@/api/staticFitting.js';
-import SharingPoster from '@/components/lab/SharingPoster.vue';
+import SharingPoster from '@/views/lab/components/SharingPoster.vue';
 
 const loading = ref(true);
 const historyList = ref([]);

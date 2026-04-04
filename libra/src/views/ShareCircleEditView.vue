@@ -2,12 +2,12 @@
   <div class="share-edit-page">
     <div class="container page-container">
       <div class="header">
-        <h2 class="page-title">编辑动态</h2>
+        <h2 class="page-title">缂栬緫鍔ㄦ€?/h2>
       </div>
 
       <div v-if="loading" class="loading-state">
         <div class="zen-loader"><i class="fas fa-spinner fa-spin"></i></div>
-        <span>正在加载...</span>
+        <span>姝ｅ湪鍔犺浇...</span>
       </div>
 
       <ShareCircleForm
@@ -24,7 +24,7 @@
 <script setup>
 import { ref, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import ShareCircleForm from '@/components/ShareCircleForm.vue';
+import ShareCircleForm from '@/views/sharecircle/components/ShareCircleForm.vue';
 
 const route = useRoute();
 const router = useRouter();
@@ -37,8 +37,8 @@ const goBack = () => router.back();
 onMounted(() => {
   setTimeout(() => {
     postData.value = {
-      title: 'Tarmac SL7 姿态微调记录',
-      desc: '调整了锁片位置和座垫后移量，膝盖舒服多了。',
+      title: 'Tarmac SL7 濮挎€佸井璋冭褰?,
+      desc: '璋冩暣浜嗛攣鐗囦綅缃拰搴у灚鍚庣Щ閲忥紝鑶濈洊鑸掓湇澶氫簡銆?,
       category: 'fitting',
       cover: 'https://images.unsplash.com/photo-1618386477546-f947ee191244?q=80&w=600',
       data: { stack: 540, reach: 385 }
@@ -49,10 +49,10 @@ onMounted(() => {
 
 const handleUpdate = (formData) => {
   isSubmitting.value = true;
-  console.log('更新数据:', formData);
+  console.log('鏇存柊鏁版嵁:', formData);
   setTimeout(() => {
     isSubmitting.value = false;
-    alert('修改成功！');
+    alert('淇敼鎴愬姛锛?);
     router.push('/share');
   }, 1000);
 };

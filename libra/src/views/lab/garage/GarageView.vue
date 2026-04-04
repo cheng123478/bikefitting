@@ -97,8 +97,8 @@ import { ref, onMounted, onUnmounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { useUserStore } from '@/stores/user.js';
 import { getMyGarage, getRetiredGarage } from '@/api/userBike.js'; // 引入修正后的API
-import BikeCard from '@/components/lab/BikeCard.vue';
-import BikeShowcase from '@/components/lab/BikeShowcase.vue';
+import BikeCard from '@/views/lab/components/BikeCard.vue';
+import BikeShowcase from '@/views/lab/components/BikeShowcase.vue';
 import { showToast } from '@/utils/toast.js';
 
 const router = useRouter();

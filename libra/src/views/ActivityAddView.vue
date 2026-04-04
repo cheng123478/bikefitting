@@ -26,7 +26,7 @@
 <script setup>
 import { ref, computed } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
-import ActivityForm from '@/components/ActivityForm.vue';
+import ActivityForm from '@/views/activity/components/ActivityForm.vue';
 
 const router = useRouter();
 const route = useRoute();

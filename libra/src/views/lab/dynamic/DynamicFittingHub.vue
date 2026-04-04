@@ -393,9 +393,12 @@ const getViewDesc = (v) => {
   display: flex; justify-content: space-between; align-items: flex-end;
   margin-bottom: 40px; padding-bottom: 25px; border-bottom: 1px solid rgba(0,0,0,0.05);
 }
-.title { font-family: var(--font-serif); font-size: 2.6rem; color: var(--text-main); margin: 0; }
+.title { font-family: var(--font-serif); font-size: 2.2rem; color: var(--text-main); margin: 0; }
 .beta-tag { font-size: 0.65rem; background: var(--accent-gold); color: #fff; padding: 2px 8px; border-radius: 4px; vertical-align: middle; margin-left: 12px; font-weight: 800; letter-spacing: 1px; }
-.subtitle { color: var(--text-muted); font-size: 1.1rem; margin-top: 8px; }
+.subtitle {
+  color: var(--text-muted);
+  font-size: 1rem;
+  margin: 0; }
 .header-actions { display: flex; align-items: center; }
 .back-btn { color: var(--text-muted); font-size: 0.95rem; background: transparent; border: none; cursor: pointer; transition: all 0.4s var(--ease-out-expo); display: flex; align-items: center; gap: 8px; }
 .back-btn:hover { color: var(--primary-color); transform: translateX(-5px); }
