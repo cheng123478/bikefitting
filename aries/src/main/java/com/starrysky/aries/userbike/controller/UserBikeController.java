@@ -78,7 +78,7 @@ public class UserBikeController {
      * 获取某一特定单车的完整几何数据及实时设定参数。
      */
     @GetMapping("/{id}")
-    public UserBikeVO getDetail(@PathVariable Long id) {
+    public UserBikeVO getDetail(@PathVariable("id") Long id) {
         return userBikeService.getBikeDetail(id);
     }
 

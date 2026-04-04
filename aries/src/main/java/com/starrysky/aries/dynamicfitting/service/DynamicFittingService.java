@@ -284,6 +284,7 @@ public class DynamicFittingService {
 
         // 基本元数据
         reportVO.setViewsCount((int) motionDataRepository.countBySession_Id(sessionId));
+        reportVO.setBikeId(session.getUserBike() != null ? session.getUserBike().getId() : null);
         reportVO.setBikeName(session.getUserBike() != null && session.getUserBike().getBikeModel() != null
                 ? session.getUserBike().getBikeModel().getModel()
                 : "未知车型");
