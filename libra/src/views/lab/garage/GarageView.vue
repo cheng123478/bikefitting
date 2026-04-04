@@ -184,7 +184,7 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.my-garage-page { padding-top: var(--header-height); min-height: 100vh; }
+.my-garage-page { padding-top: var(--header-height); min-height: 100vh; background: transparent; }
 .lab-container { padding-top: 40px; padding-bottom: 40px; }
 
 /* 头部样式 (Toolbar) */

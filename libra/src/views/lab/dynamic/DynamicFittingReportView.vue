@@ -19,8 +19,8 @@
 
       <div v-else-if="report" class="report-body">
 
-        <!-- 2. Hero Component: Score & Summary -->
-        <section class="hero-section glass-card fade-up delay-1">
+        <!-- 2. Meta Section: Score & Summary -->
+        <section class="report-hero glass-card fade-up delay-1">
           <div class="score-orbit">
             <svg viewBox="0 0 100 100" class="ring-svg">
               <circle class="ring-bg" cx="50" cy="50" r="45"></circle>
@@ -231,17 +231,45 @@ const initReport = async () => {
     const res = await getDiagnosisResult(sessionId);
     report.value = res.data || res;
 
-    const views = [];
-    if (getMetricsForView('side').length) views.push('side');
-    if (getMetricsForView('front').length) views.push('front');
-    if (getMetricsForView('back').length) views.push('back');
-    availableViews.value = views;
+    const possibleViews = ['side', 'front', 'back'];
+    const activeViews = [];
 
-    // Fetch all related deep data concurrently
-    await Promise.all(views.map(vt => loadViewData(vt)));
+    // Step 1: Sequential or parallel check for each view type's data
+    await Promise.all(possibleViews.map(async (vt) => {
+      const metrics = getMetricsForView(vt);
+      if (metrics.length > 0) {
+        activeViews.push(vt);
+        await loadViewData(vt); // Pre-load details
+        return;
+      }
+      
+      // If no metrics, check if there are snapshots or motion sequence data
+      try {
+        const [snapRes, motionRes] = await Promise.all([
+          getSnapshots(sessionId, vt),
+          getMotionData(sessionId, vt)
+        ]);
+        const snapshots = snapRes.data || snapRes;
+        const motion = motionRes.data || motionRes;
+        
+        if ((snapshots && snapshots.length > 0) || (motion && motion.dataJson)) {
+          activeViews.push(vt);
+          snapshotsMap.value[vt] = snapshots;
+          if (motion && typeof motion.dataJson === 'string') {
+             motion.parsedData = JSON.parse(motion.dataJson);
+          }
+          motionDataMap.value[vt] = motion;
+        }
+      } catch (e) {
+        console.warn(`Check failed for ${vt}`, e);
+      }
+    }));
+
+    // Ensure order is preserved for consistent report (side -> front -> back)
+    availableViews.value = possibleViews.filter(v => activeViews.includes(v));
 
     nextTick(() => {
-      views.forEach(vt => renderEchart(vt));
+      availableViews.value.forEach(vt => renderEchart(vt));
     });
 
   } catch (e) {
@@ -382,11 +410,11 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
-.dynamic-report-page { padding: 100px 0 80px; min-height: 100vh; background: transparent; }
+.dynamic-report-page { padding: 100px 0 60px; min-height: 100vh; background: transparent; }
 .report-container { max-width: 1100px; }
 
 /* Header */
-.report-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; }
+.report-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
 .back-link { background: none; border: none; color: var(--text-muted); cursor: pointer; display: flex; align-items: center; gap: 8px; font-size: 0.95rem; }
 .back-link:hover { color: var(--primary-color); }
 .meta-info { display: flex; gap: 20px; color: var(--text-muted); font-size: 0.8rem; font-family: monospace; }
@@ -396,26 +424,26 @@ onUnmounted(() => {
 .pulse-loader { width: 40px; height: 40px; border: 4px solid var(--primary-light); border-radius: 50%; border-top-color: var(--primary-color); animation: spin 0.8s infinite linear; }
 @keyframes spin { to { transform: rotate(360deg); } }
 
-/* Hero Section */
-.hero-section { display: flex; align-items: center; gap: 50px; padding: 40px 50px; margin-bottom: 40px; border-left: 8px solid var(--primary-color); }
-.score-orbit { position: relative; width: 140px; height: 140px; flex-shrink: 0; }
+/* Report Hero Section */
+.report-hero { display: flex; align-items: center; gap: 25px; padding: 12px 25px; margin-bottom: 15px; border-left: 6px solid var(--primary-color); }
+.score-orbit { position: relative; width: 90px; height: 90px; flex-shrink: 0; }
 .ring-svg { width: 100%; height: 100%; }
 .ring-bg { fill: none; stroke: rgba(0,0,0,0.05); stroke-width: 6; }
 .ring-fill { fill: none; stroke: var(--primary-color); stroke-width: 6; stroke-linecap: round; transform: rotate(-90deg); transform-origin: 50% 50%; transition: stroke-dashoffset 1s ease-out; }
 .score-content { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; }
-.score-content .value { font-family: var(--font-serif); font-size: 3rem; font-weight: 800; line-height: 1; color: var(--text-main); }
+.score-content .value { font-family: var(--font-serif); font-size: 1.8rem; font-weight: 800; line-height: 1; color: var(--text-main); }
 .score-content .label { font-size: 0.65rem; color: var(--text-muted); letter-spacing: 2px; }
 
 .summary-content { flex: 1; }
-.level-tag { font-family: var(--font-serif); font-size: 2rem; margin-bottom: 12px; }
-.summary-text { font-size: 1rem; color: var(--text-body); font-style: italic; line-height: 1.6; margin-bottom: 20px; border-left: 2px solid var(--accent-gold); padding-left: 15px; }
-.quick-stats { display: flex; gap: 30px; }
+.level-tag { font-family: var(--font-serif); font-size: 1.3rem; margin-bottom: 4px; }
+.summary-text { font-size: 0.95rem; color: var(--text-body); font-style: italic; line-height: 1.5; margin-bottom: 10px; border-left: 2px solid var(--accent-gold); padding-left: 15px; }
+.quick-stats { display: flex; gap: 20px; }
 .stat { display: flex; flex-direction: column; }
 .stat .l { font-size: 0.75rem; color: var(--text-muted); margin-bottom: 4px; }
 .stat .v { font-weight: 700; color: var(--text-main); }
 
 /* View Sequence (Vertical Stack) */
-.view-sequence-container { display: flex; flex-direction: column; gap: 40px; margin-bottom: 50px; }
+.view-sequence-container { display: flex; flex-direction: column; gap: 25px; margin-bottom: 50px; }
 .view-section { padding: 40px; }
 .view-header { display: flex; align-items: center; gap: 15px; margin-bottom: 30px; border-bottom: 1px solid rgba(0,0,0,0.05); padding-bottom: 15px;}
 .view-header h2 { font-size: 1.4rem; color: var(--text-main); display: flex; align-items: center; gap: 12px; margin: 0; }
@@ -467,7 +495,7 @@ onUnmounted(() => {
 }
 
 @media (max-width: 768px) {
-  .hero-section { flex-direction: column; padding: 30px; text-align: center; gap: 30px; }
+  .report-hero { flex-direction: column; padding: 30px; text-align: center; gap: 30px; }
   .summary-text { padding-left: 0; border-left: none; }
   .quick-stats { justify-content: center; }
   .metric-grid { grid-template-columns: 1fr; }
