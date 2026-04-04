@@ -41,4 +41,8 @@ public class DynamicFittingStandard implements Serializable {
     private String part; // 调整部位: seat, handlebar, stem, crank, cleat
     private String lowAdvice; // 偏低建议码: advice.seat.low
     private String highAdvice; // 偏高建议码: advice.seat.high
+    @Comment("偏低时建议内容")
+    private String lowAdviceContent;
+    @Comment("偏高时建议内容")
+    private String highAdviceContent;
 }

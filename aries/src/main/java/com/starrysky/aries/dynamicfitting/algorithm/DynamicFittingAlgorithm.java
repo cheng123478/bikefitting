@@ -75,7 +75,9 @@ public class DynamicFittingAlgorithm {
                 if (val < std.getMinVal() || val > std.getMaxVal()) {
                     String adviceCode = val < std.getMinVal() ? std.getLowAdvice()
                             : std.getHighAdvice();
-                    advices.add(createAdvice(std, val, adviceCode));
+                    String adviceContent = val < std.getMinVal() ? std.getLowAdviceContent()
+                            : std.getHighAdviceContent();
+                    advices.add(createAdvice(std, val, adviceCode, adviceContent));
                 }
             }
         }
@@ -98,7 +100,7 @@ public class DynamicFittingAlgorithm {
                 .build();
     }
 
-    private DynamicFittingAdviceVO createAdvice(DynamicFittingStandard std, Double val, String adviceCode) {
+    private DynamicFittingAdviceVO createAdvice(DynamicFittingStandard std, Double val, String adviceCode, String adviceContent) {
         // 获取顺序: 1:Cleat, 2:Seat, 3:Handlebar/Stem
         int sequence = 3;
         if ("cleat".equalsIgnoreCase(std.getPart()) || "crank".equalsIgnoreCase(std.getPart()))
@@ -115,6 +117,7 @@ public class DynamicFittingAlgorithm {
                 .part(std.getPart())
                 .type("adjust")
                 .code(adviceCode)
+                .adviceContent(adviceContent)
                 .metric(std.getMetricKey())
                 .val(val)
                 .range(std.getMinVal() + "-" + std.getMaxVal())
@@ -167,6 +170,7 @@ public class DynamicFittingAlgorithm {
                                 .part("body")
                                 .type("check")
                                 .code("advice.asymmetry.warning")
+                                .adviceContent("检测到双侧指标不平衡，建议检查身体柔韧性、核心稳定性或是否存在结构性长短腿。")
                                 .metric(key.substring(0, key.length() - 2))
                                 .val(null)
                                 .range("Delta < 5")

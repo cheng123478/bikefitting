@@ -55,8 +55,8 @@ public class StaticFittingController {
      */
     @GetMapping("/history")
     public Page<StaticFittingResultVO> getHistory(@AuthenticationPrincipal User user,
-                                                  @RequestParam(defaultValue = "1") int page,
-                                                  @RequestParam(defaultValue = "10") int size) {
+                                                  @RequestParam(value = "page", defaultValue = "1") int page,
+                                                  @RequestParam(value = "size", defaultValue = "10") int size) {
         return staticFittingService.getHistoryByUserId(user.getId(), page, size);
     }
 }

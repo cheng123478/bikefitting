@@ -83,7 +83,7 @@ public class CosUtil {
      * 上传文件
      *
      * @param file 本地文件
-     * @param key  象在存储桶中的唯一标识
+     * @param key  对象在存储桶中的唯一标识
      * @return 文件访问地址
      */
     public String upload(File file, String key) {

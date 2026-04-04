@@ -207,22 +207,8 @@ public class DynamicFittingService {
     public Map<String, Object> getSessionDetail(Long sessionId) {
         DynamicFittingSession session = sessionRepository.findById(sessionId)
                 .orElseThrow(() -> new RuntimeException("会话不存在"));
-
-        List<DynamicFittingSnapshot> snapshots = snapshotRepository.findBySession_Id(sessionId);
-
         Map<String, Object> detail = new HashMap<>();
         detail.put("sessionVO", convertToVO(session));
-        List<DynamicFittingSnapshotVO> snapshotsVO = snapshots.stream().map(snapshot -> {
-            DynamicFittingSnapshotVO snapshotVO = new DynamicFittingSnapshotVO();
-            snapshotVO.setId(snapshot.getId());
-            snapshotVO.setSessionId(sessionId);
-            snapshotVO.setViewType(snapshot.getViewType());
-            snapshotVO.setLabel(snapshot.getTag()); // tag -> label
-            snapshotVO.setUrl(snapshot.getImageUrl()); // imageUrl -> url
-            snapshotVO.setMetricValue(snapshot.getFrameVal()); // frameVal -> metricValue
-            return snapshotVO;
-        }).collect(Collectors.toList());
-        detail.put("snapshotsVO", snapshotsVO);
         return detail;
     }
 
@@ -235,6 +221,7 @@ public class DynamicFittingService {
         // 处理关联的单车信息 (防止懒加载异常并提取展示所需字段)
         if (session.getUserBike() != null) {
             vo.setBikeId(session.getUserBike().getId());
+            vo.setRemark(session.getUserBike().getRemark());
             // 重要：直接把名字带出去，这样前端历史记录列表就不用再查单车接口了
             vo.setBikeName(
                     session.getUserBike().getBikeModel() != null ? session.getUserBike().getBikeModel().getModel()
@@ -248,6 +235,37 @@ public class DynamicFittingService {
 
         if (session.getPainLevels() != null) {
             vo.setPainLevels(JSON.parseArray(session.getPainLevels(), String.class));
+        }
+
+        // 提取已完成视角的总结与诊断摘要 (Summary Projection)
+        if (session.getStatus() != null && session.getStatus() == FittingStatus.COMPLETED.getCode()) {
+            resultRepository.findBySession_Id(session.getId()).ifPresent(result -> {
+                vo.setMatchScore(result.getMatchScore());
+                
+                // 提取精简卡片建议
+                if (org.springframework.util.StringUtils.hasText(result.getAdviceJson())) {
+                    try {
+                        List<DynamicFittingAdviceVO> advices = JSON.parseArray(result.getAdviceJson(), DynamicFittingAdviceVO.class);
+                        if (advices != null) {
+                            vo.setEquipmentSuggestions(advices.stream()
+                                    .map(a -> a.getAdviceContent() != null ? a.getAdviceContent() : a.getCode())
+                                    .distinct()
+                                    .collect(Collectors.toList()));
+                        }
+                    } catch (Exception e) {
+                        log.warn("解析会话 {} 的 adviceJson 失败", session.getId());
+                    }
+                }
+
+                if (result.getSummaryJson() != null) {
+                    try {
+                        Map<String, Object> summary = JSON.parseObject(result.getSummaryJson());
+                        vo.setViewTypes(String.join(",", summary.keySet()));
+                    } catch (Exception e) {
+                        log.warn("解析会话 {} 的 summaryJson 失败", session.getId());
+                    }
+                }
+            });
         }
 
         return vo;
@@ -271,11 +289,9 @@ public class DynamicFittingService {
                 : "未知车型");
         reportVO.setMatchLevel(getMatchLevel(result.getMatchScore()));
 
-        // 简评处理: 优先使用 result 上的 summary，如果没有则取第一个建议
+        // 简评处理: 汇总所有建议并生成人类可读的总结
         List<DynamicFittingAdviceVO> advices = JSON.parseArray(result.getAdviceJson(), DynamicFittingAdviceVO.class);
-        if (reportVO.getSummary() == null && advices != null && !advices.isEmpty()) {
-            reportVO.setSummary(advices.get(0).getCode());
-        }
+        reportVO.setSummary(getSummaryText(result, advices));
 
         // 解析指标数据 (扁平化)
         Map<String, Map<String, Object>> overallSummary = JSON.parseObject(result.getSummaryJson(),
@@ -291,13 +307,14 @@ public class DynamicFittingService {
                     new DynamicFittingReportVO.ViewData(mapToMetricVO(overallSummary.get("back"), advices)));
         }
 
-        // 器材调整建议
+        // 器材/体能调整建议 (汇总所有建议，不只是 adjust)
         if (advices != null) {
             reportVO.setEquipmentSuggestions(advices.stream()
-                    .filter(a -> "adjust".equals(a.getType()))
-                    .map(a -> "[" + a.getPart() + "] " + a.getCode())
+                    .map(a -> a.getAdviceContent() != null ? a.getAdviceContent() : a.getCode())
                     .distinct()
                     .collect(Collectors.toList()));
+        } else {
+            reportVO.setEquipmentSuggestions(new ArrayList<>());
         }
 
         return reportVO;
@@ -327,9 +344,22 @@ public class DynamicFittingService {
                 vos.add(DynamicFittingMetricVO.builder()
                         .label(label)
                         .currentValue(String.format("%.1f", convertToDouble(val)))
+                        .status(advice != null ? (advice.getType() != null ? advice.getType().toUpperCase() : "ADJUST") : "OK")
+                        .idealRange(advice != null ? (advice.getRange() != null ? advice.getRange() : "--") : "--")
+                        .advice(advice != null ? (advice.getAdviceContent() != null ? advice.getAdviceContent() : advice.getCode()) : "处于理想范围")
+                        .build());
+            } else if (key.equals("avgTorso") || key.equals("minHip") || key.equals("maxSpineTilt") || key.equals("maxPelvisSway")) {
+                // 处理一些不带后缀但也是核心指标的字段
+                DynamicFittingAdviceVO advice = advices.stream()
+                        .filter(a -> a.getMetric().equalsIgnoreCase(key))
+                        .findFirst().orElse(null);
+
+                vos.add(DynamicFittingMetricVO.builder()
+                        .label(getMetricLabel(key))
+                        .currentValue(String.format("%.1f", convertToDouble(val)))
                         .status(advice != null ? "ADJUST" : "OK")
                         .idealRange(advice != null ? advice.getRange() : "--")
-                        .advice(advice != null ? advice.getCode() : "处于理想范围")
+                        .advice(advice != null ? (advice.getAdviceContent() != null ? advice.getAdviceContent() : advice.getCode()) : "处于理想范围")
                         .build());
             }
         });
@@ -355,7 +385,56 @@ public class DynamicFittingService {
         labels.put("maxLeftHipDrop", "左侧骨盆下坠");
         labels.put("maxRightHipDrop", "右侧骨盆下坠");
 
+        // 核心原始指标映射
+        labels.put("avgTorso", "平均躯干角度");
+        labels.put("minHip", "曲柄顶点最小髋角");
+        labels.put("maxHip", "曲柄底端最大髋角");
+        labels.put("avgKneeLateral", "膝盖横向偏移均值");
+
         return labels.getOrDefault(key, key);
+    }
+
+    private String getSummaryText(DynamicFittingResult result, List<DynamicFittingAdviceVO> advices) {
+        StringBuilder sb = new StringBuilder();
+        double score = result.getMatchScore() != null ? result.getMatchScore().doubleValue() : 0.0;
+
+        // 1. 得分定性评价
+        if (score >= 90) sb.append("您的骑行姿态与车型几何高度适配，表现非常出色。");
+        else if (score >= 80) sb.append("整体姿态表现良好，但在局部细节上仍有微调空间。");
+        else if (score >= 70) sb.append("系统发现若干项关键姿态偏差，建议通过微调来优化您的舒适度。");
+        else sb.append("您的生物力学模型显示明显偏移，建议对车辆规格进行大幅调整。");
+
+        // 2. 痛点关联 (解析 Session 中的 painLevels)
+        String painJson = result.getSession().getPainLevels();
+        if (painJson != null && !painJson.isEmpty()) {
+            try {
+                List<String> painKeys = JSON.parseArray(painJson, String.class);
+                if (painKeys != null && !painKeys.isEmpty()) {
+                    Map<String, String> painMap = new HashMap<>();
+                    painMap.put("knee_anterior", "膝盖前侧痛");
+                    painMap.put("knee_posterior", "膝盖后侧痛");
+                    painMap.put("lower_back", "腰部/下背部酸痛");
+                    painMap.put("neck_shoulder", "肩颈酸痛");
+                    painMap.put("hand_numbness", "手掌发麻");
+                    
+                    List<String> labels = painKeys.stream()
+                        .map(k -> painMap.getOrDefault(k, k))
+                        .collect(Collectors.toList());
+                    
+                    sb.append(String.format("针对您反馈的 [%s] 等部位，系统已为您识别出专项优化建议：", String.join("、", labels)));
+                }
+            } catch (Exception ignored) {}
+        }
+
+        // 3. 建议数量统计
+        if (advices != null && !advices.isEmpty()) {
+            long adjustCount = advices.stream().filter(a -> "adjust".equals(a.getType())).count();
+            if (adjustCount > 0) {
+                sb.append(String.format("共包含 %d 项关键调整指导。", adjustCount));
+            }
+        }
+
+        return sb.toString();
     }
 
     private String getMatchLevel(BigDecimal score) {

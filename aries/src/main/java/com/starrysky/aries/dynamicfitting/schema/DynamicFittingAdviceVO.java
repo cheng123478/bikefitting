@@ -21,4 +21,5 @@ public class DynamicFittingAdviceVO {
     private String range; // 理想范围描述
     private Integer importance; // 重要性: 1(高), 2(常规)
     private Integer sequence; // 调整顺序: 1(锁片), 2(座垫), 3(车把)
+    private String adviceContent; // 建议内容 (中文)
 }
