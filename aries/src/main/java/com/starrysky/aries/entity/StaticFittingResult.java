@@ -10,7 +10,7 @@ import org.hibernate.annotations.Comment;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
-import com.starrysky.aries.staticfitting.schema.RidingPainType;
+import com.starrysky.aries.util.RidingPainType;
 
 /**
  * 静态Fitting结果
@@ -41,14 +41,14 @@ public class StaticFittingResult {
     @Comment("建议把横宽度")
     private Integer recHandlebarWidth;
     @Comment("建议把立长度")
-    private Double recStemLength;
+    private Integer recStemLength;
     // --- 空间坐标数据 (Stack/Reach Plus) ---
     @Comment("建议车把堆高坐标(Stack+)")
-    private Double recStackPlus;
+    private Integer recStackPlus;
     @Comment("建议空间前伸坐标(Reach+)")
-    private Double recReachPlus;
+    private Integer recReachPlus;
     @Comment("建议车把落差(Drop)")
-    private Double recHandlebarDrop;
+    private Integer recHandlebarDrop;
     // --- 中间评分(用于展示报告雷达图) ---
     @Comment("计算出的胸椎灵活性得分")
     private Integer thoracicScore;

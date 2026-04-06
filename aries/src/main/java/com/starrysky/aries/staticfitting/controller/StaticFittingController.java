@@ -31,7 +31,7 @@ public class StaticFittingController {
      * @return 静态Fitting结果
      */
     @PostMapping("/calculate")
-    public StaticFittingResult calculateStaticFitting(@RequestBody StaticFittingRequest request) {
+    public StaticFittingResultVO calculateStaticFitting(@RequestBody StaticFittingRequest request) {
         return staticFittingService.calculateStaticFitting(request);
     }
 
@@ -59,4 +59,5 @@ public class StaticFittingController {
                                                   @RequestParam(value = "size", defaultValue = "10") int size) {
         return staticFittingService.getHistoryByUserId(user.getId(), page, size);
     }
+
 }

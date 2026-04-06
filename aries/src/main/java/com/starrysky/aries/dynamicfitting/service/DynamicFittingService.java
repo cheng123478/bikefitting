@@ -12,6 +12,7 @@ import com.starrysky.aries.exception.BizException;
 import com.starrysky.aries.userbike.repository.UserBikeRepository;
 import com.starrysky.aries.userbody.repository.UserBodyRepository;
 import com.starrysky.aries.util.FittingStatus;
+import com.starrysky.aries.util.RidingPainType;
 import com.starrysky.aries.util.upload.CosUtil;
 import com.starrysky.aries.util.upload.FileUploadResult;
 import com.starrysky.aries.util.upload.FileUploadUtil;
@@ -234,7 +235,12 @@ public class DynamicFittingService {
         }
 
         if (session.getPainLevels() != null) {
-            vo.setPainLevels(JSON.parseArray(session.getPainLevels(), String.class));
+            List<String> painKeys = JSON.parseArray(session.getPainLevels(), String.class);
+            vo.setPainLevels(painKeys);
+            // 转换为后端定义的痛点描述
+            vo.setPainLabels(painKeys.stream()
+                    .map(RidingPainType::getDescriptionByCode)
+                    .collect(Collectors.toList()));
         }
 
         // 提取已完成视角的总结与诊断摘要 (Summary Projection)
@@ -411,15 +417,8 @@ public class DynamicFittingService {
             try {
                 List<String> painKeys = JSON.parseArray(painJson, String.class);
                 if (painKeys != null && !painKeys.isEmpty()) {
-                    Map<String, String> painMap = new HashMap<>();
-                    painMap.put("knee_anterior", "膝盖前侧痛");
-                    painMap.put("knee_posterior", "膝盖后侧痛");
-                    painMap.put("lower_back", "腰部/下背部酸痛");
-                    painMap.put("neck_shoulder", "肩颈酸痛");
-                    painMap.put("hand_numbness", "手掌发麻");
-                    
                     List<String> labels = painKeys.stream()
-                        .map(k -> painMap.getOrDefault(k, k))
+                        .map(RidingPainType::getDescriptionByCode)
                         .collect(Collectors.toList());
                     
                     sb.append(String.format("针对您反馈的 [%s] 等部位，系统已为您识别出专项优化建议：", String.join("、", labels)));

@@ -21,13 +21,16 @@ public class StaticFittingResultVO {
     // --- 核心展示参数 ---
     private Integer recSeatHeight;
     private Integer recSetback;
-    private Double recReachPlus;
-    private Double recHandlebarDrop;
+    private Integer recReachPlus;
+    private Integer recStackPlus;
+    private Integer recHandlebarDrop;
     private Integer recHandlebarWidth;
     private Integer recSaddleWidth;
+    private Integer recStemLength;
     // --- 评分与标签 ---
     private Integer thoracicScore;
     private List<String> riderTags;
+    private List<String> painLabels;
     private List<DiagnosticDetail> details; // 当时的诊断文案
     private LocalDateTime fittingTime;
     // --- 关联标识 ---

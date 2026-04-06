@@ -2,6 +2,7 @@ package com.starrysky.aries.staticfitting.schema;
 
 import com.starrysky.aries.entity.UserBike;
 import com.starrysky.aries.entity.UserBody;
+import com.starrysky.aries.util.RidingPainType;
 import lombok.Getter;
 import lombok.Setter;
 

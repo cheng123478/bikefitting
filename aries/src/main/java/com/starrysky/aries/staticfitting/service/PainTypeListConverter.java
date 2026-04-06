@@ -1,6 +1,6 @@
 package com.starrysky.aries.staticfitting.service;
 
-import com.starrysky.aries.staticfitting.schema.RidingPainType;
+import com.starrysky.aries.util.RidingPainType;
 import jakarta.persistence.AttributeConverter;
 import jakarta.persistence.Converter;
 

@@ -7,6 +7,7 @@ import com.starrysky.aries.staticfitting.schema.*;
 import com.starrysky.aries.userbike.repository.UserBikeRepository;
 import com.starrysky.aries.userbike.repository.UserBikeSetupRepository;
 import com.starrysky.aries.userbody.repository.UserBodyRepository;
+import com.starrysky.aries.util.RidingPainType;
 import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -43,15 +44,11 @@ public class StaticFittingService {
         return dbPage.map(row -> {
             StaticFittingResult entity = (StaticFittingResult) row[0];
             String bikeName = (String) row[1];
-
-            StaticFittingResultVO vo = new StaticFittingResultVO();
-            org.springframework.beans.BeanUtils.copyProperties(entity, vo);
-            vo.setBikeName(bikeName != null ? bikeName : "纯人体测量基准");
-            return vo;
+            return convertToVO(entity, bikeName);
         });
     }
 
-    public StaticFittingResult calculateStaticFitting(StaticFittingRequest request) {
+    public StaticFittingResultVO calculateStaticFitting(StaticFittingRequest request) {
         User user = (User) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
         Long bikeId = request.getUserBike() != null ? request.getUserBike().getId() : null;
         if (bikeId == null) {
@@ -96,7 +93,23 @@ public class StaticFittingService {
             result.setPostureSuggestion("计算过程中由于部分数据异常导致中断: " + e.getMessage());
         }
 
-        return staticFittingResultRepository.save(result);
+        StaticFittingResult savedResult = staticFittingResultRepository.save(result);
+        return convertToVO(savedResult, bike.getBikeModel() != null ? bike.getBikeModel().getModel() : "未知车型");
+    }
+
+    private StaticFittingResultVO convertToVO(StaticFittingResult entity, String bikeName) {
+        StaticFittingResultVO vo = new StaticFittingResultVO();
+        org.springframework.beans.BeanUtils.copyProperties(entity, vo);
+        vo.setBikeName(bikeName != null ? bikeName : "纯人体测量基准");
+
+        // 增加痛点文案映射
+        if (entity.getInputPainTypes() != null && !entity.getInputPainTypes().isEmpty()) {
+            vo.setPainLabels(entity.getInputPainTypes().stream()
+                    .map(RidingPainType::getDescription)
+                    .collect(Collectors.toList()));
+        }
+
+        return vo;
     }
 
     private void processLevel1Sizing(UserBody body, UserBikeSetup setup, int bikeType, StaticFittingResult res) {
@@ -107,7 +120,7 @@ public class StaticFittingService {
             else if (setup.getPedalType() == 3) baseHeight -= 3;
         }
         res.setRecSeatHeight(baseHeight);
-        res.setRecStackPlus((double) StaticFittingCalculator.calcBaseStack(body.getSpanHeight(), bikeType));
+        res.setRecStackPlus(StaticFittingCalculator.calcBaseStack(body.getSpanHeight(), bikeType));
         res.setRecCrankLength(StaticFittingCalculator.calcCrankLength(body.getSpanHeight(), bikeType));
         res.getRiderTags().add("核心基准已生成");
     }
@@ -155,13 +168,13 @@ public class StaticFittingService {
             int trunk = body.getBreastHeight() - body.getSpanHeight();
             int arms = body.getLongArmLength() + (body.getShortArmLength() != null ? body.getShortArmLength() : body.getLongArmLength());
 
-            res.setRecReachPlus(StaticFittingCalculator.calcReachPlus(trunk, arms, tScore, bike.getBikeModel().getBikeType()));
+            res.setRecReachPlus((int) Math.round(StaticFittingCalculator.calcReachPlus(trunk, arms, tScore, bike.getBikeModel().getBikeType())));
 
             int h = (body.getHeight() != null) ? body.getHeight() : 1700;
             double ang = (body.getArmRaiseAngle() != null) ? body.getArmRaiseAngle().doubleValue() : 180.0;
             double drop = StaticFittingCalculator.calcHandlebarDrop(h, ang, tScore, bike.getBikeModel().getBikeType());
-            res.setRecHandlebarDrop(drop);
-            res.setRecStackPlus(res.getRecSeatHeight() - drop);
+            res.setRecHandlebarDrop((int) Math.round(drop));
+            res.setRecStackPlus(res.getRecSeatHeight() - (int) Math.round(drop));
         } else {
             addIncompleteNote(res, "上肢座舱", "由于[胸高]或[手臂长]缺失，无法计算 Reach+ / Stack+ 建议坐标。");
         }
@@ -182,7 +195,7 @@ public class StaticFittingService {
             return;
         }
         double angleRad = Math.toRadians(Math.abs(setup.getStemAngle()));
-        res.setRecStemLength((double) (Math.round((stemRaw / Math.cos(angleRad)) / 5.0) * 5));
+        res.setRecStemLength((int) (Math.round((stemRaw / Math.cos(angleRad)) / 5.0) * 5));
     }
 
     private void processPainOverrides(StaticFittingResult res, List<RidingPainType> painLevels) {
@@ -225,11 +238,63 @@ public class StaticFittingService {
             if (res.getRecReachPlus() != null) res.setRecReachPlus(res.getRecReachPlus() - 10);
             if (res.getRecHandlebarDrop() != null) {
                 res.setRecHandlebarDrop(res.getRecHandlebarDrop() - 10);
-                if (res.getRecStackPlus() != null && res.getRecSeatHeight() != null) res.setRecStackPlus((double)res.getRecSeatHeight() - res.getRecHandlebarDrop());
+                if (res.getRecStackPlus() != null && res.getRecSeatHeight() != null) res.setRecStackPlus(res.getRecSeatHeight() - res.getRecHandlebarDrop());
             }
             DiagnosticDetail d = new DiagnosticDetail();
             d.setPart("核心与腰背"); d.setBodyFeature("腰背酸痛");
             d.setAdjustmentLogic("🔴 【腰背痛】：算法已将推荐前伸量缩短并降低落差。您的核心可能无法支撑当前躯干延展，建议提高车把。");
+            res.getDetails().add(d);
+            d.setStaticFittingResult(res);
+        }
+
+        if (painLevels.contains(RidingPainType.NECK_PAIN)) {
+            if (res.getRecReachPlus() != null) res.setRecReachPlus(res.getRecReachPlus() - 10);
+            if (res.getRecHandlebarDrop() != null) res.setRecHandlebarDrop(res.getRecHandlebarDrop() - 10);
+            DiagnosticDetail d = new DiagnosticDetail();
+            d.setPart("颈椎区域"); d.setBodyFeature("颈部酸痛/僵硬");
+            d.setAdjustmentLogic("🔴 【颈部酸痛】：算法缩短了 10mm 前伸量并升高了车把。您的头部抬起角度过大。缩减前伸量可减少颈椎伸展负荷。");
+            res.getDetails().add(d);
+            d.setStaticFittingResult(res);
+        }
+
+        if (painLevels.contains(RidingPainType.SHOULDER_PAIN)) {
+            if (res.getRecReachPlus() != null) res.setRecReachPlus(res.getRecReachPlus() - 5);
+            DiagnosticDetail d = new DiagnosticDetail();
+            d.setPart("肩部区域"); d.setBodyFeature("肩部/斜方肌酸痛");
+            d.setAdjustmentLogic("🔴 【肩部酸痛】：算法略微缩短了前伸量。请检查车把宽度是否过宽或过窄，这常会导致肩膀紧缩。");
+            res.getDetails().add(d);
+            d.setStaticFittingResult(res);
+        }
+
+        if (painLevels.contains(RidingPainType.ACHILLES_PAIN)) {
+            if (res.getRecSeatHeight() != null) res.setRecSeatHeight(res.getRecSeatHeight() - 5);
+            DiagnosticDetail d = new DiagnosticDetail();
+            d.setPart("脚踝动力链"); d.setBodyFeature("跟腱痛/足跟痛");
+            d.setAdjustmentLogic("🔴 【跟腱痛】：算法降低了 5mm 座垫高度。过高的座垫会导致脚尖下勾严重，拉扯跟腱。建议同时检查锁片位置是否过于靠前。");
+            res.getDetails().add(d);
+            d.setStaticFittingResult(res);
+        }
+
+        if (painLevels.contains(RidingPainType.FOOT_NUMBNESS)) {
+            DiagnosticDetail d = new DiagnosticDetail();
+            d.setPart("足底感知"); d.setBodyFeature("脚部发麻/灼热");
+            d.setAdjustmentLogic("⚠️ 【脚麻】：该症状通常由于锁鞋过窄或锁片中心点错误（过前）导致压迫。建议检查锁片中心是否对齐大脚趾拇趾球，并微调锁片略向后移。");
+            res.getDetails().add(d);
+            d.setStaticFittingResult(res);
+        }
+
+        if (painLevels.contains(RidingPainType.KNEE_LATERAL)) {
+            DiagnosticDetail d = new DiagnosticDetail();
+            d.setPart("膝盖侧向"); d.setBodyFeature("膝盖外侧痛");
+            d.setAdjustmentLogic("⚠️ 【膝外侧痛】：可能涉及瓣膜或髂胫束压迫。建议检查锁片旋转角度（Float）是否不足，或尝试减小 Q-Factor（曲柄宽度/脚踏站间距）。");
+            res.getDetails().add(d);
+            d.setStaticFittingResult(res);
+        }
+
+        if (painLevels.contains(RidingPainType.KNEE_MEDIAL)) {
+            DiagnosticDetail d = new DiagnosticDetail();
+            d.setPart("膝盖侧向"); d.setBodyFeature("膝盖内侧痛");
+            d.setAdjustmentLogic("⚠️ 【膝内侧痛】：通常由于站间距过窄。建议尝试增加脚踏垫片（Pedal Spacers）或向内移动锁片以增加 Q-Factor。");
             res.getDetails().add(d);
             d.setStaticFittingResult(res);
         }
