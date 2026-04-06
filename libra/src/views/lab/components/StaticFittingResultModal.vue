@@ -27,6 +27,12 @@
                 <i class="fas fa-shield-alt"></i> 康复防护模式已开启
               </span>
             </div>
+            <!-- 痛点标签 -->
+            <div class="pain-tags" v-if="result.painLabels && result.painLabels.length > 0">
+              <span class="pain-tag" v-for="label in result.painLabels" :key="label">
+                [{{ label }}]
+              </span>
+            </div>
           </div>
           <button class="close-x" @click="close">&times;</button>
         </header>
@@ -335,6 +341,18 @@ const formatDate = (dateStr) => {
   padding: 3px 10px;
   border-radius: 4px;
   font-weight: 600;
+}
+
+.pain-tags {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.pain-tag {
+  color: #CF1322;
+  font-size: 0.85rem;
+  font-weight: bold;
 }
 
 .close-x {

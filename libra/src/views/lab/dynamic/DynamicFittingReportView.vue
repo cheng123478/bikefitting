@@ -100,6 +100,7 @@
                   <DynamicSkeletonPlayer 
                      :viewType="viewType" 
                      :motionData="motionDataMap[viewType]"
+                     :metrics="getMetricsForView(viewType)"
                    />
                 </div>
                 <div class="col-chart">

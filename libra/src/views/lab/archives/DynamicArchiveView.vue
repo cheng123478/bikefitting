@@ -68,9 +68,9 @@
                 <h3>动态分析详情</h3>
               </div>
               <div class="dh-right">
-                <div class="pain-tags" v-if="selectedSession.painLevels && selectedSession.painLevels.length > 0">
-                  <span class="pain-tag" v-for="pain in selectedSession.painLevels" :key="pain">
-                    [{{ getPainLabel(pain) }}]
+                <div class="pain-tags" v-if="selectedSession.painLabels && selectedSession.painLabels.length > 0">
+                  <span class="pain-tag" v-for="label in selectedSession.painLabels" :key="label">
+                    [{{ label }}]
                   </span>
                 </div>
                 <span class="bike-tag">
@@ -189,21 +189,6 @@ const sessions = ref([]);
 const selectedSession = ref(null);
 const detailLoading = ref(false);
 
-// --- 字典映射开始 ---
-const painMapping = {
-  'knee_anterior': '膝盖前侧痛',
-  'knee_posterior': '膝盖后侧痛',
-  'knee_lateral': '膝盖外侧痛',
-  'knee_medial': '膝盖内侧痛',
-  'lower_back': '下背痛/腰痛',
-  'neck_shoulder': '肩颈酸痛',
-  'hand_numbness': '手掌发麻',
-  'foot_numbness': '脚掌发麻',
-  'saddle_sore': '会阴压迫'
-};
-
-const getPainLabel = (key) => painMapping[key] || key;
-
 // 分页逻辑
 const page = ref(1);
 const hasMore = ref(false);
@@ -233,7 +218,6 @@ const loadHistory = async (isMore = false) => {
 
 const selectSession = async (session) => {
   selectedSession.value = session;
-  // 直接利用从列表 API 下发过来的摘要信息（Summary Projection），拒绝 N+1 详情查询
 };
 
 const handleLoadMore = () => {

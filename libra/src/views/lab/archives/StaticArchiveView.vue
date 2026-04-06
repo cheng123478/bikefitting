@@ -75,6 +75,12 @@
 
               <div class="dh-right">
                 <h3>历史基准详情</h3>
+                <!-- 痛点标签 -->
+                <div class="pain-tags" v-if="selectedRecord.painLabels && selectedRecord.painLabels.length > 0">
+                  <span class="pain-tag" v-for="label in selectedRecord.painLabels" :key="label">
+                    [{{ label }}]
+                  </span>
+                </div>
                 <!-- 再次强调车辆目标 -->
                 <div class="dh-meta">
                   <span class="target-bike-label">
@@ -362,6 +368,19 @@ onMounted(() => {
 }
 .btn-share:hover { background: var(--primary-color); color: white; }
 .detail-date { color: var(--text-muted); font-size: 1rem; font-family: var(--font-serif); }
+
+/* 痛点标签样式 */
+.pain-tags {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 15px;
+}
+
+.pain-tag {
+  color: #CF1322;
+  font-size: 0.85rem;
+  font-weight: bold;
+}
 
 /* 黄金参数网格 */
 .golden-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; margin-bottom: 40px; }

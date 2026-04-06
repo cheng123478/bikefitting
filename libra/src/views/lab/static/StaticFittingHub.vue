@@ -55,38 +55,7 @@
             <h3>近期骑行痛点 <span class="subtitle-tip">(可选填)</span></h3>
             <p class="desc-text">如果您在近期骑行中感到不适，请勾选对应部位。引擎会自动引入医疗级修正参数以缓解您的痛苦。</p>
 
-            <div class="pain-options-grid">
-              <label class="pain-option-label" :class="{ active: selectedPains.includes('knee_anterior') }">
-                <input type="checkbox" v-model="selectedPains" value="knee_anterior" hidden>
-                <i class="fas fa-check-circle check-icon"></i>
-                <span class="opt-text">膝盖正前侧/髌骨刺痛</span>
-              </label>
-
-              <label class="pain-option-label" :class="{ active: selectedPains.includes('knee_posterior') }">
-                <input type="checkbox" v-model="selectedPains" value="knee_posterior" hidden>
-                <i class="fas fa-check-circle check-icon"></i>
-                <span class="opt-text">膝盖后侧/腘窝拉扯痛</span>
-              </label>
-
-              <label class="pain-option-label" :class="{ active: selectedPains.includes('hand_numbness') }">
-                <input type="checkbox" v-model="selectedPains" value="hand_numbness" hidden>
-                <i class="fas fa-check-circle check-icon"></i>
-                <span class="opt-text">手掌发麻/手腕酸痛</span>
-              </label>
-
-              <label class="pain-option-label" :class="{ active: selectedPains.includes('lower_back') }">
-                <input type="checkbox" v-model="selectedPains" value="lower_back" hidden>
-                <i class="fas fa-check-circle check-icon"></i>
-                <span class="opt-text">腰背部酸痛</span>
-              </label>
-
-               <label class="pain-option-label" :class="{ active: selectedPains.includes('perineum_pain') }">
-                <input type="checkbox" v-model="selectedPains" value="perineum_pain" hidden>
-                <i class="fas fa-check-circle check-icon"></i>
-                <span class="opt-text">会阴/坐骨结节酸麻</span>
-              </label>
-
-            </div>
+            <PainSelector v-model="selectedPains" />
           </div>
         </div>
       </div>
@@ -140,6 +109,7 @@ import { useLabStore } from '@/stores/lab.js';
 import { staticFitting } from "@/api/staticFitting.js";
 import { showToast } from '@/utils/toast';
 import StaticFittingResultModal from "@/views/lab/components/StaticFittingResultModal.vue";
+import PainSelector from "@/views/lab/components/PainSelector.vue";
 
 const route = useRoute();
 const router = useRouter();
@@ -401,46 +371,6 @@ const navigateToReport = () => {
     line-height: 1.5;
 }
 
-.pain-options-grid {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 15px;
-}
-
-.pain-option-label {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    padding: 12px 15px;
-    border: 1px solid #dee2e6;
-    border-radius: 8px;
-    cursor: pointer;
-    transition: all 0.3s;
-    background: #fff;
-}
-.pain-option-label:hover {
-    border-color: var(--primary-color);
-    background: rgba(92, 110, 88, 0.02);
-}
-.pain-option-label.active {
-    border-color: var(--primary-color);
-    background: rgba(92, 110, 88, 0.05);
-    box-shadow: var(--shadow-sm);
-}
-.check-icon {
-    font-size: 1.1rem;
-    color: #cbd5e1;
-    transition: 0.3s;
-}
-.pain-option-label.active .check-icon {
-    color: var(--primary-color);
-}
-.opt-text {
-    font-size: 0.95rem;
-    color: var(--text-main);
-    font-weight: 500;
-}
-
 /* 2. 底部操作面板 */
 .action-panel {
   padding: 30px 40px;
@@ -481,7 +411,6 @@ const navigateToReport = () => {
 
 @media (max-width: 1024px) {
   .view-grid { grid-template-columns: 1fr; }
-  .pain-options-grid { grid-template-columns: 1fr; }
   .action-panel { flex-direction: column; text-align: center; }
   .btn-group { width: 100%; flex-direction: column; }
   .btn-action { justify-content: center; }

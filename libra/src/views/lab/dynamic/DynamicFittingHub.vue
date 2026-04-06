@@ -60,37 +60,7 @@
           <div class="card-body">
             <p class="desc-text-sm">勾选不适部位，Aries 将引入医疗级修正参数以优化动态建议。</p>
 
-            <div class="pain-options-grid">
-              <label class="pain-option-label" :class="{ active: session.painLevels.includes('knee_anterior') }">
-                <input type="checkbox" v-model="session.painLevels" value="knee_anterior" hidden>
-                <i class="fas fa-check-circle check-icon"></i>
-                <span class="opt-text">膝盖正前侧/髌骨刺痛</span>
-              </label>
-
-              <label class="pain-option-label" :class="{ active: session.painLevels.includes('knee_posterior') }">
-                <input type="checkbox" v-model="session.painLevels" value="knee_posterior" hidden>
-                <i class="fas fa-check-circle check-icon"></i>
-                <span class="opt-text">膝盖后侧/腘窝拉扯痛</span>
-              </label>
-
-              <label class="pain-option-label" :class="{ active: session.painLevels.includes('hand_numbness') }">
-                <input type="checkbox" v-model="session.painLevels" value="hand_numbness" hidden>
-                <i class="fas fa-check-circle check-icon"></i>
-                <span class="opt-text">手掌发麻/手腕酸痛</span>
-              </label>
-
-              <label class="pain-option-label" :class="{ active: session.painLevels.includes('lower_back') }">
-                <input type="checkbox" v-model="session.painLevels" value="lower_back" hidden>
-                <i class="fas fa-check-circle check-icon"></i>
-                <span class="opt-text">腰背部酸痛</span>
-              </label>
-
-              <label class="pain-option-label" :class="{ active: session.painLevels.includes('perineum_pain') }">
-                <input type="checkbox" v-model="session.painLevels" value="perineum_pain" hidden>
-                <i class="fas fa-check-circle check-icon"></i>
-                <span class="opt-text">会阴/坐骨结节酸麻</span>
-              </label>
-            </div>
+            <PainSelector v-model="session.painLevels" />
           </div>
         </div>
       </div>
@@ -245,6 +215,7 @@ import { useRoute, useRouter } from 'vue-router';
 import { useLabStore } from '@/stores/lab.js';
 import { useDynamicSessionStore } from "@/stores/dynamicSession.js";
 import { showToast, showConfirm } from '@/utils/toast';
+import PainSelector from "@/views/lab/components/PainSelector.vue";
 
 const route = useRoute();
 const router = useRouter();
@@ -538,26 +509,6 @@ const getViewDesc = (v) => {
 .m-item .v { font-size: 1rem; font-weight: 700; color: var(--primary-color); }
 
 .check-circle { position: absolute; top: 15px; right: 15px; color: var(--primary-color); }
-
-/* Pain options */
-.pain-options-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-  gap: 10px;
-}
-
-.pain-option-label {
-  padding: 10px 15px;
-  background: rgba(255,255,255,0.4);
-  border-radius: 12px;
-  border: 1px solid rgba(0,0,0,0.05);
-  cursor: pointer;
-  display: flex; align-items: center; gap: 10px;
-  transition: 0.3s;
-}
-
-.pain-option-label.active { border-color: var(--primary-color); background: #fff; }
-.pain-option-label .opt-text { font-size: 0.85rem; }
 
 /* Bottom Action */
 .bottom-action-section {

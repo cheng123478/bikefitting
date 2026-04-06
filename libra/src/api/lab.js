@@ -10,3 +10,13 @@ export function getLabDashboard() {
         method: 'get'
     });
 }
+
+/**
+ * 获取痛感选项列表
+ */
+export function getPainOptions() {
+    return request({
+        url: `/lab/pain-options`,
+        method: 'get'
+    });
+}

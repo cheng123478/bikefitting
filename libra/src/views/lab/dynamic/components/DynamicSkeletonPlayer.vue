@@ -45,6 +45,10 @@ const props = defineProps({
   motionData: {
     type: Object,
     default: null
+  },
+  metrics: {
+    type: Array,
+    default: () => []
   }
 });
 
@@ -122,14 +126,15 @@ const drawFrame = (index) => {
   const pts = frame.pts;
   
   // Fill background
-  ctx.fillStyle = 'var(--bg-glass)'; // Using system light background setting essentially
+  // Note: var(--bg-glass) doesn't work in canvas fillStyle, using resolved fallback
+  ctx.fillStyle = '#f8f9fa'; 
   ctx.fillRect(0, 0, 640, 480);
 
   const vt = props.viewType.toUpperCase();
 
   // Primary Line Color
-  const lColor = 'var(--primary-color, rgba(100, 150, 100, 0.7))'; 
-  const pColor = 'var(--accent-gold, #D4AF37)';
+  const lColor = 'rgba(92, 110, 88, 0.7)'; // #5C6E58 with alpha
+  const pColor = '#D4AF37'; // gold
 
   if (vt === 'SIDE') {
     // connect ear to shoulder, shoulder->hip->knee->ankle->toe/heel
@@ -165,10 +170,54 @@ const drawFrame = (index) => {
     });
   }
 
-  // Draw Time marker
-  ctx.fillStyle = 'rgba(150, 150, 150, 0.5)';
-  ctx.font = '14px Arial';
-  ctx.fillText(`Time: ${frame.ts}ms   Frame: ${index + 1}/${frames.length}`, 15, 30);
+  // --- UI Overlay (Watermark & Metrics) ---
+  const pad = 30;
+  const panelHeight = 85;
+  
+  // 1. Sleek semi-transparent bottom panel
+  ctx.fillStyle = 'rgba(26, 26, 26, 0.85)'; // Dark premium glass
+  ctx.fillRect(0, 480 - panelHeight, 640, panelHeight);
+  
+  // 2. Watermark & Brand (Bottom Right)
+  ctx.textAlign = 'right';
+  
+  // Brand name "骑迹"
+  ctx.fillStyle = '#FFFFFF';
+  ctx.font = 'bold 22px sans-serif';
+  ctx.fillText('骑迹', 640 - pad, 480 - 40);
+  
+  // URL
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
+  ctx.font = '12px monospace';
+  ctx.fillText('www.ridmiricle.com', 640 - pad, 480 - 20);
+  
+  // 3. Adjustment Metrics (Bottom Left)
+  const adjustMetrics = props.metrics.filter(m => m.status !== 'OK');
+  ctx.textAlign = 'left';
+  
+  adjustMetrics.forEach((m, i) => {
+    if (i >= 3) return; // Maintain clean UI
+    const y = 480 - panelHeight + 25 + (i * 20);
+    
+    // Status indicator dot
+    ctx.fillStyle = m.status === 'WARNING' ? '#ff4d4f' : '#D4AF37';
+    ctx.beginPath();
+    ctx.arc(pad, y - 5, 4, 0, Math.PI * 2);
+    ctx.fill();
+    
+    // Metric text: Label Current -> Target
+    ctx.fillStyle = '#FFFFFF';
+    ctx.font = '14px sans-serif';
+    const unit = props.viewType.toLowerCase() === 'side' ? '°' : '';
+    const targetText = m.idealRange && m.idealRange !== '--' ? ` (目标 ${m.idealRange}${unit})` : '';
+    ctx.fillText(`${m.label}: ${m.currentValue}${unit}${targetText}`, pad + 15, y);
+  });
+
+  // Small Top Time marker
+  ctx.fillStyle = 'rgba(100, 100, 100, 0.4)';
+  ctx.font = '10px monospace';
+  ctx.textAlign = 'left';
+  ctx.fillText(`SEQ: ${index + 1}/${frames.length} | TS: ${frame.ts}ms`, 15, 20);
 };
 
 const loop = (timestamp) => {
