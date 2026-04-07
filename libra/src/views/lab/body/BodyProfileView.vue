@@ -47,6 +47,8 @@
                   <CustomInput label="身高 (Height) *" v-model="formData.height" unit="mm" placeholder="例如：1750" @focus="setGuide('height')" />
                   <CustomInput label="跨高 (Inseam) *" v-model="formData.spanHeight" unit="mm" placeholder="例如：820" @focus="setGuide('spanHeight')" />
                   <CustomInput label="胸高 (Sternal Notch)" v-model="formData.breastHeight" unit="mm" placeholder="例如：1450" @focus="setGuide('breastHeight')" />
+                  <CustomInput label="肩宽" v-model="formData.shoulderWidth" unit="mm" placeholder="例如：420" @focus="setGuide('shoulder')" />
+                  <CustomInput label="坐骨间距" v-model="formData.ischialDistance" unit="mm" placeholder="例如：120" @focus="setGuide('ischial')" />
                 </div>
               </div>
               <div class="guide-area">
@@ -62,8 +64,6 @@
                 <h3 class="step-title">02 肢体杠杆</h3>
                 <p class="step-desc">精确到毫米的肢体数据是计算 Stack & Reach 的核心。</p>
                 <div class="input-grid">
-                  <CustomInput label="肩宽" v-model="formData.shoulderWidth" unit="mm" placeholder="例如：420" @focus="setGuide('shoulder')" />
-                  <CustomInput label="坐骨间距" v-model="formData.ischialDistance" unit="mm" placeholder="例如：120" @focus="setGuide('ischial')" />
                   <div class="grid-2">
                     <CustomInput label="大臂长" v-model="formData.longArmLength" unit="mm" placeholder="例如：330" @focus="setGuide('arms')" />
                     <CustomInput label="小臂长" v-model="formData.shortArmLength" unit="mm" placeholder="例如：280" @focus="setGuide('arms')" />
@@ -116,13 +116,12 @@
                 <h3 class="step-title">04 核心稳定性</h3>
                 <p class="step-desc">最后的评估项，帮助我们优化您的操控组件。</p>
                 <div class="input-grid">
-                  <div class="zen-form-item" @click="setGuide('squat')">
+                  <div class="zen-form-item">
                     <label class="input-label">深蹲稳定性评分 (1-5)</label>
                     <div class="score-selector">
                       <button v-for="i in 5" :key="i" type="button" :class="{active: formData.squatStabilityScore === i}" @click="formData.squatStabilityScore = i">{{ i }}</button>
                     </div>
                   </div>
-                  <CustomInput label="最高深蹲深度" v-model="formData.squatDepth" unit="cm" placeholder="例如：-15" @focus="setGuide('squat')" />
                 </div>
               </div>
               <div class="guide-area">
@@ -149,7 +148,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted, nextTick } from 'vue';
+import { ref, reactive, onMounted, nextTick, watch } from 'vue';
 import { useRoute } from 'vue-router';
 import CustomInput from '@/views/lab/components/CustomInput.vue';
 import GuideDisplay from '@/views/lab/components/GuideDisplay.vue';
@@ -161,7 +160,7 @@ import { saveUserBody, getLatestUserBody } from '@/api/userBody.js';
 const userStore = useUserStore();
 const route = useRoute();
 const currentStep = ref(Number(route.query.step) || 1);
-const activeGuide = ref('height');
+const activeGuide = ref('step1_default');
 const loading = ref(false);
 const initLoading = ref(true); // 初始加载状态
 const showResult = ref(false);
@@ -188,7 +187,6 @@ const formData = reactive({
   thoracicRotationAngle: null,
   thoracicExtensionAngle: null,
   thoracicPainLevel: null,
-  squatDepth: null,
   squatStabilityScore: null
 });
 
@@ -237,6 +235,21 @@ const setGuide = (key) => {
   activeGuide.value = key;
 };
 
+// 步骤默认指引映射
+const stepDefaultGuides = {
+  1: 'step1_default',
+  2: 'step2_default',
+  3: 'step3_default',
+  4: 'step4_default'
+};
+
+// 监听步骤变化，自动更新指引
+watch(currentStep, (newStep) => {
+  if (stepDefaultGuides[newStep]) {
+    activeGuide.value = stepDefaultGuides[newStep];
+  }
+});
+
 /**
  * 分步验证逻辑
  */
@@ -284,9 +297,7 @@ const validateStep = (step) => {
 const handleNext = () => {
   if (validateStep(currentStep.value)) {
     currentStep.value++;
-    // 切换步骤时根据当前步骤设置默认指引
-    const stepGuides = { 2: 'shoulder', 3: 'thoracic_rot', 4: 'squat' };
-    if (stepGuides[currentStep.value]) activeGuide.value = stepGuides[currentStep.value];
+    // 指引更新由 watch 自动处理
   }
 };
 
