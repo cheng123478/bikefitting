@@ -24,10 +24,6 @@ public class FittorDiagnosticsManager {
     @Resource
     private DiagnosticLibrary diagLib;
 
-    public DiagnosticLibrary getDiagLib() {
-        return diagLib;
-    }
-
     /**
      * 生成身体画像诊断
      * 依赖：height, longArmLength (必填), femurRatio (选填), thoracicScore (选填)

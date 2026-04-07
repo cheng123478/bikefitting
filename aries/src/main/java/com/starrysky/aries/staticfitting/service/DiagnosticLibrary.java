@@ -22,6 +22,14 @@ import java.util.Map;
 @Component
 @Slf4j
 public class DiagnosticLibrary {
+
+    /**
+     * JSON文件中：
+     * module_0：专注数据校验。
+     * module_1-3：核心生物力学诊断（比例、下肢、上肢）。
+     * module_4-5：高级补偿与安全建议（痛点处理）。
+     * module_6-7：器材与总结。
+     */
     private JsonNode library;
     @Resource
     private ObjectMapper objectMapper;
