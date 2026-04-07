@@ -26,11 +26,12 @@ public enum BikeType {
 
     public final int code;
     public final String displayName;
-    public final double stackReachRatio;           // 基础Stack/Reach比
-    public final double seatHeightCoefficient;      // 座高系数
-    public final double reachCoefficient;          // 前伸系数
+    public final double stackReachRatio; // 基础Stack/Reach比
+    public final double seatHeightCoefficient; // 座高系数
+    public final double reachCoefficient; // 前伸系数
 
-    BikeType(int code, String displayName, double stackReachRatio, double seatHeightCoefficient, double reachCoefficient) {
+    BikeType(int code, String displayName, double stackReachRatio, double seatHeightCoefficient,
+            double reachCoefficient) {
         this.code = code;
         this.displayName = displayName;
         this.stackReachRatio = stackReachRatio;

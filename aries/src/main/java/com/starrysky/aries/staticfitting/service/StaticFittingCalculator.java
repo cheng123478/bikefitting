@@ -96,9 +96,8 @@ public class StaticFittingCalculator {
     public static int calcCrankLength(int spanHeight, int bikeType) {
         double raw = spanHeight * FittingConstants.CRANK_RATIO;
         if (bikeType == BikeType.TT_BIKE.code) {
-            raw -= 2.5; // TT车特殊短曲柄偏移
+            raw -= 2.5;
         }
-        // 按照 2.5mm 规格进行最近匹配后，再取整返回
         return (int) (Math.round(raw / 2.5) * 2.5);
     }
 
@@ -236,10 +235,21 @@ public class StaticFittingCalculator {
         }
         double drop = height * dropK;
         if (armRaiseAngle > 0 && armRaiseAngle < 155) {
-            if (bikeType != BikeType.CITY_BIKE.code) drop *= 0.7;
+            if (bikeType != BikeType.CITY_BIKE.code) drop *= 0.7; // Not CITY_BIKE
         }
         if (thoracicScore != null && thoracicScore < 60) drop *= 0.85;
         return Math.round(drop * 10.0) / 10.0;
+    }
+
+    /**
+     * 计算前伸偏移量 (基于把立与角度)
+     *
+     * @param stemLength 把立长度 (mm)
+     * @param stemAngle  把立角度 (度)
+     * @return 前伸量贡献值 (mm)
+     */
+    public static double calculateReachOffset(int stemLength, double stemAngle) {
+        return stemLength * Math.cos(Math.toRadians(Math.abs(stemAngle)));
     }
 }
 

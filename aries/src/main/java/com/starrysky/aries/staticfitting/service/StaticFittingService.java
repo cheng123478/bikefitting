@@ -7,6 +7,7 @@ import com.starrysky.aries.staticfitting.schema.*;
 import com.starrysky.aries.userbike.repository.UserBikeRepository;
 import com.starrysky.aries.userbike.repository.UserBikeSetupRepository;
 import com.starrysky.aries.userbody.repository.UserBodyRepository;
+import com.starrysky.aries.util.BikeType;
 import com.starrysky.aries.util.RidingPainType;
 import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
@@ -72,15 +73,11 @@ public class StaticFittingService {
         if (bikeId == null) {
             throw new BizException("进行诊断前请选择一辆实车或设定档");
         }
-        List<RidingPainType> painLevels = request.getPainLevels();
 
         UserBody body = userBodyRepository.findTopByUserIdOrderByIdDesc(user.getId())
                 .orElseThrow(() -> new BizException("未找到身体测量数据，请先录入[身体图谱]"));
 
-        if (body.getHeight() == null || body.getHeight() < 1200 || body.getHeight() > 2200 ||
-                body.getSpanHeight() == null || body.getSpanHeight() < 600 || body.getSpanHeight() > 1000) {
-            throw new BizException("基础数据(身高/跨高)疑似异常或缺失，请确认测量单位(mm)及数值准确性。");
-        }
+        validateCoreData(body);
 
         UserBike bike = userBikeRepository.findById(bikeId).orElseThrow(() -> new BizException("找不到指定的单车信息"));
         UserBikeSetup setup = userBikeSetupRepository.findTopByUserBikeIdOrderByCreateTimeDesc(bike.getId())
@@ -93,26 +90,32 @@ public class StaticFittingService {
             // A. 数据质量校验
             int validationCode = StaticFittingCalculator.validateHumanProportions(body.getSpanHeight(), body.getHeight(), body.getLongArmLength());
             if (validationCode > 0) {
-                String warning = switch (validationCode) {
-                    case 1 -> "检测到您的[跨高]比例极高，建议复核测量数据是否准确。";
-                    case 2 -> "检测到您的[跨高]比例极低，建议复核测量数据是否准确。";
-                    case 3 -> "检测到您的[猿臂比]偏离常模（长臂或短臂），诊断结论已为您自动修正。";
+                String templateKey = switch (validationCode) {
+                    case 1 -> "span_ratio_high";
+                    case 2 -> "span_ratio_low";
+                    case 3 -> "ape_index_warning";
                     default -> "";
                 };
-                if (!warning.isEmpty()) addIncompleteNote(result, "数据质量", "【异常提醒】" + warning);
+                if (!templateKey.isEmpty()) {
+                    diagnosticsManager.addDetail(result, "数据质量", "异常提示",
+                        diagnosticsManager.getDiagLib().getTemplate("module_0_validation", templateKey, new HashMap<>()));
+                }
             }
 
+            // B. 多层级生物力学计算与诊断
             processLevel1Sizing(body, setup, bike.getBikeModel().getBikeType(), result);
             processLevel2Ergonomics(user, body, bike.getBikeModel().getBikeType(), result);
             diagnosticsManager.diagnoseComponents(result, body, setup);
             processLevel3Biomechanical(body, bike, setup, result);
 
+            // C. 现状对比与痛点修正
             processBikeAdjustment(bike, setup, result);
             diagnosticsManager.addAdjustmentAdvice(result, bike, setup);
 
+            List<RidingPainType> painLevels = request.getPainLevels();
             if (painLevels != null && !painLevels.isEmpty()) {
                 result.setInputPainTypes(new ArrayList<>(painLevels));
-                processPainOverrides(result, painLevels);
+                diagnosticsManager.diagnosePain(result, painLevels);
             }
 
             diagnosticsManager.diagnoseSafety(result, body);
@@ -127,6 +130,13 @@ public class StaticFittingService {
         return convertToVO(savedResult, bike.getBikeModel() != null ? bike.getBikeModel().getModel() : "未知车型");
     }
 
+    private void validateCoreData(UserBody body) {
+        if (body.getHeight() == null || body.getHeight() < 1200 || body.getHeight() > 2200 ||
+                body.getSpanHeight() == null || body.getSpanHeight() < 600 || body.getSpanHeight() > 1000) {
+            throw new BizException("基础数据(身高/跨高)疑似异常或缺失，请确认测量单位(mm)及数值准确性。");
+        }
+    }
+
     /**
      * 将实体对象转换为VO对象
      *
@@ -136,11 +146,26 @@ public class StaticFittingService {
      */
     private StaticFittingResultVO convertToVO(StaticFittingResult entity, String bikeName) {
         StaticFittingResultVO vo = new StaticFittingResultVO();
-        org.springframework.beans.BeanUtils.copyProperties(entity, vo);
+        vo.setId(entity.getId());
+        vo.setFittingTime(entity.getFittingTime());
+        vo.setUserBodyId(entity.getUserBodyId());
+        vo.setUserBikeId(entity.getUserBikeId());
+        vo.setThoracicScore(entity.getThoracicScore());
+        vo.setRecSeatHeight(entity.getRecSeatHeight());
+        vo.setRecSetback(entity.getRecSetback());
+        vo.setRecReachPlus(entity.getRecReachPlus());
+        vo.setRecStackPlus(entity.getRecStackPlus());
+        vo.setRecHandlebarDrop(entity.getRecHandlebarDrop());
+        vo.setRecCrankLength(entity.getRecCrankLength());
+        vo.setRecHandlebarWidth(entity.getRecHandlebarWidth());
+        vo.setRecSaddleWidth(entity.getRecSaddleWidth());
+        vo.setRecStemLength(entity.getRecStemLength());
+        vo.setPostureSuggestion(entity.getPostureSuggestion());
+        vo.setRiderTags(entity.getRiderTags());
+
         vo.setBikeName(bikeName != null ? bikeName : "纯人体测量基准");
 
-        // 增加痛点文案映射
-        if (entity.getInputPainTypes() != null && !entity.getInputPainTypes().isEmpty()) {
+        if (entity.getInputPainTypes() != null) {
             vo.setPainLabels(entity.getInputPainTypes().stream()
                     .map(RidingPainType::getDescription)
                     .collect(Collectors.toList()));
@@ -182,21 +207,19 @@ public class StaticFittingService {
         if (body.getIschialDistance() != null && body.getIschialDistance() > 0) {
             res.setRecSaddleWidth(StaticFittingCalculator.calcSaddleWidth(body.getIschialDistance(), bikeType));
         } else {
-            // 男143/女155 默认值 fallback
             int defaultIschial = (user.getGender() != null && user.getGender() == 2) ? 155 : 143;
             res.setRecSaddleWidth(StaticFittingCalculator.calcSaddleWidth(defaultIschial, bikeType));
-            addIncompleteNote(res, "器材匹配", "由于[坐骨间距]缺失，已按性别默认值比例给出座垫建议。");
+            addIncompleteNote(res, "器材匹配", "missing_ischial");
         }
 
         if (body.getShoulderWidth() != null && body.getShoulderWidth() > 0) {
-            int handleWidth = (bikeType == 1) ? (body.getShoulderWidth() / 10 * 10) : (body.getShoulderWidth() + 300);
+            int handleWidth = (bikeType == BikeType.ROAD_BIKE.code) ? (body.getShoulderWidth() / 10 * 10) : (body.getShoulderWidth() + 300);
             res.setRecHandlebarWidth(handleWidth);
         } else {
-            // 男400/女380 默认值 fallback
             int defaultShoulder = (user.getGender() != null && user.getGender() == 2) ? 380 : 400;
-            int handleWidth = (bikeType == 1) ? (defaultShoulder / 10 * 10) : (defaultShoulder + 300);
+            int handleWidth = (bikeType == BikeType.ROAD_BIKE.code) ? (defaultShoulder / 10 * 10) : (defaultShoulder + 300);
             res.setRecHandlebarWidth(handleWidth);
-            addIncompleteNote(res, "器材匹配", "由于[肩宽]缺失，已按性别默认值比例给出把横宽度建议。");
+            addIncompleteNote(res, "器材匹配", "missing_shoulder");
         }
     }
 
@@ -237,7 +260,7 @@ public class StaticFittingService {
             res.setRecHandlebarDrop((int) Math.round(drop));
             res.setRecStackPlus(res.getRecSeatHeight() - (int) Math.round(drop));
         } else {
-            addIncompleteNote(res, "上肢座舱", "由于[胸高]或[手臂长]缺失，无法计算 Reach+ / Stack+ 建议坐标。");
+            addIncompleteNote(res, "上肢座舱", "missing_upper_body");
         }
 
         double femurRatio = (body.getThighLength() != null && body.getSpanHeight() != null) ? (double) body.getThighLength() / body.getSpanHeight() : 0.46;
@@ -259,141 +282,12 @@ public class StaticFittingService {
         if (res.getRecReachPlus() == null || bike.getBikeModel() == null || bike.getBikeModel().getReach() == null)
             return;
         double stemRaw = res.getRecReachPlus() - bike.getBikeModel().getReach();
-        if (setup == null || setup.getStemAngle() == null) {
-            addIncompleteNote(res, "调教方案", "实车[把立角度]缺失，无法计算精确把立长度建议。");
+        if (setup == null || setup.getStemAngle() == null || setup.getStemLength() == null) {
+            addIncompleteNote(res, "调教方案", "missing_stem_angle");
             return;
         }
-        double angleRad = Math.toRadians(Math.abs(setup.getStemAngle()));
-        res.setRecStemLength((int) (Math.round((stemRaw / Math.cos(angleRad)) / 5.0) * 5));
-    }
-
-    /**
-     * 处理痛点
-     *
-     * @param res        调教结果对象
-     * @param painLevels 痛点列表
-     */
-    private void processPainOverrides(StaticFittingResult res, List<RidingPainType> painLevels) {
-        if (painLevels.contains(RidingPainType.PERINEUM_PAIN)) {
-            if (res.getRecSeatHeight() != null) res.setRecSeatHeight(res.getRecSeatHeight() - 5);
-            DiagnosticDetail d = new DiagnosticDetail();
-            d.setPart("核心与压迫");
-            d.setBodyFeature("会阴/坐骨痛");
-            d.setAdjustmentLogic("🔴 【会阴痛】：算法已主动降低了 5mm 座高并建议检查座宽。过高的座高或错误的座垫角度会导致神经与血管受压。建议座垫倾角保持在 -0.5° 到 -2° 之间。");
-            res.getDetails().add(d);
-            d.setStaticFittingResult(res);
-        }
-
-        boolean hasAnterior = painLevels.contains(RidingPainType.KNEE_ANTERIOR);
-        boolean hasPosterior = painLevels.contains(RidingPainType.KNEE_POSTERIOR);
-
-        if (hasAnterior && hasPosterior) {
-            DiagnosticDetail d = new DiagnosticDetail();
-            d.setPart("下肢动力链");
-            d.setBodyFeature("矛盾疼痛点");
-            d.setAdjustmentLogic("⚠️ 检测到您同时存在膝盖前后侧的矛盾痛感。这通常是由锁片位置严重错误或双腿肌力极度不平衡导致。请暂停调整高度！建议优先检查您的锁片是否对齐脚掌拇趾球，并进行针对性的肌肉放松。");
-            res.getDetails().add(d);
-            d.setStaticFittingResult(res);
-        } else if (hasAnterior) {
-            if (res.getRecSeatHeight() != null) res.setRecSeatHeight(res.getRecSeatHeight() + 8);
-            DiagnosticDetail d = new DiagnosticDetail();
-            d.setPart("下肢动力链");
-            d.setBodyFeature("膝盖前侧痛");
-            d.setAdjustmentLogic("🔴 【膝盖前侧痛】：因为处于痛感期，算法已将处方座垫高度提高 8mm。这通常是因为座垫过低导致踩踏上死点时膝盖弯曲过度，髌骨受压。调高后留意疼痛改善。");
-            res.getDetails().add(d);
-            d.setStaticFittingResult(res);
-        } else if (hasPosterior) {
-            if (res.getRecSeatHeight() != null) res.setRecSeatHeight(res.getRecSeatHeight() - 8);
-            DiagnosticDetail d = new DiagnosticDetail();
-            d.setPart("下肢动力链");
-            d.setBodyFeature("膝盖后侧痛");
-            d.setAdjustmentLogic("🔴 【膝盖后侧痛】：因为处于痛感期，算法已将处方座垫高度降低 8mm。过高的位置强迫膝盖在踩踏下死点时完全锁死过度拉伸了韧带。降低后留意疼痛改善。");
-            res.getDetails().add(d);
-            d.setStaticFittingResult(res);
-        }
-
-        if (painLevels.contains(RidingPainType.HAND_NUMBNESS)) {
-            if (res.getRecReachPlus() != null) res.setRecReachPlus(res.getRecReachPlus() - 15);
-            DiagnosticDetail d = new DiagnosticDetail();
-            d.setPart("上肢座舱");
-            d.setBodyFeature("手掌发麻/刺痛");
-            d.setAdjustmentLogic("🔴 【手麻】：算法已将推荐前伸量缩短 15mm。您的重心可能过于前倾，压迫手腕神经。请考虑更换更短的把立。");
-            res.getDetails().add(d);
-            d.setStaticFittingResult(res);
-        }
-
-        if (painLevels.contains(RidingPainType.LOWER_BACK)) {
-            if (res.getRecReachPlus() != null) res.setRecReachPlus(res.getRecReachPlus() - 10);
-            if (res.getRecHandlebarDrop() != null) {
-                res.setRecHandlebarDrop(res.getRecHandlebarDrop() - 10);
-                if (res.getRecStackPlus() != null && res.getRecSeatHeight() != null)
-                    res.setRecStackPlus(res.getRecSeatHeight() - res.getRecHandlebarDrop());
-            }
-            DiagnosticDetail d = new DiagnosticDetail();
-            d.setPart("核心与腰背");
-            d.setBodyFeature("腰背酸痛");
-            d.setAdjustmentLogic("🔴 【腰背痛】：算法已将推荐前伸量缩短并降低落差。您的核心可能无法支撑当前躯干延展，建议提高车把。");
-            res.getDetails().add(d);
-            d.setStaticFittingResult(res);
-        }
-
-        if (painLevels.contains(RidingPainType.NECK_PAIN)) {
-            if (res.getRecReachPlus() != null) res.setRecReachPlus(res.getRecReachPlus() - 10);
-            if (res.getRecHandlebarDrop() != null) res.setRecHandlebarDrop(res.getRecHandlebarDrop() - 10);
-            DiagnosticDetail d = new DiagnosticDetail();
-            d.setPart("颈椎区域");
-            d.setBodyFeature("颈部酸痛/僵硬");
-            d.setAdjustmentLogic("🔴 【颈部酸痛】：算法缩短了 10mm 前伸量并升高了车把。您的头部抬起角度过大。缩减前伸量可减少颈椎伸展负荷。");
-            res.getDetails().add(d);
-            d.setStaticFittingResult(res);
-        }
-
-        if (painLevels.contains(RidingPainType.SHOULDER_PAIN)) {
-            if (res.getRecReachPlus() != null) res.setRecReachPlus(res.getRecReachPlus() - 5);
-            DiagnosticDetail d = new DiagnosticDetail();
-            d.setPart("肩部区域");
-            d.setBodyFeature("肩部/斜方肌酸痛");
-            d.setAdjustmentLogic("🔴 【肩部酸痛】：算法略微缩短了前伸量。请检查车把宽度是否过宽或过窄，这常会导致肩膀紧缩。");
-            res.getDetails().add(d);
-            d.setStaticFittingResult(res);
-        }
-
-        if (painLevels.contains(RidingPainType.ACHILLES_PAIN)) {
-            if (res.getRecSeatHeight() != null) res.setRecSeatHeight(res.getRecSeatHeight() - 5);
-            DiagnosticDetail d = new DiagnosticDetail();
-            d.setPart("脚踝动力链");
-            d.setBodyFeature("跟腱痛/足跟痛");
-            d.setAdjustmentLogic("🔴 【跟腱痛】：算法降低了 5mm 座垫高度。过高的座垫会导致脚尖下勾严重，拉扯跟腱。建议同时检查锁片位置是否过于靠前。");
-            res.getDetails().add(d);
-            d.setStaticFittingResult(res);
-        }
-
-        if (painLevels.contains(RidingPainType.FOOT_NUMBNESS)) {
-            DiagnosticDetail d = new DiagnosticDetail();
-            d.setPart("足底感知");
-            d.setBodyFeature("脚部发麻/灼热");
-            d.setAdjustmentLogic("⚠️ 【脚麻】：该症状通常由于锁鞋过窄或锁片中心点错误（过前）导致压迫。建议检查锁片中心是否对齐大脚趾拇趾球，并微调锁片略向后移。");
-            res.getDetails().add(d);
-            d.setStaticFittingResult(res);
-        }
-
-        if (painLevels.contains(RidingPainType.KNEE_LATERAL)) {
-            DiagnosticDetail d = new DiagnosticDetail();
-            d.setPart("膝盖侧向");
-            d.setBodyFeature("膝盖外侧痛");
-            d.setAdjustmentLogic("⚠️ 【膝外侧痛】：可能涉及瓣膜或髂胫束压迫。建议检查锁片旋转角度（Float）是否不足，或尝试减小 Q-Factor（曲柄宽度/脚踏站间距）。");
-            res.getDetails().add(d);
-            d.setStaticFittingResult(res);
-        }
-
-        if (painLevels.contains(RidingPainType.KNEE_MEDIAL)) {
-            DiagnosticDetail d = new DiagnosticDetail();
-            d.setPart("膝盖侧向");
-            d.setBodyFeature("膝盖内侧痛");
-            d.setAdjustmentLogic("⚠️ 【膝内侧痛】：通常由于站间距过窄。建议尝试增加脚踏垫片（Pedal Spacers）或向内移动锁片以增加 Q-Factor。");
-            res.getDetails().add(d);
-            d.setStaticFittingResult(res);
-        }
+        double stemOffset = StaticFittingCalculator.calculateReachOffset(5, setup.getStemAngle()) / 5.0;
+        res.setRecStemLength((int) (Math.round((stemRaw / (stemOffset / 5.0)) / 5.0) * 5)); 
     }
 
     /**
@@ -471,14 +365,11 @@ public class StaticFittingService {
      *
      * @param res   单车调教结果
      * @param part  部位
-     * @param logic 调整逻辑
+     * @param templateKey 调整逻辑
      */
-    private void addIncompleteNote(StaticFittingResult res, String part, String logic) {
-        DiagnosticDetail detail = new DiagnosticDetail();
-        detail.setPart(part);
-        detail.setAdjustmentLogic("【数据缺失】" + logic);
-        res.getDetails().add(detail);
-        detail.setStaticFittingResult(res);
+    private void addIncompleteNote(StaticFittingResult res, String part, String templateKey) {
+        diagnosticsManager.addDetail(res, part, "数据缺失", 
+            diagnosticsManager.getDiagLib().getTemplate("module_0_validation", templateKey, new HashMap<>()));
     }
 
     /**
@@ -489,7 +380,7 @@ public class StaticFittingService {
      * @return 当前前伸量
      */
     private double calculateCurrentReachPlus(BikeModel model, UserBikeSetup setup) {
-        return model.getReach() + (setup.getStemLength() * Math.cos(Math.toRadians(Math.abs(setup.getStemAngle()))));
+        return model.getReach() + StaticFittingCalculator.calculateReachOffset(setup.getStemLength(), setup.getStemAngle());
     }
 
     /**

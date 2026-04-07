@@ -24,6 +24,10 @@ public class FittorDiagnosticsManager {
     @Resource
     private DiagnosticLibrary diagLib;
 
+    public DiagnosticLibrary getDiagLib() {
+        return diagLib;
+    }
+
     /**
      * 生成身体画像诊断
      * 依赖：height, longArmLength (必填), femurRatio (选填), thoracicScore (选填)
@@ -267,6 +271,85 @@ public class FittorDiagnosticsManager {
     }
 
     /**
+     * 处理骑行痛点并应用生物力学修正
+     *
+     * @param res        静态分析结果
+     * @param painLevels 痛点列表
+     */
+    public void diagnosePain(StaticFittingResult res, java.util.List<com.starrysky.aries.util.RidingPainType> painLevels) {
+        if (painLevels == null || painLevels.isEmpty()) return;
+
+        Map<String, Object> v = new HashMap<>();
+
+        // 会阴痛
+        if (painLevels.contains(com.starrysky.aries.util.RidingPainType.PERINEUM_PAIN)) {
+            if (res.getRecSeatHeight() != null) res.setRecSeatHeight(res.getRecSeatHeight() - 5);
+            addDetail(res, "核心与压迫", "会阴/坐骨痛", diagLib.getTemplate("module_5_safety", "pain_perineum", v));
+        }
+
+        // 膝盖痛：前后侧冲突处理
+        boolean hasAnterior = painLevels.contains(com.starrysky.aries.util.RidingPainType.KNEE_ANTERIOR);
+        boolean hasPosterior = painLevels.contains(com.starrysky.aries.util.RidingPainType.KNEE_POSTERIOR);
+
+        if (hasAnterior && hasPosterior) {
+            addDetail(res, "下肢动力链", "矛盾疼痛点", diagLib.getTemplate("module_5_safety", "pain_knee_contradictory", v));
+        } else if (hasAnterior) {
+            if (res.getRecSeatHeight() != null) res.setRecSeatHeight(res.getRecSeatHeight() + 8);
+            addDetail(res, "下肢动力链", "膝盖前侧痛", diagLib.getTemplate("module_5_safety", "pain_knee_anterior", v));
+        } else if (hasPosterior) {
+            if (res.getRecSeatHeight() != null) res.setRecSeatHeight(res.getRecSeatHeight() - 8);
+            addDetail(res, "下肢动力链", "膝盖后侧痛", diagLib.getTemplate("module_5_safety", "pain_knee_posterior", v));
+        }
+
+        // 手麻
+        if (painLevels.contains(com.starrysky.aries.util.RidingPainType.HAND_NUMBNESS)) {
+            if (res.getRecReachPlus() != null) res.setRecReachPlus(res.getRecReachPlus() - 15);
+            addDetail(res, "上肢座舱", "手掌发麻/刺痛", diagLib.getTemplate("module_5_safety", "pain_hand_numbness", v));
+        }
+
+        // 腰背痛
+        if (painLevels.contains(com.starrysky.aries.util.RidingPainType.LOWER_BACK)) {
+            if (res.getRecReachPlus() != null) res.setRecReachPlus(res.getRecReachPlus() - 10);
+            if (res.getRecHandlebarDrop() != null) {
+                res.setRecHandlebarDrop(res.getRecHandlebarDrop() - 10);
+                if (res.getRecStackPlus() != null && res.getRecSeatHeight() != null)
+                    res.setRecStackPlus(res.getRecSeatHeight() - res.getRecHandlebarDrop());
+            }
+            addDetail(res, "核心与腰背", "腰背酸痛", diagLib.getTemplate("module_5_safety", "pain_lower_back", v));
+        }
+
+        // 颈部痛
+        if (painLevels.contains(com.starrysky.aries.util.RidingPainType.NECK_PAIN)) {
+            if (res.getRecReachPlus() != null) res.setRecReachPlus(res.getRecReachPlus() - 10);
+            if (res.getRecHandlebarDrop() != null) res.setRecHandlebarDrop(res.getRecHandlebarDrop() - 10);
+            addDetail(res, "颈部区域", "颈部酸痛/僵硬", diagLib.getTemplate("module_5_safety", "pain_neck", v));
+        }
+
+        // 肩部痛
+        if (painLevels.contains(com.starrysky.aries.util.RidingPainType.SHOULDER_PAIN)) {
+            if (res.getRecReachPlus() != null) res.setRecReachPlus(res.getRecReachPlus() - 5);
+            addDetail(res, "肩部区域", "肩部/斜方肌酸痛", diagLib.getTemplate("module_5_safety", "pain_shoulder", v));
+        }
+
+        // 跟腱痛
+        if (painLevels.contains(com.starrysky.aries.util.RidingPainType.ACHILLES_PAIN)) {
+            if (res.getRecSeatHeight() != null) res.setRecSeatHeight(res.getRecSeatHeight() - 5);
+            addDetail(res, "脚踝动力链", "跟腱痛/足跟痛", diagLib.getTemplate("module_5_safety", "pain_achilles", v));
+        }
+
+        // 其他感知类痛点 (不涉及数值修正，仅建议)
+        if (painLevels.contains(com.starrysky.aries.util.RidingPainType.FOOT_NUMBNESS)) {
+            addDetail(res, "足底感知", "脚部发麻/灼热", diagLib.getTemplate("module_5_safety", "pain_foot_numbness", v));
+        }
+        if (painLevels.contains(com.starrysky.aries.util.RidingPainType.KNEE_LATERAL)) {
+            addDetail(res, "膝盖侧向", "膝盖外侧痛", diagLib.getTemplate("module_5_safety", "pain_knee_lateral", v));
+        }
+        if (painLevels.contains(com.starrysky.aries.util.RidingPainType.KNEE_MEDIAL)) {
+            addDetail(res, "膝盖侧向", "膝盖内侧痛", diagLib.getTemplate("module_5_safety", "pain_knee_medial", v));
+        }
+    }
+
+    /**
      * 添加诊断详情
      *
      * @param res     静态分析结果
@@ -274,7 +357,7 @@ public class FittorDiagnosticsManager {
      * @param feature 特征
      * @param logic   调整逻辑
      */
-    private void addDetail(StaticFittingResult res, String part, String feature, String logic) {
+    public void addDetail(StaticFittingResult res, String part, String feature, String logic) {
         if (logic == null || logic.trim().isEmpty())
             return;
         DiagnosticDetail detail = new DiagnosticDetail();

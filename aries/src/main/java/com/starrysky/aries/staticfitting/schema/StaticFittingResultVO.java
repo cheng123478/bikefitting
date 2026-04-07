@@ -21,6 +21,7 @@ public class StaticFittingResultVO {
     // --- 核心展示参数 ---
     private Integer recSeatHeight;
     private Integer recSetback;
+    private Integer recCrankLength;
     private Integer recReachPlus;
     private Integer recStackPlus;
     private Integer recHandlebarDrop;
@@ -32,10 +33,11 @@ public class StaticFittingResultVO {
     private List<String> riderTags;
     private List<String> painLabels;
     private List<DiagnosticDetail> details; // 当时的诊断文案
+    private String postureSuggestion;
     private LocalDateTime fittingTime;
     // --- 关联标识 ---
-    private Long userBodyInfoId;
-    private Long userBikeInfoId;
+    private Long userBodyId;
+    private Long userBikeId;
     private String bikeName;
     private Integer bikeType;
 }
