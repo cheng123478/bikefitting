@@ -350,6 +350,18 @@ public class FittorDiagnosticsManager {
     }
 
     /**
+     * 添加校验异常或数据缺失详情
+     *
+     * @param res         静态分析结果
+     * @param part        部位
+     * @param feature     特征(例如：异常提示、数据缺失)
+     * @param templateKey 模版key (对应 module_0_validation 里的键)
+     */
+    public void addValidationDetail(StaticFittingResult res, String part, String feature, String templateKey) {
+        addDetail(res, part, feature, diagLib.getTemplate("module_0_validation", templateKey, new HashMap<>()));
+    }
+
+    /**
      * 添加诊断详情
      *
      * @param res     静态分析结果

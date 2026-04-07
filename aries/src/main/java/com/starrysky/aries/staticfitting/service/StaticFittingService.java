@@ -97,8 +97,7 @@ public class StaticFittingService {
                     default -> "";
                 };
                 if (!templateKey.isEmpty()) {
-                    diagnosticsManager.addDetail(result, "数据质量", "异常提示",
-                        diagnosticsManager.getDiagLib().getTemplate("module_0_validation", templateKey, new HashMap<>()));
+                    diagnosticsManager.addValidationDetail(result, "数据质量", "异常提示", templateKey);
                 }
             }
 
@@ -368,8 +367,7 @@ public class StaticFittingService {
      * @param templateKey 调整逻辑
      */
     private void addIncompleteNote(StaticFittingResult res, String part, String templateKey) {
-        diagnosticsManager.addDetail(res, part, "数据缺失", 
-            diagnosticsManager.getDiagLib().getTemplate("module_0_validation", templateKey, new HashMap<>()));
+        diagnosticsManager.addValidationDetail(res, part, "数据缺失", templateKey);
     }
 
     /**
