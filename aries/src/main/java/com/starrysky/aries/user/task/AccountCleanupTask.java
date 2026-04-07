@@ -1,7 +1,6 @@
 package com.starrysky.aries.user.task;
 
 import com.starrysky.aries.user.repository.UserRepository;
-import com.starrysky.aries.util.Constant;
 import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.PageRequest;
@@ -26,25 +25,10 @@ public class AccountCleanupTask {
     @Resource
     private UserRepository userRepository;
 
-    @Scheduled(cron = "0 0 3 * * ?")
-    public void cleanExpiredAccounts() {
-        log.info("开始执行注销账号清理任务...");
-        // 计算截止时间：当前时间 - 7天
-        LocalDateTime deadline = LocalDateTime.now().minusDays(Constant.EXPIRED_ACCOUNT_CLEANUP_DAYS);
-        // 执行数据库更新
-        // 把所有注销时间早于 deadline 的用户的手机号设为 NULL
-        int count = userRepository.anonymizeExpiredAccounts(deadline);
-        if (count > 0) {
-            log.info("清理完成，共抹除 {} 个过期注销账号的敏感信息", count);
-        } else {
-            log.info("清理完成，暂无过期账号需要处理");
-        }
-    }
-
     // 每次处理 1000 条，防止长事务
     private static final int BATCH_SIZE = 1000;
 
-    @Scheduled(cron = "0 0 3 * * ?") // 每天凌晨3点执行
+    @Scheduled(cron = "0 0 3 * * 1 ") // 每周一凌晨3点执行
     public void batchCleanExpiredAccounts() {
         log.info(">>> 开始执行注销账号清理任务...");
         long startTime = System.currentTimeMillis();
@@ -98,56 +82,7 @@ public class AccountCleanupTask {
  * #### 2. 必做：分批处理 (代码优化)
  * **永远不要在生产环境一次性更新几万条数据！**
  * 我们要采用 **“蚂蚁搬家”** 的策略：每次只查出 1000 个待清理的 ID，然后根据 ID 更新。
- *
- * **优化后的 Task 代码：**
- *
- * ```java
- * @Scheduled(cron = "0 0 3 * * ?")
- * public void cleanExpiredAccounts() {
- *     log.info("开始执行注销账号清理任务...");
- *     LocalDateTime deadline = LocalDateTime.now().minusDays(7);
- *
- *     int batchSize = 1000; // 每次处理 1000 条
- *     boolean hasMore = true;
- *
- *     while (hasMore) {
- *         // 第一步：只查 ID（利用覆盖索引，速度极快）
- *         // SELECT id FROM user WHERE is_deleted = 1 AND update_time < :deadline AND phone IS NOT NULL LIMIT 1000
- *         List<String> ids = userRepository.findExpiredUserIds(deadline, PageRequest.of(0, batchSize));
- *
- *         if (ids.isEmpty()) {
- *             hasMore = false;
- *         } else {
- *             // 第二步：根据 ID 批量更新
- *             // UPDATE user SET phone = NULL WHERE id IN (...)
- *             userRepository.clearPhoneByIds(ids);
- *
- *             log.info("已清理一批账号，数量: {}", ids.size());
- *
- *             // 休息一下，防止占用数据库 IO 太久
- *             try { Thread.sleep(100); } catch (InterruptedException e) {}
- *         }
- *     }
- *     log.info("清理任务结束");
- * }
- * ```
- *
- * **Repository 配合代码：**
- *
- * ```java
- * public interface UserRepository extends JpaRepository<User, String> {
- *
- *     // 1. 查 ID (利用 Pageable 做 Limit)
- *     @Query("SELECT u.id FROM User u WHERE u.isDeleted = true AND u.updateTime < :deadline AND u.phone IS NOT NULL")
- *     List<String> findExpiredUserIds(@Param("deadline") LocalDateTime deadline, Pageable pageable);
- *
- *     // 2. 根据 ID 更新
- *     @Modifying
- *     @Transactional
- *     @Query("UPDATE User u SET u.phone = NULL, u.oldPhone = NULL WHERE u.id IN :ids")
- *     void clearPhoneByIds(@Param("ids") List<String> ids);
- * }
- * ```
+
  *
  * **优点**：
  * *   每次只锁 1000 行，几乎不影响线上业务。

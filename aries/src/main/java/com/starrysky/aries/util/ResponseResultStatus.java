@@ -32,7 +32,6 @@ public enum ResponseResultStatus {
     // 业务错误,按需扩展
     BIZ_ERROR(10000, "Biz Error");
 
-
     private final Integer code;
     private final String message;
 }

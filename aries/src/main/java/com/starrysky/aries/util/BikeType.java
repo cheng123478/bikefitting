@@ -9,7 +9,7 @@ package com.starrysky.aries.util;
  */
 public enum BikeType {
     // 公路车(标准竞技/综合)
-    //
+    // STR ~1.45(看似高其实是因为Reach长), 伸展系数 0.445 (略微直立)
     ROAD_BIKE(1, "公路车", 1.45, 0.883, 0.445),
     // 山地车(XC/Trail)
     // STR ~1.25(看似低其实是因为Reach长), 伸展系数 0.410 (把立短

@@ -35,8 +35,8 @@ public class StaticFittingReportVO {
     private List<String> expertDiagnoses;
 
     // --- 5. 专属康复与纠偏计划 (Recovery Plan) ---
-    private List<RecoveryPlanDTO> recoveryPlan;
+    private List<RecoveryPlanVO> recoveryPlan;
 
     // --- 6. 硬件升级防坑建议 (Hardware Upgrades) ---
-    private List<HardwareUpgradeDTO> hardwareUpgrades;
+    private List<HardwareUpgradeVO> hardwareUpgrades;
 }

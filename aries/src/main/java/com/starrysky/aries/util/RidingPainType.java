@@ -13,17 +13,17 @@ import lombok.Getter;
  */
 @Getter
 public enum RidingPainType {
-    KNEE_ANTERIOR("knee_anterior", "膝盖前侧痛"),
-    KNEE_POSTERIOR("knee_posterior", "膝盖后侧痛"),
+    NECK_PAIN("neck_pain", "颈部酸痛/僵硬"),
+    SHOULDER_PAIN("shoulder_pain", "肩部/斜方肌酸痛"),
     HAND_NUMBNESS("hand_numbness", "手掌发麻/刺痛"),
     LOWER_BACK("lower_back", "腰背酸痛"),
     PERINEUM_PAIN("perineum_pain", "会阴/坐骨痛"),
-    NECK_PAIN("neck_pain", "颈部酸痛/僵硬"),
-    SHOULDER_PAIN("shoulder_pain", "肩部/斜方肌酸痛"),
-    FOOT_NUMBNESS("foot_numbness", "脚部发麻/灼热"),
-    ACHILLES_PAIN("achilles_pain", "跟腱痛/足跟痛"),
+    KNEE_ANTERIOR("knee_anterior", "膝盖前侧痛"),
+    KNEE_POSTERIOR("knee_posterior", "膝盖后侧痛"),
+    KNEE_MEDIAL("knee_medial", "膝盖内侧痛"),
     KNEE_LATERAL("knee_lateral", "膝盖外侧痛"),
-    KNEE_MEDIAL("knee_medial", "膝盖内侧痛");
+    FOOT_NUMBNESS("foot_numbness", "脚部发麻/灼热"),
+    ACHILLES_PAIN("achilles_pain", "跟腱痛/足跟痛");
 
     @JsonValue
     private final String code;

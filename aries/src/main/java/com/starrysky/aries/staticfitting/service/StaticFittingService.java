@@ -22,6 +22,10 @@ import java.util.stream.Collectors;
 
 /**
  * 本服务负责协调身体数据、单车数据及生物力学算法，生成分层级的调教报告。
+ *
+ * @author adi
+ * @version 1.0
+ * @since 2025-12-23
  */
 @Service
 @Slf4j
@@ -37,6 +41,14 @@ public class StaticFittingService {
     @Resource
     private StaticFittingResultRepository staticFittingResultRepository;
 
+    /**
+     * 获取用户的历史调教记录
+     *
+     * @param userId 用户ID
+     * @param page   页码
+     * @param size   每页大小
+     * @return 历史调教记录
+     */
     public Page<StaticFittingResultVO> getHistoryByUserId(Long userId, int page, int size) {
         Pageable pageable = PageRequest.of(page - 1, size);
         Page<Object[]> dbPage = staticFittingResultRepository.findHistoryByUserId(userId, pageable);
@@ -48,6 +60,12 @@ public class StaticFittingService {
         });
     }
 
+    /**
+     * 计算静态调教
+     *
+     * @param request 静态调教请求
+     * @return 静态调教结果
+     */
     public StaticFittingResultVO calculateStaticFitting(StaticFittingRequest request) {
         User user = (User) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
         Long bikeId = request.getUserBike() != null ? request.getUserBike().getId() : null;
@@ -72,9 +90,21 @@ public class StaticFittingService {
         initializeResult(result, body, bike);
 
         try {
+            // A. 数据质量校验
+            int validationCode = StaticFittingCalculator.validateHumanProportions(body.getSpanHeight(), body.getHeight(), body.getLongArmLength());
+            if (validationCode > 0) {
+                String warning = switch (validationCode) {
+                    case 1 -> "检测到您的[跨高]比例极高，建议复核测量数据是否准确。";
+                    case 2 -> "检测到您的[跨高]比例极低，建议复核测量数据是否准确。";
+                    case 3 -> "检测到您的[猿臂比]偏离常模（长臂或短臂），诊断结论已为您自动修正。";
+                    default -> "";
+                };
+                if (!warning.isEmpty()) addIncompleteNote(result, "数据质量", "【异常提醒】" + warning);
+            }
+
             processLevel1Sizing(body, setup, bike.getBikeModel().getBikeType(), result);
             processLevel2Ergonomics(user, body, bike.getBikeModel().getBikeType(), result);
-            diagnosticsManager.diagnoseComponents(result, body);
+            diagnosticsManager.diagnoseComponents(result, body, setup);
             processLevel3Biomechanical(body, bike, setup, result);
 
             processBikeAdjustment(bike, setup, result);
@@ -97,6 +127,13 @@ public class StaticFittingService {
         return convertToVO(savedResult, bike.getBikeModel() != null ? bike.getBikeModel().getModel() : "未知车型");
     }
 
+    /**
+     * 将实体对象转换为VO对象
+     *
+     * @param entity   静态调教结果实体对象
+     * @param bikeName 单车名称
+     * @return 静态调教结果VO对象
+     */
     private StaticFittingResultVO convertToVO(StaticFittingResult entity, String bikeName) {
         StaticFittingResultVO vo = new StaticFittingResultVO();
         org.springframework.beans.BeanUtils.copyProperties(entity, vo);
@@ -112,9 +149,17 @@ public class StaticFittingService {
         return vo;
     }
 
+    /**
+     * 初始化调教结果对象
+     *
+     * @param body     用户身体数据
+     * @param setup    用户单车设定数据
+     * @param bikeType 单车类型
+     * @param res      调教结果对象
+     */
     private void processLevel1Sizing(UserBody body, UserBikeSetup setup, int bikeType, StaticFittingResult res) {
         int baseHeight = StaticFittingCalculator.calcBaseSeatHeight(body.getSpanHeight(), bikeType);
-        
+
         if (setup != null && setup.getPedalType() != null) {
             if (setup.getPedalType() == 1) baseHeight -= 10;
             else if (setup.getPedalType() == 3) baseHeight -= 3;
@@ -125,6 +170,14 @@ public class StaticFittingService {
         res.getRiderTags().add("核心基准已生成");
     }
 
+    /**
+     * 处理二级调教
+     *
+     * @param user     用户信息
+     * @param body     用户身体数据
+     * @param bikeType 单车类型
+     * @param res      调教结果对象
+     */
     private void processLevel2Ergonomics(User user, UserBody body, int bikeType, StaticFittingResult res) {
         if (body.getIschialDistance() != null && body.getIschialDistance() > 0) {
             res.setRecSaddleWidth(StaticFittingCalculator.calcSaddleWidth(body.getIschialDistance(), bikeType));
@@ -147,9 +200,17 @@ public class StaticFittingService {
         }
     }
 
+    /**
+     * 处理三级调教
+     *
+     * @param body  用户身体数据
+     * @param bike  用户单车数据
+     * @param setup 用户单车设定数据
+     * @param res   调教结果对象
+     */
     private void processLevel3Biomechanical(UserBody body, UserBike bike, UserBikeSetup setup, StaticFittingResult res) {
 
-        Integer tScore = 0;
+        int tScore = 0;
         if (body.getThoracicRotationAngle() != null && body.getThoracicExtensionAngle() != null) {
             int pain = (body.getThoracicPainLevel() != null) ? body.getThoracicPainLevel() : 0;
             tScore = (int) (body.getThoracicRotationAngle() * 0.6 + body.getThoracicExtensionAngle() * 0.4 - pain * 10);
@@ -159,19 +220,19 @@ public class StaticFittingService {
         if (body.getThighLength() != null && body.getThighLength() > 0 && body.getSpanHeight() != null) {
             double femurRatio = (double) body.getThighLength() / body.getSpanHeight();
             int tibiaCorrection = StaticFittingCalculator.calcTibiaCorrection(body.getCalfLength() != null ? body.getCalfLength() : 0, body.getSpanHeight());
-            
+
             res.setRecSeatHeight(res.getRecSeatHeight() + tibiaCorrection);
             res.setRecSetback(StaticFittingCalculator.calcSetback(body.getThighLength(), femurRatio));
         }
 
-        if (body.getBreastHeight() != null && body.getLongArmLength() != null) {
+        if (body.getBreastHeight() != null && body.getLongArmLength() != null && body.getSpanHeight() != null) {
             int trunk = body.getBreastHeight() - body.getSpanHeight();
             int arms = body.getLongArmLength() + (body.getShortArmLength() != null ? body.getShortArmLength() : body.getLongArmLength());
 
             res.setRecReachPlus((int) Math.round(StaticFittingCalculator.calcReachPlus(trunk, arms, tScore, bike.getBikeModel().getBikeType())));
 
             int h = (body.getHeight() != null) ? body.getHeight() : 1700;
-            double ang = (body.getArmRaiseAngle() != null) ? body.getArmRaiseAngle().doubleValue() : 180.0;
+            double ang = (body.getArmRaiseAngle() != null) ? body.getArmRaiseAngle() : 180.0;
             double drop = StaticFittingCalculator.calcHandlebarDrop(h, ang, tScore, bike.getBikeModel().getBikeType());
             res.setRecHandlebarDrop((int) Math.round(drop));
             res.setRecStackPlus(res.getRecSeatHeight() - (int) Math.round(drop));
@@ -181,14 +242,22 @@ public class StaticFittingService {
 
         double femurRatio = (body.getThighLength() != null && body.getSpanHeight() != null) ? (double) body.getThighLength() / body.getSpanHeight() : 0.46;
         double apeIndex = (body.getLongArmLength() != null) ? (double) (body.getLongArmLength() * 2) / body.getHeight() : 1.0;
-        
+
         diagnosticsManager.diagnosePortrait(res, body, apeIndex, femurRatio);
-        diagnosticsManager.diagnoseLowerBody(res, femurRatio, (setup != null ? (Integer) setup.getSaddleHeight() : null));
-        diagnosticsManager.diagnoseUpperBody(res, body);
+        diagnosticsManager.diagnoseLowerBody(res, femurRatio, setup);
+        diagnosticsManager.diagnoseUpperBody(res, body, setup);
     }
 
+    /**
+     * 处理单车调教
+     *
+     * @param bike  用户单车数据
+     * @param setup 用户单车设定数据
+     * @param res   调教结果对象
+     */
     private void processBikeAdjustment(UserBike bike, UserBikeSetup setup, StaticFittingResult res) {
-        if (res.getRecReachPlus() == null || bike.getBikeModel() == null || bike.getBikeModel().getReach() == null) return;
+        if (res.getRecReachPlus() == null || bike.getBikeModel() == null || bike.getBikeModel().getReach() == null)
+            return;
         double stemRaw = res.getRecReachPlus() - bike.getBikeModel().getReach();
         if (setup == null || setup.getStemAngle() == null) {
             addIncompleteNote(res, "调教方案", "实车[把立角度]缺失，无法计算精确把立长度建议。");
@@ -198,7 +267,23 @@ public class StaticFittingService {
         res.setRecStemLength((int) (Math.round((stemRaw / Math.cos(angleRad)) / 5.0) * 5));
     }
 
+    /**
+     * 处理痛点
+     *
+     * @param res        调教结果对象
+     * @param painLevels 痛点列表
+     */
     private void processPainOverrides(StaticFittingResult res, List<RidingPainType> painLevels) {
+        if (painLevels.contains(RidingPainType.PERINEUM_PAIN)) {
+            if (res.getRecSeatHeight() != null) res.setRecSeatHeight(res.getRecSeatHeight() - 5);
+            DiagnosticDetail d = new DiagnosticDetail();
+            d.setPart("核心与压迫");
+            d.setBodyFeature("会阴/坐骨痛");
+            d.setAdjustmentLogic("🔴 【会阴痛】：算法已主动降低了 5mm 座高并建议检查座宽。过高的座高或错误的座垫角度会导致神经与血管受压。建议座垫倾角保持在 -0.5° 到 -2° 之间。");
+            res.getDetails().add(d);
+            d.setStaticFittingResult(res);
+        }
+
         boolean hasAnterior = painLevels.contains(RidingPainType.KNEE_ANTERIOR);
         boolean hasPosterior = painLevels.contains(RidingPainType.KNEE_POSTERIOR);
 
@@ -212,14 +297,16 @@ public class StaticFittingService {
         } else if (hasAnterior) {
             if (res.getRecSeatHeight() != null) res.setRecSeatHeight(res.getRecSeatHeight() + 8);
             DiagnosticDetail d = new DiagnosticDetail();
-            d.setPart("下肢动力链"); d.setBodyFeature("膝盖前侧痛");
+            d.setPart("下肢动力链");
+            d.setBodyFeature("膝盖前侧痛");
             d.setAdjustmentLogic("🔴 【膝盖前侧痛】：因为处于痛感期，算法已将处方座垫高度提高 8mm。这通常是因为座垫过低导致踩踏上死点时膝盖弯曲过度，髌骨受压。调高后留意疼痛改善。");
             res.getDetails().add(d);
             d.setStaticFittingResult(res);
         } else if (hasPosterior) {
             if (res.getRecSeatHeight() != null) res.setRecSeatHeight(res.getRecSeatHeight() - 8);
             DiagnosticDetail d = new DiagnosticDetail();
-            d.setPart("下肢动力链"); d.setBodyFeature("膝盖后侧痛");
+            d.setPart("下肢动力链");
+            d.setBodyFeature("膝盖后侧痛");
             d.setAdjustmentLogic("🔴 【膝盖后侧痛】：因为处于痛感期，算法已将处方座垫高度降低 8mm。过高的位置强迫膝盖在踩踏下死点时完全锁死过度拉伸了韧带。降低后留意疼痛改善。");
             res.getDetails().add(d);
             d.setStaticFittingResult(res);
@@ -228,7 +315,8 @@ public class StaticFittingService {
         if (painLevels.contains(RidingPainType.HAND_NUMBNESS)) {
             if (res.getRecReachPlus() != null) res.setRecReachPlus(res.getRecReachPlus() - 15);
             DiagnosticDetail d = new DiagnosticDetail();
-            d.setPart("上肢座舱"); d.setBodyFeature("手掌发麻/刺痛");
+            d.setPart("上肢座舱");
+            d.setBodyFeature("手掌发麻/刺痛");
             d.setAdjustmentLogic("🔴 【手麻】：算法已将推荐前伸量缩短 15mm。您的重心可能过于前倾，压迫手腕神经。请考虑更换更短的把立。");
             res.getDetails().add(d);
             d.setStaticFittingResult(res);
@@ -238,10 +326,12 @@ public class StaticFittingService {
             if (res.getRecReachPlus() != null) res.setRecReachPlus(res.getRecReachPlus() - 10);
             if (res.getRecHandlebarDrop() != null) {
                 res.setRecHandlebarDrop(res.getRecHandlebarDrop() - 10);
-                if (res.getRecStackPlus() != null && res.getRecSeatHeight() != null) res.setRecStackPlus(res.getRecSeatHeight() - res.getRecHandlebarDrop());
+                if (res.getRecStackPlus() != null && res.getRecSeatHeight() != null)
+                    res.setRecStackPlus(res.getRecSeatHeight() - res.getRecHandlebarDrop());
             }
             DiagnosticDetail d = new DiagnosticDetail();
-            d.setPart("核心与腰背"); d.setBodyFeature("腰背酸痛");
+            d.setPart("核心与腰背");
+            d.setBodyFeature("腰背酸痛");
             d.setAdjustmentLogic("🔴 【腰背痛】：算法已将推荐前伸量缩短并降低落差。您的核心可能无法支撑当前躯干延展，建议提高车把。");
             res.getDetails().add(d);
             d.setStaticFittingResult(res);
@@ -251,7 +341,8 @@ public class StaticFittingService {
             if (res.getRecReachPlus() != null) res.setRecReachPlus(res.getRecReachPlus() - 10);
             if (res.getRecHandlebarDrop() != null) res.setRecHandlebarDrop(res.getRecHandlebarDrop() - 10);
             DiagnosticDetail d = new DiagnosticDetail();
-            d.setPart("颈椎区域"); d.setBodyFeature("颈部酸痛/僵硬");
+            d.setPart("颈椎区域");
+            d.setBodyFeature("颈部酸痛/僵硬");
             d.setAdjustmentLogic("🔴 【颈部酸痛】：算法缩短了 10mm 前伸量并升高了车把。您的头部抬起角度过大。缩减前伸量可减少颈椎伸展负荷。");
             res.getDetails().add(d);
             d.setStaticFittingResult(res);
@@ -260,7 +351,8 @@ public class StaticFittingService {
         if (painLevels.contains(RidingPainType.SHOULDER_PAIN)) {
             if (res.getRecReachPlus() != null) res.setRecReachPlus(res.getRecReachPlus() - 5);
             DiagnosticDetail d = new DiagnosticDetail();
-            d.setPart("肩部区域"); d.setBodyFeature("肩部/斜方肌酸痛");
+            d.setPart("肩部区域");
+            d.setBodyFeature("肩部/斜方肌酸痛");
             d.setAdjustmentLogic("🔴 【肩部酸痛】：算法略微缩短了前伸量。请检查车把宽度是否过宽或过窄，这常会导致肩膀紧缩。");
             res.getDetails().add(d);
             d.setStaticFittingResult(res);
@@ -269,7 +361,8 @@ public class StaticFittingService {
         if (painLevels.contains(RidingPainType.ACHILLES_PAIN)) {
             if (res.getRecSeatHeight() != null) res.setRecSeatHeight(res.getRecSeatHeight() - 5);
             DiagnosticDetail d = new DiagnosticDetail();
-            d.setPart("脚踝动力链"); d.setBodyFeature("跟腱痛/足跟痛");
+            d.setPart("脚踝动力链");
+            d.setBodyFeature("跟腱痛/足跟痛");
             d.setAdjustmentLogic("🔴 【跟腱痛】：算法降低了 5mm 座垫高度。过高的座垫会导致脚尖下勾严重，拉扯跟腱。建议同时检查锁片位置是否过于靠前。");
             res.getDetails().add(d);
             d.setStaticFittingResult(res);
@@ -277,7 +370,8 @@ public class StaticFittingService {
 
         if (painLevels.contains(RidingPainType.FOOT_NUMBNESS)) {
             DiagnosticDetail d = new DiagnosticDetail();
-            d.setPart("足底感知"); d.setBodyFeature("脚部发麻/灼热");
+            d.setPart("足底感知");
+            d.setBodyFeature("脚部发麻/灼热");
             d.setAdjustmentLogic("⚠️ 【脚麻】：该症状通常由于锁鞋过窄或锁片中心点错误（过前）导致压迫。建议检查锁片中心是否对齐大脚趾拇趾球，并微调锁片略向后移。");
             res.getDetails().add(d);
             d.setStaticFittingResult(res);
@@ -285,7 +379,8 @@ public class StaticFittingService {
 
         if (painLevels.contains(RidingPainType.KNEE_LATERAL)) {
             DiagnosticDetail d = new DiagnosticDetail();
-            d.setPart("膝盖侧向"); d.setBodyFeature("膝盖外侧痛");
+            d.setPart("膝盖侧向");
+            d.setBodyFeature("膝盖外侧痛");
             d.setAdjustmentLogic("⚠️ 【膝外侧痛】：可能涉及瓣膜或髂胫束压迫。建议检查锁片旋转角度（Float）是否不足，或尝试减小 Q-Factor（曲柄宽度/脚踏站间距）。");
             res.getDetails().add(d);
             d.setStaticFittingResult(res);
@@ -293,13 +388,21 @@ public class StaticFittingService {
 
         if (painLevels.contains(RidingPainType.KNEE_MEDIAL)) {
             DiagnosticDetail d = new DiagnosticDetail();
-            d.setPart("膝盖侧向"); d.setBodyFeature("膝盖内侧痛");
+            d.setPart("膝盖侧向");
+            d.setBodyFeature("膝盖内侧痛");
             d.setAdjustmentLogic("⚠️ 【膝内侧痛】：通常由于站间距过窄。建议尝试增加脚踏垫片（Pedal Spacers）或向内移动锁片以增加 Q-Factor。");
             res.getDetails().add(d);
             d.setStaticFittingResult(res);
         }
     }
 
+    /**
+     * 诊断单车调教
+     *
+     * @param userId     用户ID
+     * @param userBikeId 用户单车ID
+     * @return 单车调教报告
+     */
     public StaticFittingReportVO diagnoseBikeSetup(Long userId, Long userBikeId) {
         UserBody body = userBodyRepository.findTopByUserIdOrderByIdDesc(userId).orElseThrow(() -> new BizException("身体数据不存在"));
         UserBike bike = userBikeRepository.findById(userBikeId).orElseThrow(() -> new BizException("车辆数据不存在"));
@@ -314,27 +417,31 @@ public class StaticFittingService {
 
         List<StaticFittingMetricVO> mechanicalAdjustments = new ArrayList<>();
         List<String> expertDiagnoses = new ArrayList<>();
-        List<HardwareUpgradeDTO> hardwareUpgrades = new ArrayList<>();
+        List<HardwareUpgradeVO> hardwareUpgrades = new ArrayList<>();
         double maxDelta = 0;
 
         if (ideal.getRecSeatHeight() != null && setup.getSaddleHeight() != null) {
-            StaticFittingMetricVO m = buildMetric("Saddle Height (座垫高度)", "mm", ideal.getRecSeatHeight(), setup.getSaddleHeight(), 5, "决定踩踏效率与膝盖健康");
+            StaticFittingMetricVO m = buildMetric("Saddle Height (座垫高度)", ideal.getRecSeatHeight(), setup.getSaddleHeight(), 5, "决定踩踏效率与膝盖健康");
             mechanicalAdjustments.add(m);
             maxDelta = Math.max(maxDelta, Math.abs(m.getDelta().intValue()));
-            if (Math.abs(m.getDelta().intValue()) > 20) expertDiagnoses.add(m.getDelta().intValue() > 0 ? "🔴 座垫显著偏低，易造成膝前受压。" : "🔴 座垫显著偏高，易造成大腿后侧拉伤。");
+            if (Math.abs(m.getDelta().intValue()) > 20)
+                expertDiagnoses.add(m.getDelta().intValue() > 0 ? "🔴 座垫显著偏低，易造成膝前受压。" : "🔴 座垫显著偏高，易造成大腿后侧拉伤。");
         }
 
         if (ideal.getRecReachPlus() != null && bike.getBikeModel() != null && bike.getBikeModel().getReach() != null && setup.getStemLength() != null) {
             double currentReachPlus = calculateCurrentReachPlus(bike.getBikeModel(), setup);
-            StaticFittingMetricVO m = buildMetric("Reach+ (有效前伸量)", "mm", ideal.getRecReachPlus(), currentReachPlus, 10, "影响重心分布与操控舒适度");
+            StaticFittingMetricVO m = buildMetric("Reach+ (有效前伸量)", ideal.getRecReachPlus(), currentReachPlus, 10, "影响重心分布与操控舒适度");
             mechanicalAdjustments.add(m);
             maxDelta = Math.max(maxDelta, Math.abs(m.getDelta().intValue()));
-            if (Math.abs(m.getDelta().intValue()) > 25) expertDiagnoses.add("🔴 骑行姿态过" + (m.getDelta().intValue() > 0 ? "短" : "长") + "，建议调整把立长度。");
+            if (Math.abs(m.getDelta().intValue()) > 25)
+                expertDiagnoses.add("🔴 骑行姿态过" + (m.getDelta().intValue() > 0 ? "短" : "长") + "，建议调整把立长度。");
         }
 
         if (ideal.getRecCrankLength() != null && setup.getCrankLength() != null && !ideal.getRecCrankLength().equals(setup.getCrankLength())) {
-            HardwareUpgradeDTO h = new HardwareUpgradeDTO(); h.setPart("曲柄长度");
-            h.setCurrentValue(setup.getCrankLength() + "mm"); h.setTargetSpec(ideal.getRecCrankLength() + "mm");
+            HardwareUpgradeVO h = new HardwareUpgradeVO();
+            h.setPart("曲柄长度");
+            h.setCurrentValue(setup.getCrankLength() + "mm");
+            h.setTargetSpec(ideal.getRecCrankLength() + "mm");
             h.setReason("您的跨高对应的最佳曲柄杠杆比为" + ideal.getRecCrankLength() + "mm。");
             hardwareUpgrades.add(h);
         }
@@ -342,31 +449,54 @@ public class StaticFittingService {
         report.setMechanicalAdjustments(mechanicalAdjustments);
         report.setExpertDiagnoses(expertDiagnoses);
         report.setHardwareUpgrades(hardwareUpgrades);
-        
+
         if (maxDelta > 40) {
-            report.setOverallStatus("DANGER"); report.setMatchLevel("偏差极大");
+            report.setOverallStatus("DANGER");
+            report.setMatchLevel("偏差极大");
             report.setSummary("🚨 警告：当前设定与基准偏离超过 40mm，切勿盲目调整，建议核实测量数据或车架尺码。");
         } else if (maxDelta > 10) {
-            report.setOverallStatus("WARNING"); report.setMatchLevel("需优化");
+            report.setOverallStatus("WARNING");
+            report.setMatchLevel("需优化");
             report.setSummary("检测到关键参数存在明显偏差。");
         } else {
-            report.setOverallStatus("PASS"); report.setMatchLevel("完美契合");
+            report.setOverallStatus("PASS");
+            report.setMatchLevel("完美契合");
             report.setSummary("当前设定非常理想，尽情享受骑行！");
         }
         return report;
     }
 
+    /**
+     * 添加诊断单车调教
+     *
+     * @param res   单车调教结果
+     * @param part  部位
+     * @param logic 调整逻辑
+     */
     private void addIncompleteNote(StaticFittingResult res, String part, String logic) {
         DiagnosticDetail detail = new DiagnosticDetail();
-        detail.setPart(part); detail.setAdjustmentLogic("【数据缺失】" + logic);
+        detail.setPart(part);
+        detail.setAdjustmentLogic("【数据缺失】" + logic);
         res.getDetails().add(detail);
         detail.setStaticFittingResult(res);
     }
 
+    /**
+     * 计算当前前伸量
+     *
+     * @param model 单车模型
+     * @param setup 单车调教
+     * @return 当前前伸量
+     */
     private double calculateCurrentReachPlus(BikeModel model, UserBikeSetup setup) {
         return model.getReach() + (setup.getStemLength() * Math.cos(Math.toRadians(Math.abs(setup.getStemAngle()))));
     }
 
+    /**
+     * 组装最终调教建议
+     *
+     * @param res 单车调教结果
+     */
     private void assembleFinalPostureSuggestion(StaticFittingResult res) {
         String fullReport = res.getDetails().stream()
                 .map(d -> "【" + d.getPart() + "】" + d.getAdjustmentLogic())
@@ -374,6 +504,13 @@ public class StaticFittingService {
         res.setPostureSuggestion(fullReport);
     }
 
+    /**
+     * 初始化单车调教结果
+     *
+     * @param res 单车调教结果
+     * @param u   用户身体数据
+     * @param b   用户单车数据
+     */
     private void initializeResult(StaticFittingResult res, UserBody u, UserBike b) {
         res.setFittingTime(LocalDateTime.now());
         res.setUserBodyId(u.getId());
@@ -382,19 +519,35 @@ public class StaticFittingService {
         res.setDetails(new ArrayList<>());
     }
 
-    private StaticFittingMetricVO buildMetric(String label, String unit, Number ideal, Number current, double tolerance, String reason) {
+    /**
+     * 构建单车调教指标
+     *
+     * @param label     指标标签
+     * @param ideal     理想值
+     * @param current   当前值
+     * @param tolerance 容差
+     * @param reason    原因
+     * @return 单车调教指标
+     */
+    private StaticFittingMetricVO buildMetric(String label, Number ideal, Number current, double tolerance, String reason) {
         StaticFittingMetricVO metric = new StaticFittingMetricVO();
-        metric.setLabel(label); metric.setUnit(unit); metric.setIdealValue(ideal); metric.setCurrentValue(current); metric.setReason(reason);
+        metric.setLabel(label);
+        metric.setUnit("mm");
+        metric.setIdealValue(ideal);
+        metric.setCurrentValue(current);
+        metric.setReason(reason);
         double diff = ideal.doubleValue() - current.doubleValue();
         metric.setDelta(Math.round(diff * 10.0) / 10.0);
         double absDiff = Math.abs(diff);
         if (absDiff <= tolerance) {
-            metric.setStatus("PERFECT"); metric.setAction("保持现状");
+            metric.setStatus("PERFECT");
+            metric.setAction("保持现状");
         } else if (absDiff <= tolerance * 2) {
             metric.setStatus("ADJUST");
-            metric.setAction((diff > 0 ? "调高/长 " : "调低/短 ") + Math.round(absDiff) + unit);
+            metric.setAction((diff > 0 ? "调高/长 " : "调低/短 ") + Math.round(absDiff) + "mm");
         } else {
-            metric.setStatus("WARNING"); metric.setAction("需重装/更换");
+            metric.setStatus("WARNING");
+            metric.setAction("需重装/更换");
         }
         return metric;
     }

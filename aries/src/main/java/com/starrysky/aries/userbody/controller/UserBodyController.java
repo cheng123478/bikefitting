@@ -69,7 +69,7 @@ public class UserBodyController {
      */
     @GetMapping("/history")
     public Page<UserBodyVO> getHistory(@AuthenticationPrincipal User user,
-                                       @PageableDefault(size = 10, sort = "createTime", direction = Sort.Direction.DESC) Pageable pageable) {
+                                       @PageableDefault(sort = "createTime", direction = Sort.Direction.DESC) Pageable pageable) {
         return userBodyService.getUserBodyHistory(user.getId(), pageable);
     }
 

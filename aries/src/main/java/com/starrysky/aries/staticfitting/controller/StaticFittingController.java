@@ -1,6 +1,5 @@
 package com.starrysky.aries.staticfitting.controller;
 
-import com.starrysky.aries.entity.StaticFittingResult;
 import com.starrysky.aries.entity.User;
 import com.starrysky.aries.staticfitting.schema.StaticFittingReportVO;
 import com.starrysky.aries.staticfitting.schema.StaticFittingResultVO;

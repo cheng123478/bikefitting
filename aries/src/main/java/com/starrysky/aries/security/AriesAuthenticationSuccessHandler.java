@@ -20,6 +20,7 @@ import org.springframework.http.MediaType;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
 import org.springframework.stereotype.Component;
+import org.springframework.util.StringUtils;
 
 import java.io.IOException;
 import java.time.LocalDate;
@@ -71,7 +72,7 @@ public class AriesAuthenticationSuccessHandler implements AuthenticationSuccessH
         }
         
         // 异步记录登录成功 (如果是微信用户，用前缀标识代替手机号，避免超过数据库潜在字段长度)
-        String requestPhone = org.springframework.util.StringUtils.hasText(user.getPhone()) ? user.getPhone() : ("W_" + user.getId());
+        String requestPhone = StringUtils.hasText(user.getPhone()) ? user.getPhone() : ("W_" + user.getId());
         if (requestPhone.length() > 20) {
             requestPhone = requestPhone.substring(0, 20);
         }

@@ -11,12 +11,12 @@ import com.starrysky.aries.util.EncryptUtil;
 import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.authentication.LockedException;
-import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
+import javax.print.DocFlavor;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
@@ -75,13 +75,13 @@ public class UserService {
      */
     private User processLoginOrRegister(String identifier, boolean isWeChat) {
         User user = isWeChat ? userRepository.findByUnionId(identifier) : userRepository.findByPhone(identifier);
-        
+
         if (user == null) {
             // --- 场景 A：纯新用户 ---
             user = handleNewRegistration(identifier, isWeChat);
             return userRepository.save(user);
         }
-        
+
         if (Boolean.TRUE.equals(user.getIsDeleted())) {
             // --- 场景 B：已注销用户（根据时间判断恢复还是重置） ---
             user = handleDeletedUser(user, identifier, isWeChat);
@@ -89,10 +89,10 @@ public class UserService {
             // --- 场景 C：正常活跃用户 ---
             log.debug("老用户正常登录 | 标识: {}", identifier);
         }
-        
+
         // 统一进行状态检查（如自动解锁）
         processUserLockStatus(user);
-        
+
         // 统一保存并返回
         return userRepository.saveAndFlush(user);
     }
@@ -134,7 +134,8 @@ public class UserService {
             log.info("注销超期，旧号解绑并创建新账号 | 标识: {}", identifier);
             if (isWeChat) {
                 user.setUnionId(null);
-            } else {
+            }
+            if (StringUtils.hasText(user.getPhone())) {
                 user.setOldPhone(identifier);
                 user.setPhone(null);
             }
@@ -176,7 +177,7 @@ public class UserService {
             user.setPhone(identifier);
             user.setName("骑士" + name);
         }
-        
+
         user.setRegistrationTime(LocalDateTime.now());
         user.setAccountNonExpired(true);
         user.setAccountNonLocked(true);
@@ -188,7 +189,7 @@ public class UserService {
     }
 
     /**
-     * 设置密码
+     * 通过短信设置密码
      *
      * @param user     用户
      * @param password 密码
@@ -201,23 +202,6 @@ public class UserService {
         String decrypt = EncryptUtil.decrypt(password);
         userDb.setPassword(passwordEncoder.encode(decrypt));
         userRepository.save(userDb);
-    }
-
-    /**
-     * 通过短信验证码修改密码
-     *
-     * @param user        Security框架中的用户
-     * @param code        短信验证码
-     * @param newPassword 新密码
-     */
-    public void editPasswordByCode(User user, String code, String newPassword) throws Exception {
-        User userDb = userRepository.findById(user.getId()).orElseThrow(() -> new BizException("未检索到用户"));
-        if (smsService.validateSmsCode(userDb.getPhone(), code)) {
-            userDb.setPassword(passwordEncoder.encode(EncryptUtil.decrypt(newPassword)));
-            userRepository.save(userDb);
-        } else {
-            throw new BizException(500, "短信验证码错误");
-        }
     }
 
     /**
@@ -276,32 +260,6 @@ public class UserService {
     /**
      * 修改用户信息
      *
-     * @param user      Security框架中的用户
-     * @param name      昵称
-     * @param signature 个性签名
-     * @param avatar    头像的图片路径
-     * @param birthday  生日
-     */
-    public void editUser(User user, String name, String signature, String avatar, LocalDate birthday) {
-        User userDb = userRepository.findById(user.getId()).orElseThrow(() -> new BizException("未检索到用户"));
-        if (StringUtils.hasText(name)) {
-            userDb.setName(name);
-        }
-        if (StringUtils.hasText(avatar)) {
-            userDb.setAvatar(avatar);
-        }
-        if (birthday != null && birthday.isBefore(LocalDate.now())) {
-            userDb.setBirthday(birthday);
-        }
-        if (StringUtils.hasText(signature)) {
-            userDb.setIntroduction(signature);
-        }
-        userRepository.save(userDb);
-    }
-
-    /**
-     * 修改用户信息
-     *
      * @param user 用户
      */
     public void editUser(User user) {
@@ -347,18 +305,6 @@ public class UserService {
     }
 
     /**
-     * 删除用户
-     *
-     * @param phone 手机号
-     */
-    public void editIsDelete(String phone, boolean isDelete) {
-        User user = userRepository.findByPhone(phone);
-        user.setIsDeleted(isDelete);
-        user.setDeleteTime(isDelete ? LocalDateTime.now() : null);
-        userRepository.save(user);
-    }
-
-    /**
      * 根据手机号获取用户信息
      *
      * @param phone 手机号
@@ -380,10 +326,6 @@ public class UserService {
         // 标记为已注销
         userDb.setIsDeleted(true);
         userDb.setDeleteTime(LocalDateTime.now());
-        // 将原手机号保存到old_phone字段（即使是微信注册未绑定手机的，这里也会合法存为null）
-        if (userDb.getPhone() != null) {
-            userDb.setOldPhone(userDb.getPhone());
-        }
         userRepository.save(userDb);
     }
 

@@ -12,22 +12,29 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 public interface UserRepository extends JpaRepository<User, Long> {
+    /**
+     * 根据手机号查找用户
+     *
+     * @param phone 手机号
+     * @return 用户
+     */
     User findByPhone(String phone);
 
-    @Modifying
-    @Transactional
-    @Query(value = "UPDATE usr_user u SET u.phone = NULL, u.old_phone = u.phone, u.union_id = NULL WHERE u.is_deleted = true AND u.delete_time < :deadline", nativeQuery = true)
-    int anonymizeExpiredAccounts(@Param("deadline") LocalDateTime deadline);
-
     /**
-     * 1. 查找符合注销条件的用户ID列表
+     * 查找符合注销条件的用户ID列表
      * 条件：已标记删除 + 删除时间早于截止时间 + (手机号还没被清空 OR unionId还没被清空)
+     *
+     * @param deadline 过期时间
+     * @param pageable 分页参数
+     * @return 用户ID列表
      */
-    @Query("SELECT u.id FROM User u WHERE u.isDeleted = true AND u.deleteTime < :deadline AND (u.phone IS NOT NULL OR u.unionId IS NOT NULL)")
+    @Query("SELECT u.id FROM User u WHERE u.isDeleted = true AND u.deleteTime < :deadline")
     List<String> findIdsToClean(@Param("deadline") LocalDateTime deadline, Pageable pageable);
 
     /**
-     * 2. 根据ID批量清空手机号和unionId
+     * 根据ID批量清空手机号和unionId
+     *
+     * @param ids 用户ID列表
      */
     @Modifying
     @Transactional
@@ -35,7 +42,10 @@ public interface UserRepository extends JpaRepository<User, Long> {
     void cleanPhoneBatchByIds(@Param("ids") List<String> ids);
 
     /**
-     * 3. 根据微信UnionId查找用户
+     * 根据微信UnionId查找用户
+     *
+     * @param unionId 微信UnionId
+     * @return 用户
      */
     User findByUnionId(String unionId);
 }

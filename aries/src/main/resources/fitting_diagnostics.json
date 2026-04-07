@@ -8,20 +8,20 @@
     "flexibility_top": "【画像】天赋型柔韧性：您的灵活性得分({score})处于顶级水平。这意味着您可以通过更大的落差（Drop）来换取极致的风阻优势。"
   },
   "module_2_lower_body": {
-    "seat_height_standard": "下肢动力诊断：基于 LeMond 0.883 基准及您的比例修正，推荐座高 {recValue}mm。这能确保膝关节在踏板下死点保持 145°-155° 的黄金夹角。",
-    "seat_height_warning": "【高风险预警】监测到现有座高偏差达 {diff}mm。过高的座高会导致骨盆左右晃动，过低则导致大腿前侧过早疲劳。建议立即调整。",
-    "setback_logic": "重心布局：推荐后移量 {recValue}mm 基于 KOPS 原理。适度增加后移能让臀大肌更早介入，提升爬坡爆发力。",
-    "crank_logic": "建议使用 {recValue}mm 规格曲柄。合适的曲柄能确保髋关节角度不过于紧促，维持呼吸平顺。",
+    "seat_height_standard": "下肢动力诊断：基于精准比例修正与生物力学基准，推荐理想座高 {recValue}mm。这能确保膝关节在踏板下死点保持 145°-155° 的黄金夹角。",
+    "seat_height_warning": "【偏移预警】：检测到现有座高与理想值偏差达 {diff}mm。过高会导致骨盆晃动，过低则导致大腿前侧过早疲劳。建议立即执行 {action} 操作。",
+    "setback_logic": "重心布局：推荐后移量 {recValue}mm。适度增加后移能让臀大肌更早介入，提升爬坡爆发力。",
+    "crank_logic": "曲柄建议：推荐使用 {recValue}mm 规格曲柄。合适的曲柄能确保髋关节角度顺畅，维持呼吸平平顺。",
     "cleat_advice": "锁片建议：请确保锁片中心位于第一与第五跖骨连线的中点偏后 2mm 处。"
   },
   "module_3_upper_body": {
     "space_logic": "空间坐标诊断：理想坐标（Stack+: {stackPlus} / Reach+: {reachPlus}）旨在实现躯干与手臂间接近 90° 的支撑夹角，缓解肩袖肌肉疲劳。",
-    "handlebar_width": "推荐把宽 {recValue}mm 已匹配您的肩峰距离。过宽增加风阻，过窄挤压胸腔。",
-    "hoods_angle": "【微调建议】建议将手变头略微内偏 3°-5°，符合人体前臂自然旋前姿态，防止手麻。",
-    "drop_logic": "落差建议：当前的 {recValue}mm 落差兼顾了风阻与视野。"
+    "handlebar_width": "车把宽度：推荐把宽 {recValue}mm 已匹配您的肩峰距离。过宽增加风阻，过窄挤压胸腔。",
+    "hoods_angle": "【微调建议】建议将手变头略写内偏 3°-5°，符合人体前臂自然旋前姿态，防止手麻。",
+    "drop_logic": "落差建议：最优化落差建议为 {recValue}mm，旨在平衡风阻与骑行视野。"
   },
   "module_4_compensation": {
-    "thoracic_restricted": "【生物力学补偿】监测到您的胸椎灵活性({score})处于受限区间。系统主动抬升了车头高度并缩短了前伸量，以防止代偿性损伤。",
+    "thoracic_restricted": "【生物力学补偿】监测到您的胸椎灵活性({score})较低。系统主动抬升了车头高度并缩短了前伸量，以防止代偿性损伤。",
     "thoracic_excellent": "【性能潜力】您的胸椎柔韧性极佳，足以支持较为激进的气动姿态。系统为您推荐了标准偏竞技的设定。",
     "shoulder_restricted": "【防护诊断】监测到举臂角度受限。为防止颈椎代偿，系统已调高车把建议位置。"
   },
@@ -30,11 +30,11 @@
     "stability_warning": "【核心预警】您的核心稳定性评分较低。暗示实际踩踏中骨盆可能存在晃动，建议加入平板支撑等核心强化训练。"
   },
   "module_6_equipment": {
-    "saddle_logic": "座垫建议：基于您的坐骨间距 {value}mm，建议选用宽度约 143mm、短鼻头且带压力卸荷槽的座垫。",
-    "stem_logic": "把立建议：建议更换规格为 {recValue}mm 的把立（基于现有车架几何计算）。"
+    "saddle_logic": "座垫建议：基于您的坐骨间距 {value}mm，建议选用宽度约 143-155mm、带有压力卸荷槽的短鼻头座垫。",
+    "stem_logic": "把立建议：根据车架几何与您的肢体长度，理想把立规格为 {recValue}mm。"
   },
   "module_7_summary": {
     "buying_mode": "【选购指南】本报告为您选购新车提供了“空间蓝图”。请寻找 Stack 和 Reach 接近推荐值的车架几何，避免出现“天价垫圈”。",
-    "adjusting_mode": "【调教指南】系统已完成现状诊断。建议优先执行座高与 Setback 的调整。调整后请进行约 100km 的适应骑行。"
+    "adjusting_mode": "【调教指南】系统已完成状况诊断。建议优先执行座高与 Setback 的调整，随后进行约 100km 的适应骑行。"
   }
-}
+}

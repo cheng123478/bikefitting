@@ -12,19 +12,6 @@ import java.time.LocalDate;
  * @since 2026/2/2 15:32
  */
 public final class UserRequest {
-    /**
-     * 注册
-     * 手机号、验证码
-     */
-    public record Register(
-            @NotBlank(message = "新手机号不能为空")
-            @Pattern(regexp = "^1[3-9]\\d{9}$", message = "手机号格式错误")
-            String newPhone,
-
-            @NotBlank(message = "短信验证码不能为空")
-            String code
-    ) {
-    }
 
     /**
      * 设置/重置密码 (通过验证码)
