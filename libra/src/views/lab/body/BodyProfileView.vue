@@ -42,7 +42,7 @@
                   </div>
                   <div v-if="!userHasBirthday" class="zen-form-item">
                     <label class="input-label">出生日期 *</label>
-                    <input type="date" v-model="formData.birthday" class="zen-field date-input" />
+                    <input type="date" v-model="formData.birthday" class="zen-field date-input" min="1920-01-01" :max="todayDate" />
                   </div>
                   <CustomInput label="身高 (Height) *" v-model="formData.height" unit="mm" placeholder="例如：1750" @focus="setGuide('height')" />
                   <CustomInput label="跨高 (Inseam) *" v-model="formData.spanHeight" unit="mm" placeholder="例如：820" @focus="setGuide('spanHeight')" />
@@ -148,7 +148,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted, nextTick, watch } from 'vue';
+import { ref, reactive, onMounted, nextTick, watch, computed } from 'vue';
 import { useRoute } from 'vue-router';
 import CustomInput from '@/views/lab/components/CustomInput.vue';
 import GuideDisplay from '@/views/lab/components/GuideDisplay.vue';
@@ -168,6 +168,9 @@ const profileResult = ref(null);
 
 const userHasGender = ref(false);
 const userHasBirthday = ref(false);
+
+// 今天的日期，用于限制出生日期选择器
+const todayDate = computed(() => new Date().toISOString().split('T')[0]);
 
 const formData = reactive({
   userId: null,
