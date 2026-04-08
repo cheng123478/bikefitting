@@ -111,15 +111,33 @@
                     </div>
                   </div>
                   <div class="zen-form-item" @click="setGuide('pain_level')">
-                    <div class="label-with-value">
-                      <label class="input-label">痛感等级 (0-5)</label>
-                      <span class="current-value-badge" :class="{ 'is-null': formData.thoracicPainLevel === null }">{{ formData.thoracicPainLevel ?? '-' }}</span>
+                    <label class="input-label">痛感等级</label>
+                    <div class="pain-selector">
+                      <div class="pain-option" :class="{active: formData.thoracicPainLevel === 0}" @click="formData.thoracicPainLevel = 0">
+                        <span class="pain-num">0</span>
+                        <span class="pain-label">无痛</span>
+                      </div>
+                      <div class="pain-option" :class="{active: formData.thoracicPainLevel === 1}" @click="formData.thoracicPainLevel = 1">
+                        <span class="pain-num">1</span>
+                        <span class="pain-label">轻微</span>
+                      </div>
+                      <div class="pain-option" :class="{active: formData.thoracicPainLevel === 2}" @click="formData.thoracicPainLevel = 2">
+                        <span class="pain-num">2</span>
+                        <span class="pain-label">轻度</span>
+                      </div>
+                      <div class="pain-option" :class="{active: formData.thoracicPainLevel === 3}" @click="formData.thoracicPainLevel = 3">
+                        <span class="pain-num">3</span>
+                        <span class="pain-label">中度</span>
+                      </div>
+                      <div class="pain-option" :class="{active: formData.thoracicPainLevel === 4}" @click="formData.thoracicPainLevel = 4">
+                        <span class="pain-num">4</span>
+                        <span class="pain-label">重度</span>
+                      </div>
+                      <div class="pain-option" :class="{active: formData.thoracicPainLevel === 5}" @click="formData.thoracicPainLevel = 5">
+                        <span class="pain-num">5</span>
+                        <span class="pain-label">剧烈</span>
+                      </div>
                     </div>
-                    <input type="range" min="0" max="5" 
-                      :value="formData.thoracicPainLevel ?? 0" 
-                      @input="formData.thoracicPainLevel = Number($event.target.value)"
-                      class="zen-range" :class="{ 'is-null': formData.thoracicPainLevel === null }">
-                    <div class="range-labels"><span>无痛</span><span>剧烈</span></div>
                   </div>
                 </div>
               </div>
@@ -445,6 +463,40 @@ const submitProfile = async () => {
   font-size: 0.9rem;
   line-height: 1.4;
   color: var(--text-main);
+}
+
+/* Pain Selector */
+.pain-selector { display: flex; gap: 10px; margin-top: 10px; }
+.pain-option {
+  flex: 1;
+  display: flex; flex-direction: column; align-items: center;
+  padding: 12px 8px;
+  border: 1px solid #EDEDED;
+  border-radius: var(--radius-sm);
+  background: #F9F9F9;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+.pain-option:hover { border-color: #D0D0D0; }
+.pain-option.active {
+  border-color: var(--primary-color);
+  background: rgba(92, 110, 88, 0.05);
+}
+.pain-num {
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: var(--text-main);
+}
+.pain-option.active .pain-num {
+  color: var(--primary-color);
+}
+.pain-label {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin-top: 4px;
+}
+.pain-option.active .pain-label {
+  color: var(--primary-color);
 }
 
 .date-input {
