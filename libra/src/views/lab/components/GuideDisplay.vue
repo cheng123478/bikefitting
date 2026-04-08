@@ -49,7 +49,7 @@ const guides = {
   breastHeight: {
     title: '胸高 / Sternal Notch',
     desc: '用于计算躯干长度，决定车把的前伸量（Reach）。',
-    image: '/image/fitting/height.png',
+    image: '/image/fitting/chest height.png',
     tips: ['平视前方', '定位锁骨中间的V形凹陷点']
   },
   shoulder: {
@@ -67,33 +67,33 @@ const guides = {
   arms: {
     title: '手臂长度 / Arm Length',
     desc: '影响上半身在车上的延展性和舒适度。',
-    image: '/image/fitting/bigarm.png',
+    image: '/image/fitting/smallarm.png',
     tips: ['测量肩峰至肘部', '测量肘部至手掌虎口']
   },
   // 步骤2 默认指引
   step2_default: {
     title: '肢体杠杆',
     desc: '精确到毫米的肢体数据是计算 Stack & Reach 的核心。',
-    image: '/image/fitting/bigarm.png',
+    image: '/image/fitting/02.png',
     tips: []
   },
   thigh: {
     title: '大腿长 / Femur',
     desc: '决定座垫的前后偏移量（Setback）。',
-    image: '/image/fitting/height.png',
+    image: '/image/fitting/bigleg.png',
     tips: ['从髋关节大转子量至膝关节外侧间隙']
   },
   calf: {
     title: '小腿长 / Tibia',
     desc: '辅助修正座高，优化踩踏画圆的流畅性。',
-    image: '/image/fitting/height.png',
+    image: '/image/fitting/smallleg.png',
     tips: ['从膝关节间隙量至内踝骨点']
   },
   // 步骤3 默认指引
   step3_default: {
     title: '柔韧性评估',
     desc: '这决定了您能耐受多大的落差（Drop）。',
-    image: '/image/fitting/height.png',
+    image: '/image/fitting/03.png',
     tips: []
   },
   thoracic_rot: {
@@ -124,7 +124,7 @@ const guides = {
   step4_default: {
     title: '核心稳定性',
     desc: '最后的评估项，帮助我们优化您的操控组件。',
-    image: '/image/fitting/height.png',
+    image: '/image/fitting/04.png',
     tips: []
   },
   stability: {
