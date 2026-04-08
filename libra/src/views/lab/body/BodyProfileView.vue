@@ -1,4 +1,4 @@
-<template>
+-<template>
   <div class="body-profile-page">
     <div class="container lab-container">
 
@@ -89,7 +89,27 @@
                 <div class="input-grid">
                   <CustomInput label="胸椎旋转角度" v-model="formData.thoracicRotationAngle" unit="°" placeholder="例如：45" @focus="setGuide('thoracic_rot')" />
                   <CustomInput label="胸椎伸展角度" v-model="formData.thoracicExtensionAngle" unit="°" placeholder="例如：20" @focus="setGuide('thoracic_ext')" />
-                  <CustomInput label="举臂角度" v-model="formData.armRaiseAngle" unit="°" placeholder="例如：165" @focus="setGuide('arm_raise')" />
+                  <div class="zen-form-item" @click="setGuide('arm_raise')">
+                    <label class="input-label">举臂角度</label>
+                    <div class="angle-selector">
+                      <div class="angle-option" :class="{active: formData.armRaiseAngle === 175}" @click="formData.armRaiseAngle = 175">
+                        <span class="angle-circle"></span>
+                        <span class="angle-text">手臂可轻松举过头顶，贴近耳朵</span>
+                      </div>
+                      <div class="angle-option" :class="{active: formData.armRaiseAngle === 155}" @click="formData.armRaiseAngle = 155">
+                        <span class="angle-circle"></span>
+                        <span class="angle-text">手臂可举过头顶，但无法贴近耳朵 / 有明显紧张</span>
+                      </div>
+                      <div class="angle-option" :class="{active: formData.armRaiseAngle === 120}" @click="formData.armRaiseAngle = 120">
+                        <span class="angle-circle"></span>
+                        <span class="angle-text">手臂最高只能到肩膀附近（接近T字）</span>
+                      </div>
+                      <div class="angle-option" :class="{active: formData.armRaiseAngle === 80}" @click="formData.armRaiseAngle = 80">
+                        <span class="angle-circle"></span>
+                        <span class="angle-text">手臂无法抬到肩膀高度</span>
+                      </div>
+                    </div>
+                  </div>
                   <div class="zen-form-item" @click="setGuide('pain_level')">
                     <div class="label-with-value">
                       <label class="input-label">痛感等级 (0-5)</label>
@@ -391,6 +411,41 @@ const submitProfile = async () => {
 .zen-range { width: 100%; accent-color: var(--primary-color); cursor: pointer; height: 6px; }
 .zen-range.is-null { accent-color: #b0b0b0; }
 .range-labels { display: flex; justify-content: space-between; font-size: 0.8rem; color: var(--text-muted); margin-top: 10px; }
+
+/* Angle Selector */
+.angle-selector { display: flex; flex-direction: column; gap: 12px; margin-top: 10px; }
+.angle-selector--grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.angle-option {
+  display: flex; align-items: flex-start; gap: 10px;
+  padding: 14px 16px;
+  border: 1px solid #EDEDED;
+  border-radius: var(--radius-sm);
+  background: #F9F9F9;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+.angle-option:hover { border-color: #D0D0D0; }
+.angle-option.active {
+  border-color: var(--primary-color);
+  background: rgba(92, 110, 88, 0.05);
+}
+.angle-circle {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #B0B0B0;
+  transition: all 0.3s ease;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+.angle-option.active .angle-circle {
+  background: var(--primary-color);
+}
+.angle-text {
+  font-size: 0.9rem;
+  line-height: 1.4;
+  color: var(--text-main);
+}
 
 .date-input {
   width: 100%; border: 1px solid #E0E0E0; border-radius: var(--radius-sm);
