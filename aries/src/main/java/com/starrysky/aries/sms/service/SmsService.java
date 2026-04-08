@@ -55,7 +55,7 @@ public class SmsService {
      * @param phone 手机号
      * @return 响应结果
      */
-    public SmsResult sendSms(String phone) throws JsonProcessingException {
+    public SmsResult sendSms(String phone) {
         // 构建完整的请求URL
         String url = SMS_URL + "/sms/send";
         String code = generateCode();
