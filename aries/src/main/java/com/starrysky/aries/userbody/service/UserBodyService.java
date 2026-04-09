@@ -229,8 +229,11 @@ public class UserBodyService {
         if (dto.getArmRaiseAngle() != null && (dto.getArmRaiseAngle() < 0 || dto.getArmRaiseAngle() > 180)) {
             throw new BizException(500, "范围错误：[举臂角度] 必须在 0-180 度之间。");
         }
-        if (dto.getThoracicRotationAngle() != null && (dto.getThoracicRotationAngle() < 0 || dto.getThoracicRotationAngle() > 95)) {
-            throw new BizException(500, "范围错误：[胸椎旋转角度] 必须在 0-95 度之间。");
+        if (dto.getThoracicRotationAngle() != null) {
+            Double angle = dto.getThoracicRotationAngle();
+            if (angle != 30 && angle != 50 && angle != 70 && angle != 85) {
+                throw new BizException(500, "选项错误：[坐姿抱胸旋转] 必须选择提供的选项之一（30°/50°/70°/85°）。");
+            }
         }
 
         // 评分区间校验

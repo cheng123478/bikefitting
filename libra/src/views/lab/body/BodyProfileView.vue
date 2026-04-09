@@ -87,7 +87,27 @@
                 <h3 class="step-title">03 柔韧性评估</h3>
                 <p class="step-desc">这决定了您能耐受多大的落差（Drop）。</p>
                 <div class="input-grid">
-                  <CustomInput label="胸椎旋转角度" v-model="formData.thoracicRotationAngle" unit="°" placeholder="例如：45" @focus="setGuide('thoracic_rot')" />
+                  <div class="zen-form-item" @click="setGuide('thoracic_rot')">
+                    <label class="input-label">坐姿抱胸旋转</label>
+                    <div class="angle-selector">
+                      <div class="angle-option" :class="{active: formData.thoracicRotationAngle === 85}" @click="formData.thoracicRotationAngle = 85">
+                        <span class="angle-circle"></span>
+                        <span class="angle-text">可以轻松转到侧面甚至略微超过</span>
+                      </div>
+                      <div class="angle-option" :class="{active: formData.thoracicRotationAngle === 70}" @click="formData.thoracicRotationAngle = 70">
+                        <span class="angle-circle"></span>
+                        <span class="angle-text">可以明显转动，但还看不到身体正侧面</span>
+                      </div>
+                      <div class="angle-option" :class="{active: formData.thoracicRotationAngle === 50}" @click="formData.thoracicRotationAngle = 50">
+                        <span class="angle-circle"></span>
+                        <span class="angle-text">只能稍微转一点点，幅度比较小</span>
+                      </div>
+                      <div class="angle-option" :class="{active: formData.thoracicRotationAngle === 30}" @click="formData.thoracicRotationAngle = 30">
+                        <span class="angle-circle"></span>
+                        <span class="angle-text">几乎转不动，感觉很僵硬</span>
+                      </div>
+                    </div>
+                  </div>
                   <div class="zen-form-item" @click="setGuide('arm_raise')">
                     <label class="input-label">举臂角度</label>
                     <div class="angle-selector">

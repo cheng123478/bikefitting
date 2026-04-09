@@ -97,10 +97,10 @@ const guides = {
     tips: []
   },
   thoracic_rot: {
-    title: '胸椎旋转 / Rotation',
-    desc: '评估上半身的转向能力。',
+    title: '坐姿抱胸旋转 / Seated Rotation',
+    desc: '评估胸椎旋转灵活性，影响骑行时的上身姿态调整能力。',
     image: '/image/fitting/height.png',
-    tips: ['坐姿挺直，缓慢旋转至极限', '保持臀部不要离开座位']
+    tips: ['坐姿挺直，双手交叉抱胸', '保持臀部不离开座位，缓慢旋转至极限', '观察肩膀转向的角度']
   },
   thoracic_ext: {
     title: '胸椎伸展 / Extension',
