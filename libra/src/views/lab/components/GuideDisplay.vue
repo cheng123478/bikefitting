@@ -127,6 +127,18 @@ const guides = {
     image: '/image/fitting/04.png',
     tips: []
   },
+  squat: {
+    title: '深蹲稳定性 / Squat Stability',
+    desc: '评估下肢动态稳定性和本体感觉。',
+    image: '/image/fitting/04.png',
+    tips: ['1分：极度摇晃，无法维持身体平衡', '3分：中等稳定，有轻微晃动', '5分：完美控制，核心稳固如山']
+  },
+  plank: {
+    title: '平板支撑 / Plank',
+    desc: '评估核心肌群的耐力与稳定性。',
+    image: '/image/fitting/04.png',
+    tips: ['< 20秒 = 1分', '20-40秒 = 2分', '40-60秒 = 3分', '60-90秒 = 4分', '> 90秒 = 5分']
+  },
   stability: {
     title: '稳定性评分 / Stability',
     desc: '核心控制能力直接决定踩踏效率及长途舒适度。',

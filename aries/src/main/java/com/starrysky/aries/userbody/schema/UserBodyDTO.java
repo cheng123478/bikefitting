@@ -76,4 +76,8 @@ public class UserBodyDTO {
     @Min(value = 1, message = "深蹲稳定性评分最小为1")
     @Max(value = 5, message = "深蹲稳定性评分最大为5")
     private Integer squatStabilityScore;
+
+    @Min(value = 1, message = "平板支撑评分最小为1")
+    @Max(value = 5, message = "平板支撑评分最大为5")
+    private Integer plankScore;
 }

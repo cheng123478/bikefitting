@@ -154,10 +154,24 @@
                 <h3 class="step-title">04 核心稳定性</h3>
                 <p class="step-desc">最后的评估项，帮助我们优化您的操控组件。</p>
                 <div class="input-grid">
-                  <div class="zen-form-item">
+                  <div class="zen-form-item" @click="setGuide('squat')">
                     <label class="input-label">深蹲稳定性评分 (1-5)</label>
                     <div class="score-selector">
                       <button v-for="i in 5" :key="i" type="button" :class="{active: formData.squatStabilityScore === i}" @click="formData.squatStabilityScore = i">{{ i }}</button>
+                    </div>
+                  </div>
+                  <div class="zen-form-item" @click="setGuide('plank')">
+                    <label class="input-label">平板支撑评分 (1-5)</label>
+                    <div class="score-selector">
+                      <button v-for="i in 5" :key="i" type="button" :class="{active: formData.plankScore === i}" @click="formData.plankScore = i">{{ i }}</button>
+                    </div>
+                    <div class="score-hint">
+                      <span v-if="formData.plankScore === 1">&lt; 20s</span>
+                      <span v-else-if="formData.plankScore === 2">20-40s</span>
+                      <span v-else-if="formData.plankScore === 3">40-60s</span>
+                      <span v-else-if="formData.plankScore === 4">60-90s</span>
+                      <span v-else-if="formData.plankScore === 5">&gt; 90s</span>
+                      <span v-else>点击选择评分</span>
                     </div>
                   </div>
                 </div>
@@ -228,7 +242,8 @@ const formData = reactive({
   thoracicRotationAngle: null,
   thoracicExtensionAngle: null,
   thoracicPainLevel: null,
-  squatStabilityScore: null
+  squatStabilityScore: null,
+  plankScore: null
 });
 
 /**
@@ -497,6 +512,13 @@ const submitProfile = async () => {
 }
 .pain-option.active .pain-label {
   color: var(--primary-color);
+}
+
+.score-hint {
+  margin-top: 8px;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  text-align: center;
 }
 
 .date-input {

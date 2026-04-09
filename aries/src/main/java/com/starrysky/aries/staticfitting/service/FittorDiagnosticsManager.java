@@ -253,15 +253,31 @@ public class FittorDiagnosticsManager {
 
     /**
      * 安全稳定性诊断
-     * 依赖：squatStabilityScore
+     * 依赖：squatStabilityScore, plankScore
+     * 计算公式：coreScore = squatScore * 0.6 + plankScore * 0.4
      *
      * @param res      静态分析结果
      * @param userBody 用户身体信息
      */
     public void diagnoseSafety(StaticFittingResult res, UserBody userBody) {
-        Integer squat = userBody.getSquatStabilityScore();
-        if (squat != null && squat < 3) {
-            String logic = diagLib.getTemplate("module_5_safety", "stability_warning", new HashMap<>());
+        Integer squatScore = userBody.getSquatStabilityScore();
+        Integer plankScore = userBody.getPlankScore();
+        
+        if (squatScore == null || squatScore < 1) {
+            return;
+        }
+        
+        // 计算核心稳定性得分
+        double coreScore = squatScore * 0.6;
+        if (plankScore != null && plankScore > 0) {
+            coreScore += plankScore * 0.4;
+        }
+        
+        // 核心预警：coreScore < 3
+        if (coreScore < 3) {
+            Map<String, Object> v = new HashMap<>();
+            v.put("coreScore", String.format("%.1f", coreScore));
+            String logic = diagLib.getTemplate("module_5_safety", "stability_warning", v);
             addDetail(res, "稳定性", "核心支撑", logic);
         }
     }

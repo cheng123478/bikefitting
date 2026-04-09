@@ -61,6 +61,8 @@ public class UserBody {
     private Double squatDepth;
     @Comment("深蹲稳定性评分(1-5)")
     private Integer squatStabilityScore;
+    @Comment("平板支撑评分(1-5)")
+    private Integer plankScore;
 
     @CreationTimestamp
     @Comment("创建时间")

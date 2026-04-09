@@ -148,9 +148,16 @@ public class UserBodyService {
                     userBody.getArmRaiseAngle(),
                     userBody.getThoracicPainLevel() != null ? userBody.getThoracicPainLevel() : 0));
         }
-        // E. 稳定性 (1-5分)
-        if (userBody.getSquatStabilityScore() != null && userBody.getSquatStabilityScore() > 0) {
-            vo.setStabilityScore(userBody.getSquatStabilityScore() * 20);
+        // E. 核心稳定性得分 (深蹲60% + 平板支撑40%)
+        Integer squatScore = userBody.getSquatStabilityScore();
+        Integer plankScore = userBody.getPlankScore();
+        if (squatScore != null && squatScore > 0) {
+            double coreScore = squatScore * 0.6;
+            if (plankScore != null && plankScore > 0) {
+                coreScore += plankScore * 0.4;
+            }
+            vo.setCoreScore(coreScore);
+            vo.setStabilityScore((int) Math.round(coreScore * 20));
         }
         // 3. 生成专家建议 (内部已做 null 判定)
         generateExpertPrescription(vo, userBody);
@@ -233,6 +240,9 @@ public class UserBodyService {
         if (dto.getSquatStabilityScore() != null && (dto.getSquatStabilityScore() < 1 || dto.getSquatStabilityScore() > 5)) {
             throw new BizException(500, "范围错误：[深蹲稳定性评分] 必须在 1-5 之间。");
         }
+        if (dto.getPlankScore() != null && (dto.getPlankScore() < 1 || dto.getPlankScore() > 5)) {
+            throw new BizException(500, "范围错误：[平板支撑评分] 必须在 1-5 之间。");
+        }
 
         log.debug("用户 {} 的生物力学数据通过高阶常模校验。", dto.getUserId());
     }
@@ -300,6 +310,7 @@ public class UserBodyService {
         e.setThoracicPainLevel(d.getThoracicPainLevel());
         e.setSquatDepth(d.getSquatDepth());
         e.setSquatStabilityScore(d.getSquatStabilityScore());
+        e.setPlankScore(d.getPlankScore());
         e.setFootLength(d.getFootLength());
         return e;
     }
@@ -323,6 +334,7 @@ public class UserBodyService {
         v.setThoracicPainLevel(e.getThoracicPainLevel());
         v.setSquatDepth(e.getSquatDepth());
         v.setSquatStabilityScore(e.getSquatStabilityScore());
+        v.setPlankScore(e.getPlankScore());
     }
 
     /**

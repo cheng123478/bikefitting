@@ -40,6 +40,7 @@ public class UserBodyVO {
     private Integer thoracicPainLevel;
     private Double squatDepth;
     private Integer squatStabilityScore;
+    private Integer plankScore;
     // --- Fittor生物力学分析结果 ---
     private Double apeIndex;          // 猿臂比
     private Double femurTibiaRatio;   // 股胫比
@@ -48,6 +49,7 @@ public class UserBodyVO {
     private String expertComment;     // 专家寄语/诊断文案
     // 评分与初判建议
     private Integer flexibilityScore; // 柔韧性得分 (0-100)
+    private Double coreScore;         // 核心稳定性得分 (1-5)
     private Integer stabilityScore;   // 稳定性得分 (0-100)
     private Integer recCrankLength;   // 建议曲柄长度基准 (mm)
     private String saddleWidthAdvice; // 建议座垫宽度范围
