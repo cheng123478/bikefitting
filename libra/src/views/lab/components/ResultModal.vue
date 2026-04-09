@@ -55,29 +55,7 @@
               </div>
             </section>
 
-            <!-- 第二块：比例数据 -->
-            <section class="info-section" :class="{ 'locked-section': !profile?.apeIndex }">
-              <h4 class="section-h4">
-                <i :class="profile?.apeIndex ? 'fas fa-check-circle' : 'fas fa-lock'"></i>
-                进阶生物力学参数
-              </h4>
-              <div v-if="profile?.apeIndex" class="metrics-grid">
-                <div class="metric-item">
-                  <label>猿臂比 (Ape)</label>
-                  <div class="val">{{ profile.apeIndex }}</div>
-                </div>
-                <div class="metric-item">
-                  <label>股胫比 (Femur)</label>
-                  <div class="val">{{ profile.femurTibiaRatio || '--' }}</div>
-                </div>
-              </div>
-              <div v-else class="lock-overlay" @click="handleReEdit(2)">
-                <p>录入大腿、小腿及双臂长度，解锁杠杆比例分析</p>
-                <span class="cta-link">去完善数据 <i class="fas fa-chevron-right"></i></span>
-              </div>
-            </section>
-
-            <!-- 第三块：机能评分 (需要柔韧性数据) -->
+            <!-- 第二块：机能评分 (需要柔韧性数据) -->
             <section class="info-section" :class="{ 'locked-section': !hasFlexData }">
               <h4 class="section-h4">
                 <i :class="hasFlexData ? 'fas fa-check-circle' : 'fas fa-lock'"></i>
