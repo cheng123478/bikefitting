@@ -63,17 +63,23 @@
               </h4>
 
               <div v-if="hasFlexData" class="unlocked-content">
-                <div class="scores-row">
-                  <div class="score-circle-box">
-                    <span class="score-label">柔韧性</span>
-                    <div class="score-circle">
-                      <span class="score-value">{{ profile.flexibilityScore }}</span>
+                <div class="progress-bars-row">
+                  <div class="progress-bar-box">
+                    <div class="progress-header">
+                      <span class="progress-label">柔韧性</span>
+                      <span class="progress-value">{{ profile.flexibilityScore }}分</span>
+                    </div>
+                    <div class="progress-track">
+                      <div class="progress-fill" :style="{ width: profile.flexibilityScore + '%' }"></div>
                     </div>
                   </div>
-                  <div class="score-circle-box">
-                    <span class="score-label">稳定性</span>
-                    <div class="score-circle">
-                      <span class="score-value">{{ profile.stabilityScore }}</span>
+                  <div class="progress-bar-box">
+                    <div class="progress-header">
+                      <span class="progress-label">稳定性</span>
+                      <span class="progress-value">{{ profile.stabilityScore }}分</span>
+                    </div>
+                    <div class="progress-track">
+                      <div class="progress-fill" :style="{ width: profile.stabilityScore + '%' }"></div>
                     </div>
                   </div>
                 </div>
@@ -262,40 +268,35 @@ const goToGarage = () => {
 .cta-link { font-size: 0.85rem; color: var(--primary-color); font-weight: 700; text-decoration: underline; text-underline-offset: 4px; }
 
 /* 专家文案 */
-.scores-row { display: flex; justify-content: center; gap: 50px; margin: 25px 0 30px; }
-.score-circle-box { display: flex; flex-direction: column; align-items: center; gap: 12px; }
-.score-circle {
-  width: 100px; height: 100px;
-  border-radius: 50%;
-  border: 4px solid var(--primary-color);
-  display: flex; align-items: center; justify-content: center;
+.progress-bars-row { display: flex; flex-direction: column; gap: 25px; margin: 25px 0 30px; }
+.progress-bar-box { display: flex; flex-direction: column; gap: 10px; }
+.progress-header { display: flex; justify-content: space-between; align-items: center; }
+.progress-label { font-size: 0.95rem; color: var(--text-main); font-weight: 600; }
+.progress-value { font-size: 0.9rem; color: var(--primary-color); font-weight: 700; }
+.progress-track {
+  width: 100%; height: 12px;
   background: var(--bg-page);
-  box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
-  cursor: pointer;
+  border-radius: 6px;
+  overflow: hidden;
+  box-shadow: inset 0 2px 4px rgba(0,0,0,0.1);
 }
-.score-circle:hover {
-  transform: scale(1.15);
-  box-shadow: 0 0 30px rgba(255, 223, 128, 0.6), 0 0 60px rgba(255, 223, 128, 0.3), inset 0 0 20px rgba(255,255,255,0.5);
-  border-color: #fff994;
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--primary-color) 0%, #66b1ff 100%);
+  border-radius: 6px;
+  transition: width 0.8s cubic-bezier(0.34, 1.56, 0.64, 1), filter 0.3s ease, box-shadow 0.3s ease;
+  position: relative;
 }
-.score-circle:hover .score-value {
+.progress-bar-box:hover .progress-fill {
+  filter: brightness(1.2);
+  box-shadow: 0 0 15px rgba(64, 158, 255, 0.5);
+}
+.progress-bar-box:hover .progress-value {
   transform: scale(1.1);
-  text-shadow: 0 0 20px rgba(255, 223, 128, 0.8);
+  color: #66b1ff;
 }
-.score-value {
-  font-family: var(--font-serif);
-  font-size: 2.8rem;
-  font-weight: 900;
-  color: var(--primary-color);
-  text-shadow: 2px 2px 4px rgba(0,0,0,0.1);
+.progress-value {
   transition: all 0.3s ease;
-}
-.score-label {
-  font-size: 0.9rem;
-  color: var(--text-muted);
-  font-weight: 600;
-  letter-spacing: 0.1em;
 }
 
 .expert-prescription { background: var(--bg-page); padding: 15px 20px; border-radius: 4px; position: relative; }
