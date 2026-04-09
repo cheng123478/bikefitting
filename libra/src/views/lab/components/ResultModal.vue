@@ -64,15 +64,35 @@
 
               <div v-if="hasFlexData" class="unlocked-content">
                 <div class="scores-row">
-                  <div class="score-mini-box">
-                    <span class="s-label">柔韧性</span>
-                    <span class="s-val">{{ profile.flexibilityScore }}</span>
+                  <div class="score-circle-box">
+                    <span class="score-label">柔韧性</span>
+                    <div class="score-circle">
+                      <span class="score-value">{{ profile.flexibilityScore }}</span>
+                    </div>
                   </div>
-                  <div class="score-mini-box">
-                    <span class="s-label">稳定性</span>
-                    <span class="s-val">{{ profile.stabilityScore }}</span>
+                  <div class="score-circle-box">
+                    <span class="score-label">稳定性</span>
+                    <div class="score-circle">
+                      <span class="score-value">{{ profile.stabilityScore }}</span>
+                    </div>
                   </div>
                 </div>
+              </div>
+
+              <div v-else class="lock-overlay" @click="handleReEdit(3)">
+                <p>录入胸椎旋转与举臂角度，解锁专业落差(Drop)建议</p>
+                <span class="cta-link">去完善数据 <i class="fas fa-chevron-right"></i></span>
+              </div>
+            </section>
+
+            <!-- 第三块：Fittor 评估结论 -->
+            <section class="info-section" :class="{ 'locked-section': !hasFlexData }">
+              <h4 class="section-h4">
+                <i :class="hasFlexData ? 'fas fa-check-circle' : 'fas fa-lock'"></i>
+                Fittor 评估结论
+              </h4>
+
+              <div v-if="hasFlexData" class="unlocked-content">
                 <div class="expert-prescription">
                   <i class="fas fa-quote-left"></i>
                   <p>{{ profile.expertComment }}</p>
@@ -80,7 +100,7 @@
               </div>
 
               <div v-else class="lock-overlay" @click="handleReEdit(3)">
-                <p>录入胸椎旋转与举臂角度，解锁专业落差(Drop)建议</p>
+                <p>录入胸椎旋转与举臂角度，解锁Fittor专业评估结论</p>
                 <span class="cta-link">去完善数据 <i class="fas fa-chevron-right"></i></span>
               </div>
             </section>
@@ -242,10 +262,41 @@ const goToGarage = () => {
 .cta-link { font-size: 0.85rem; color: var(--primary-color); font-weight: 700; text-decoration: underline; text-underline-offset: 4px; }
 
 /* 专家文案 */
-.scores-row { display: flex; gap: 20px; margin-bottom: 15px; }
-.score-mini-box { display: flex; flex-direction: column; }
-.score-mini-box .s-label { font-size: 0.7rem; color: var(--text-muted); text-transform: uppercase; }
-.score-mini-box .s-val { font-family: var(--font-serif); font-size: 1.5rem; font-weight: 700; color: var(--primary-color); }
+.scores-row { display: flex; justify-content: center; gap: 50px; margin: 25px 0 30px; }
+.score-circle-box { display: flex; flex-direction: column; align-items: center; gap: 12px; }
+.score-circle {
+  width: 100px; height: 100px;
+  border-radius: 50%;
+  border: 4px solid var(--primary-color);
+  display: flex; align-items: center; justify-content: center;
+  background: var(--bg-page);
+  box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  cursor: pointer;
+}
+.score-circle:hover {
+  transform: scale(1.15);
+  box-shadow: 0 0 30px rgba(255, 223, 128, 0.6), 0 0 60px rgba(255, 223, 128, 0.3), inset 0 0 20px rgba(255,255,255,0.5);
+  border-color: #fff994;
+}
+.score-circle:hover .score-value {
+  transform: scale(1.1);
+  text-shadow: 0 0 20px rgba(255, 223, 128, 0.8);
+}
+.score-value {
+  font-family: var(--font-serif);
+  font-size: 2.8rem;
+  font-weight: 900;
+  color: var(--primary-color);
+  text-shadow: 2px 2px 4px rgba(0,0,0,0.1);
+  transition: all 0.3s ease;
+}
+.score-label {
+  font-size: 0.9rem;
+  color: var(--text-muted);
+  font-weight: 600;
+  letter-spacing: 0.1em;
+}
 
 .expert-prescription { background: var(--bg-page); padding: 15px 20px; border-radius: 4px; position: relative; }
 .expert-prescription i { position: absolute; top: 10px; left: 10px; opacity: 0.05; font-size: 1.5rem; }
