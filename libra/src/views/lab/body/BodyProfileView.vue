@@ -88,7 +88,6 @@
                 <p class="step-desc">这决定了您能耐受多大的落差（Drop）。</p>
                 <div class="input-grid">
                   <CustomInput label="胸椎旋转角度" v-model="formData.thoracicRotationAngle" unit="°" placeholder="例如：45" @focus="setGuide('thoracic_rot')" />
-                  <CustomInput label="胸椎伸展角度" v-model="formData.thoracicExtensionAngle" unit="°" placeholder="例如：20" @focus="setGuide('thoracic_ext')" />
                   <div class="zen-form-item" @click="setGuide('arm_raise')">
                     <label class="input-label">举臂角度</label>
                     <div class="angle-selector">
@@ -240,7 +239,6 @@ const formData = reactive({
   calfLength: null,
   armRaiseAngle: null,
   thoracicRotationAngle: null,
-  thoracicExtensionAngle: null,
   thoracicPainLevel: null,
   squatStabilityScore: null,
   plankScore: null

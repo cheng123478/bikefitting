@@ -63,10 +63,6 @@ public class UserBodyDTO {
     @Max(value = 90, message = "胸椎旋转角度不能大于90")
     private Double thoracicRotationAngle;
 
-    @Min(value = 0, message = "胸椎伸展角度不能小于0")
-    @Max(value = 45, message = "胸椎伸展角度不能大于45")
-    private Double thoracicExtensionAngle;
-
     @Min(value = 0, message = "胸椎痛感等级最小为0")
     @Max(value = 5, message = "胸椎痛感等级最大为5")
     private Integer thoracicPainLevel;

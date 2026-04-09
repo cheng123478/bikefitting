@@ -36,7 +36,6 @@ public class UserBodyVO {
     private Integer footLength;
     private Double armRaiseAngle;
     private Double thoracicRotationAngle;
-    private Double thoracicExtensionAngle;
     private Integer thoracicPainLevel;
     private Double squatDepth;
     private Integer squatStabilityScore;

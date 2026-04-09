@@ -233,9 +233,9 @@ public class StaticFittingService {
     private void processLevel3Biomechanical(UserBody body, UserBike bike, UserBikeSetup setup, StaticFittingResult res) {
 
         int tScore = 0;
-        if (body.getThoracicRotationAngle() != null && body.getThoracicExtensionAngle() != null) {
+        if (body.getThoracicRotationAngle() != null && body.getArmRaiseAngle() != null) {
             int pain = (body.getThoracicPainLevel() != null) ? body.getThoracicPainLevel() : 0;
-            tScore = (int) (body.getThoracicRotationAngle() * 0.6 + body.getThoracicExtensionAngle() * 0.4 - pain * 10);
+            tScore = (int) (body.getThoracicRotationAngle() * 0.6 + body.getArmRaiseAngle() * 0.4 - pain * 10);
             res.setThoracicScore(Math.max(0, tScore));
         }
 

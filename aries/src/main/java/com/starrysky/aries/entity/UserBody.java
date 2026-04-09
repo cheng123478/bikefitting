@@ -53,8 +53,6 @@ public class UserBody {
     private Double armRaiseAngle;
     @Comment("胸椎旋转角度(0-90)")
     private Double thoracicRotationAngle;
-    @Comment("胸椎伸展角度(0-45)")
-    private Double thoracicExtensionAngle;
     @Comment("胸椎痛感等级(0-5)")
     private Integer thoracicPainLevel;
     @Comment("深蹲深度(负值越深越好)")

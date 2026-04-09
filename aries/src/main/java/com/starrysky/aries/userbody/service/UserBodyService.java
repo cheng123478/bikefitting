@@ -306,7 +306,6 @@ public class UserBodyService {
         e.setIschialDistance(d.getIschialDistance());
         e.setArmRaiseAngle(d.getArmRaiseAngle());
         e.setThoracicRotationAngle(d.getThoracicRotationAngle());
-        e.setThoracicExtensionAngle(d.getThoracicExtensionAngle());
         e.setThoracicPainLevel(d.getThoracicPainLevel());
         e.setSquatDepth(d.getSquatDepth());
         e.setSquatStabilityScore(d.getSquatStabilityScore());
@@ -330,7 +329,6 @@ public class UserBodyService {
         v.setFootLength(e.getFootLength());
         v.setArmRaiseAngle(e.getArmRaiseAngle());
         v.setThoracicRotationAngle(e.getThoracicRotationAngle());
-        v.setThoracicExtensionAngle(e.getThoracicExtensionAngle());
         v.setThoracicPainLevel(e.getThoracicPainLevel());
         v.setSquatDepth(e.getSquatDepth());
         v.setSquatStabilityScore(e.getSquatStabilityScore());
@@ -375,13 +373,14 @@ public class UserBodyService {
                 baseVO.getThoracicRotationAngle(), targetVO.getThoracicRotationAngle(),
                 "度数增加意味着在下把位时胸腔压缩减少，摄氧量更佳");
 
-        addMetricToMatrix(matrix, "胸椎伸展", "°",
-                baseVO.getThoracicExtensionAngle(), targetVO.getThoracicExtensionAngle(),
-                "背部延展性的提升有助于缓解长时间骑行后的腰部酸痛");
-
         addMetricToMatrix(matrix, "举臂角度", "°",
                 baseVO.getArmRaiseAngle(), targetVO.getArmRaiseAngle(),
                 "反映肩膀灵活性，影响抬头看路时的颈椎代偿压力");
+
+        // 维度 C: 核心稳定性
+        addMetricToMatrix(matrix, "平板支撑", "级",
+                baseVO.getPlankScore(), targetVO.getPlankScore(),
+                "核心耐力提升有助于减少长途骑行时的躯干晃动");
 
         // 4. 组装结果
         UserBodyComparisonVO comparison = new UserBodyComparisonVO();

@@ -129,7 +129,7 @@ const initRadar = () => {
         { name: '柔韧性', max: 100 },
         { name: '稳定性', max: 100 },
         { name: '胸椎旋转', max: 90 },
-        { name: '胸椎伸展', max: 45 },
+        { name: '平板支撑', max: 5 },
         { name: '举臂角度', max: 180 }
       ],
       shape: 'circle',
@@ -142,13 +142,13 @@ const initRadar = () => {
       type: 'radar',
       data: [
         {
-          value: [b.flexibilityScore, b.stabilityScore, b.thoracicRotationAngle, b.thoracicExtensionAngle, b.armRaiseAngle],
+          value: [b.flexibilityScore, b.stabilityScore, b.thoracicRotationAngle, b.plankScore, b.armRaiseAngle],
           name: '历史',
           lineStyle: { type: 'dashed', width: 1 },
           areaStyle: { color: 'rgba(181, 164, 149, 0.1)' }
         },
         {
-          value: [t.flexibilityScore, t.stabilityScore, t.thoracicRotationAngle, t.thoracicExtensionAngle, t.armRaiseAngle],
+          value: [t.flexibilityScore, t.stabilityScore, t.thoracicRotationAngle, t.plankScore, t.armRaiseAngle],
           name: '当前',
           symbol: 'circle', symbolSize: 6,
           lineStyle: { width: 3 },
