@@ -133,91 +133,7 @@
             </form>
           </div>
 
-          <!-- TAB 2: 身体数据 -->
-          <div v-if="currentTab === 'body'" class="panel-section fade-in">
-            <div class="panel-header">
-              <h3 class="panel-title">身体几何档案</h3>
-              <p class="sub">准确的数据是 AI Fitting 的基础，请务必如实填写</p>
-            </div>
-
-            <div class="body-data-grid">
-              <div class="data-input-card">
-                <label>身高 (cm)</label>
-                <input type="number" v-model="bodyData.height" placeholder="0">
-              </div>
-              <div class="data-input-card">
-                <label>体重 (kg)</label>
-                <input type="number" v-model="bodyData.weight" placeholder="0">
-              </div>
-              <div class="data-input-card highlight">
-                <label>跨高 (cm) <i class="fas fa-info-circle info-icon" title="骑行最重要数据"></i></label>
-                <input type="number" v-model="bodyData.inseam" placeholder="0">
-              </div>
-              <div class="data-input-card">
-                <label>肩宽 (cm)</label>
-                <input type="number" v-model="bodyData.shoulder" placeholder="0">
-              </div>
-
-              <div class="data-input-card">
-                <label>大臂长 (cm)</label>
-                <input type="number" v-model="bodyData.armUpper" placeholder="0">
-              </div>
-              <div class="data-input-card">
-                <label>小臂长 (cm)</label>
-                <input type="number" v-model="bodyData.armLower" placeholder="0">
-              </div>
-              <div class="data-input-card highlight">
-                <label>坐骨间距 (mm)</label>
-                <input type="number" v-model="bodyData.sitBone" placeholder="0">
-              </div>
-            </div>
-
-            <div class="illustration-box">
-              <i class="fas fa-ruler-vertical"></i>
-              <p>数据仅用于生成 Fitting 建议，我们将严格保密。</p>
-            </div>
-            <div class="form-footer">
-              <button class="btn btn-primary" @click="saveBodyData">更新档案</button>
-            </div>
-          </div>
-
-          <!-- TAB 3: 我的车库 -->
-          <div v-if="currentTab === 'garage'" class="panel-section fade-in">
-            <div class="panel-header row-between">
-              <div>
-                <h3 class="panel-title">我的车库</h3>
-                <p class="sub">管理您的爱车信息</p>
-              </div>
-              <!-- 新增按钮 -->
-              <button class="btn btn-sm btn-outline" @click="openBikeModal(null)">
-                <i class="fas fa-plus"></i> 添加车辆
-              </button>
-            </div>
-            <div class="bike-list">
-              <div v-for="bike in bikes" :key="bike.id" class="bike-card">
-                <img :src="bike.image" class="bike-img">
-                <div class="bike-info">
-                  <h4>{{ bike.brand }} {{ bike.model }}</h4>
-                  <p class="bike-size">尺码: {{ bike.size }} / 类型: {{ bike.type }}</p>
-                  <div class="bike-tags">
-                    <span v-if="bike.isDefault" class="tag default">默认车辆</span>
-                  </div>
-                </div>
-
-                <!-- 操作按钮组 -->
-                <div class="bike-actions">
-                  <button class="btn-icon" @click="openBikeModal(bike)" title="编辑">
-                    <i class="fas fa-edit"></i>
-                  </button>
-                  <button class="btn-icon text-danger" @click="handleDeleteBike(bike)" title="删除">
-                    <i class="fas fa-trash"></i>
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- TAB 4: 账号安全 -->
+          <!-- TAB 2: 账号安全 -->
           <div v-if="currentTab === 'security'" class="panel-section fade-in">
             <div class="panel-header">
               <h3 class="panel-title">账号安全</h3>
@@ -358,12 +274,6 @@
       </div>
     </div>
 
-    <BikeModal
-        :is-open="showBikeModal"
-        :initial-data="editingBike"
-        @close="showBikeModal = false"
-        @submit="handleBikeSave"
-    />
   </div>
 </template>
 
@@ -378,7 +288,6 @@ import {
   updateUserProfile,
   uploadAvatar
 } from '@/api/profile.js';
-import BikeModal from '@/components/BikeModal.vue';
 
 // ================== 基础状态 ==================
 const router = useRouter();

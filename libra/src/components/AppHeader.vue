@@ -29,15 +29,6 @@
           <router-link to="/showroom" class="nav-link" active-class="active-link">单车展厅</router-link>
         </li>
         <li @click="closeMobileMenu">
-          <router-link to="/logbook" class="nav-link" active-class="active-link">迹刻</router-link>
-        </li>
-        <li @click="closeMobileMenu">
-          <router-link to="/peloton" class="nav-link" active-class="active-link">破风社</router-link>
-        </li>
-        <li @click="closeMobileMenu">
-          <router-link to="/rally" class="nav-link" active-class="active-link">集结</router-link>
-        </li>
-        <li @click="closeMobileMenu">
           <router-link to="/lab" class="nav-link" :class="{ 'active-link': $route.path.startsWith('/lab') }">实验室</router-link>
         </li>
 

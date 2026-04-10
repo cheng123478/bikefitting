@@ -25,7 +25,7 @@
 
           <div class="action-area">
             <button class="btn btn-outline" @click="router.push('/lab/garage')">回到我的车库</button>
-            <button class="btn btn-primary" @click="router.push('/lab/archive/dynamic')">前往存档中心</button>
+            <button class="btn btn-primary" @click="router.push('/lab/archives/dynamic')">前往存档中心</button>
           </div>
 
           <div class="sync-status">

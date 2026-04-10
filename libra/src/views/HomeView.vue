@@ -225,7 +225,51 @@ import DOMPurify from 'dompurify';
 const router = useRouter();
 const showBackToTop = ref(false);
 
-const slides = ref([]);
+const slides = ref([
+  {
+    bg: 'https://images.unsplash.com/photo-1511994298241-608e28f14fde?q=80&w=2070&auto=format&fit=crop',
+    slogan: 'Fit Your Ride<br><span class="hero-highlight">Perfect Your Pride</span>',
+    desc: '数据驱动表现 · 姿态成就荣耀',
+    link: '#',
+    btnText: null
+  },
+  {
+    bg: '/image/index/fit.jpg',
+    icon: 'fas fa-project-diagram',
+    slogan: 'AI 精准设定<br><span class="hero-highlight">释放无限潜能</span>',
+    desc: '利用计算机视觉技术捕捉骨骼关键点，在线生成 Fitting 报告。',
+    btnText: '上传视频分析',
+    btnIcon: 'fas fa-cloud-upload-alt',
+    link: '/survey'
+  },
+  {
+    bg: 'https://images.unsplash.com/photo-1474962558142-9ca83af74bb7?q=80&w=2070&auto=format&fit=crop',
+    icon: 'fas fa-camera-retro',
+    slogan: '记录热爱<br><span class="hero-highlight">见证蜕变</span>',
+    desc: '晒出你的 Fitting 改装数据，分享沿途最美的风景。',
+    btnText: '进入分享圈',
+    btnIcon: 'fas fa-share-alt',
+    link: '/sharecircle'
+  },
+  {
+    bg: '/image/index/activities.jpg',
+    icon: 'fas fa-flag-checkered',
+    slogan: '拒绝平庸<br><span class="hero-highlight">直面挑战</span>',
+    desc: '每一次出发，都是为了超越昨天的自己。',
+    btnText: '查看活动日历',
+    btnIcon: 'fas fa-calendar-alt',
+    link: '#activities'
+  },
+  {
+    bg: '/image/index/team.jpg',
+    icon: 'fas fa-users-cog',
+    slogan: '破风前行<br><span class="hero-highlight">岂止于快</span>',
+    desc: '无兄弟，不骑行。加入本地精英骑士团，与队友轮转交替。',
+    btnText: '寻找我的车队',
+    btnIcon: 'fas fa-user-plus',
+    link: '#knights'
+  }
+]);
 const galleryImages = ref([]);
 const eventsList = ref([]);
 const teamList = ref([]);
@@ -285,7 +329,6 @@ const handleManualChange = (action) => {
 const fetchData = async () => {
   try {
     const data = await homeService.getHomeData();
-    slides.value = data.slides;
     galleryImages.value = data.galleryImages;
     eventsList.value = data.eventsList;
     teamList.value = data.teamList;

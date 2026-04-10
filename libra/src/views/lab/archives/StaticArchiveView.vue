@@ -1,13 +1,6 @@
 <template>
   <div class="history-page">
     <div class="container">
-<!--      <header class="page-header fade-up">-->
-<!--        <h1 class="title">静态几何档案</h1>-->
-<!--        <p class="subtitle">记录每一阶段的骑行生物力学演变</p>-->
-<!--        <button class="btn btn-outline back-btn" @click="$router.push('/lab')">-->
-<!--          <i class="fas fa-arrow-left"></i> 返回控制台-->
-<!--        </button>-->
-<!--      </header>-->
 
       <div class="history-layout">
         <!-- 左侧：时间轴 (Timeline) -->
@@ -203,10 +196,10 @@ const selectRecord = (record) => {
 const handleShare = async () => {
   showSharePreview.value = true;
   posterImage.value = null; // Reset
-  
+
   // Wait for DOM
   await nextTick();
-  
+
   if (posterRef.value) {
     // Small delay to ensure ECharts animation or rendering is stable
     setTimeout(async () => {
