@@ -65,8 +65,8 @@
                 <p class="step-desc">精确到毫米的肢体数据是计算 Stack & Reach 的核心。</p>
                 <div class="input-grid">
                   <div class="grid-2">
-                    <CustomInput label="大臂长" v-model="formData.longArmLength" unit="mm" placeholder="例如：330" @focus="setGuide('arms')" />
-                    <CustomInput label="小臂长" v-model="formData.shortArmLength" unit="mm" placeholder="例如：280" @focus="setGuide('arms')" />
+                    <CustomInput label="大臂长" v-model="formData.longArmLength" unit="mm" placeholder="例如：330" @focus="setGuide('bigarms')" />
+                    <CustomInput label="小臂长" v-model="formData.shortArmLength" unit="mm" placeholder="例如：280" @focus="setGuide('smallarms')" />
                   </div>
                   <div class="grid-2">
                     <CustomInput label="大腿长 (股骨)" v-model="formData.thighLength" unit="mm" placeholder="例如：450" @focus="setGuide('thigh')" />
@@ -514,6 +514,8 @@ const submitProfile = async () => {
 .pain-option.active {
   border-color: var(--primary-color);
   background: rgba(92, 110, 88, 0.05);
+  transform: scale(1.08);
+  box-shadow: 0 4px 12px rgba(92, 110, 88, 0.15);
 }
 .pain-num {
   font-size: 1.2rem;
