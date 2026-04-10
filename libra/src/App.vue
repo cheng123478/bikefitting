@@ -6,7 +6,7 @@
   <AppFooter/>
 
   <AuthModal :isOpen="userStore.showAuthModal" @close="userStore.closeAuthModal()"/>
-  <AiAgent />
+<!--  <AiAgent />-->
   <ToastManager/>
 </template>
 
@@ -16,7 +16,7 @@ import AppHeader from './components/AppHeader.vue';
 import AppFooter from './components/AppFooter.vue';
 import AuthModal from './components/AuthModal.vue';
 import ToastManager from './components/ToastManager.vue';
-import AiAgent from './components/AiAgent.vue';
+// import AiAgent from './components/AiAgent.vue';
 import {useUserStore} from "@/stores/user";
 
 const userStore = useUserStore();

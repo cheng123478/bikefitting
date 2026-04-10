@@ -23,8 +23,8 @@
 
         <!-- 右侧：唯一退出按钮 -->
         <div class="header-right">
-          <button class="close-circle-btn" @click="$router.push('/lab')" title="返回实验室">
-            <i class="fas fa-times"></i>
+          <button class="btn btn-outline back-btn" @click="$router.push('/lab')">
+            <i class="fas fa-arrow-left"></i> 返回控制台
           </button>
         </div>
       </div>

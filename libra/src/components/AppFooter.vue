@@ -3,7 +3,7 @@
     <div class="container footer-content">
       <!-- 1. 品牌栏 -->
       <div class="footer-col brand-col">
-        <h4 class="footer-brand">BikeFit Pro</h4>
+        <h4 class="footer-brand">骑迹</h4>
         <p class="brand-desc">
           让每一位骑士在呼吸与律动中，<br>找到最舒适的姿态。
         </p>
@@ -34,7 +34,7 @@
     <div class="copyright-bar">
       <div class="container">
         <p>
-          &copy; {{ currentYear }} BikeFit Pro.
+          &copy; {{ currentYear }} 骑迹.
           <span>All Rights Reserved.</span>
         </p>
       </div>
