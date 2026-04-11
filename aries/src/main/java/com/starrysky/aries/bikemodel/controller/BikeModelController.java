@@ -31,7 +31,7 @@ public class BikeModelController {
      * @return 搜索结果
      */
     @GetMapping("/search")
-    public ResponseResult<List<BikeModelSearchVO>> search(@RequestParam String keyword) {
+    public ResponseResult<List<BikeModelSearchVO>> search(@RequestParam(value = "keyword") String keyword) {
         return ResponseResult.success(bikeModelService.searchModels(keyword));
     }
 
