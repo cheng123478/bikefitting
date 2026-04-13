@@ -11,17 +11,33 @@
         <div class="text-wrapper">
           <h4 class="guide-title">{{ currentData.title }}</h4>
           <p class="guide-desc">{{ currentData.desc }}</p>
-          <ul class="guide-tips">
-            <li v-for="(tip, index) in currentData.tips" :key="index">
-              <template v-if="typeof tip === 'object' && tip.label">
-                <div class="tip-item">
-                  <span class="tip-label">{{ tip.label }}</span>
-                  <span class="tip-content">{{ tip.content }}</span>
+          <!-- 折叠卡片列表 -->
+          <div class="tip-cards" v-if="currentData.tips && currentData.tips.length > 0">
+            <div 
+              v-for="(tip, index) in currentData.tips" 
+              :key="index" 
+              class="tip-card"
+              :class="{ expanded: expandedTip === index }"
+            >
+              <div class="tip-card-header" @click="toggleTip(index)">
+                <span class="tip-card-label">
+                  <template v-if="typeof tip === 'object' && tip.label">{{ tip.label }}</template>
+                  <template v-else>{{ tip }}</template>
+                </span>
+                <span class="tip-card-icon">
+                  <i :class="expandedTip === index ? 'fas fa-chevron-up' : 'fas fa-chevron-down'"></i>
+                </span>
+              </div>
+              <transition name="collapse">
+                <div 
+                  v-if="expandedTip === index && typeof tip === 'object' && tip.content" 
+                  class="tip-card-content"
+                >
+                  {{ tip.content }}
                 </div>
-              </template>
-              <template v-else>{{ tip }}</template>
-            </li>
-          </ul>
+              </transition>
+            </div>
+          </div>
         </div>
       </div>
     </transition>
@@ -29,17 +45,27 @@
 </template>
 
 <script setup>
-import { computed } from 'vue';
+import { computed, ref, watch } from 'vue';
 
 const props = defineProps(['guideKey']);
 
+// 当前展开的卡片索引
+const expandedTip = ref(null);
+
+// 切换卡片展开状态
+const toggleTip = (index) => {
+  expandedTip.value = expandedTip.value === index ? null : index;
+};
+
 // 完整的指引数据字典
 const guides = {
-  // 步骤1 默认指引
+  // ========================================
+  // 步骤1：个人及躯干基准
+  // ========================================
   step1_default: {
     title: '个人及躯干基准',
     desc: '这些数据决定了您的整体车架尺码区间。请根据指引依次完成测量。',
-    image: '/image/fitting/01.png',
+    image: '/image/fitting/Trunk.png',
     tips: []
   },
   height: {
@@ -94,6 +120,16 @@ const guides = {
       { label: '注意事项', content: '必须前倾，否则测得偏小\n压痕不明显时可增加柔软层' }
     ]
   },
+
+  // ========================================
+  // 步骤2：肢体杠杆
+  // ========================================
+  step2_default: {
+    title: '肢体杠杆',
+    desc: '精确到毫米的肢体数据是计算 Stack & Reach 的核心。',
+    image: '/image/fitting/limb.png',
+    tips: []
+  },
   bigarms: {
     title: '大臂长度 / BigArm Length',
     desc: '影响上半身在车上的延展性和舒适度。',
@@ -110,13 +146,6 @@ const guides = {
     tips: [
       { label: '测量步骤', content: '测量点：肘关节到手腕（尺骨茎突）\n手掌自然放松' }
     ]
-  },
-  // 步骤2 默认指引
-  step2_default: {
-    title: '肢体杠杆',
-    desc: '精确到毫米的肢体数据是计算 Stack & Reach 的核心。',
-    image: '/image/fitting/02.png',
-    tips: []
   },
   thigh: {
     title: '大腿长 / Femur',
@@ -135,24 +164,25 @@ const guides = {
       { label: '测量步骤', content: '测量点：膝关节中心  外踝\n测量直线距离' }
     ]
   },
-  // 步骤3 默认指引
+
+  // ========================================
+  // 步骤3：柔韧性评估
+  // ========================================
   step3_default: {
     title: '柔韧性评估',
     desc: '这决定了您能耐受多大的落差（Drop）。',
-    image: '/image/fitting/03.png',
+    image: '/image/fitting/Flexibility.png',
     tips: []
   },
   thoracic_rot: {
     title: '坐姿抱胸旋转 / Seated Rotation',
     desc: '评估胸椎旋转灵活性，影响骑行时的上身姿态调整能力。',
     image: '/image/fitting/height.png',
-    tips: ['坐姿挺直，双手交叉抱胸', '保持臀部不离开座位，缓慢旋转至极限', '观察肩膀转向的角度']
-  },
-  thoracic_ext: {
-    title: '胸椎伸展 / Extension',
-    desc: '决定了您能耐受低趴姿态的时间。',
-    image: '/image/fitting/height.png',
-    tips: ['双手抱头，胸部向上向后舒展']
+    tips: [
+      { label: '准备工作', content: '受测者坐于平面（凳子或地面），双脚平放于地面，双膝弯曲约90°，双脚与髋同宽。\n骨盆保持中立位，脊柱自然直立。' },
+      { label: '测量姿势', content: '双臂交叉抱于胸前（双手放于对侧肩膀）。\n保持骨盆稳定不动，缓慢向一侧旋转上半身，直至达到最大可控范围。' },
+      { label: '注意事项', content: '• 骨盆必须保持稳定，不可随身体旋转\n• 避免借助惯性或快速扭转\n• 保持脊柱直立，避免含胸或过度挺腰\n• 动作过程中保持呼吸自然，不可屏气\n• 若出现疼痛，应立即停止测试' }
+    ]
   },
   arm_raise: {
     title: '举臂角度 / Shoulder Flexion',
@@ -176,11 +206,14 @@ const guides = {
       { label: '5级', content: '疼痛强烈，无法继续或被迫停止动作' }
     ]
   },
-  // 步骤4 默认指引
+
+  // ========================================
+  // 步骤4：核心稳定性
+  // ========================================
   step4_default: {
     title: '核心稳定性',
     desc: '最后的评估项，帮助我们优化您的操控组件。',
-    image: '/image/fitting/04.png',
+    image: '/image/fitting/Core.png',
     tips: []
   },
   squat: {
@@ -203,8 +236,7 @@ const guides = {
     tips: [
       { label: '准备工作', content: '受测者取俯卧位，准备进入支撑姿势，可用秒表或手机计时' },
       { label: '测量姿势', content: '受测者以前臂和脚尖支撑身体（肘关节位于肩关节正下方）\n前臂平行放置，双手自然放松或握拳\n双腿伸直并拢或略分开，脚尖触地\n身体从头部、肩部、髋部到踝部保持一条直线\n核心收紧，骨盆保持中立位（避免塌腰或翘臀）\n头部保持中立，目视地面\n维持该姿势并开始计时，直至无法保持标准姿势为止' },
-      { label: '注意事项', content: '避免腰部下塌（增加腰椎压力）\n避免臀部过高（降低测试有效性）\n避免耸肩或肩部前移（保持肘在肩正下方）\n保持呼吸均匀，不可屏气\n动作需稳定，避免身体晃动\n当姿势明显变形时应立即终止测试' },
-      { label: '评分标准', content: '< 20秒 = 1分\n20-40秒 = 2分\n40-60秒 = 3分\n60-90秒 = 4分\n> 90秒 = 5分' }
+      { label: '注意事项', content: '避免腰部下塌（增加腰椎压力）\n避免臀部过高（降低测试有效性）\n避免耸肩或肩部前移（保持肘在肩正下方）\n保持呼吸均匀，不可屏气\n动作需稳定，避免身体晃动\n当姿势明显变形时应立即终止测试' }
     ]
   },
   stability: {
@@ -216,6 +248,11 @@ const guides = {
 };
 
 const currentData = computed(() => guides[props.guideKey] || guides.height);
+
+// 当 guideKey 变化时重置展开状态
+watch(() => props.guideKey, () => {
+  expandedTip.value = null;
+});
 </script>
 
 <style scoped>
@@ -223,7 +260,6 @@ const currentData = computed(() => guides[props.guideKey] || guides.height);
   padding: 40px; 
   background: white; 
   border: 1px solid rgba(0,0,0,0.03); 
-  height: 100%; 
   display: flex; 
   flex-direction: column; 
   box-shadow: var(--shadow-sm);
@@ -284,37 +320,91 @@ const currentData = computed(() => guides[props.guideKey] || guides.height);
   font-size: 1rem; 
   color: var(--text-body); 
   margin-bottom: 20px; 
-  line-height: 1.6; 
+  line-height: 1.6;
 }
-.guide-tips { padding-left: 0; }
-.guide-tips li {
-  font-size: 0.85rem;
-  color: var(--text-muted);
-  margin-bottom: 10px;
-  display: flex;
-  align-items: flex-start;
-  gap: 10px;
-}
-.guide-tips li::before {
-  content: '→';
-  color: var(--accent-gold);
-  font-weight: bold;
-}
-.guide-tips li .tip-item {
+
+/* 折叠卡片样式 */
+.tip-cards {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 10px;
 }
-.guide-tips li .tip-label {
-  font-size: 1rem;
-  font-weight: 700;
+
+.tip-card {
+  background: #FAFAFA;
+  border: 1px solid #EDEDED;
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  transition: all 0.3s ease;
+}
+
+.tip-card:hover {
+  border-color: #D0D0D0;
+}
+
+.tip-card.expanded {
+  border-color: var(--primary-color);
+  background: rgba(92, 110, 88, 0.03);
+}
+
+.tip-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 14px 16px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.tip-card-label {
+  font-size: 0.95rem;
+  font-weight: 600;
   color: var(--text-main);
 }
-.guide-tips li .tip-content {
+
+.tip-card.expanded .tip-card-label {
+  color: var(--primary-color);
+}
+
+.tip-card-icon {
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  transition: transform 0.3s ease;
+}
+
+.tip-card.expanded .tip-card-icon {
+  color: var(--primary-color);
+}
+
+.tip-card-content {
+  padding: 0 16px 14px 16px;
   font-size: 0.85rem;
   color: var(--text-muted);
   line-height: 1.8;
   white-space: pre-line;
+  border-top: 1px solid rgba(0, 0, 0, 0.05);
+  padding-top: 12px;
+}
+
+/* 折叠动画 */
+.collapse-enter-active,
+.collapse-leave-active {
+  transition: all 0.3s ease;
+  overflow: hidden;
+}
+
+.collapse-enter-from,
+.collapse-leave-to {
+  opacity: 0;
+  max-height: 0;
+  padding-top: 0;
+  padding-bottom: 0;
+}
+
+.collapse-enter-to,
+.collapse-leave-from {
+  opacity: 1;
+  max-height: 500px;
 }
 
 .fade-slide-enter-active, .fade-slide-leave-active { transition: all 0.5s var(--ease-out-expo); }

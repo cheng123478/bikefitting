@@ -161,13 +161,89 @@ public class UserBodyService {
         }
         // 3. 生成专家建议 (内部已做 null 判定)
         generateExpertPrescription(vo, userBody);
-        // 4. 基础器材初判 (仅依赖跨高，Level 1 必填项)
+        // 4. 基础器材建议 (基于跨高、柔韧性、核心稳定性等综合计算)
         if (userBody.getSpanHeight() != null && userBody.getSpanHeight() > 0) {
-            vo.setRecCrankLength((int) (Math.round(userBody.getSpanHeight() * 0.204 / 2.5) * 2.5));
+            // 4.1 建议坐垫高度: saddleHeight = 跨高 * 0.883
+            double baseSaddleHeight = userBody.getSpanHeight() * 0.883;
+            // 如果柔韧性 < 50，坐高-3~5mm
+            if (vo.getFlexibilityScore() != null && vo.getFlexibilityScore() < 50) {
+                baseSaddleHeight -= 4; // 取中间值
+            }
+            vo.setRecSaddleHeight(String.format("%dmm", (int) Math.round(baseSaddleHeight)));
 
-            // 坐骨间距如果没有，则不提供具体宽度范围建议
-            if (userBody.getIschialDistance() != null && userBody.getIschialDistance() > 0) {
-                vo.setSaddleWidthAdvice((userBody.getIschialDistance() + 20) + " - " + (userBody.getIschialDistance() + 30) + "mm");
+            // 4.2 建议坐垫类型
+            StringBuilder saddleTypeAdvice = new StringBuilder();
+            // 如果性别为女，输出短鼻头 / 中空
+            if (vo.getGender() != null && vo.getGender() == 2) {
+                saddleTypeAdvice.append("短鼻头/中空");
+            }
+            // 如果坐骨间距 > 130，输出宽坐垫
+            if (userBody.getIschialDistance() != null && userBody.getIschialDistance() > 130) {
+                if (saddleTypeAdvice.length() > 0) {
+                    saddleTypeAdvice.append(" + ");
+                }
+                saddleTypeAdvice.append("宽坐垫");
+            }
+            if (saddleTypeAdvice.length() == 0) {
+                saddleTypeAdvice.append("标准坐垫");
+            }
+            vo.setRecSaddleType(saddleTypeAdvice.toString());
+
+            // 4.3 建议车把高度（Stack）: Stack = 坐垫高度 - Drop
+            // baseDrop = 60~90 mm，根据柔韧性调整
+            int baseDrop = 75; // 取中间值
+            if (vo.getFlexibilityScore() != null) {
+                if (vo.getFlexibilityScore() < 50) {
+                    baseDrop = 50; // 40~60取中间值
+                } else if (vo.getFlexibilityScore() < 80) {
+                    baseDrop = 70; // 60~80取中间值
+                } else {
+                    baseDrop = 95; // 80~110取中间值
+                }
+            }
+            // 如果疼痛等级 >= 3，drop -= 20
+            if (userBody.getThoracicPainLevel() != null && userBody.getThoracicPainLevel() >= 3) {
+                baseDrop -= 20;
+            }
+            // 如果核心稳定性 <= 2，drop -= 10
+            if (vo.getCoreScore() != null && vo.getCoreScore() <= 2) {
+                baseDrop -= 10;
+            }
+            // 如果年龄 > 45，drop -= 10
+            if (vo.getAge() != null && vo.getAge() > 45) {
+                baseDrop -= 10;
+            }
+            // 确保drop不低于20
+            if (baseDrop < 20) baseDrop = 20;
+            int stack = (int) Math.round(baseSaddleHeight) - baseDrop;
+            vo.setRecStack(String.format("%dmm", stack));
+
+            // 4.4 建议前伸距离（Reach）: reach = （大臂长+小臂长） * 0.45
+            if (isAllPositive(userBody.getLongArmLength(), userBody.getShortArmLength())) {
+                double baseReach = (userBody.getLongArmLength() + userBody.getShortArmLength()) * 0.45;
+                // 如果猿臂比 > 1.04，reach += 10~20
+                if (vo.getApeIndex() != null && vo.getApeIndex() > 1.04) {
+                    baseReach += 15; // 取中间值
+                }
+                // 如果猿臂比 < 0.98，reach -= 10~20
+                if (vo.getApeIndex() != null && vo.getApeIndex() < 0.98) {
+                    baseReach -= 15; // 取中间值
+                }
+                // 如果柔韧性 < 50，reach -= 10
+                if (vo.getFlexibilityScore() != null && vo.getFlexibilityScore() < 50) {
+                    baseReach -= 10;
+                }
+                // 如果举臂角度 < 150，reach -= 10~15
+                if (userBody.getArmRaiseAngle() != null && userBody.getArmRaiseAngle() < 150) {
+                    baseReach -= 12.5; // 取中间值
+                }
+                // 如果疼痛等级 >= 3，reach -= 10
+                if (userBody.getThoracicPainLevel() != null && userBody.getThoracicPainLevel() >= 3) {
+                    baseReach -= 10;
+                }
+                vo.setRecReach(String.format("%dmm", (int) Math.round(baseReach)));
+            } else {
+                vo.setRecReach("待测量手臂数据");
             }
         }
         return vo;
@@ -252,48 +328,123 @@ public class UserBodyService {
 
     private void generateExpertPrescription(UserBodyVO vo, UserBody entity) {
         List<String> tags = new ArrayList<>();
-        StringBuilder comment = new StringBuilder("Fittor 评估结论：");
+        List<String> findings = new ArrayList<>();
+        List<String> advice = new ArrayList<>();
+
+        // 1. 性别特征分析
         if (vo.getGender() != null) {
             if (vo.getGender() == 2) {
                 tags.add("女性骑行者");
-                comment.append("【女性专项】考虑到女性盆骨生理结构较宽且骑行时盆骨前倾角较大，建议优先关注女性专用短鼻头座垫，以减轻会阴部压迫。");
+                findings.add("骨盆结构相对更宽，耻骨角度更大，骑行时骨盆前倾角度更明显");
+                advice.add("建议优先选择女性专用坐垫（短鼻头或中空设计），以减少会阴压迫，同时适当关注坐垫宽度匹配");
             } else if (vo.getGender() == 1) {
                 tags.add("男性骑行者");
             }
         }
-        if (vo.getAge() != null && vo.getAge() > 0) {
+
+        // 2. 年龄段分析
+        if (vo.getAge() != null) {
             if (vo.getAge() < 25) {
-                tags.add("潜力骑士");
-                comment.append("【年龄优势】您正处于身体机能巅峰，骨骼与肌肉的适应性极强，在后续 Fitting 中可尝试更具攻击性的气动设定。");
+                tags.add("高适应潜力");
+                findings.add("肌肉与关节适应能力强，对骑行姿态变化的耐受度较高");
+                advice.add("在保证舒适性的前提下，可逐步尝试更低的把位和更大的落差，以提升气动表现");
             } else if (vo.getAge() > 45) {
-                tags.add("资深骑士");
-                comment.append("【预防保护】随年龄增长，脊柱代偿风险增加。建议在后续调教中适当抬高 Stack(车头高度)，重点保护颈椎与下背部。");
+                tags.add("稳定优先");
+                findings.add("随着年龄增长，关节活动度与恢复能力下降，脊柱与腰背部代偿风险增加");
+                advice.add("建议适当提高车头高度，减少过度前倾姿态，同时加强核心稳定性训练以保护腰背");
             }
         }
+
+        // 3. 猿臂比分析
         if (vo.getApeIndex() != null && vo.getApeIndex() > 1.04) {
-            tags.add("猿臂比惊人");
-            comment.append("您的上肢伸展潜力极大，具有极佳的气动姿态适应力。");
+            tags.add("长臂优势");
+            findings.add("上肢长度相对较长，具备更好的前伸能力与气动姿态适应性");
+            advice.add("可以适当降低把位或增加前伸距离（Reach），在保证舒适的前提下优化空气动力学姿态");
         }
+        if (vo.getApeIndex() != null && vo.getApeIndex() < 0.98) {
+            tags.add("前伸受限");
+            findings.add("上肢相对较短，前伸能力有限，过长的骑行姿态容易导致肩颈紧张");
+            advice.add("建议缩短把立长度或提高车头高度，避免过度前伸带来的上肢疲劳");
+        }
+
+        // 4. 股胫比分析
         if (vo.getFemurTibiaRatio() != null && vo.getFemurTibiaRatio() > 1.15) {
             tags.add("长股骨特征");
-            comment.append("大腿比例显著，骑行中重心天然偏后，对座垫后移量(Setback)非常敏感。");
+            findings.add("大腿长度占比高，下蹲与骑行时骨盆更容易后移，重心偏后");
+            advice.add("需要重点关注坐垫后移量（Setback）与高度匹配，避免踩踏时出现后坐或发力不顺");
         }
+        if (vo.getFemurTibiaRatio() != null && vo.getFemurTibiaRatio() < 0.9) {
+            tags.add("长小腿特征");
+            findings.add("小腿比例较高，踝关节参与踩踏的幅度更大");
+            advice.add("建议关注锁鞋位置与踩踏角度，避免踝关节过度参与导致疲劳");
+        }
+
+        // 5. 柔韧性分析
         if (vo.getFlexibilityScore() != null) {
             if (vo.getFlexibilityScore() < 50) {
                 tags.add("柔韧性受限");
-                comment.append("核心灵活性一般，初期建议采用保守的车头高度，避免颈背部酸痛。");
+                findings.add("髋部与后链肌群（如腘绳肌）活动受限，身体前倾能力不足");
+                advice.add("建议采用更保守的骑行姿态（较高车头），并优先进行后侧链拉伸训练");
             } else if (vo.getFlexibilityScore() > 80) {
-                tags.add("极佳柔韧性");
-                comment.append("身体开发程度高，可以尝试更激进的竞技落差设定。");
+                tags.add("柔韧性优秀");
+                findings.add("关节活动范围大，具备良好的前倾能力与姿态适应能力");
+                advice.add("可以尝试更低的把位与更大的落差，以提升骑行效率与气动表现");
             }
         }
-        if (entity.getThoracicPainLevel() != null && entity.getThoracicPainLevel() > 0) {
-            tags.add("痛感预警");
-            comment.append("当前测试存在痛感，系统将自动下调 Fitting 激进程度，以康复保护为主。");
+
+        // 6. 疼痛风险分析
+        if (entity.getThoracicPainLevel() != null && entity.getThoracicPainLevel() >= 3) {
+            tags.add("疼痛风险");
+            findings.add("在动作测试中出现明显不适或疼痛，提示当前身体状态可能存在功能性限制或潜在损伤风险");
+            advice.add("建议降低骑行姿态激进程度，避免大幅度前倾，同时优先进行恢复与评估训练");
         }
 
+        // 7. 核心稳定性分析
+        if (entity.getSquatStabilityScore() != null) {
+            if (entity.getSquatStabilityScore() <= 2) {
+                tags.add("稳定性不足");
+                findings.add("下肢与核心控制能力较弱，下蹲过程中存在明显晃动或代偿");
+                advice.add("骑行中可能出现骨盆晃动，建议加强核心训练（如平板支撑、死虫训练）以提升稳定性");
+            }
+        }
+        if (entity.getPlankScore() != null && entity.getPlankScore() <= 2) {
+            tags.add("核心耐力不足");
+            findings.add("核心肌群耐力较弱，长时间骑行中难以维持稳定姿态");
+            advice.add("建议增加核心耐力训练（如平板支撑、侧桥），提升长时间骑行稳定性");
+        }
+
+        // 8. 肩部活动度分析
+        if (entity.getArmRaiseAngle() != null && entity.getArmRaiseAngle() < 150) {
+            tags.add("肩部活动受限");
+            findings.add("肩关节活动范围不足，上肢前伸时容易产生紧张或代偿");
+            advice.add("建议提高车头高度或缩短前伸距离，同时增加肩部活动度训练");
+        }
+
+        // 9. 躯干灵活性分析
+        if (entity.getThoracicRotationAngle() != null && entity.getThoracicRotationAngle() < 40) {
+            tags.add("躯干灵活性不足");
+            findings.add("胸椎旋转能力不足，影响骑行中的身体协调与姿态调整");
+            advice.add("建议增加躯干旋转训练，以提升骑行中的灵活性与舒适性");
+        }
+
+        // 10. 生成总结文案（基于已生成的tags）
+        String summary = "根据您的身体测量与功能评估结果，";
+        if (tags.contains("柔韧性受限")) {
+            summary += "当前柔韧性存在一定限制，";
+        }
+        if (tags.contains("核心稳定性不足") || tags.contains("核心耐力不足")) {
+            summary += "核心稳定性有待提升，";
+        }
+        if (tags.contains("疼痛风险")) {
+            summary += "并伴随一定的疼痛风险，";
+        }
+        summary += "建议在保证舒适与安全的前提下进行骑行姿态调整，并结合针对性训练逐步改善身体能力。";
+
+        // 11. 设置到VO中
         vo.setRiderTags(tags);
-        vo.setExpertComment(comment.toString());
+        vo.setSummary(summary);
+        vo.setFindings(findings);
+        vo.setAdvice(advice);
     }
 
     private UserBody mapToEntity(UserBodyDTO d) {
@@ -452,7 +603,7 @@ public class UserBodyService {
         UserBodyVO target = comp.getTargetRecord();
         // 防御：如果没有柔韧性得分，则无法生成针对进化的评价
         if (base.getFlexibilityScore() == null || target.getFlexibilityScore() == null) {
-            return "Fittor 提示：由于历史数据或当前数据中的机能测试不完整，暂无法生成深度进化评估。建议完整录入“身体图谱”中的三项柔韧性测试。";
+            return "Fittor 提示：由于历史数据或当前数据中的机能测试不完整，暂无法生成深度进化评估。建议完整录入\"身体图谱\"中的三项柔韧性测试。";
         }
         int scoreDiff = comp.getTargetRecord().getFlexibilityScore() - comp.getBaseRecord().getFlexibilityScore();
         StringBuilder sb = new StringBuilder("Fittor 进化诊断：");

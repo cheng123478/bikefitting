@@ -175,22 +175,52 @@
                 <div class="input-grid">
                   <div class="zen-form-item" @click="setGuide('squat')">
                     <label class="input-label">深蹲稳定性评分 (1-5)</label>
-                    <div class="score-selector">
-                      <button v-for="i in 5" :key="i" type="button" :class="{active: formData.squatStabilityScore === i}" @click="formData.squatStabilityScore = i">{{ i }}</button>
+                    <div class="squat-selector">
+                      <div class="squat-option" :class="{active: formData.squatStabilityScore === 1}" @click="formData.squatStabilityScore = 1">
+                        <span class="squat-num">1</span>
+                        <span class="squat-label">无法完成</span>
+                      </div>
+                      <div class="squat-option" :class="{active: formData.squatStabilityScore === 2}" @click="formData.squatStabilityScore = 2">
+                        <span class="squat-num">2</span>
+                        <span class="squat-label">晃动明显</span>
+                      </div>
+                      <div class="squat-option" :class="{active: formData.squatStabilityScore === 3}" @click="formData.squatStabilityScore = 3">
+                        <span class="squat-num">3</span>
+                        <span class="squat-label">轻微晃动</span>
+                      </div>
+                      <div class="squat-option" :class="{active: formData.squatStabilityScore === 4}" @click="formData.squatStabilityScore = 4">
+                        <span class="squat-num">4</span>
+                        <span class="squat-label">整体稳定</span>
+                      </div>
+                      <div class="squat-option" :class="{active: formData.squatStabilityScore === 5}" @click="formData.squatStabilityScore = 5">
+                        <span class="squat-num">5</span>
+                        <span class="squat-label">动作流畅</span>
+                      </div>
                     </div>
                   </div>
                   <div class="zen-form-item" @click="setGuide('plank')">
                     <label class="input-label">平板支撑评分 (1-5)</label>
-                    <div class="score-selector">
-                      <button v-for="i in 5" :key="i" type="button" :class="{active: formData.plankScore === i}" @click="formData.plankScore = i">{{ i }}</button>
-                    </div>
-                    <div class="score-hint">
-                      <span v-if="formData.plankScore === 1">&lt; 20s</span>
-                      <span v-else-if="formData.plankScore === 2">20-40s</span>
-                      <span v-else-if="formData.plankScore === 3">40-60s</span>
-                      <span v-else-if="formData.plankScore === 4">60-90s</span>
-                      <span v-else-if="formData.plankScore === 5">&gt; 90s</span>
-                      <span v-else>点击选择评分</span>
+                    <div class="plank-selector">
+                      <div class="plank-option" :class="{active: formData.plankScore === 1}" @click="formData.plankScore = 1">
+                        <span class="plank-num">1</span>
+                        <span class="plank-label">&lt; 20s</span>
+                      </div>
+                      <div class="plank-option" :class="{active: formData.plankScore === 2}" @click="formData.plankScore = 2">
+                        <span class="plank-num">2</span>
+                        <span class="plank-label">20-40s</span>
+                      </div>
+                      <div class="plank-option" :class="{active: formData.plankScore === 3}" @click="formData.plankScore = 3">
+                        <span class="plank-num">3</span>
+                        <span class="plank-label">40-60s</span>
+                      </div>
+                      <div class="plank-option" :class="{active: formData.plankScore === 4}" @click="formData.plankScore = 4">
+                        <span class="plank-num">4</span>
+                        <span class="plank-label">60-90s</span>
+                      </div>
+                      <div class="plank-option" :class="{active: formData.plankScore === 5}" @click="formData.plankScore = 5">
+                        <span class="plank-num">5</span>
+                        <span class="plank-label">&gt; 90s</span>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -531,6 +561,78 @@ const submitProfile = async () => {
   margin-top: 4px;
 }
 .pain-option.active .pain-label {
+  color: var(--primary-color);
+}
+
+/* Squat Selector */
+.squat-selector { display: flex; gap: 10px; margin-top: 10px; }
+.squat-option {
+  flex: 1;
+  display: flex; flex-direction: column; align-items: center;
+  padding: 12px 8px;
+  border: 1px solid #EDEDED;
+  border-radius: var(--radius-sm);
+  background: #F9F9F9;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+.squat-option:hover { border-color: #D0D0D0; }
+.squat-option.active {
+  border-color: var(--primary-color);
+  background: rgba(92, 110, 88, 0.05);
+  transform: scale(1.08);
+  box-shadow: 0 4px 12px rgba(92, 110, 88, 0.15);
+}
+.squat-num {
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: var(--text-main);
+}
+.squat-option.active .squat-num {
+  color: var(--primary-color);
+}
+.squat-label {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin-top: 4px;
+}
+.squat-option.active .squat-label {
+  color: var(--primary-color);
+}
+
+/* Plank Selector */
+.plank-selector { display: flex; gap: 10px; margin-top: 10px; }
+.plank-option {
+  flex: 1;
+  display: flex; flex-direction: column; align-items: center;
+  padding: 12px 8px;
+  border: 1px solid #EDEDED;
+  border-radius: var(--radius-sm);
+  background: #F9F9F9;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+.plank-option:hover { border-color: #D0D0D0; }
+.plank-option.active {
+  border-color: var(--primary-color);
+  background: rgba(92, 110, 88, 0.05);
+  transform: scale(1.08);
+  box-shadow: 0 4px 12px rgba(92, 110, 88, 0.15);
+}
+.plank-num {
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: var(--text-main);
+}
+.plank-option.active .plank-num {
+  color: var(--primary-color);
+}
+.plank-label {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin-top: 4px;
+}
+.plank-option.active .plank-label {
   color: var(--primary-color);
 }
 

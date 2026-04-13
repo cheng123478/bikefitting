@@ -83,7 +83,7 @@
               <div class="mini-tags">
                 <span v-for="tag in record.riderTags" :key="tag" class="evo-tag">{{ tag }}</span>
               </div>
-              <p class="expert-preview">{{ record.expertComment || '该记录仅包含基础尺寸，未进行机能测试。' }}</p>
+              <p class="expert-preview">{{ record.summary || '该记录仅包含基础尺寸，未进行机能测试。' }}</p>
             </div>
 
             <div class="record-actions">
