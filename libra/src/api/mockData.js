@@ -216,3 +216,23 @@ export const shareData = {
         }
     ]
 };
+
+export const bikeData = {
+    brands: ['Specialized', 'Trek', 'Giant', 'Canyon', 'Pinarello', 'Cannondale', 'Bianchi', 'Scott'],
+    categories: [
+        { id: 'road', name: '公路车', icon: 'fas fa-road' },
+        { id: 'mtb', name: '山地车', icon: 'fas fa-mountain' },
+        { id: 'gravel', name: '砾石车', icon: 'fas fa-mitten' },
+        { id: 'tt', name: '计时赛/铁三', icon: 'fas fa-clock' }
+    ],
+    bikes: [
+        { id: 1, brand: 'Specialized', model: 'Tarmac SL8', category: 'road', year: 2024, price: '¥61,990起', img: 'https://images.unsplash.com/photo-1541625602330-2277a4c46182?q=80&w=800', desc: '为了终结而生。', tags: ['顶级竞赛', '气动', '轻量'] },
+        { id: 2, brand: 'Trek', model: 'Madone SLR 9', category: 'road', year: 2024, price: '¥89,800起', img: 'https://images.unsplash.com/photo-1559166943-424a1b02661f?q=80&w=800', desc: '极致气动，破风而行。', tags: ['IsoFlow', '顶级套件', '竞技型'] },
+        { id: 3, brand: 'Giant', model: 'TCR Advanced Pro', category: 'road', year: 2023, price: '¥24,800', img: 'https://images.unsplash.com/photo-1507035895480-2b3156c31fc8?q=80&w=800', desc: '全能战车，经典之选。', tags: ['爬坡型', '高性价比', '经典几何'] },
+        { id: 4, brand: 'Canyon', model: 'Ultimate CFR', category: 'road', year: 2024, price: '€9,499', img: 'https://images.unsplash.com/photo-1475666675596-cca5a3a6a365?q=80&w=800', desc: '德国工艺，纯粹性能。', tags: ['直销', '超轻', '大环赛级'] },
+        { id: 5, brand: 'Specialized', model: 'Epic World Cup', category: 'mtb', year: 2024, price: '¥82,990', img: 'https://images.unsplash.com/photo-1526676037777-05a232554f77?q=80&w=800', desc: '可能是地球上最快的XC单车。', tags: ['XC竞赛', '极致避震', '冠军座驾'] },
+        { id: 6, brand: 'Trek', model: 'Supercaliber SLR', category: 'mtb', year: 2023, price: '¥76,800', img: 'https://images.unsplash.com/photo-1618386477546-f947ee191244?q=80&w=800', desc: '重新定义山地车速。', tags: ['IsoStrut', '全减震', '硬尾重量'] },
+        { id: 7, brand: 'Bianchi', model: 'Oltre RC', category: 'road', year: 2024, price: '¥120,000起', img: 'https://images.unsplash.com/photo-1544191696-102dbdaeeaa0?q=80&w=800', desc: '美学与风洞的完美结合。', tags: ['意式设计', '超气动', '限量之作'] },
+        { id: 8, brand: 'Canyon', model: 'Grizl CF SL 8', category: 'gravel', year: 2023, price: '¥28,999', img: 'https://images.unsplash.com/photo-1621340728987-a36c0a0c4f86?q=80&w=800', desc: '去探索更远的地方。', tags: ['全地形', '多种拓展', '长途自支撑'] }
+    ]
+};

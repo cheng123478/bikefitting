@@ -37,11 +37,6 @@ public class DynamicFittingAlgorithm {
         // 从数据库检索该车型的所有指标标准 (带缓存)
         List<DynamicFittingStandard> standards = standardRepository.findByBikeType(bikeType);
 
-        // 如果该车型尚无配置，可以退回到默认车型 (如 Road Bike = 1)
-        if (standards.isEmpty()) {
-            standards = standardRepository.findByBikeType(1);
-        }
-
         List<DynamicFittingAdviceVO> advices = new ArrayList<>();
         double totalWeightedScore = 0;
         double totalWeight = 0;
@@ -54,7 +49,7 @@ public class DynamicFittingAlgorithm {
             String viewType = std.getViewType();
 
             // 视角感知检索指标值
-            Double val = null;
+            Double val;
             if (viewType != null && !viewType.isEmpty()) {
                 val = findMetricInView(summary, viewType.toLowerCase(), metricKey);
             } else {
@@ -100,6 +95,15 @@ public class DynamicFittingAlgorithm {
                 .build();
     }
 
+    /**
+     * 创建调整建议
+     *
+     * @param std           标准
+     * @param val           指标值
+     * @param adviceCode    建议代码
+     * @param adviceContent 建议内容
+     * @return 建议
+     */
     private DynamicFittingAdviceVO createAdvice(DynamicFittingStandard std, Double val, String adviceCode, String adviceContent) {
         // 获取顺序: 1:Cleat, 2:Seat, 3:Handlebar/Stem
         int sequence = 3;
@@ -128,6 +132,10 @@ public class DynamicFittingAlgorithm {
 
     /**
      * 非对称得分计算
+     *
+     * @param val 指标值
+     * @param std 标准
+     * @return 得分
      */
     private double calculateAsymmetricScore(double val, DynamicFittingStandard std) {
         if (val >= std.getMinVal() && val <= std.getMaxVal())
@@ -154,6 +162,9 @@ public class DynamicFittingAlgorithm {
 
     /**
      * 执行双侧对比分析
+     *
+     * @param metrics 指标值映射
+     * @param advices 调整建议列表
      */
     private void performBilateralAudit(Map<String, Double> metrics, List<DynamicFittingAdviceVO> advices) {
         metrics.forEach((key, val) -> {
@@ -185,6 +196,11 @@ public class DynamicFittingAlgorithm {
 
     /**
      * 在特定视角中查找指标
+     *
+     * @param overallSummary 总览摘要
+     * @param viewType       视角类型
+     * @param metricKey      指标键
+     * @return 指标值
      */
     private Double findMetricInView(Map<String, Object> overallSummary, String viewType, String metricKey) {
         Object viewData = overallSummary.get(viewType);
@@ -198,6 +214,10 @@ public class DynamicFittingAlgorithm {
 
     /**
      * 全局搜索指标 (回退逻辑)
+     *
+     * @param overallSummary 总览摘要
+     * @param metricKey      指标键
+     * @return 指标值
      */
     private Double findMetricInSummary(Map<String, Object> overallSummary, String metricKey) {
         for (Object viewSum : overallSummary.values()) {
@@ -214,6 +234,10 @@ public class DynamicFittingAlgorithm {
 
     /**
      * 从 Map 中根据 key 提取数值 (支持多种后缀)
+     *
+     * @param map       映射
+     * @param metricKey 指标键
+     * @return 数值
      */
     private Double extractMetricValue(Map<String, Object> map, String metricKey) {
         // 优先级 1: 精确匹配
@@ -231,6 +255,12 @@ public class DynamicFittingAlgorithm {
         return null;
     }
 
+    /**
+     * 将对象转换为 Double 类型
+     *
+     * @param obj 对象
+     * @return Double 类型值
+     */
     private Double convertToDouble(Object obj) {
         if (obj instanceof Number) {
             return ((Number) obj).doubleValue();

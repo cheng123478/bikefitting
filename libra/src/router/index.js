@@ -17,7 +17,7 @@ const router = createRouter({
         {
             path: '/showroom',
             name: 'show-room',
-            component: () => import('@/views/SurveyView.vue'),
+            component: () => import('@/views/ShowroomView.vue'),
             meta: { title: '单车展厅', requiresAuth: true }
         },
         // --- 实验室 模块 ---
@@ -133,6 +133,19 @@ const router = createRouter({
             name: 'profile',
             component: () => import('@/views/user/ProfileView.vue'),
             meta: { title: '个人中心', requiresAuth: true }
+        },
+        // --- 法律相关 ---
+        {
+            path: '/user-agreement',
+            name: 'user-agreement',
+            component: () => import('@/views/legal/UserAgreementView.vue'),
+            meta: { title: '用户协议' }
+        },
+        {
+            path: '/privacy-policy',
+            name: 'privacy-policy',
+            component: () => import('@/views/legal/PrivacyPolicyView.vue'),
+            meta: { title: '隐私政策' }
         },
         // --- 微信授权回调 ---
         {

@@ -5,6 +5,7 @@ import router from './router';
 
 // 引入全局样式
 import './assets/css/main.css';
+import '@fortawesome/fontawesome-free/css/all.min.css';
 
 const app = createApp(App);
 

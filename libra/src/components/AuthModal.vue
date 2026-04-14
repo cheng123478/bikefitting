@@ -50,7 +50,20 @@
           <a href="#">忘记密码?</a>
         </div>
 
-        <button type="submit" class="btn btn-primary btn-block" :disabled="isLoading">
+        <div class="agreement-section">
+          <label class="checkbox-container">
+            <input type="checkbox" v-model="isAgreed">
+            <span class="checkmark"></span>
+            <span class="agreement-text">
+              我已阅读并同意
+              <router-link to="/user-agreement" target="_blank" @click.stop>《用户协议》</router-link>
+              和
+              <router-link to="/privacy-policy" target="_blank" @click.stop>《隐私政策》</router-link>
+            </span>
+          </label>
+        </div>
+
+        <button type="submit" class="btn btn-primary btn-block" :disabled="isLoading || !isAgreed">
           <i v-if="isLoading" class="fas fa-spinner fa-spin"></i>
           {{ isLoading ? '登录中...' : '立即登录' }}
         </button>
@@ -84,7 +97,20 @@
             {{ timer > 0 ? `${timer}s 后重发` : '获取验证码' }}
           </button>
         </div>
-        <button type="submit" class="btn btn-primary btn-block" :disabled="isLoading">
+        <div class="agreement-section">
+          <label class="checkbox-container">
+            <input type="checkbox" v-model="isAgreed">
+            <span class="checkmark"></span>
+            <span class="agreement-text">
+              我已阅读并同意
+              <router-link to="/user-agreement" target="_blank" @click.stop>《用户协议》</router-link>
+              和
+              <router-link to="/privacy-policy" target="_blank" @click.stop>《隐私政策》</router-link>
+            </span>
+          </label>
+        </div>
+
+        <button type="submit" class="btn btn-primary btn-block" :disabled="isLoading || !isAgreed">
           <i v-if="isLoading" class="fas fa-spinner fa-spin"></i>
           {{ isLoading ? '注册中...' : '注册并登录' }}
         </button>
@@ -118,6 +144,7 @@ const showPassword = ref(false);
 const timer = ref(0);
 let timerInterval = null; // 用于存储定时器ID
 const isLoading = ref(false);
+const isAgreed = ref(false);
 // 表单数据
 const loginForm = reactive({phone: '', password: '', code: ''});
 const registerForm = reactive({phone: '', code: ''});
@@ -444,5 +471,84 @@ onUnmounted(() => {
     opacity: 1;
     transform: translateY(0);
   }
+}
+
+/* 协议复选框样式 */
+.agreement-section {
+  margin-bottom: var(--space-md);
+  padding: 0 4px;
+}
+
+.checkbox-container {
+  display: flex;
+  align-items: flex-start;
+  position: relative;
+  cursor: pointer;
+  font-size: 0.85rem;
+  user-select: none;
+  gap: 10px;
+  line-height: 1.4;
+}
+
+.checkbox-container input {
+  position: absolute;
+  opacity: 0;
+  cursor: pointer;
+  height: 0;
+  width: 0;
+}
+
+.checkmark {
+  flex-shrink: 0;
+  height: 18px;
+  width: 18px;
+  background-color: #eee;
+  border-radius: 4px;
+  border: 1px solid #ddd;
+  transition: all 0.2s;
+  position: relative;
+}
+
+.checkbox-container:hover input ~ .checkmark {
+  background-color: #e0e0e0;
+}
+
+.checkbox-container input:checked ~ .checkmark {
+  background-color: var(--primary-color);
+  border-color: var(--primary-color);
+}
+
+.checkmark:after {
+  content: "";
+  position: absolute;
+  display: none;
+}
+
+.checkbox-container input:checked ~ .checkmark:after {
+  display: block;
+}
+
+.checkbox-container .checkmark:after {
+  left: 6px;
+  top: 2px;
+  width: 4px;
+  height: 9px;
+  border: solid white;
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+
+.agreement-text {
+  color: var(--text-muted);
+}
+
+.agreement-text a {
+  color: var(--primary-color);
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.agreement-text a:hover {
+  text-decoration: underline;
 }
 </style>

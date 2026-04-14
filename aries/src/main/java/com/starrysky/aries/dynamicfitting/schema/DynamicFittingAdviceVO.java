@@ -6,7 +6,11 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 /**
- * 动态 Fitting 建议 VO
+ * 动态Fitting建议VO
+ *
+ * @author adice
+ * @version 1.0
+ * @since 2025-08-08 11:19:57
  */
 @Data
 @Builder

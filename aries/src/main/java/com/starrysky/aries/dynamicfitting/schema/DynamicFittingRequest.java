@@ -6,6 +6,13 @@ import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * 动态Fitting请求
+ *
+ * @author adi
+ * @version 1.0
+ * @since 2026/3/7 21:23
+ */
 @Data
 public class DynamicFittingRequest {
     private Long bikeId;
