@@ -66,3 +66,10 @@ INSERT INTO `fit_user_body` (`arm_raise_angle`, `breast_height`, `calf_length`, 
 INSERT INTO `bike_model` (`bb_drop`, `bike_type`, `head_tube_angle`, `reach`, `seat_tube_angle`, `source_type`, `stack`, `stand_over_height`, `status`, `wheel_base`, `id`, `brand`, `brand_cn`, `image_url`, `model`, `model_year`, `size`, `source_url`) VALUES (66, 1, 74, 395, 74, 2, 557, 782, 1, NULL, 1, 'Giant', '捷安特', '/resource/2028760927918231552/bike/1f421434b63348d897b059ed468b19df.png', 'S100', '2025', 'M', NULL);
 INSERT INTO `fit_user_bike` (`status`, `bike_model_id`, `create_time`, `id`, `user_id`, `remark`) VALUES (1, 1, '2026-03-14 21:49:34.450712', 1, 2028760927918231552, '日常通勤');
 INSERT INTO `fit_user_bike_setup` (`crank_length`, `handlebar_drop`, `handlebar_width`, `pedal_type`, `saddle_height`, `saddle_setback`, `saddle_tilt`, `saddle_width`, `spacers_height`, `stem_angle`, `stem_length`, `create_time`, `fit_user_bike_id`, `id`) VALUES (NULL, NULL, NULL, 1, NULL, 20, 0, NULL, NULL, NULL, NULL, '2026-03-14 21:49:34.454723', 1, 1);
+
+-- =================================================================
+-- 迁移脚本: 添加平板支撑评分字段 (plank_score)
+-- 执行时间: 2026-04-09
+-- 说明: 核心稳定性模块增加平板支撑评分，计算公式更新为 coreScore = squatScore * 0.6 + plankScore * 0.4
+-- =================================================================
+-- ALTER TABLE fit_user_body ADD COLUMN plank_score INT COMMENT '平板支撑评分(1-5)' AFTER squat_stability_score;

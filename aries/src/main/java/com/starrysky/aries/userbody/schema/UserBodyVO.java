@@ -36,19 +36,25 @@ public class UserBodyVO {
     private Integer footLength;
     private Double armRaiseAngle;
     private Double thoracicRotationAngle;
-    private Double thoracicExtensionAngle;
     private Integer thoracicPainLevel;
     private Double squatDepth;
     private Integer squatStabilityScore;
+    private Integer plankScore;
     // --- Fittor生物力学分析结果 ---
     private Double apeIndex;          // 猿臂比
     private Double femurTibiaRatio;   // 股胫比
     private Double trunkRatio;        // 躯干占比
     private List<String> riderTags;   // 骑士画像标签 (如: "长股骨特征", "气动天赋")
-    private String expertComment;     // 专家寄语/诊断文案
+    private String summary;     // 专家寄语/诊断文案
+    private List<String> findings;    // 身体发现/特征描述
+    private List<String> advice;      // 针对性建议
     // 评分与初判建议
     private Integer flexibilityScore; // 柔韧性得分 (0-100)
+    private Double coreScore;         // 核心稳定性得分 (1-5)
     private Integer stabilityScore;   // 稳定性得分 (0-100)
-    private Integer recCrankLength;   // 建议曲柄长度基准 (mm)
-    private String saddleWidthAdvice; // 建议座垫宽度范围
+    // 基础器材建议
+    private String recSaddleHeight;   // 建议坐垫高度
+    private String recSaddleType;     // 建议坐垫类型
+    private String recStack;          // 建议车把高度（Stack）
+    private String recReach;          // 建议前伸距离（Reach）
 }

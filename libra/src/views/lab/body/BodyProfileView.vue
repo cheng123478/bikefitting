@@ -1,4 +1,4 @@
-<template>
+-<template>
   <div class="body-profile-page">
     <div class="container lab-container">
 
@@ -42,11 +42,13 @@
                   </div>
                   <div v-if="!userHasBirthday" class="zen-form-item">
                     <label class="input-label">出生日期 *</label>
-                    <input type="date" v-model="formData.birthday" class="zen-field date-input" />
+                    <input type="date" v-model="formData.birthday" class="zen-field date-input" min="1920-01-01" :max="todayDate" />
                   </div>
                   <CustomInput label="身高 (Height) *" v-model="formData.height" unit="mm" placeholder="例如：1750" @focus="setGuide('height')" />
                   <CustomInput label="跨高 (Inseam) *" v-model="formData.spanHeight" unit="mm" placeholder="例如：820" @focus="setGuide('spanHeight')" />
                   <CustomInput label="胸高 (Sternal Notch)" v-model="formData.breastHeight" unit="mm" placeholder="例如：1450" @focus="setGuide('breastHeight')" />
+                  <CustomInput label="肩宽" v-model="formData.shoulderWidth" unit="mm" placeholder="例如：420" @focus="setGuide('shoulder')" />
+                  <CustomInput label="坐骨间距" v-model="formData.ischialDistance" unit="mm" placeholder="例如：120" @focus="setGuide('ischial')" />
                 </div>
               </div>
               <div class="guide-area">
@@ -62,11 +64,9 @@
                 <h3 class="step-title">02 肢体杠杆</h3>
                 <p class="step-desc">精确到毫米的肢体数据是计算 Stack & Reach 的核心。</p>
                 <div class="input-grid">
-                  <CustomInput label="肩宽" v-model="formData.shoulderWidth" unit="mm" placeholder="例如：420" @focus="setGuide('shoulder')" />
-                  <CustomInput label="坐骨间距" v-model="formData.ischialDistance" unit="mm" placeholder="例如：120" @focus="setGuide('ischial')" />
                   <div class="grid-2">
-                    <CustomInput label="大臂长" v-model="formData.longArmLength" unit="mm" placeholder="例如：330" @focus="setGuide('arms')" />
-                    <CustomInput label="小臂长" v-model="formData.shortArmLength" unit="mm" placeholder="例如：280" @focus="setGuide('arms')" />
+                    <CustomInput label="大臂长" v-model="formData.longArmLength" unit="mm" placeholder="例如：330" @focus="setGuide('bigarms')" />
+                    <CustomInput label="小臂长" v-model="formData.shortArmLength" unit="mm" placeholder="例如：280" @focus="setGuide('smallarms')" />
                   </div>
                   <div class="grid-2">
                     <CustomInput label="大腿长 (股骨)" v-model="formData.thighLength" unit="mm" placeholder="例如：450" @focus="setGuide('thigh')" />
@@ -87,19 +87,76 @@
                 <h3 class="step-title">03 柔韧性评估</h3>
                 <p class="step-desc">这决定了您能耐受多大的落差（Drop）。</p>
                 <div class="input-grid">
-                  <CustomInput label="胸椎旋转角度" v-model="formData.thoracicRotationAngle" unit="°" placeholder="例如：45" @focus="setGuide('thoracic_rot')" />
-                  <CustomInput label="胸椎伸展角度" v-model="formData.thoracicExtensionAngle" unit="°" placeholder="例如：20" @focus="setGuide('thoracic_ext')" />
-                  <CustomInput label="举臂角度" v-model="formData.armRaiseAngle" unit="°" placeholder="例如：165" @focus="setGuide('arm_raise')" />
-                  <div class="zen-form-item" @click="setGuide('pain_level')">
-                    <div class="label-with-value">
-                      <label class="input-label">痛感等级 (0-5)</label>
-                      <span class="current-value-badge" :class="{ 'is-null': formData.thoracicPainLevel === null }">{{ formData.thoracicPainLevel ?? '-' }}</span>
+                  <div class="zen-form-item" @click="setGuide('thoracic_rot')">
+                    <label class="input-label">坐姿抱胸旋转</label>
+                    <div class="angle-selector">
+                      <div class="angle-option" :class="{active: formData.thoracicRotationAngle === 85}" @click="formData.thoracicRotationAngle = 85">
+                        <span class="angle-circle"></span>
+                        <span class="angle-text">可以轻松转到侧面甚至略微超过</span>
+                      </div>
+                      <div class="angle-option" :class="{active: formData.thoracicRotationAngle === 70}" @click="formData.thoracicRotationAngle = 70">
+                        <span class="angle-circle"></span>
+                        <span class="angle-text">可以明显转动，但还看不到身体正侧面</span>
+                      </div>
+                      <div class="angle-option" :class="{active: formData.thoracicRotationAngle === 50}" @click="formData.thoracicRotationAngle = 50">
+                        <span class="angle-circle"></span>
+                        <span class="angle-text">只能稍微转一点点，幅度比较小</span>
+                      </div>
+                      <div class="angle-option" :class="{active: formData.thoracicRotationAngle === 30}" @click="formData.thoracicRotationAngle = 30">
+                        <span class="angle-circle"></span>
+                        <span class="angle-text">几乎转不动，感觉很僵硬</span>
+                      </div>
                     </div>
-                    <input type="range" min="0" max="5" 
-                      :value="formData.thoracicPainLevel ?? 0" 
-                      @input="formData.thoracicPainLevel = Number($event.target.value)"
-                      class="zen-range" :class="{ 'is-null': formData.thoracicPainLevel === null }">
-                    <div class="range-labels"><span>无痛</span><span>剧烈</span></div>
+                  </div>
+                  <div class="zen-form-item" @click="setGuide('arm_raise')">
+                    <label class="input-label">举臂角度</label>
+                    <div class="angle-selector">
+                      <div class="angle-option" :class="{active: formData.armRaiseAngle === 175}" @click="formData.armRaiseAngle = 175">
+                        <span class="angle-circle"></span>
+                        <span class="angle-text">手臂可轻松举过头顶，贴近耳朵</span>
+                      </div>
+                      <div class="angle-option" :class="{active: formData.armRaiseAngle === 155}" @click="formData.armRaiseAngle = 155">
+                        <span class="angle-circle"></span>
+                        <span class="angle-text">手臂可举过头顶，但无法贴近耳朵 / 有明显紧张</span>
+                      </div>
+                      <div class="angle-option" :class="{active: formData.armRaiseAngle === 120}" @click="formData.armRaiseAngle = 120">
+                        <span class="angle-circle"></span>
+                        <span class="angle-text">手臂最高只能到肩膀附近（接近T字）</span>
+                      </div>
+                      <div class="angle-option" :class="{active: formData.armRaiseAngle === 80}" @click="formData.armRaiseAngle = 80">
+                        <span class="angle-circle"></span>
+                        <span class="angle-text">手臂无法抬到肩膀高度</span>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="zen-form-item" @click="setGuide('pain_level')">
+                    <label class="input-label">痛感等级</label>
+                    <div class="pain-selector">
+                      <div class="pain-option" :class="{active: formData.thoracicPainLevel === 0}" @click="formData.thoracicPainLevel = 0">
+                        <span class="pain-num">0</span>
+                        <span class="pain-label">无痛</span>
+                      </div>
+                      <div class="pain-option" :class="{active: formData.thoracicPainLevel === 1}" @click="formData.thoracicPainLevel = 1">
+                        <span class="pain-num">1</span>
+                        <span class="pain-label">轻微</span>
+                      </div>
+                      <div class="pain-option" :class="{active: formData.thoracicPainLevel === 2}" @click="formData.thoracicPainLevel = 2">
+                        <span class="pain-num">2</span>
+                        <span class="pain-label">轻度</span>
+                      </div>
+                      <div class="pain-option" :class="{active: formData.thoracicPainLevel === 3}" @click="formData.thoracicPainLevel = 3">
+                        <span class="pain-num">3</span>
+                        <span class="pain-label">中度</span>
+                      </div>
+                      <div class="pain-option" :class="{active: formData.thoracicPainLevel === 4}" @click="formData.thoracicPainLevel = 4">
+                        <span class="pain-num">4</span>
+                        <span class="pain-label">重度</span>
+                      </div>
+                      <div class="pain-option" :class="{active: formData.thoracicPainLevel === 5}" @click="formData.thoracicPainLevel = 5">
+                        <span class="pain-num">5</span>
+                        <span class="pain-label">剧烈</span>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -118,11 +175,54 @@
                 <div class="input-grid">
                   <div class="zen-form-item" @click="setGuide('squat')">
                     <label class="input-label">深蹲稳定性评分 (1-5)</label>
-                    <div class="score-selector">
-                      <button v-for="i in 5" :key="i" type="button" :class="{active: formData.squatStabilityScore === i}" @click="formData.squatStabilityScore = i">{{ i }}</button>
+                    <div class="squat-selector">
+                      <div class="squat-option" :class="{active: formData.squatStabilityScore === 1}" @click="formData.squatStabilityScore = 1">
+                        <span class="squat-num">1</span>
+                        <span class="squat-label">无法完成</span>
+                      </div>
+                      <div class="squat-option" :class="{active: formData.squatStabilityScore === 2}" @click="formData.squatStabilityScore = 2">
+                        <span class="squat-num">2</span>
+                        <span class="squat-label">晃动明显</span>
+                      </div>
+                      <div class="squat-option" :class="{active: formData.squatStabilityScore === 3}" @click="formData.squatStabilityScore = 3">
+                        <span class="squat-num">3</span>
+                        <span class="squat-label">轻微晃动</span>
+                      </div>
+                      <div class="squat-option" :class="{active: formData.squatStabilityScore === 4}" @click="formData.squatStabilityScore = 4">
+                        <span class="squat-num">4</span>
+                        <span class="squat-label">整体稳定</span>
+                      </div>
+                      <div class="squat-option" :class="{active: formData.squatStabilityScore === 5}" @click="formData.squatStabilityScore = 5">
+                        <span class="squat-num">5</span>
+                        <span class="squat-label">动作流畅</span>
+                      </div>
                     </div>
                   </div>
-                  <CustomInput label="最高深蹲深度" v-model="formData.squatDepth" unit="cm" placeholder="例如：-15" @focus="setGuide('squat')" />
+                  <div class="zen-form-item" @click="setGuide('plank')">
+                    <label class="input-label">平板支撑评分 (1-5)</label>
+                    <div class="plank-selector">
+                      <div class="plank-option" :class="{active: formData.plankScore === 1}" @click="formData.plankScore = 1">
+                        <span class="plank-num">1</span>
+                        <span class="plank-label">&lt; 20s</span>
+                      </div>
+                      <div class="plank-option" :class="{active: formData.plankScore === 2}" @click="formData.plankScore = 2">
+                        <span class="plank-num">2</span>
+                        <span class="plank-label">20-40s</span>
+                      </div>
+                      <div class="plank-option" :class="{active: formData.plankScore === 3}" @click="formData.plankScore = 3">
+                        <span class="plank-num">3</span>
+                        <span class="plank-label">40-60s</span>
+                      </div>
+                      <div class="plank-option" :class="{active: formData.plankScore === 4}" @click="formData.plankScore = 4">
+                        <span class="plank-num">4</span>
+                        <span class="plank-label">60-90s</span>
+                      </div>
+                      <div class="plank-option" :class="{active: formData.plankScore === 5}" @click="formData.plankScore = 5">
+                        <span class="plank-num">5</span>
+                        <span class="plank-label">&gt; 90s</span>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
               <div class="guide-area">
@@ -149,7 +249,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted, nextTick } from 'vue';
+import { ref, reactive, onMounted, nextTick, watch, computed } from 'vue';
 import { useRoute } from 'vue-router';
 import CustomInput from '@/views/lab/components/CustomInput.vue';
 import GuideDisplay from '@/views/lab/components/GuideDisplay.vue';
@@ -161,7 +261,7 @@ import { saveUserBody, getLatestUserBody } from '@/api/userBody.js';
 const userStore = useUserStore();
 const route = useRoute();
 const currentStep = ref(Number(route.query.step) || 1);
-const activeGuide = ref('height');
+const activeGuide = ref('step1_default');
 const loading = ref(false);
 const initLoading = ref(true); // 初始加载状态
 const showResult = ref(false);
@@ -169,6 +269,9 @@ const profileResult = ref(null);
 
 const userHasGender = ref(false);
 const userHasBirthday = ref(false);
+
+// 今天的日期，用于限制出生日期选择器
+const todayDate = computed(() => new Date().toISOString().split('T')[0]);
 
 const formData = reactive({
   userId: null,
@@ -186,10 +289,9 @@ const formData = reactive({
   calfLength: null,
   armRaiseAngle: null,
   thoracicRotationAngle: null,
-  thoracicExtensionAngle: null,
   thoracicPainLevel: null,
-  squatDepth: null,
-  squatStabilityScore: null
+  squatStabilityScore: null,
+  plankScore: null
 });
 
 /**
@@ -236,6 +338,21 @@ onMounted(async () => {
 const setGuide = (key) => {
   activeGuide.value = key;
 };
+
+// 步骤默认指引映射
+const stepDefaultGuides = {
+  1: 'step1_default',
+  2: 'step2_default',
+  3: 'step3_default',
+  4: 'step4_default'
+};
+
+// 监听步骤变化，自动更新指引
+watch(currentStep, (newStep) => {
+  if (stepDefaultGuides[newStep]) {
+    activeGuide.value = stepDefaultGuides[newStep];
+  }
+});
 
 /**
  * 分步验证逻辑
@@ -284,9 +401,7 @@ const validateStep = (step) => {
 const handleNext = () => {
   if (validateStep(currentStep.value)) {
     currentStep.value++;
-    // 切换步骤时根据当前步骤设置默认指引
-    const stepGuides = { 2: 'shoulder', 3: 'thoracic_rot', 4: 'squat' };
-    if (stepGuides[currentStep.value]) activeGuide.value = stepGuides[currentStep.value];
+    // 指引更新由 watch 自动处理
   }
 };
 
@@ -377,6 +492,156 @@ const submitProfile = async () => {
 .zen-range { width: 100%; accent-color: var(--primary-color); cursor: pointer; height: 6px; }
 .zen-range.is-null { accent-color: #b0b0b0; }
 .range-labels { display: flex; justify-content: space-between; font-size: 0.8rem; color: var(--text-muted); margin-top: 10px; }
+
+/* Angle Selector */
+.angle-selector { display: flex; flex-direction: column; gap: 12px; margin-top: 10px; }
+.angle-selector--grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.angle-option {
+  display: flex; align-items: flex-start; gap: 10px;
+  padding: 14px 16px;
+  border: 1px solid #EDEDED;
+  border-radius: var(--radius-sm);
+  background: #F9F9F9;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+.angle-option:hover { border-color: #D0D0D0; }
+.angle-option.active {
+  border-color: var(--primary-color);
+  background: rgba(92, 110, 88, 0.05);
+}
+.angle-circle {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #B0B0B0;
+  transition: all 0.3s ease;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+.angle-option.active .angle-circle {
+  background: var(--primary-color);
+}
+.angle-text {
+  font-size: 0.9rem;
+  line-height: 1.4;
+  color: var(--text-main);
+}
+
+/* Pain Selector */
+.pain-selector { display: flex; gap: 10px; margin-top: 10px; }
+.pain-option {
+  flex: 1;
+  display: flex; flex-direction: column; align-items: center;
+  padding: 12px 8px;
+  border: 1px solid #EDEDED;
+  border-radius: var(--radius-sm);
+  background: #F9F9F9;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+.pain-option:hover { border-color: #D0D0D0; }
+.pain-option.active {
+  border-color: var(--primary-color);
+  background: rgba(92, 110, 88, 0.05);
+  transform: scale(1.08);
+  box-shadow: 0 4px 12px rgba(92, 110, 88, 0.15);
+}
+.pain-num {
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: var(--text-main);
+}
+.pain-option.active .pain-num {
+  color: var(--primary-color);
+}
+.pain-label {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin-top: 4px;
+}
+.pain-option.active .pain-label {
+  color: var(--primary-color);
+}
+
+/* Squat Selector */
+.squat-selector { display: flex; gap: 10px; margin-top: 10px; }
+.squat-option {
+  flex: 1;
+  display: flex; flex-direction: column; align-items: center;
+  padding: 12px 8px;
+  border: 1px solid #EDEDED;
+  border-radius: var(--radius-sm);
+  background: #F9F9F9;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+.squat-option:hover { border-color: #D0D0D0; }
+.squat-option.active {
+  border-color: var(--primary-color);
+  background: rgba(92, 110, 88, 0.05);
+  transform: scale(1.08);
+  box-shadow: 0 4px 12px rgba(92, 110, 88, 0.15);
+}
+.squat-num {
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: var(--text-main);
+}
+.squat-option.active .squat-num {
+  color: var(--primary-color);
+}
+.squat-label {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin-top: 4px;
+}
+.squat-option.active .squat-label {
+  color: var(--primary-color);
+}
+
+/* Plank Selector */
+.plank-selector { display: flex; gap: 10px; margin-top: 10px; }
+.plank-option {
+  flex: 1;
+  display: flex; flex-direction: column; align-items: center;
+  padding: 12px 8px;
+  border: 1px solid #EDEDED;
+  border-radius: var(--radius-sm);
+  background: #F9F9F9;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+.plank-option:hover { border-color: #D0D0D0; }
+.plank-option.active {
+  border-color: var(--primary-color);
+  background: rgba(92, 110, 88, 0.05);
+  transform: scale(1.08);
+  box-shadow: 0 4px 12px rgba(92, 110, 88, 0.15);
+}
+.plank-num {
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: var(--text-main);
+}
+.plank-option.active .plank-num {
+  color: var(--primary-color);
+}
+.plank-label {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin-top: 4px;
+}
+.plank-option.active .plank-label {
+  color: var(--primary-color);
+}
+
+.score-hint {
+  margin-top: 8px;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  text-align: center;
+}
 
 .date-input {
   width: 100%; border: 1px solid #E0E0E0; border-radius: var(--radius-sm);

@@ -53,14 +53,14 @@ public class UserBody {
     private Double armRaiseAngle;
     @Comment("胸椎旋转角度(0-90)")
     private Double thoracicRotationAngle;
-    @Comment("胸椎伸展角度(0-45)")
-    private Double thoracicExtensionAngle;
     @Comment("胸椎痛感等级(0-5)")
     private Integer thoracicPainLevel;
     @Comment("深蹲深度(负值越深越好)")
     private Double squatDepth;
     @Comment("深蹲稳定性评分(1-5)")
     private Integer squatStabilityScore;
+    @Comment("平板支撑评分(1-5)")
+    private Integer plankScore;
 
     @CreationTimestamp
     @Comment("创建时间")

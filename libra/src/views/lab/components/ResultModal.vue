@@ -40,44 +40,30 @@
           <!-- 3. 核心分层诊断内容 -->
           <div class="report-sections">
 
-            <!-- 第一块：基础动力建议 (只要录入了身高跨高即解锁) -->
+            <!-- 第一块：基础器材建议 (只要录入了身高跨高即解锁) -->
             <section class="info-section unlocked">
               <h4 class="section-h4"><i class="fas fa-check-circle"></i> 基础器材建议</h4>
               <div class="metrics-grid">
                 <div class="metric-item">
-                  <label>曲柄长度基准</label>
-                  <div class="val">{{ profile?.recCrankLength || '--' }}<small>mm</small></div>
+                  <label>建议坐垫高度</label>
+                  <div class="val">{{ profile?.recSaddleHeight || '--' }}</div>
                 </div>
                 <div class="metric-item">
-                  <label>建议座垫宽度</label>
-                  <div class="val">{{ profile?.saddleWidthAdvice || '待测定' }}</div>
+                  <label>建议坐垫类型</label>
+                  <div class="val">{{ profile?.recSaddleType || '待测定' }}</div>
+                </div>
+                <div class="metric-item">
+                  <label>建议车把高度（Stack）</label>
+                  <div class="val">{{ profile?.recStack || '--' }}</div>
+                </div>
+                <div class="metric-item">
+                  <label>建议前伸距离（Reach）</label>
+                  <div class="val">{{ profile?.recReach || '--' }}</div>
                 </div>
               </div>
             </section>
 
-            <!-- 第二块：比例数据 -->
-            <section class="info-section" :class="{ 'locked-section': !profile?.apeIndex }">
-              <h4 class="section-h4">
-                <i :class="profile?.apeIndex ? 'fas fa-check-circle' : 'fas fa-lock'"></i>
-                进阶生物力学参数
-              </h4>
-              <div v-if="profile?.apeIndex" class="metrics-grid">
-                <div class="metric-item">
-                  <label>猿臂比 (Ape)</label>
-                  <div class="val">{{ profile.apeIndex }}</div>
-                </div>
-                <div class="metric-item">
-                  <label>股胫比 (Femur)</label>
-                  <div class="val">{{ profile.femurTibiaRatio || '--' }}</div>
-                </div>
-              </div>
-              <div v-else class="lock-overlay" @click="handleReEdit(2)">
-                <p>录入大腿、小腿及双臂长度，解锁杠杆比例分析</p>
-                <span class="cta-link">去完善数据 <i class="fas fa-chevron-right"></i></span>
-              </div>
-            </section>
-
-            <!-- 第三块：机能评分 (需要柔韧性数据) -->
+            <!-- 第二块：机能评分 (需要柔韧性数据) -->
             <section class="info-section" :class="{ 'locked-section': !hasFlexData }">
               <h4 class="section-h4">
                 <i :class="hasFlexData ? 'fas fa-check-circle' : 'fas fa-lock'"></i>
@@ -85,24 +71,82 @@
               </h4>
 
               <div v-if="hasFlexData" class="unlocked-content">
-                <div class="scores-row">
-                  <div class="score-mini-box">
-                    <span class="s-label">柔韧性</span>
-                    <span class="s-val">{{ profile.flexibilityScore }}</span>
+                <div class="progress-bars-row">
+                  <div class="progress-bar-box">
+                    <div class="progress-header">
+                      <span class="progress-label">柔韧性</span>
+                      <span class="progress-value">{{ profile.flexibilityScore }}分</span>
+                    </div>
+                    <div class="progress-track">
+                      <div class="progress-fill" :style="{ width: profile.flexibilityScore + '%' }"></div>
+                    </div>
                   </div>
-                  <div class="score-mini-box">
-                    <span class="s-label">稳定性</span>
-                    <span class="s-val">{{ profile.stabilityScore }}</span>
+                  <div class="progress-bar-box">
+                    <div class="progress-header">
+                      <span class="progress-label">稳定性</span>
+                      <span class="progress-value">{{ profile.stabilityScore }}分</span>
+                    </div>
+                    <div class="progress-track">
+                      <div class="progress-fill" :style="{ width: profile.stabilityScore + '%' }"></div>
+                    </div>
                   </div>
-                </div>
-                <div class="expert-prescription">
-                  <i class="fas fa-quote-left"></i>
-                  <p>{{ profile.expertComment }}</p>
                 </div>
               </div>
 
               <div v-else class="lock-overlay" @click="handleReEdit(3)">
                 <p>录入胸椎旋转与举臂角度，解锁专业落差(Drop)建议</p>
+                <span class="cta-link">去完善数据 <i class="fas fa-chevron-right"></i></span>
+              </div>
+            </section>
+
+            <!-- 第三块：Fittor 评估结论 -->
+            <section class="info-section" :class="{ 'locked-section': !hasFlexData }">
+              <h4 class="section-h4">
+                <i :class="hasFlexData ? 'fas fa-check-circle' : 'fas fa-lock'"></i>
+                Fittor 评估结论
+              </h4>
+
+              <div v-if="hasFlexData" class="unlocked-content">
+                <!-- 1. 总结 -->
+                <div class="evaluation-block summary-block" v-if="profile.summary">
+                  <h5 class="block-title">
+                    <i class="fas fa-file-alt"></i> 总结
+                  </h5>
+                  <div class="summary-content">
+                    <i class="fas fa-quote-left"></i>
+                    <p>{{ profile.summary }}</p>
+                  </div>
+                </div>
+
+                <!-- 2. 关键问题 -->
+                <div class="evaluation-block findings-block" v-if="profile.findings && profile.findings.length > 0">
+                  <h5 class="block-title">
+                    <i class="fas fa-exclamation-triangle"></i> 关键问题
+                  </h5>
+                  <ul class="findings-list">
+                    <li v-for="(finding, index) in profile.findings" :key="index" class="finding-item">
+                      <i class="fas fa-times-circle"></i>
+                      <span>{{ finding }}</span>
+                    </li>
+                  </ul>
+                </div>
+
+                <!-- 3. Fittor 建议 -->
+                <div class="evaluation-block advice-block" v-if="profile.advice && profile.advice.length > 0">
+                  <h5 class="block-title">
+                    <i class="fas fa-lightbulb"></i> Fittor 建议
+                  </h5>
+                  <ul class="advice-list">
+                    <li v-for="(item, index) in profile.advice" :key="index" class="advice-item">
+                      <i class="fas fa-check-circle"></i>
+                      <span>{{ item }}</span>
+                    </li>
+                  </ul>
+                </div>
+              </div>
+
+              <div v-else class="lock-overlay" @click="handleReEdit(3)">
+                <p>录入胸椎旋转与举臂角度，解锁Fittor专业评估结论</p>
                 <span class="cta-link">去完善数据 <i class="fas fa-chevron-right"></i></span>
               </div>
             </section>
@@ -165,7 +209,7 @@ watch(() => props.visible, (newVal) => {
 const completeness = computed(() => {
   if (!props.profile) return 0;
   let score = 40; // 只要有结果说明已经填了身高跨高 (40%)
-  if (props.profile.recCrankLength && props.profile.apeIndex) score += 20; // 肢体细节 (20%)
+  if (props.profile.recSaddleHeight && props.profile.apeIndex) score += 20; // 肢体细节 (20%)
   if (props.profile.flexibilityScore > 0) score += 40; // 柔韧性与画像 (40%)
   return score;
 });
@@ -236,9 +280,46 @@ const goToGarage = () => {
 /* 勋章标签 */
 .tag-row { display: flex; justify-content: flex-start; gap: 10px; margin-bottom: 35px; min-height: 32px; }
 .biometric-tag {
-  background: white; border: 1px solid var(--accent-gold); color: var(--accent-gold);
-  padding: 5px 14px; border-radius: var(--radius-pill); font-size: 0.8rem;
-  font-weight: 700; display: flex; align-items: center; gap: 6px;
+  background: white; 
+  border: 1px solid var(--accent-gold); 
+  color: var(--accent-gold);
+  padding: 5px 14px; 
+  border-radius: var(--radius-pill); 
+  font-size: 0.8rem;
+  font-weight: 700; 
+  display: flex; 
+  align-items: center; 
+  gap: 6px;
+  transition: all 0.3s ease;
+  cursor: default;
+  position: relative;
+  overflow: hidden;
+}
+.biometric-tag::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 215, 0, 0.2), transparent);
+  transition: left 0.5s ease;
+}
+.biometric-tag:hover {
+  background: var(--accent-gold);
+  color: white;
+  transform: translateY(-2px) scale(1.05);
+  box-shadow: 0 4px 12px rgba(212, 175, 55, 0.4);
+  border-color: var(--accent-gold);
+}
+.biometric-tag:hover::before {
+  left: 100%;
+}
+.biometric-tag:hover i {
+  transform: rotate(15deg) scale(1.2);
+}
+.biometric-tag i {
+  transition: transform 0.3s ease;
 }
 .tag-placeholder { color: #BBB; font-size: 0.85rem; font-style: italic; }
 
@@ -252,9 +333,34 @@ const goToGarage = () => {
 .unlocked h4 i { color: var(--success-color); }
 
 .metrics-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
-.metric-item { background: var(--bg-page); padding: 15px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center; }
-.metric-item label { font-size: 0.8rem; color: var(--text-muted); }
-.metric-item .val { font-weight: 700; font-size: 1rem; color: var(--text-main); }
+.metric-item { 
+  background: var(--bg-page); 
+  padding: 15px; 
+  border-radius: 8px; 
+  display: flex; 
+  justify-content: space-between; 
+  align-items: center;
+  transition: all 0.3s ease;
+  border: 1px solid transparent;
+}
+.metric-item:hover {
+  background: white;
+  transform: translateY(-3px);
+  box-shadow: 0 6px 16px rgba(92, 110, 88, 0.15);
+  border-color: rgba(92, 110, 88, 0.2);
+}
+.metric-item label { font-size: 0.8rem; color: var(--text-muted); transition: color 0.3s ease; }
+.metric-item:hover label { color: var(--text-main); }
+.metric-item .val { 
+  font-weight: 700; 
+  font-size: 1rem; 
+  color: var(--text-main);
+  transition: all 0.3s ease;
+}
+.metric-item:hover .val {
+  color: var(--primary-color);
+  transform: scale(1.05);
+}
 
 /* 锁定状态 */
 .locked-section { background: rgba(0,0,0,0.02); border: 1px dashed #DDD; }
@@ -264,14 +370,212 @@ const goToGarage = () => {
 .cta-link { font-size: 0.85rem; color: var(--primary-color); font-weight: 700; text-decoration: underline; text-underline-offset: 4px; }
 
 /* 专家文案 */
-.scores-row { display: flex; gap: 20px; margin-bottom: 15px; }
-.score-mini-box { display: flex; flex-direction: column; }
-.score-mini-box .s-label { font-size: 0.7rem; color: var(--text-muted); text-transform: uppercase; }
-.score-mini-box .s-val { font-family: var(--font-serif); font-size: 1.5rem; font-weight: 700; color: var(--primary-color); }
+.progress-bars-row { display: flex; flex-direction: column; gap: 25px; margin: 25px 0 30px; }
+.progress-bar-box { display: flex; flex-direction: column; gap: 10px; }
+.progress-header { display: flex; justify-content: space-between; align-items: center; }
+.progress-label { font-size: 0.95rem; color: var(--text-main); font-weight: 600; }
+.progress-value { font-size: 0.9rem; color: var(--primary-color); font-weight: 700; }
+.progress-track {
+  width: 100%; height: 12px;
+  background: var(--bg-page);
+  border-radius: 6px;
+  overflow: hidden;
+  box-shadow: inset 0 2px 4px rgba(0,0,0,0.1);
+}
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #5C6E58 0%, #8FA08B 50%, #6E8565 100%);
+  border-radius: 6px;
+  transition: width 0.8s cubic-bezier(0.34, 1.56, 0.64, 1), filter 0.3s ease, box-shadow 0.3s ease;
+  position: relative;
+}
+.progress-fill::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(90deg, 
+    rgba(255, 255, 255, 0.1) 0%, 
+    rgba(255, 255, 255, 0.25) 50%, 
+    rgba(255, 255, 255, 0.1) 100%);
+  border-radius: 6px;
+}
+.progress-bar-box:hover .progress-fill {
+  filter: brightness(1.2);
+  box-shadow: 0 0 18px rgba(92, 110, 88, 0.45);
+}
+.progress-bar-box:hover .progress-fill::after {
+  background: linear-gradient(90deg, 
+    rgba(255, 255, 255, 0.15) 0%, 
+    rgba(255, 255, 255, 0.35) 50%, 
+    rgba(255, 255, 255, 0.15) 100%);
+}
+.progress-bar-box:hover .progress-value {
+  transform: scale(1.1);
+  color: var(--primary-dark);
+}
+.progress-value {
+  transition: all 0.3s ease;
+}
 
-.expert-prescription { background: var(--bg-page); padding: 15px 20px; border-radius: 4px; position: relative; }
-.expert-prescription i { position: absolute; top: 10px; left: 10px; opacity: 0.05; font-size: 1.5rem; }
-.expert-prescription p { font-size: 0.9rem; line-height: 1.7; color: var(--text-body); font-style: italic; }
+/* Fittor 评估结论样式 */
+/* 1. 通用评估区块样式 */
+.evaluation-block {
+  margin-bottom: 25px;
+  padding: 20px;
+  background: var(--bg-page);
+  border-radius: 8px;
+  border-left: 4px solid transparent;
+  transition: all 0.3s ease;
+}
+.evaluation-block:last-child {
+  margin-bottom: 0;
+}
+.block-title {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--text-main);
+  margin-bottom: 15px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.block-title i {
+  font-size: 0.9rem;
+}
+
+/* 2. 总结区块 - 浅鼠尾草绿 */
+.summary-block {
+  border-left-color: #a3b39e;
+  background: linear-gradient(135deg, #f7f9f6 0%, #eef1ec 100%);
+}
+.summary-block .block-title i {
+  color: #6E8565;
+}
+.summary-block:hover {
+  background: linear-gradient(135deg, #eef1ec 0%, #e5e9e2 100%);
+  box-shadow: 0 4px 12px rgba(92, 110, 88, 0.08);
+}
+.summary-content {
+  position: relative;
+  padding-left: 25px;
+}
+.summary-content > i {
+  position: absolute;
+  left: 0;
+  top: 0;
+  opacity: 0.15;
+  font-size: 1.2rem;
+  color: #6E8565;
+}
+.summary-content p {
+  font-size: 0.92rem;
+  line-height: 1.8;
+  color: var(--text-body);
+  font-style: italic;
+  margin: 0;
+}
+
+/* 3. 关键问题区块 - 中鼠尾草绿 */
+.findings-block {
+  border-left-color: #8FA08B;
+  background: linear-gradient(135deg, #eef1ec 0%, #e5e9e2 100%);
+}
+.findings-block .block-title i {
+  color: #5C6E58;
+}
+.findings-block:hover {
+  background: linear-gradient(135deg, #e5e9e2 0%, #dce2da 100%);
+  box-shadow: 0 4px 12px rgba(92, 110, 88, 0.12);
+}
+.findings-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.finding-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px 15px;
+  background: rgba(255, 255, 255, 0.7);
+  border-radius: 6px;
+  border-left: 3px solid #8FA08B;
+  transition: all 0.3s ease;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+.finding-item:hover {
+  background: rgba(255, 255, 255, 0.95);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(92, 110, 88, 0.15);
+  border-left-width: 4px;
+}
+.finding-item i {
+  color: #5C6E58;
+  font-size: 0.85rem;
+  margin-top: 3px;
+  flex-shrink: 0;
+}
+.finding-item span {
+  font-size: 0.88rem;
+  line-height: 1.6;
+  color: var(--text-body);
+}
+
+/* 4. Fittor 建议区块 - 深鼠尾草绿 */
+.advice-block {
+  border-left-color: #6E8565;
+  background: linear-gradient(135deg, #e5e9e2 0%, #dce2da 100%);
+}
+.advice-block .block-title i {
+  color: #465543;
+}
+.advice-block:hover {
+  background: linear-gradient(135deg, #dce2da 0%, #d3dbcf 100%);
+  box-shadow: 0 4px 12px rgba(92, 110, 88, 0.15);
+}
+.advice-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.advice-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px 15px;
+  background: rgba(255, 255, 255, 0.7);
+  border-radius: 6px;
+  border-left: 3px solid #6E8565;
+  transition: all 0.3s ease;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+.advice-item:hover {
+  background: rgba(255, 255, 255, 0.95);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(92, 110, 88, 0.18);
+  border-left-width: 4px;
+}
+.advice-item i {
+  color: #465543;
+  font-size: 0.85rem;
+  margin-top: 3px;
+  flex-shrink: 0;
+}
+.advice-item span {
+  font-size: 0.88rem;
+  line-height: 1.6;
+  color: var(--text-body);
+  font-weight: 500;
+}
 
 /* 页脚 */
 .report-footer { margin-top: 40px; text-align: center; }
