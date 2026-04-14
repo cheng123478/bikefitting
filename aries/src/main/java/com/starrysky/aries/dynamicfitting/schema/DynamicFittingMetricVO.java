@@ -6,7 +6,11 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 /**
- * 动态指标评价VO (单一指标)
+ * 动态指标评价VO(单一指标)
+ *
+ * @author adice
+ * @version 1.0
+ * @since 2025-08-08 11:19:57
  */
 @Data
 @Builder

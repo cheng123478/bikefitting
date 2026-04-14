@@ -8,7 +8,11 @@ import org.springframework.stereotype.Repository;
 import java.util.List;
 
 /**
- * 动态 Fitting 标准仓库
+ * 动态 Fitting标准仓库
+ *
+ * @author adice
+ * @version 1.0
+ * @since 2026-02-08 11:19:57
  */
 @Repository
 public interface DynamicFittingStandardRepository extends JpaRepository<DynamicFittingStandard, Long> {

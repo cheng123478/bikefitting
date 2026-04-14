@@ -2,6 +2,7 @@ package com.starrysky.aries.dynamicfitting.service;
 
 import com.alibaba.fastjson2.JSON;
 import com.starrysky.aries.dynamicfitting.algorithm.DynamicFittingAlgorithm;
+import com.starrysky.aries.dynamicfitting.algorithm.PedalingSimulationAlgorithm;
 import com.starrysky.aries.dynamicfitting.repository.DynamicFittingMotionDataRepository;
 import com.starrysky.aries.dynamicfitting.repository.DynamicFittingResultRepository;
 import com.starrysky.aries.dynamicfitting.repository.DynamicFittingSessionRepository;
@@ -30,6 +31,13 @@ import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
 
+/**
+ * 动态 Fitting 服务
+ *
+ * @author adice
+ * @version 1.0
+ * @since 2026-02-08 11:19:57
+ */
 @Service
 @Slf4j
 public class DynamicFittingService {
@@ -52,7 +60,16 @@ public class DynamicFittingService {
     private CosUtil cosUtil;
     @Resource
     private DynamicFittingAlgorithm fittingAlgorithm;
+    @Resource
+    private PedalingSimulationAlgorithm pedalingSimulationAlgorithm;
 
+    /**
+     * 保存Fitting会话
+     *
+     * @param user    用户
+     * @param request 请求
+     * @return 会话VO对象
+     */
     @Transactional(rollbackFor = Exception.class)
     public DynamicFittingSessionVO saveFittingSession(User user, DynamicFittingRequest request) {
         // 1. 创建 Session (同步)
@@ -87,10 +104,18 @@ public class DynamicFittingService {
         return sessionVO;
     }
 
+    /**
+     * 异步处理Fitting会话
+     *
+     * @param sessionId 会话ID
+     * @param request   请求
+     * @param userId    用户ID
+     * @param bodyId    身体ID
+     */
     @Async
     @Transactional(rollbackFor = Exception.class)
     public void asyncProcessFittingSession(Long sessionId, DynamicFittingRequest request, Long userId,
-            Long bodyId) {
+                                           Long bodyId) {
         log.info("开始后台分析会话: {}", sessionId);
         try {
             // 前置抓取 Session 数据，避免后续因 getReferenceById 污染 Hibernate 一级缓存产生代理对象
@@ -103,14 +128,14 @@ public class DynamicFittingService {
             for (DynamicFittingRequest.ViewDetailsDTO viewDetailsDTO : request.getViews()) {
                 String viewType = viewDetailsDTO.getViewType() != null ? viewDetailsDTO.getViewType().toLowerCase() : "unknown";
                 Map<String, Object> summary = viewDetailsDTO.getSummary() != null ? viewDetailsDTO.getSummary() : new HashMap<>();
-                
+
                 // 2.1 保存 MotionData
                 DynamicFittingMotionData motionData = new DynamicFittingMotionData();
                 motionData.setSession(session);
                 motionData.setViewType(viewType);
                 motionData.setDataJson(JSON.toJSONString(viewDetailsDTO.getFrameData()));
                 motionData.setTriggerMetricsJson(JSON.toJSONString(viewDetailsDTO.getTriggerMetrics()));
-                
+
                 int frameCount = summary.containsKey("frameCount") ? Integer.parseInt(summary.get("frameCount").toString()) : 0;
                 motionData.setFrameCount(frameCount);
                 motionDataRepository.save(motionData);
@@ -142,6 +167,12 @@ public class DynamicFittingService {
 
                 // 汇总 summary
                 overallSummary.put(viewType, summary);
+            }
+
+            // 新增: 融合计算踩踏拟合数据 (Pedaling Simulation)
+            Map<String, Object> pedalingResult = pedalingSimulationAlgorithm.analyze(request.getViews());
+            if (pedalingResult != null && !pedalingResult.isEmpty()) {
+                overallSummary.put("pedalingData", pedalingResult);
             }
 
             // 3. 生成诊断结果 (Result)
@@ -190,7 +221,11 @@ public class DynamicFittingService {
     }
 
     /**
-     * 根据用户和车辆查询采集列表 (分页)
+     * 根据用户和车辆查询采集列表
+     *
+     * @param userId   用户ID
+     * @param bikeId   车辆ID
+     * @param pageable 分页参数
      */
     public Page<DynamicFittingSessionVO> getSessionsByUser(Long userId, Long bikeId, Pageable pageable) {
         Page<DynamicFittingSession> sessions;
@@ -204,6 +239,9 @@ public class DynamicFittingService {
 
     /**
      * 获取采集会话详情
+     *
+     * @param sessionId 会话ID
+     * @return 会话详情
      */
     public Map<String, Object> getSessionDetail(Long sessionId) {
         DynamicFittingSession session = sessionRepository.findById(sessionId)
@@ -213,6 +251,12 @@ public class DynamicFittingService {
         return detail;
     }
 
+    /**
+     * 将会话转换为VO对象
+     *
+     * @param session 会话对象
+     * @return SessionVO对象
+     */
     private DynamicFittingSessionVO convertToVO(DynamicFittingSession session) {
         DynamicFittingSessionVO vo = new DynamicFittingSessionVO();
 
@@ -244,10 +288,10 @@ public class DynamicFittingService {
         }
 
         // 提取已完成视角的总结与诊断摘要 (Summary Projection)
-        if (session.getStatus() != null && session.getStatus() == FittingStatus.COMPLETED.getCode()) {
+        if (session.getStatus() != null && session.getStatus().equals(FittingStatus.COMPLETED.getCode())) {
             resultRepository.findBySession_Id(session.getId()).ifPresent(result -> {
                 vo.setMatchScore(result.getMatchScore());
-                
+
                 // 提取精简卡片建议
                 if (org.springframework.util.StringUtils.hasText(result.getAdviceJson())) {
                     try {
@@ -279,6 +323,9 @@ public class DynamicFittingService {
 
     /**
      * 获取详细诊断报告 (扁平化结构供 ReportView 展示)
+     *
+     * @param sessionId 会话ID
+     * @return 诊断报告VO对象
      */
     public DynamicFittingReportVO getFittingReport(Long sessionId) {
         DynamicFittingResult result = resultRepository.findBySession_Id(sessionId)
@@ -312,6 +359,15 @@ public class DynamicFittingService {
                     new DynamicFittingReportVO.ViewData(mapToMetricVO(overallSummary.get("front"), advices)));
             reportVO.setBackData(
                     new DynamicFittingReportVO.ViewData(mapToMetricVO(overallSummary.get("back"), advices)));
+
+            // 提取被合成好的 PedalingData 数据并装配给前端
+            if (overallSummary.containsKey("pedalingData")) {
+                Object pMap = overallSummary.get("pedalingData");
+                if (pMap != null) {
+                    DynamicFittingReportVO.PedalingData pData = JSON.parseObject(JSON.toJSONString(pMap), DynamicFittingReportVO.PedalingData.class);
+                    reportVO.setPedalingData(pData);
+                }
+            }
         }
 
         // 器材/体能调整建议 (汇总所有建议，不只是 adjust)
@@ -327,8 +383,15 @@ public class DynamicFittingService {
         return reportVO;
     }
 
+    /**
+     * 将指标数据转换为VO对象
+     *
+     * @param metrics 指标数据
+     * @param advices 诊断建议
+     * @return 指标VO对象
+     */
     private List<DynamicFittingMetricVO> mapToMetricVO(Map<String, Object> metrics,
-            List<DynamicFittingAdviceVO> advices) {
+                                                       List<DynamicFittingAdviceVO> advices) {
         if (metrics == null)
             return Collections.emptyList();
 
@@ -346,6 +409,25 @@ public class DynamicFittingService {
                 String label = getMetricLabel(baseKey);
                 if (label.equals(baseKey)) { // 如果没翻译，尝试翻译 baseKey 的 baseKey
                     // 处理类似 frontMaxLKnee -> kneeAngle 的嵌套映射 (简单处理)
+                    String lowerKey = baseKey.toLowerCase();
+                    if (lowerKey.contains("knee")) {
+                        label = getMetricLabel("kneeAngle");
+                    } else if (lowerKey.contains("hip")) {
+                        label = getMetricLabel("hipAngle");
+                    } else if (lowerKey.contains("torso") || lowerKey.contains("spine")) {
+                        label = getMetricLabel("torsoAngle");
+                    } else if (lowerKey.contains("ankle")) {
+                        label = getMetricLabel("ankleAngle");
+                    } else if (lowerKey.contains("pelvis")) {
+                        label = getMetricLabel("maxPelvisSway");
+                    } else if (lowerKey.contains("elbow")) {
+                        label = getMetricLabel("elbowAngle");
+                    }
+                    
+                    // 附加原始标识，避免前端显示多个名称完全相同的指标
+                    if (!label.equals(baseKey)) {
+                        label = label + " (" + baseKey + ")";
+                    }
                 }
 
                 vos.add(DynamicFittingMetricVO.builder()
@@ -373,6 +455,12 @@ public class DynamicFittingService {
         return vos;
     }
 
+    /**
+     * 获取指标标签
+     *
+     * @param key 指标key
+     * @return 指标标签
+     */
     private String getMetricLabel(String key) {
         Map<String, String> labels = new HashMap<>();
         // 侧面
@@ -401,6 +489,13 @@ public class DynamicFittingService {
         return labels.getOrDefault(key, key);
     }
 
+    /**
+     * 获取简要诊断报告
+     *
+     * @param result  fitting 结果
+     * @param advices 建议
+     * @return 简要诊断报告
+     */
     private String getSummaryText(DynamicFittingResult result, List<DynamicFittingAdviceVO> advices) {
         StringBuilder sb = new StringBuilder();
         double score = result.getMatchScore() != null ? result.getMatchScore().doubleValue() : 0.0;
@@ -418,12 +513,13 @@ public class DynamicFittingService {
                 List<String> painKeys = JSON.parseArray(painJson, String.class);
                 if (painKeys != null && !painKeys.isEmpty()) {
                     List<String> labels = painKeys.stream()
-                        .map(RidingPainType::getDescriptionByCode)
-                        .collect(Collectors.toList());
-                    
+                            .map(RidingPainType::getDescriptionByCode)
+                            .collect(Collectors.toList());
+
                     sb.append(String.format("针对您反馈的 [%s] 等部位，系统已为您识别出专项优化建议：", String.join("、", labels)));
                 }
-            } catch (Exception ignored) {}
+            } catch (Exception ignored) {
+            }
         }
 
         // 3. 建议数量统计
@@ -437,6 +533,12 @@ public class DynamicFittingService {
         return sb.toString();
     }
 
+    /**
+     * 获取评分等级
+     *
+     * @param score 评分
+     * @return 等级
+     */
     private String getMatchLevel(BigDecimal score) {
         if (score == null)
             return "未知评分";
@@ -451,26 +553,11 @@ public class DynamicFittingService {
     }
 
     /**
-     * 获取诊断简介 (用于列表展示)
+     * 将对象转换为Double
+     *
+     * @param val 对象
+     * @return Double
      */
-    public DynamicFittingResultVO getFittingResult(Long sessionId) {
-        DynamicFittingResult result = resultRepository.findBySession_Id(sessionId)
-                .orElseThrow(() -> new BizException("报告尚未生成或不存在"));
-        DynamicFittingResultVO resultVO = new DynamicFittingResultVO();
-        BeanUtils.copyProperties(result, resultVO);
-        resultVO.setMatchLevel(getMatchLevel(result.getMatchScore()));
-
-        // 摘要补充
-        if (resultVO.getSummary() == null) {
-            List<DynamicFittingAdviceVO> advices = JSON.parseArray(result.getAdviceJson(),
-                    DynamicFittingAdviceVO.class);
-            if (advices != null && !advices.isEmpty()) {
-                resultVO.setSummary(advices.get(0).getCode());
-            }
-        }
-        return resultVO;
-    }
-
     private Double convertToDouble(Object val) {
         if (val == null)
             return 0.0;
@@ -485,6 +572,10 @@ public class DynamicFittingService {
 
     /**
      * 获取原始轨迹序列 (用于绘图)
+     *
+     * @param sessionId 会话ID
+     * @param viewType  视图类型
+     * @return 轨迹序列
      */
     public DynamicFittingMotionDataVO getMotionData(Long sessionId, String viewType) {
         DynamicFittingMotionData data = motionDataRepository

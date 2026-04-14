@@ -9,7 +9,7 @@ import org.hibernate.annotations.Comment;
 import java.math.BigDecimal;
 
 /**
- * TODO
+ * 动态Fitting快照VO
  *
  * @author adi
  * @version 1.0
