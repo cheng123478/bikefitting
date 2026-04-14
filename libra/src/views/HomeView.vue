@@ -1,215 +1,183 @@
 <template>
   <div class="home-page">
-    <!-- 1. Hero Banner -->
+    <!-- 1. Hero Dynamic Banner (Now Floating Boxed Layout) -->
     <section class="hero-section">
-      <div class="carousel-container">
-        <div
-            v-for="(slide, index) in slides"
-            :key="index"
-            class="carousel-slide"
-            :class="{ active: currentSlide === index }"
-        >
-          <!-- 背景适配新样式结构 -->
-          <div class="hero-bg-wrapper">
-            <div class="hero-bg-img" :style="{ backgroundImage: `url(${slide.bg})` }"></div>
-          </div>
-          <div class="hero-overlay"></div>
-
-          <div class="container hero-content">
-            <!-- Logo / Icon -->
-            <div v-if="index === 0" class="hero-logo-circle fade-up">
-              <img src="@/assets/image/logo.png" alt="Logo" class="logo-img">
-            </div>
-            <div v-else class="hero-icon-header fade-up">
-              <i :class="slide.icon"></i>
-            </div>
-
-            <!-- 标题与描述 -->
-            <h1 class="hero-title fade-up delay-1" v-html="DOMPurify.sanitize(slide.slogan)"></h1>
-            <p class="hero-desc fade-up delay-2">{{ slide.desc }}</p>
-
-            <!-- 按钮组 -->
-            <div v-if="slide.btnText" class="hero-btns fade-up delay-3">
-              <router-link v-if="!slide.link.startsWith('#')" :to="slide.link" class="btn btn-primary">
-                {{ slide.btnText }} <i :class="slide.btnIcon"></i>
-              </router-link>
-              <a v-else :href="slide.link" class="btn btn-primary">
-                {{ slide.btnText }} <i :class="slide.btnIcon"></i>
-              </a>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- 轮播控制 (样式升级) -->
-      <button class="carousel-control prev" @click="handleManualChange(prevSlide)">
-        <i class="fas fa-chevron-left"></i>
-      </button>
-      <button class="carousel-control next" @click="handleManualChange(nextSlide)">
-        <i class="fas fa-chevron-right"></i>
-      </button>
-
-      <!-- 指示点 -->
-      <div class="carousel-dots">
-        <span
-            v-for="(dot, index) in slides"
-            :key="index"
-            class="dot"
-            :class="{ active: currentSlide === index }"
-            @click="handleManualChange(() => setSlide(index))"
-        ></span>
-      </div>
-
-      <div class="arrow-container-abs">
-        <a href="#fitting" class="white-arrow"><i class="fas fa-chevron-down"></i></a>
-      </div>
-    </section>
-
-    <!-- 2. Fitting 服务 -->
-    <section id="fitting" class="section-common">
-      <div class="container content-center">
-        <div class="section-header text-center">
-          <h2 class="section-title">专业 Fitting 系统</h2>
-          <p class="section-subtitle">从静态设定到 AI 实战监测，全链路闭环</p>
-        </div>
-
-        <!-- 使用 Bento Grid 和 Glass Card -->
-        <div class="bento-grid three-cols">
-          <div class="glass-card" v-scroll-reveal="1">
-            <div class="card-icon"><i class="fas fa-ruler-combined"></i></div>
-            <h3 class="card-title">静态 Fitting</h3>
-            <p class="card-desc">基于身体数据的快速几何设定，适合入门调试。</p>
-            <router-link to="/fitting/static" class="btn btn-outline full-width-mobile">立即测量 &rarr;</router-link>
-          </div>
-          <div class="glass-card" v-scroll-reveal="2">
-            <div class="card-icon"><i class="fas fa-video"></i></div>
-            <h3 class="card-title">动态 Fitting</h3>
-            <p class="card-desc">AI 视频捕捉踩踏画圆，生成包含动作建议的报告。</p>
-            <router-link to="/fitting/dynamic" class="btn btn-outline full-width-mobile">上传视频 &rarr;</router-link>
-          </div>
-          <div class="glass-card" v-scroll-reveal="3">
-            <div class="badge-new">NEW</div>
-            <div class="card-icon"><i class="fas fa-mobile-alt"></i></div>
-            <h3 class="card-title">RideFlow™ 实时伴骑</h3>
-            <p class="card-desc">手机即仪表盘。骑行中实时捕捉姿态，语音纠错预警。</p>
-            <a href="#" class="btn btn-outline full-width-mobile">开启监测 &rarr;</a>
-          </div>
-        </div>
-
-        <div class="arrow-container-flow"><a href="#share" class="dark-arrow"><i class="fas fa-chevron-down"></i></a></div>
-      </div>
-    </section>
-
-    <!-- 3. 分享圈 -->
-    <section id="share" class="section-common bg-alt">
-      <div class="container content-center">
-        <div class="section-header text-center">
-          <h2 class="section-title">骑行分享圈</h2>
-          <p class="section-subtitle">晒出数据，记录每一公里</p>
-        </div>
-
-        <!-- 图片网格 -->
-        <div class="gallery-grid-fixed">
+      <div class="container hero-container-box" v-scroll-reveal>
+        <div class="carousel-wrapper">
           <div
-              v-for="(item, index) in galleryImages"
+              v-for="(slide, index) in slides"
               :key="index"
-              class="gallery-item"
-              @click="goToDetail(item.id)"
-              v-scroll-reveal="index"
+              class="carousel-slide"
+              :class="{ active: currentSlide === index }"
           >
-            <img :src="item.src" loading="lazy" alt="Gallery Image" />
-            <div class="gallery-overlay"><i class="fas fa-heart"></i> {{ item.likes }}</div>
+            <div class="hero-bg-wrapper">
+              <div class="hero-bg-img" :style="{ backgroundImage: `url(${slide.bg})` }"></div>
+            </div>
+            <div class="hero-overlay" :class="slide.overlayClass"></div>
+
+            <div class="hero-content">
+              <div v-if="index === 0" class="hero-logo-circle fade-up">
+                <img src="@/assets/image/logo.png" alt="Logo" class="logo-img">
+              </div>
+              <div v-else class="hero-icon-header fade-up">
+                <i :class="slide.icon"></i>
+              </div>
+
+              <h1 class="hero-title fade-up delay-1" v-html="DOMPurify.sanitize(slide.slogan)"></h1>
+              <p class="hero-desc fade-up delay-2">{{ slide.desc }}</p>
+
+              <div v-if="slide.btnText" class="hero-btns fade-up delay-3">
+                <router-link v-if="!slide.link.startsWith('#')" :to="slide.link" class="btn btn-primary btn-glow">
+                  {{ slide.btnText }} <i :class="slide.btnIcon"></i>
+                </router-link>
+                <a v-else :href="slide.link" class="btn btn-primary">
+                  {{ slide.btnText }} <i :class="slide.btnIcon"></i>
+                </a>
+              </div>
+              
+              <div v-if="slide.isPreview" class="preview-tag fade-up delay-3">
+                <span class="pulse-dot"></span> 1.5 EVOLUTION PREVIEW
+              </div>
+            </div>
+          </div>
+
+          <!-- Controls moved inside -->
+          <button class="carousel-control prev" @click="handleManualChange(prevSlide)">
+            <i class="fas fa-chevron-left"></i>
+          </button>
+          <button class="carousel-control next" @click="handleManualChange(nextSlide)">
+            <i class="fas fa-chevron-right"></i>
+          </button>
+
+          <div class="carousel-dots">
+            <span
+                v-for="(dot, index) in slides"
+                :key="index"
+                class="dot"
+                :class="{ active: currentSlide === index }"
+                @click="handleManualChange(() => setSlide(index))"
+            ></span>
           </div>
         </div>
+      </div>
 
-        <div class="section-footer-btn" style="margin-top: var(--space-lg);">
-          <a href="/sharecircle" class="btn btn-outline">浏览更多 <i class="fas fa-arrow-right"></i></a>
-        </div>
+      <div class="scroll-indicator">
+        <a href="#showroom" class="white-arrow"><i class="fas fa-chevron-down"></i></a>
+      </div>
+    </section>
 
-        <div class="arrow-container-flow">
-          <a href="#activities" class="dark-arrow"><i class="fas fa-chevron-down"></i></a>
+    <!-- 2. 单车展厅 (Showroom Preview) - Now featured first -->
+    <section id="showroom" class="section-common">
+      <div class="container" v-scroll-reveal>
+        <div class="section-island bg-white-island">
+          <div class="section-header-row">
+            <div class="header-left">
+              <span class="section-tag">COLLECTION</span>
+              <h2 class="section-title serif-title">单车展厅</h2>
+              <p class="section-subtitle">从公路竞赛到林道穿梭，发现您的下一台战车</p>
+            </div>
+            <router-link to="/showroom" class="btn-text-link">查看完整库 <i class="fas fa-arrow-right"></i></router-link>
+          </div>
+
+          <div class="showroom-horizontal-grid">
+            <div 
+              v-for="(bike, index) in featuredBikes" 
+              :key="bike.id" 
+              class="featured-bike-card"
+              @click="router.push('/showroom')"
+            >
+              <div class="bike-visual">
+                <img :src="bike.img" :alt="bike.model">
+                <div class="bike-specs-bubble">
+                  <span>{{ bike.category }}</span>
+                </div>
+              </div>
+              <div class="bike-meta">
+                <span class="brand">{{ bike.brand }}</span>
+                <h4 class="model">{{ bike.model }}</h4>
+                <p class="price">{{ bike.price }}</p>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </section>
 
-    <!-- 4. 活动 -->
-    <section id="activities" class="section-common">
-      <div class="container content-center">
-        <div class="section-header text-center">
-          <h2 class="section-title">热门赛事与活动</h2>
-          <p class="section-subtitle">拒绝平庸，直面挑战</p>
-        </div>
-
-        <!-- 活动列表 -->
-        <div class="events-grid-compact">
-          <div
-              v-for="(event, index) in eventsList"
-              :key="index"
-              class="event-row"
-              v-scroll-reveal="index"
-          >
-            <div class="event-date">
-              <span class="day">{{ event.day }}</span>
-              <span class="month">{{ event.month }}</span>
+    <!-- 3. Aries 控制台 (The Console / Laboratory Hub) -->
+    <section id="lab" class="section-common">
+      <div class="container" v-scroll-reveal>
+        <div class="section-island bg-lab-island">
+          <div class="section-header-row">
+            <div class="header-left">
+              <span class="section-tag glow">ARIES CONSOLE</span>
+              <h2 class="section-title serif-title">实验室控制台</h2>
+              <p class="section-subtitle">生物力学与单车几何的数字化映射中心</p>
             </div>
-            <div class="event-details">
-              <h4>{{ event.title }}</h4>
-              <p>{{ event.location }}</p>
-            </div>
-            <a href="#" class="btn-icon"><i class="fas fa-chevron-right"></i></a>
           </div>
-        </div>
 
-        <div class="section-footer-btn" style="margin-top: var(--space-lg);">
-          <a href="#" class="btn btn-outline">查看活动日历 <i class="fas fa-calendar-alt"></i></a>
-        </div>
+          <!-- Asymmetric Console Layout -->
+          <div class="console-layout">
+            <!-- Main Action: Static Diagnosis -->
+            <div class="console-main glass-panel featured-panel" @click="router.push('/lab/static')">
+              <div class="panel-header">
+                <span class="panel-tag">ENGINE A: STATIC</span>
+                <i class="fas fa-expand-alt"></i>
+              </div>
+              <div class="panel-body">
+                <h3 class="panel-title">静态诊断引擎</h3>
+                <p class="panel-desc">高精度人体几何建模，为您生成基于 Baseline 的个性化调教建议。</p>
+                
+                <!-- Decorative HUD elements -->
+                <div class="hud-display">
+                  <div class="hud-circle"></div>
+                </div>
+              </div>
+              <div class="panel-footer">
+                <button class="btn btn-primary btn-sm">启动诊断 &rarr;</button>
+              </div>
+            </div>
 
-        <div class="arrow-container-flow">
-          <a href="#knights" class="dark-arrow"><i class="fas fa-chevron-down"></i></a>
+            <!-- Secondary Actions Column -->
+            <div class="console-side">
+              <div class="glass-panel profile-panel" @click="router.push('/lab/body/history')">
+                <div class="panel-icon"><i class="fas fa-fingerprint"></i></div>
+                <div class="panel-info">
+                  <h4 class="panel-title-sm">身体档案</h4>
+                  <p class="panel-desc-sm">管理生理参数与柔韧性评分</p>
+                </div>
+              </div>
+
+              <div class="glass-panel garage-panel" @click="router.push('/lab/garage')">
+                <div class="panel-icon"><i class="fas fa-bicycle"></i></div>
+                <div class="panel-info">
+                  <h4 class="panel-title-sm">我的车库</h4>
+                  <p class="panel-desc-sm">维护名下战车的硬件设定参数</p>
+                </div>
+              </div>
+            </div>
+
+            <!-- Full Width Bar: Bike Recommendation -->
+            <div class="console-bar glass-panel" @click="router.push('/showroom')">
+              <div class="bar-content">
+                <i class="fas fa-magic spark-effect"></i>
+                <div class="bar-text">
+                  <span class="bar-title">单车推荐</span>
+                  <span class="bar-subtitle">基于您的生物力学模型，在展厅中智能检索最适配的品牌尺寸</span>
+                </div>
+              </div>
+              <div class="bar-action">
+                <span>EXPLORE</span>
+                <i class="fas fa-chevron-right"></i>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </section>
 
-    <!-- 5. 骑士团 -->
-    <section id="knights" class="section-common bg-alt">
-      <div class="container content-center">
-        <div class="section-header text-center">
-          <h2 class="section-title">活跃骑士团推荐</h2>
-          <p class="section-subtitle">加入本地精英车队，共享轮转破风的乐趣</p>
-        </div>
-
-        <!-- 车队网格 -->
-        <div class="bento-grid four-cols">
-          <div
-              v-for="(team, index) in teamList"
-              :key="index"
-              class="glass-card team-card"
-              v-scroll-reveal="index"
-          >
-            <div class="team-avatar-wrapper">
-              <img :src="team.avatar" :alt="team.name" class="team-avatar">
-            </div>
-            <h4 class="team-name">{{ team.name }}</h4>
-            <p class="team-meta"><i class="fas fa-map-marker-alt"></i> {{ team.city }} · {{ team.members }}成员</p>
-            <span class="active-badge"><i class="fas fa-fire"></i> {{ team.achievement }}</span>
-            <a href="#" class="btn btn-sm btn-outline team-btn">申请加入</a>
-          </div>
-        </div>
-
-        <div class="section-footer-btn" style="margin-top: var(--space-lg);">
-          <a href="#" class="btn btn-outline">探索更多车队 <i class="fas fa-search"></i></a>
-        </div>
-
-      </div>
-    </section>
-    <!-- 6. 回到顶部按钮 -->
+    <!-- Back to Top -->
     <Transition name="fade">
-      <button
-          v-show="showBackToTop"
-          class="back-to-top-btn"
-          @click="scrollToTop"
-          title="回到顶部"
-      >
+      <button v-show="showBackToTop" class="back-to-top-btn" @click="scrollToTop">
         <i class="fas fa-arrow-up"></i>
       </button>
     </Transition>
@@ -219,7 +187,7 @@
 <script setup>
 import { ref, onMounted, onUnmounted } from 'vue';
 import { useRouter } from 'vue-router';
-import { homeService } from '@/api/mockService';
+import { showroomService } from '@/api/mockService';
 import DOMPurify from 'dompurify';
 
 const router = useRouter();
@@ -227,115 +195,62 @@ const showBackToTop = ref(false);
 
 const slides = ref([
   {
-    bg: 'https://images.unsplash.com/photo-1511994298241-608e28f14fde?q=80&w=2070&auto=format&fit=crop',
-    slogan: 'Fit Your Ride<br><span class="hero-highlight">Perfect Your Pride</span>',
-    desc: '数据驱动表现 · 姿态成就荣耀',
-    link: '#',
-    btnText: null
+    bg: 'https://images.unsplash.com/photo-1541625602330-2277a4c46182?q=80&w=2070&auto=format&fit=crop',
+    slogan: 'Fitting Is Science<br><span class="hero-highlight">Aries 1.0 Performance</span>',
+    desc: '从 Baseline 诊断到展厅探索，由 Aries 定义您的骑行几何。',
+    link: '#lab',
+    btnText: '进入中枢',
+    btnIcon: 'fas fa-rocket',
+    overlayClass: 'overlay-soft'
   },
   {
     bg: '/image/index/fit.jpg',
-    icon: 'fas fa-project-diagram',
-    slogan: 'AI 精准设定<br><span class="hero-highlight">释放无限潜能</span>',
-    desc: '利用计算机视觉技术捕捉骨骼关键点，在线生成 Fitting 报告。',
-    btnText: '上传视频分析',
-    btnIcon: 'fas fa-cloud-upload-alt',
-    link: '/survey'
+    icon: 'fas fa-ruler-combined',
+    slogan: '精密静态设定<br><span class="hero-highlight">Baseline Diagnosis</span>',
+    desc: '基于骑行科学的身体建模，快速锁定您的理想座垫与 Reach 基准。',
+    btnText: '启动引擎',
+    btnIcon: 'fas fa-magic',
+    link: '/lab/static',
+    overlayClass: 'overlay-medium'
   },
   {
-    bg: 'https://images.unsplash.com/photo-1474962558142-9ca83af74bb7?q=80&w=2070&auto=format&fit=crop',
-    icon: 'fas fa-camera-retro',
-    slogan: '记录热爱<br><span class="hero-highlight">见证蜕变</span>',
-    desc: '晒出你的 Fitting 改装数据，分享沿途最美的风景。',
-    btnText: '进入分享圈',
-    btnIcon: 'fas fa-share-alt',
-    link: '/sharecircle'
-  },
-  {
-    bg: '/image/index/activities.jpg',
-    icon: 'fas fa-flag-checkered',
-    slogan: '拒绝平庸<br><span class="hero-highlight">直面挑战</span>',
-    desc: '每一次出发，都是为了超越昨天的自己。',
-    btnText: '查看活动日历',
-    btnIcon: 'fas fa-calendar-alt',
-    link: '#activities'
-  },
-  {
-    bg: '/image/index/team.jpg',
-    icon: 'fas fa-users-cog',
-    slogan: '破风前行<br><span class="hero-highlight">岂止于快</span>',
-    desc: '无兄弟，不骑行。加入本地精英骑士团，与队友轮转交替。',
-    btnText: '寻找我的车队',
-    btnIcon: 'fas fa-user-plus',
-    link: '#knights'
+    bg: 'https://images.unsplash.com/photo-1511994298241-608e28f14fde?q=80&w=2070&auto=format&fit=crop',
+    icon: 'fas fa-video',
+    slogan: '动态视觉追踪<br><span class="hero-highlight">Vision Intelligence</span>',
+    desc: '实时关节角度捕捉与踩踏轨迹分析，进阶版 Aries 1.5 即将开启公测。',
+    btnText: '了解未来',
+    btnIcon: 'fas fa-atom',
+    link: '#lab',
+    isPreview: true,
+    overlayClass: 'overlay-dark'
   }
 ]);
-const galleryImages = ref([]);
-const eventsList = ref([]);
-const teamList = ref([]);
 
-// 滚动监听与处理
-const handleScroll = () => {
-  showBackToTop.value = window.scrollY > window.innerHeight * 0.8;
-};
+const featuredBikes = ref([]);
 
-const scrollToTop = () => {
-  window.scrollTo({
-    top: 0,
-    behavior: 'smooth'
-  });
-};
-
-const goToDetail = (id) => {
-  console.log(`跳转到详情页 ID: ${id}`);
-};
-
-// 轮播图逻辑
+// Banner Logic
 const currentSlide = ref(0);
 let timer = null;
-const slideInterval = 5000;
+const slideInterval = 7000;
 
-const nextSlide = () => {
-  if (slides.value.length > 0) {
-    currentSlide.value = (currentSlide.value + 1) % slides.value.length;
-  }
-};
-const prevSlide = () => {
-  if (slides.value.length > 0) {
-    currentSlide.value = (currentSlide.value - 1 + slides.value.length) % slides.value.length;
-  }
-};
+const nextSlide = () => { currentSlide.value = (currentSlide.value + 1) % slides.value.length; };
+const prevSlide = () => { currentSlide.value = (currentSlide.value - 1 + slides.value.length) % slides.value.length; };
 const setSlide = (index) => { currentSlide.value = index; };
 
-const startTimer = () => {
-  if (timer) clearInterval(timer);
-  timer = setInterval(nextSlide, slideInterval);
-};
+const startTimer = () => { if (timer) clearInterval(timer); timer = setInterval(nextSlide, slideInterval); };
+const pauseTimer = () => { if (timer) clearInterval(timer); };
+const handleManualChange = (action) => { pauseTimer(); action(); startTimer(); };
 
-const pauseTimer = () => {
-  if (timer) clearInterval(timer);
-};
-
-const resumeTimer = () => {
-  startTimer();
-};
-
-const handleManualChange = (action) => {
-  pauseTimer();
-  action();
-  resumeTimer();
-};
+const handleScroll = () => { showBackToTop.value = window.scrollY > window.innerHeight * 0.8; };
+const scrollToTop = () => { window.scrollTo({ top: 0, behavior: 'smooth' }); };
 
 const fetchData = async () => {
   try {
-    const data = await homeService.getHomeData();
-    galleryImages.value = data.galleryImages;
-    eventsList.value = data.eventsList;
-    teamList.value = data.teamList;
-
+    const data = await showroomService.getShowroomData();
+    featuredBikes.value = data.bikes.slice(0, 4);
     startTimer();
   } catch (err) {
-    console.error('Failed to fetch home data', err);
+    console.error('Fetch error', err);
   }
 };
 
@@ -351,221 +266,159 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
-/* --- 1. Hero 区域 (覆盖增强) --- */
-.carousel-container { width: 100%; height: 100%; position: relative; }
+/* --- 1. Hero Sections (Boxed Overhaul) --- */
+.hero-section {
+  padding-top: calc(var(--header-height) + 40px);
+  padding-bottom: 60px;
+  min-height: auto;
+}
+
+.hero-container-box {
+  height: 75vh;
+  min-height: 500px;
+}
+
+.carousel-wrapper {
+  width: 100%;
+  height: 100%;
+  position: relative;
+  border-radius: 24px;
+  overflow: hidden;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.1);
+}
+
 .carousel-slide {
-  position: absolute; inset: 0;
-  opacity: 0; transition: opacity 1.2s var(--ease-out-expo);
+  position: absolute; inset: 0; opacity: 0; transition: opacity 1s var(--ease-out-expo);
   display: flex; align-items: center; justify-content: center; z-index: 1;
 }
 .carousel-slide.active { opacity: 1; z-index: 2; }
-/* 背景放大动效 */
-.carousel-slide.active .hero-bg-img { transform: scale(1.05); }
+.hero-bg-wrapper { position: absolute; inset: 0; z-index: 1; pointer-events: none; }
+.hero-bg-img { width: 100%; height: 100%; background-size: cover; background-position: center; transition: 7s transform ease-out; }
+.carousel-slide.active .hero-bg-img { transform: scale(1.08); }
 
-.hero-icon-header {
-  font-size: 3.5rem; color: rgba(255,255,255,0.95);
-  margin-bottom: var(--space-md); filter: drop-shadow(0 4px 10px rgba(0,0,0,0.2));
+.overlay-soft { background: linear-gradient(to bottom, rgba(43, 42, 41, 0.1), rgba(43, 42, 41, 0.4)); }
+.overlay-medium { background: linear-gradient(to bottom, rgba(43, 42, 41, 0.3), rgba(43, 42, 41, 0.6)); }
+.overlay-dark { background: radial-gradient(circle at center, rgba(0,0,0,0.2), rgba(0,0,0,0.6)); }
+
+.hero-content { position: relative; z-index: 5; text-align: center; color: white; padding-bottom: 20px; max-width: 800px; }
+.hero-title { font-size: clamp(2rem, 5vw, 3.2rem); line-height: 1.1; margin-bottom: 15px; }
+.hero-desc { font-size: 1.1rem; opacity: 0.9; margin-bottom: 25px; font-weight: 300; max-width: 600px; margin-inline: auto; line-height: 1.5; }
+
+.preview-tag {
+  display: inline-flex; align-items: center; gap: 8px; font-size: 0.7rem; font-weight: 800;
+  letter-spacing: 2px; color: var(--primary-light); background: rgba(0,0,0,0.3);
+  padding: 5px 14px; border-radius: 20px; border: 1px solid rgba(143, 160, 139, 0.3); margin-top: 10px;
 }
 
-.hero-desc {
-  font-size: 1.25rem; opacity: 0.95; margin-bottom: var(--space-lg);
-  font-weight: 300; max-width: 700px; margin-left: auto; margin-right: auto;
-}
-:deep(.hero-highlight) {
-  font-family: var(--font-serif); font-style: italic;
-  display: block; margin-top: 8px; font-size: 1.1em;
-}
-
-/* 轮播控件 */
+/* 轮播控制 - 移入内部并微调 */
 .carousel-control {
-  position: absolute; top: 50%; transform: translateY(-50%);
-  width: 50px; height: 50px; border-radius: 50%;
-  background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.4);
-  color: white; font-size: 1.2rem; cursor: pointer; z-index: 20;
-  backdrop-filter: blur(4px); transition: all 0.3s;
+  position: absolute; top: 50%; width: 44px; height: 44px; border-radius: 50%;
+  background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2);
+  color: white; cursor: pointer; z-index: 20; backdrop-filter: blur(8px); transition: 0.3s; transform: translateY(-50%);
 }
-.carousel-control:hover { background: rgba(255,255,255,0.3); transform: translateY(-50%) scale(1.1); }
-.prev { left: var(--space-lg); }
-.next { right: var(--space-lg); }
+.carousel-control:hover { background: rgba(255,255,255,0.25); transform: translateY(-50%) scale(1.1); }
+.prev { left: 30px; } .next { right: 30px; }
 
-.carousel-dots {
-  position: absolute; bottom: 100px; left: 50%; transform: translateX(-50%);
-  display: flex; gap: 12px; z-index: 20;
-}
-.dot {
-  width: 10px; height: 10px; background: rgba(255,255,255,0.4); border-radius: 50%;
-  cursor: pointer; transition: 0.3s;
-}
-.dot.active { background: white; transform: scale(1.4); }
+.carousel-dots { position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%); display: flex; gap: 10px; z-index: 20; }
+.dot { width: 6px; height: 6px; background: rgba(255,255,255,0.3); border-radius: 50%; cursor: pointer; transition: 0.4s; }
+.dot.active { background: white; width: 20px; border-radius: 4px; }
 
-.arrow-container-abs {
-  position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%); z-index: 20;
-}
-.white-arrow {
-  color: white; font-size: 2rem; display: block;
-  animation: bounce 2.5s infinite; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));
-}
+.scroll-indicator { position: absolute; bottom: 10px; left: 50%; transform: translateX(-50%); z-index: 20; }
+.white-arrow { color: var(--text-muted); font-size: 1.4rem; animation: bounce 2.5s infinite; opacity: 0.5; }
 
-/* --- 2. 通用 Section --- */
-.section-common {
-  min-height: 100vh; padding: var(--space-xxl) 0;
-  display: flex; flex-direction: column; justify-content: center;
+/* --- 2. 展示区域 (Island Mode) --- */
+.section-common { padding: 40px 0; min-height: auto; }
+
+.section-island {
+  padding: 60px 50px;
+  border-radius: 24px;
+  box-shadow: 0 10px 40px rgba(92, 110, 88, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.6);
   position: relative;
 }
-.content-center { width: 100%; display: flex; flex-direction: column; align-items: center; }
-.bg-alt { background-color: var(--bg-page); }
+.bg-white-island { background: #fff; }
+.bg-lab-island { background: #fdfdfb; background-image: radial-gradient(circle at top right, #f3f2ed, #fdfdfb); }
 
-.section-header { margin-bottom: var(--space-xl); max-width: 800px; }
-.section-title { font-size: var(--h2-size); margin-bottom: var(--space-xs); color: var(--text-main); }
+.section-header-row { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 50px; }
+.section-tag { display: block; font-size: 0.7rem; font-weight: 900; letter-spacing: 4px; color: var(--primary-color); margin-bottom: 12px; }
+.section-tag.glow { text-shadow: 0 0 10px rgba(143, 160, 139, 0.5); }
+.section-title { font-size: 2.5rem; margin-bottom: 8px; line-height: 1.1; }
+.section-subtitle { font-family: var(--font-serif); font-size: 1rem; color: var(--text-muted); font-style: italic; }
 
-/* 串联箭头 */
-.arrow-container-flow { margin-top: var(--space-xl); width: 100%; text-align: center; }
-.dark-arrow {
-  color: var(--text-muted); font-size: 1.6rem; display: inline-block;
-  transition: 0.3s; animation: bounce 2.5s infinite;
-}
-.dark-arrow:hover { color: var(--primary-color); transform: translateY(3px); }
+.btn-text-link { font-family: var(--font-serif); font-weight: 700; color: var(--text-main); display: flex; align-items: center; gap: 10px; transition: 0.3s; }
+.btn-text-link:hover { color: var(--primary-color); transform: translateX(5px); }
 
-@keyframes bounce {
-  0%, 20%, 50%, 80%, 100% { transform: translateY(0); }
-  40% { transform: translateY(-10px); }
-  60% { transform: translateY(-5px); }
-}
+.showroom-horizontal-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 24px; }
+.featured-bike-card { cursor: pointer; transition: 0.4s; }
+.featured-bike-card:hover { transform: translateY(-8px); }
 
-/* --- 3. Grid 布局 --- */
-/* .bento-grid, .glass-card 已在 main.css 定义，这里仅做微调 */
-.three-cols { grid-template-columns: repeat(3, 1fr); width: 100%; max-width: var(--max-width); }
-.four-cols { grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); width: 100%; max-width: 1100px; }
+.bike-visual { position: relative; border-radius: var(--radius-md); overflow: hidden; background: #F8F8F8; height: 180px; }
+.bike-visual img { width: 100%; height: 100%; object-fit: cover; transition: 0.6s transform var(--ease-out-expo); }
+.featured-bike-card:hover .bike-visual img { transform: scale(1.1); }
 
-/* 卡片内部元素适配 */
-.badge-new {
-  position: absolute; top: 16px; right: -32px;
-  background: var(--secondary-color); color: white; width: 120px; text-align: center;
-  transform: rotate(45deg); font-size: 0.75rem; font-weight: 600; padding: 6px 0;
-  box-shadow: var(--shadow-sm);
-}
+.bike-specs-bubble { position: absolute; top: 15px; left: 15px; background: rgba(255,255,255,0.9); padding: 4px 10px; border-radius: 4px; font-size: 0.65rem; font-weight: 800; text-transform: uppercase; color: var(--primary-color); }
 
-/* --- 4. 画廊 (Fixed Grid 保持原布局，应用新变量) --- */
-.gallery-grid-fixed {
-  display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--space-sm);
-  width: 100%; max-width: 1000px; margin: 0 auto;
-}
-.gallery-item {
-  height: 220px; border-radius: var(--radius-md); overflow: hidden;
-  position: relative; cursor: pointer; background: #ddd; box-shadow: var(--shadow-sm);
-}
-.gallery-item img {
-  width: 100%; height: 100%; object-fit: cover;
-  transition: transform 0.8s var(--ease-out-expo); filter: saturate(0.9);
-}
-.gallery-overlay {
-  position: absolute; inset: 0; background: rgba(43, 42, 41, 0.5);
-  display: flex; align-items: center; justify-content: center;
-  color: white; opacity: 0; transition: 0.3s; backdrop-filter: blur(2px);
-  font-family: var(--font-serif); font-size: 1.2rem;
-}
-.gallery-item:hover img { transform: scale(1.1); filter: saturate(1.1); }
-.gallery-item:hover .gallery-overlay { opacity: 1; }
+.bike-meta { padding: 20px 0 0; }
+.brand { font-size: 0.65rem; font-weight: 800; color: var(--primary-light); text-transform: uppercase; letter-spacing: 1px; }
+.model { font-size: 1rem; color: var(--text-main); margin-top: 4px; font-weight: 700; }
+.price { font-size: 0.85rem; color: var(--text-muted); font-weight: 300; margin-top: 4px; }
 
-/* --- 5. 活动列表 --- */
-.events-grid-compact {
-  display: grid; grid-template-columns: repeat(2, 1fr); gap: var(--space-md);
-  width: 100%; max-width: 900px; margin: 0 auto;
-}
-.event-row {
-  background: var(--bg-surface); padding: 20px 24px;
-  border-radius: var(--radius-md); box-shadow: var(--shadow-sm);
-  border: var(--border-glass); display: flex; align-items: center;
-  transition: all 0.3s; border-left: 3px solid transparent;
-}
-.event-row:hover {
-  transform: translateX(5px) translateY(-2px);
-  border-left-color: var(--primary-color);
-  box-shadow: var(--shadow-md);
-}
-.event-date { margin-right: 20px; text-align: center; color: var(--primary-color); min-width: 50px; }
-.event-date .day {
-  font-size: 1.8rem; font-weight: 600; line-height: 1; font-family: var(--font-serif);
-}
-.event-date .month { font-size: 0.75rem; font-weight: 700; letter-spacing: 2px; color: var(--text-muted); text-transform: uppercase; }
+/* --- 3. Aries Console (Laboratory) --- */
+.console-layout { display: grid; grid-template-columns: 2fr 1fr; grid-template-rows: auto auto; gap: 24px; }
 
-.event-details h4 { font-size: 1.1rem; margin-bottom: 4px; color: var(--text-main); }
-.event-details p { font-size: 0.9rem; color: var(--text-muted); margin: 0; }
-.btn-icon { color: var(--text-muted); margin-left: auto; font-size: 1.1rem; transition: 0.3s; }
-.event-row:hover .btn-icon { color: var(--primary-color); transform: translateX(4px); }
+.glass-panel { background: rgba(255, 255, 255, 0.6); border: 1px solid rgba(0, 0, 0, 0.05); border-radius: 12px; padding: 30px; transition: 0.4s; cursor: pointer; overflow: hidden; position: relative; box-shadow: var(--shadow-sm); }
+.glass-panel:hover { background: rgba(255, 255, 255, 0.95); border-color: var(--primary-light); box-shadow: var(--shadow-md); }
 
-/* --- 6. 骑士团 --- */
-.team-card {
-  display: flex; flex-direction: column; align-items: center; padding: 30px 20px;
-}
-.team-avatar-wrapper {
-  width: 80px; height: 80px; border-radius: 50%;
-  margin: 0 auto var(--space-sm); padding: 3px;
-  border: 1px solid var(--secondary-color);
-}
-.team-avatar { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; }
-.team-name { font-size: 1.15rem; margin-bottom: 4px; color: var(--text-main); }
-.team-meta { font-size: 0.85rem; color: var(--text-muted); margin-bottom: 12px; font-style: italic; font-family: var(--font-serif); }
-.active-badge {
-  display: inline-block; background: #FFF3E0; color: #E65100;
-  border: none; font-size: 0.75rem; font-weight: 600; padding: 4px 12px;
-  border-radius: 20px; margin-bottom: 15px;
-}
-.team-btn { margin-top: auto; }
-/* --- 回到顶部按钮 --- */
-.back-to-top-btn {
-  position: fixed;
-  bottom: 40px;
-  right: 30px;
-  width: 50px;
-  height: 50px;
-  border-radius: 50%;
-  background: var(--primary-color); /* 主色调 */
-  color: #fff;
-  border: none;
-  box-shadow: var(--shadow-lg); /* 统一阴影 */
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 1.2rem;
-  z-index: 900; /* 低于导航栏和模态框，高于内容 */
-  transition: all 0.3s var(--ease-out-expo); /* 统一缓动函数 */
-  opacity: 0.9;
+.console-main { grid-row: span 1; display: flex; flex-direction: column; justify-content: space-between; min-height: 320px; }
+.panel-header { display: flex; justify-content: space-between; color: var(--text-muted); font-size: 0.7rem; font-weight: 800; letter-spacing: 2px; }
+.panel-title { color: var(--text-main); font-size: 1.8rem; margin: 20px 0 10px; }
+.panel-desc { color: var(--text-muted); line-height: 1.6; font-size: 0.9rem; max-width: 380px; }
+
+/* HUD Elements */
+.hud-display { position: absolute; right: -20px; bottom: 80px; opacity: 0.1; pointer-events: none; }
+.hud-circle { width: 140px; height: 140px; border-radius: 50%; border: 1px dashed var(--primary-color); animation: spin 20s infinite linear; }
+
+.console-side { display: flex; flex-direction: column; gap: 24px; }
+.console-side .glass-panel { flex: 1; display: flex; align-items: center; gap: 20px; padding: 20px 25px; }
+
+.panel-icon { width: 48px; height: 48px; background: rgba(92, 110, 88, 0.05); color: var(--primary-color); border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 1.2rem; transition: 0.3s; }
+.glass-panel:hover .panel-icon { color: white; background: var(--primary-color); }
+
+.panel-title-sm { color: var(--text-main); font-size: 1.05rem; margin-bottom: 2px; font-weight: 700; }
+.panel-desc-sm { color: var(--text-muted); font-size: 0.75rem; }
+
+.console-bar { grid-column: span 2; display: flex; justify-content: space-between; align-items: center; padding: 20px 40px; border-left: 4px solid var(--primary-color); background: #fff; }
+.bar-content { display: flex; align-items: center; gap: 25px; }
+.spark-effect { font-size: 1.4rem; color: var(--accent-gold); }
+.bar-text { display: flex; flex-direction: column; }
+.bar-title { color: var(--text-main); font-size: 1.05rem; font-weight: 700; margin-bottom: 1px; }
+.bar-subtitle { color: var(--text-muted); font-size: 0.8rem; font-family: var(--font-serif); font-style: italic; }
+.bar-action { color: var(--primary-dark); font-size: 0.7rem; font-weight: 800; letter-spacing: 2px; display: flex; align-items: center; gap: 10px; }
+
+/* Animations */
+@keyframes spin { from { transform: rotate(0); } to { transform: rotate(360deg); } }
+@keyframes bounce { 0%, 20%, 50%, 80%, 100% { transform: translateY(0); } 40% { transform: translateY(-10px); } 60% { transform: translateY(-5px); } }
+
+.back-to-top-btn { position: fixed; bottom: 40px; right: 30px; width: 50px; height: 50px; border-radius: 50%; background: var(--primary-color); color: white; border: none; box-shadow: var(--shadow-lg); cursor: pointer; z-index: 1000; }
+
+@media (max-width: 900px) {
+  .console-layout { grid-template-columns: 1fr; }
+  .console-bar { grid-column: span 1; padding: 20px; }
+  .showroom-horizontal-grid { grid-template-columns: 1fr 1fr; }
+  .section-island { padding: 40px 20px; }
+  .section-title { font-size: 2rem; }
 }
 
-.back-to-top-btn:hover {
-  transform: translateY(-5px);
-  background: var(--primary-dark, #465543); /* 如果 main.css 没有定义 dark，这里提供后备 */
-  opacity: 1;
-  box-shadow: 0 8px 20px rgba(92, 110, 88, 0.3);
-}
+/* Animations */
+@keyframes spin { from { transform: rotate(0); } to { transform: rotate(360deg); } }
+@keyframes bounce { 0%, 20%, 50%, 80%, 100% { transform: translateY(0); } 40% { transform: translateY(-10px); } 60% { transform: translateY(-5px); } }
 
-/* 按钮进出动画 */
-.fade-enter-active,
-.fade-leave-active {
-  transition: opacity 0.4s ease, transform 0.4s ease;
-}
+.back-to-top-btn { position: fixed; bottom: 40px; right: 30px; width: 50px; height: 50px; border-radius: 50%; background: var(--primary-color); color: white; border: none; box-shadow: var(--shadow-lg); cursor: pointer; z-index: 1000; }
 
-.fade-enter-from,
-.fade-leave-to {
-  opacity: 0;
-  transform: translateY(20px); /* 同样增加位移动效 */
-}
-/* 响应式 */
-@media (max-width: 768px) {
-  .three-cols { grid-template-columns: 1fr; }
-  .gallery-grid-fixed { grid-template-columns: repeat(2, 1fr); gap: 10px; }
-  .gallery-item { height: 140px; }
-  .events-grid-compact { grid-template-columns: 1fr; }
-  .four-cols { grid-template-columns: repeat(2, 1fr); gap: 16px; }
-  .full-width-mobile { width: 100%; margin-top: 10px; }
-  .back-to-top-btn {
-    bottom: 30px;
-    right: 20px;
-    width: 44px;
-    height: 44px;
-    font-size: 1rem;
-  }
+@media (max-width: 900px) {
+  .console-layout { grid-template-columns: 1fr; }
+  .console-bar { grid-column: span 1; }
+  .showroom-horizontal-grid { grid-template-columns: 1fr 1fr; }
+  .section-title { font-size: 2.2rem; }
 }
 </style>

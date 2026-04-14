@@ -24,7 +24,7 @@ export function usePoseDetection(options = {}) {
      */
     const initPose = (onResultsCallback) => {
         pose = new Pose({
-            locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/pose@0.5.1675469404/${file}`
+            locateFile: (file) => `/vendor/mediapipe/pose/${file}`
         });
 
         pose.setOptions(defaultOptions);

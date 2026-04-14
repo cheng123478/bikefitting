@@ -46,6 +46,9 @@
           </div>
         </section>
 
+        <!-- [NEW] Pedaling Pro Analysis Section -->
+        <PedalingAnalysisSection v-if="report.pedalingData" :data="report.pedalingData" />
+
         <!-- 3. Sequential Perspectives -->
         <div class="view-sequence-container fade-up delay-2">
           
@@ -151,6 +154,7 @@ import dayjs from 'dayjs';
 import html2canvas from 'html2canvas';
 
 import DynamicSkeletonPlayer from './components/DynamicSkeletonPlayer.vue';
+import PedalingAnalysisSection from './components/PedalingAnalysisSection.vue';
 
 const route = useRoute();
 const sessionId = route.query.sessionId;

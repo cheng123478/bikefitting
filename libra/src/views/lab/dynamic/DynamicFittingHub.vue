@@ -98,7 +98,10 @@
                   </div>
                 </div>
               </div>
-              <p v-else>核心几何与座高诊断</p>
+              <p v-else class="view-help-text">
+                <strong>核心几何与座高诊断</strong><br>
+                <span>分析膝关节伸展与躯干前倾姿态，预防膝盖/腰背疼痛，推导把立与座高。</span>
+              </p>
             </div>
             <div class="check-circle" v-if="selectedView === 'side'"><i class="fas fa-check"></i></div>
           </div>
@@ -124,7 +127,10 @@
                   </div>
                 </div>
               </div>
-              <p v-else>膝盖轨迹与风阻分析</p>
+              <p v-else class="view-help-text">
+                <strong>膝盖轨迹与风阻分析</strong><br>
+                <span>追踪发力期膝盖内扣或外翻轨迹，预防髂胫束摩擦，提供锁片与鞋垫调整建议。</span>
+              </p>
             </div>
             <div class="check-circle" v-if="selectedView === 'front'"><i class="fas fa-check"></i></div>
           </div>
@@ -146,7 +152,10 @@
                   </div>
                 </div>
               </div>
-              <p v-else>骨盆与脊柱稳定性分析</p>
+              <p v-else class="view-help-text">
+                <strong>骨盆与脊柱稳定性分析</strong><br>
+                <span>捕捉踩踏产生的骨盆代偿摇摆与高低肩现象，排查长短腿隐患与核心薄弱点。</span>
+              </p>
             </div>
             <div class="check-circle" v-if="selectedView === 'back'"><i class="fas fa-check"></i></div>
           </div>
@@ -497,6 +506,10 @@ const getViewDesc = (v) => {
 
 .card-text h3 { margin: 10px 0 5px; font-size: 1.1rem; }
 .card-text p { font-size: 0.85rem; color: var(--text-muted); }
+
+.view-help-text { line-height: 1.5; margin-top: 4px; }
+.view-help-text strong { display: block; margin-bottom: 3px; color: var(--text-main); font-weight: 600; font-size: 0.9rem; }
+.view-help-text span { opacity: 0.85; font-size: 0.8rem; }
 
 .mini-dashboard {
   margin-top: 15px;

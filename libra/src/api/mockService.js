@@ -2,7 +2,7 @@
  * mockService.js
  * 模拟 API 服务层，封装了对 mockData 的异步访问
  */
-import { homeData, teamData, activityData, shareData } from './mockData';
+import { homeData, teamData, activityData, shareData, bikeData } from './mockData';
 
 // 模拟网络延迟
 const sleep = (ms = 300) => new Promise(resolve => setTimeout(resolve, ms));
@@ -11,6 +11,13 @@ export const homeService = {
     async getHomeData() {
         await sleep();
         return { ...homeData };
+    }
+};
+
+export const showroomService = {
+    async getShowroomData() {
+        await sleep(500);
+        return { ...bikeData };
     }
 };
 
