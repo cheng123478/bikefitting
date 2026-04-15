@@ -40,30 +40,7 @@
           <!-- 3. 核心分层诊断内容 -->
           <div class="report-sections">
 
-            <!-- 第一块：基础器材建议 (只要录入了身高跨高即解锁) -->
-            <section class="info-section unlocked">
-              <h4 class="section-h4"><i class="fas fa-check-circle"></i> 基础器材建议</h4>
-              <div class="metrics-grid">
-                <div class="metric-item">
-                  <label>建议坐垫高度</label>
-                  <div class="val">{{ profile?.recSaddleHeight || '--' }}</div>
-                </div>
-                <div class="metric-item">
-                  <label>建议坐垫类型</label>
-                  <div class="val">{{ profile?.recSaddleType || '待测定' }}</div>
-                </div>
-                <div class="metric-item">
-                  <label>建议车把高度（Stack）</label>
-                  <div class="val">{{ profile?.recStack || '--' }}</div>
-                </div>
-                <div class="metric-item">
-                  <label>建议前伸距离（Reach）</label>
-                  <div class="val">{{ profile?.recReach || '--' }}</div>
-                </div>
-              </div>
-            </section>
-
-            <!-- 第二块：机能评分 (需要柔韧性数据) -->
+            <!-- 第一块：机能评分 (需要柔韧性数据) -->
             <section class="info-section" :class="{ 'locked-section': !hasFlexData }">
               <h4 class="section-h4">
                 <i :class="hasFlexData ? 'fas fa-check-circle' : 'fas fa-lock'"></i>
