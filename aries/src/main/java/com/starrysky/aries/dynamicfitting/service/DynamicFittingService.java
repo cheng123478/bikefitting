@@ -1,6 +1,7 @@
 package com.starrysky.aries.dynamicfitting.service;
 
 import com.alibaba.fastjson2.JSON;
+import com.alibaba.fastjson2.TypeReference;
 import com.starrysky.aries.dynamicfitting.algorithm.DynamicFittingAlgorithm;
 import com.starrysky.aries.dynamicfitting.algorithm.PedalingSimulationAlgorithm;
 import com.starrysky.aries.dynamicfitting.repository.DynamicFittingMotionDataRepository;
@@ -353,7 +354,7 @@ public class DynamicFittingService {
 
         // 解析指标数据 (扁平化)
         Map<String, Map<String, Object>> overallSummary = JSON.parseObject(result.getSummaryJson(),
-                new com.alibaba.fastjson2.TypeReference<Map<String, Map<String, Object>>>() {
+                new TypeReference<>() {
                 });
 
         if (overallSummary != null) {
