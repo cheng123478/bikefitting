@@ -289,7 +289,7 @@ const loadViewData = async (viewType) => {
   try {
     const [snapRes, motionRes] = await Promise.all([
       getSnapshots(sessionId, viewType.toLowerCase()),
-      getMotionData(sessionId, viewType.toUpperCase())
+      getMotionData(sessionId, viewType.toLowerCase())
     ]);
     
     snapshotsMap.value[viewType] = snapRes.data || snapRes;

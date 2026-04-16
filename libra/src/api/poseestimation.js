@@ -152,18 +152,37 @@ export function usePoseEstimation(viewModeRef = 'side') {
             }
 
             if (isCollecting.value) {
-                // 侧面：KOPS 捕获 - 找到脚踏（即脚尖 toe）达到最大或最前瞬间计算偏移
+                // 侧面：KOPS 捕获 - 找到脚尖（toe）最靠前瞬间，计算膝盖与其水平偏移量
+                // ── 单位修正 ──────────────────────────────────────────────────────
+                // 旧方案：直接用像素差（× w），受拍摄距离和设备分辨率影响，无法跨设备比较。
+                // 新方案：将像素差除以「胫骨长度（膝→踝）的像素长度」，得到不受设备影响的百分比。
+                //         胫骨在同一拍摄场景下与整体画面等比缩放，商值（%）始终保持一致。
+                // 正值 = 膝过偏前（Knee Over）；负值 = 膝偏后（Knee Behind）
+                // 理想范围：|kopsOffset| < 10%（约对应真实偏移 < 4 cm，胫骨按 40 cm 计算）
                 const isFacingRight = lm[idx.shoulder].x > lm[idx.hip].x;
                 const toeX = lm[idx.toe].x;
+
+                // 计算胫骨参考长度（像素）：保留画面比例畸变校正
+                const tibiaLenPx = Math.sqrt(
+                    Math.pow((lm[idx.knee].x - lm[idx.ankle].x) * w, 2) +
+                    Math.pow((lm[idx.knee].y - lm[idx.ankle].y) * h, 2)
+                );
+
                 if (isFacingRight) {
                     if (toeX > collectedData.value.triggerMetrics.max_toe_x) {
                         collectedData.value.triggerMetrics.max_toe_x = toeX;
-                        metrics.value.kopsOffset = Math.round((lm[idx.knee].x - toeX) * w); // 正数：膝过偏前
+                        const rawPx = (lm[idx.knee].x - toeX) * w; // 正数：膝在脚尖前方
+                        metrics.value.kopsOffset = tibiaLenPx > 5
+                            ? Math.round(rawPx / tibiaLenPx * 100 * 10) / 10
+                            : 0;
                     }
                 } else {
                     if (toeX < collectedData.value.triggerMetrics.min_toe_x) {
                         collectedData.value.triggerMetrics.min_toe_x = toeX;
-                        metrics.value.kopsOffset = Math.round((toeX - lm[idx.knee].x) * w);
+                        const rawPx = (toeX - lm[idx.knee].x) * w; // 正数：膝在脚尖前方
+                        metrics.value.kopsOffset = tibiaLenPx > 5
+                            ? Math.round(rawPx / tibiaLenPx * 100 * 10) / 10
+                            : 0;
                     }
                 }
 
@@ -519,13 +538,8 @@ export function usePoseEstimation(viewModeRef = 'side') {
 
     const stopCollection = () => {
         isCollecting.value = false;
-
-        const getAvg = (arr) => arr.length > 0 ? Number((arr.reduce((a, b) => a + b, 0) / arr.length).toFixed(1)) : 0;
-        const getExtreme = (arr, type) => arr.length > 0 ? Number((type === 'max' ? Math.max(...arr) : Math.min(...arr)).toFixed(1)) : 0;
-        const getAbsMax = (arr) => arr.length > 0 ? Number(Math.max(...arr.map(Math.abs)).toFixed(1)) : 0;
-
+        // 关键点：移除冗余的 getAvg, getExtreme, getAbsMax 等未被调用的本地函数
         const mode = getMode();
-
         return collectedData.value;
     };
 
@@ -554,13 +568,18 @@ export function usePoseEstimation(viewModeRef = 'side') {
         return Math.acos(cosVal) * (180 / Math.PI);
     };
 
-    // 【核心修复】：背部角度算法 (由于要消除画面比例畸变，必须乘以真实宽高)
+    // 躯干/连线夹角计算（消除画面比例畸变，须传入真实宽高）
+    // 返回值含义：所传入两点连线向量相对于「水平线」的夹角，范围 0°~90°。
+    //   侧面用途：shoulder→hip 向量的俯仰角（0°=水平趴伏/极度流线型；90°=竖直直立）
+    //   正/背面用途：左右肩连线或左右髋连线与水平线的侧倾角
+    // ⚠ 说明：0° 表示完全水平，90° 表示完全竖直。
+    //          Road 骑行建议目标 40°~50°（即相对水平面有 40~50° 的俯身倾斜）。
     const calculateTorsoAngle = (shoulder, hip, w = 1, h = 1) => {
         if (!shoulder || !hip) return 0;
         // 取绝对值，消除左右骑行方向的影响
         const dy = Math.abs(shoulder.y - hip.y) * h;
         const dx = Math.abs(shoulder.x - hip.x) * w;
-        // 计算相对于水平线的夹角 (0~90度)
+        // atan2(dy, dx)：dy 为竖直分量，dx 为水平分量 → 结果即水平面夹角
         const radians = Math.atan2(dy, dx);
         return radians * 180.0 / Math.PI;
     };
