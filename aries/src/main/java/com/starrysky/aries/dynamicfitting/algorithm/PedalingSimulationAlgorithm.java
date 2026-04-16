@@ -9,67 +9,91 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * 踩踏动态模拟算法
- * 通过运动学追踪数据（Ankle/Knee坐标序列），模拟完整的力学输出波形和左右平衡
+ * 踩踏运动学分析算法 v2.0
+ *
+ * <p><b>数据来源优先级（已修正科学性问题）：</b>
+ * <ol>
+ *   <li><b>正面视频（FRONT）→ 双侧分析（高可信度）</b>：
+ *       同时追踪 L_KNEE / R_KNEE 的 Y 坐标时序，独立测量左右腿振幅，
+ *       直接计算双侧发力比与踩踏对称性。</li>
+ *   <li><b>侧面视频（SIDE）→ 整体踏频补充（中等可信度，对称假设）</b>：
+ *       侧面仅追踪单侧腿运动，无法区分左右腿。
+ *       优先取前端已做播放速度校正的 cadenceRpm，
+ *       并假设左右 50/50 生成力量曲线。</li>
+ *   <li><b>无有效数据 → 返回 null</b>：前端据此隐藏踩踏分析模块，
+ *       不展示随机伪造数据。</li>
+ * </ol>
+ *
+ * <p><b>关于侧面视频为何无法区分双腿：</b><br>
+ * 侧面拍摄时，MediaPipe 仅追踪可见度最高的单侧骨骼点（currentSide），
+ * 摄像头视野内只有一条腿的运动轨迹，另一条腿被遮挡，
+ * 因此无论对时序如何切分，侧面数据均不包含双腿独立信息。
  *
  * @author adice
- * @version 1.0.0
- * @since 2025-12-23
+ * @version 2.0.0
+ * @since 2026-04-16
  */
 @Component
 public class PedalingSimulationAlgorithm {
 
     /**
-     * 核心分析方法
+     * 核心分析入口
      *
-     * @param views 视图列表
-     * @return 分析结果
+     * @param views 各视角数据列表
+     * @return 踩踏分析结果 Map，若无有效数据则返回 null（前端应据此隐藏该模块）
      */
     public Map<String, Object> analyze(List<DynamicFittingRequest.ViewDetailsDTO> views) {
-        Map<String, Object> result = new HashMap<>();
+        if (views == null || views.isEmpty()) return null;
 
         DynamicFittingRequest.ViewDetailsDTO sideView = null;
         DynamicFittingRequest.ViewDetailsDTO frontView = null;
 
-        if (views != null) {
-            for (DynamicFittingRequest.ViewDetailsDTO view : views) {
-                String type = view.getViewType();
-                if (type == null) continue;
-                if (type.equalsIgnoreCase("side")) sideView = view;
-                if (type.equalsIgnoreCase("front")) frontView = view;
+        for (DynamicFittingRequest.ViewDetailsDTO view : views) {
+            String type = view.getViewType();
+            if (type == null) continue;
+            if (type.equalsIgnoreCase("side")) sideView = view;
+            if (type.equalsIgnoreCase("front")) frontView = view;
+        }
+
+        Map<String, Object> result = new HashMap<>();
+        boolean bilateralSuccess = false;
+
+        // ── 阶段 1：优先使用正面视频做双侧分析 ────────────────────────────────
+        if (hasEnoughFrames(frontView, 30)) {
+            Map<String, Object> bilateral = analyzeFrontBilateral(frontView);
+            if (bilateral != null) {
+                result.putAll(bilateral);
+                result.put("bilateralConfidence", "HIGH");
+                result.put("dataSource", "front");
+                bilateralSuccess = true;
             }
         }
 
-        // 1. 如果存在侧面视频，模拟力量曲线和左右比例
-        if (sideView != null && sideView.getFrameData() != null && !sideView.getFrameData().isEmpty()) {
-            result.putAll(simulateSidePedalingKinetics(sideView.getFrameData()));
-        } else {
-            // 提供默认占位符以免前端ECharts崩溃
-            result.put("leftPowerRatio", 50);
-            result.put("rightPowerRatio", 50);
-            result.put("leftPeakAngle", 90);
-            result.put("rightPeakAngle", 90);
-            result.put("upstrokeDragIndex", 20);
-            result.put("forceCurvePoints", generateDefaultCurve());
+        // ── 阶段 2：正面分析失败，退到侧面单腿分析（50/50 对称假设）──────────
+        if (!bilateralSuccess) {
+            if (hasEnoughFrames(sideView, 20)) {
+                Map<String, Object> sideResult = analyzeSideViewKinetics(sideView.getFrameData());
+                result.putAll(sideResult);
+                result.put("bilateralConfidence", "LOW");
+                result.put("dataSource", "side");
+                result.put("analysisNote",
+                        "侧面视频无法区分左右腿，双侧发力数据为对称估算值。如需精确双侧分析，请额外采集正面视频。");
+            } else {
+                // 数据完全不足 → 返回 null，让前端隐藏踩踏分析模块
+                return null;
+            }
         }
 
-        // 2. 如果存在正面视频，提取横向摆动量（Lateral Wobble）
-        if (frontView != null && frontView.getSummary() != null) {
-            Map<String, Object> frontSummary = frontView.getSummary();
-            if (frontSummary.containsKey("maxWobble")) {
-                try {
-                    double wobble = Double.parseDouble(frontSummary.get("maxWobble").toString());
-                    result.put("lateralWobbleLeft", wobble);
-                    result.put("lateralWobbleRight", wobble);
-                } catch (Exception ignored) {
-                }
-            }
-            if (frontSummary.containsKey("avgKneeLateral")) {
-                try {
-                    double lateral = Double.parseDouble(frontSummary.get("avgKneeLateral").toString());
-                    result.put("lateralWobbleLeft", lateral);
-                    result.put("lateralWobbleRight", lateral);
-                } catch (Exception ignored) {
+        // ── 阶段 3：踏频来源 —— 优先使用前端已做速度校正的 cadenceRpm ─────────
+        // 前端（PoseAnalyzer.vue）在 finishSession() 中已将上传模式的时间戳
+        // 乘以 ANALYSIS_SPEED（0.2），得到真实视频时长后计算出正确踏频。
+        // 后端直接读取该值，不再自行从 ts 重新推导（否则会引入同样的 5 倍误差）。
+        if (sideView != null && sideView.getSummary() != null) {
+            Object cadence = sideView.getSummary().get("cadenceRpm");
+            if (cadence instanceof Number) {
+                int rpm = ((Number) cadence).intValue();
+                if (rpm > 0 && rpm <= 200) { // 合理性过滤（人体踏频极限约 160 rpm）
+                    result.put("cadenceRpm", rpm);
                 }
             }
         }
@@ -77,176 +101,315 @@ public class PedalingSimulationAlgorithm {
         return result;
     }
 
-    /**
-     * 根据 Side View 轨迹，解析实际的位移变化 (如 kneeAngle 伸缩率) 模拟 Kinetic 特性
-     *
-     * @param frameData 帧数据列表
-     * @return 模拟结果
-     */
-    private Map<String, Object> simulateSidePedalingKinetics(List<Map<String, Object>> frameData) {
-        Map<String, Object> simulation = new HashMap<>();
+    // ══════════════════════════════════════════════════════════════════════════
+    //  正面视图 - 双侧膝关节 Y 坐标追踪
+    // ══════════════════════════════════════════════════════════════════════════
 
-        // 尝试从 frameData 内提取真实的 kneeAngle 时序微分，作为速度的 Proxy
-        List<Double> speeds = new ArrayList<>();
-        double lastAngle = -1;
-        long lastTs = -1;
+    /**
+     * 正面视图双侧分析。
+     * 通过 L_KNEE / R_KNEE 的 Y 坐标振幅比估算左右腿发力比。
+     * Y 值越大 = 在画面中越低 = 越接近 BDC（踏板下死点）。
+     */
+    private Map<String, Object> analyzeFrontBilateral(DynamicFittingRequest.ViewDetailsDTO frontView) {
+        List<Map<String, Object>> frameData = frontView.getFrameData();
+
+        List<Double> leftKneeY = new ArrayList<>();
+        List<Double> rightKneeY = new ArrayList<>();
 
         for (Map<String, Object> frame : frameData) {
             try {
-                long ts = frame.containsKey("ts") ? Long.parseLong(frame.get("ts").toString()) : -1;
-                if (frame.containsKey("metrics") && frame.get("metrics") instanceof Map) {
-                    Map<String, Object> metrics = (Map<String, Object>) frame.get("metrics");
-                    if (metrics.containsKey("kneeAngle")) {
-                        double currentAngle = Double.parseDouble(metrics.get("kneeAngle").toString());
-                        if (lastAngle != -1 && lastTs != -1 && ts > lastTs) {
-                            // 导数：角速度 (绝对值，因为伸展和屈曲过程都会产生能量)
-                            double delta = Math.abs(currentAngle - lastAngle) / ((ts - lastTs) / 1000.0);
-                            speeds.add(delta);
-                        }
-                        lastAngle = currentAngle;
-                        lastTs = ts;
-                    }
+                Object ptsObj = frame.get("pts");
+                if (!(ptsObj instanceof Map)) continue;
+                @SuppressWarnings("unchecked")
+                Map<String, Object> pts = (Map<String, Object>) ptsObj;
+
+                Double lY = extractPointCoord(pts, "L_KNEE", "y");
+                Double rY = extractPointCoord(pts, "R_KNEE", "y");
+                if (lY != null && rY != null) {
+                    leftKneeY.add(lY);
+                    rightKneeY.add(rY);
                 }
             } catch (Exception ignored) {
             }
         }
 
-        // 如果未成功提取出有效序列，退化为生成的伪数据曲线
-        if (speeds.size() < 10) {
-            int fallbackLeft = 48 + (int) (Math.random() * 4);
-            simulation.put("leftPowerRatio", fallbackLeft);
-            simulation.put("rightPowerRatio", 100 - fallbackLeft);
-            simulation.put("leftPeakAngle", 90 + (int) (Math.random() * 8));
-            simulation.put("rightPeakAngle", 92 + (int) (Math.random() * 8));
-            simulation.put("upstrokeDragIndex", 15 + (int) (Math.random() * 20));
-            simulation.put("forceCurvePoints", generateSynthesizedCurve(fallbackLeft, 100 - fallbackLeft));
-            return simulation;
+        if (leftKneeY.size() < 30) return null; // 帧数不足，分析结果不可靠
+
+        // 峰值检测（windowSize=8：要求峰值领先/落后8帧均为最优）
+        List<Integer> leftPeaks = findPeaks(leftKneeY, 8);
+        List<Integer> rightPeaks = findPeaks(rightKneeY, 8);
+
+        if (leftPeaks.size() < 2 || rightPeaks.size() < 2) return null;
+
+        // 振幅均值（BDC峰值 - 段内最小值）作为发力强度代理
+        double leftAmp = calculateMeanAmplitude(leftKneeY, leftPeaks);
+        double rightAmp = calculateMeanAmplitude(rightKneeY, rightPeaks);
+
+        // 左右发力比（限制在 35%–65%）
+        double totalAmp = leftAmp + rightAmp;
+        int leftRatio = 50;
+        if (totalAmp > 0.001) {
+            leftRatio = (int) Math.round((leftAmp / totalAmp) * 100.0);
+            leftRatio = Math.max(35, Math.min(65, leftRatio));
         }
-
-        // --- 真实时序合成逻辑 (简易版 360映射) ---
-        // 我们将整个采集时序映射到一个或多个 360 度圆周里
-        double maxSpeed = speeds.stream().max(Double::compareTo).orElse(1.0);
-
-        // 粗略估算左右脚能量差 (取前一半周期和后一半周期的平均速度差)
-        int halfSize = speeds.size() / 2;
-        double leftSum = speeds.subList(0, halfSize).stream().mapToDouble(Double::doubleValue).sum();
-        double rightSum = speeds.subList(halfSize, speeds.size()).stream().mapToDouble(Double::doubleValue).sum();
-
-        int leftRatio = (int) Math.round((leftSum / (leftSum + rightSum)) * 100);
-        leftRatio = Math.max(40, Math.min(60, leftRatio)); // 限制在合理范围内
         int rightRatio = 100 - leftRatio;
 
-        simulation.put("leftPowerRatio", leftRatio);
-        simulation.put("rightPowerRatio", rightRatio);
+        // 提拉阻力指数：谷底越浅（相对振幅）→ 提拉越困难
+        double valleyRatio = calculateMeanValleyRatio(leftKneeY, leftPeaks);
+        int upstrokeDrag = Math.max(0, Math.min(100, (int) Math.round((1.0 - valleyRatio) * 100)));
 
-        int leftPeakIndex = 0;
-        double currentMaxLeft = 0;
-        int rightPeakIndex = 0;
-        double currentMaxRight = 0;
+        // 构建结果
+        Map<String, Object> result = new HashMap<>();
+        result.put("leftPowerRatio", leftRatio);
+        result.put("rightPowerRatio", rightRatio);
+        result.put("leftPeakAngle", 90);   // BDC 通常对应约 90°（曲柄在3点钟位置）
+        result.put("rightPeakAngle", 270); // 右腿 BDC 约对应 270°
+        result.put("upstrokeDragIndex", upstrokeDrag);
+        result.put("forceCurvePoints", generateBilateralCurve(leftRatio, rightRatio));
 
-        List<Map<String, Object>> forceCurvePoints = new ArrayList<>();
-        // 将速度序列强行按比例拉伸/压缩到 360 度 (约 72 个 5度间隔点)
-        int targetPoints = 73; // 0 to 360 by 5
-        for (int i = 0; i < targetPoints; i++) {
-            int angle = i * 5;
-
-            // 将 0-180 视为左腿发力区, 180-360 视为右腿发力区
-            // 用插值或对应映射取得归一化 speed
-            int sourceIndex = (int) (i / (double) targetPoints * speeds.size());
-            sourceIndex = Math.min(sourceIndex, speeds.size() - 1);
-
-            double speedVal = speeds.get(sourceIndex);
-            double normalized = (speedVal / maxSpeed) * 100.0;
-
-            double leftV;
-            double rightV;
-
-            if (angle <= 180) {
-                leftV = normalized;
-                rightV = -(normalized * 0.1);
-                if (leftV > currentMaxLeft) {
-                    currentMaxLeft = leftV;
-                    leftPeakIndex = angle;
-                }
-            } else {
-                rightV = normalized;
-                leftV = -(normalized * 0.1);
-                if (rightV > currentMaxRight) {
-                    currentMaxRight = rightV;
-                    rightPeakIndex = angle;
-                }
+        // 从正面 summary 提取膝盖横摆量（归一化用骨盆宽度）
+        if (frontView.getSummary() != null) {
+            Map<String, Object> fs = frontView.getSummary();
+            Double wobble = extractDoubleFromMap(fs, "maxWobbleRatio");
+            if (wobble == null) wobble = extractDoubleFromMap(fs, "maxWobble");
+            if (wobble != null) {
+                result.put("lateralWobbleLeft", Math.round(wobble * 10) / 10.0);
+                result.put("lateralWobbleRight", Math.round(wobble * 10) / 10.0);
             }
-
-            Map<String, Object> point = new HashMap<>();
-            point.put("angle", angle);
-            point.put("leftVelocity", Math.round(leftV * 10) / 10.0);
-            point.put("rightVelocity", Math.round(rightV * 10) / 10.0);
-            point.put("totalVelocity", Math.round((Math.max(0, leftV) + Math.max(0, rightV)) * 10) / 10.0);
-            forceCurvePoints.add(point);
         }
 
-        simulation.put("leftPeakAngle", leftPeakIndex == 0 ? 90 : leftPeakIndex);
-        simulation.put("rightPeakAngle", rightPeakIndex == 0 ? 270 : rightPeakIndex);
-
-        // 估算拖拽指数：找速度的波谷
-        double minSpeed = speeds.stream().min(Double::compareTo).orElse(0.0);
-        simulation.put("upstrokeDragIndex", (int) (minSpeed / maxSpeed * 100));
-
-        simulation.put("forceCurvePoints", forceCurvePoints);
-
-        return simulation;
+        return result;
     }
 
+    // ══════════════════════════════════════════════════════════════════════════
+    //  侧面视图 - 整体运动曲线估算（不区分左右腿）
+    // ══════════════════════════════════════════════════════════════════════════
+
     /**
-     * 生成默认的曲线数据
-     *
-     * @param leftRatio  左脚比例
-     * @param rightRatio 右脚比例
-     * @return 曲线数据
+     * 侧面视图运动学分析。
+     * 无法区分左右腿，使用 50/50 对称假设，
+     * 从膝角时序提取曲线形状特征。
      */
-    private List<Map<String, Object>> generateSynthesizedCurve(int leftRatio, int rightRatio) {
+    private Map<String, Object> analyzeSideViewKinetics(List<Map<String, Object>> frameData) {
+        Map<String, Object> result = new HashMap<>();
+        List<Double> kneeAngles = new ArrayList<>();
+
+        for (Map<String, Object> frame : frameData) {
+            try {
+                Object metricsObj = frame.get("metrics");
+                if (!(metricsObj instanceof Map)) continue;
+                @SuppressWarnings("unchecked")
+                Map<String, Object> metrics = (Map<String, Object>) metricsObj;
+                Double angle = extractDouble(metrics, "kneeAngle");
+                if (angle != null && angle > 0) {
+                    kneeAngles.add(angle);
+                }
+            } catch (Exception ignored) {
+            }
+        }
+
+        // 固定 50/50（侧面无双腿信息）
+        result.put("leftPowerRatio", 50);
+        result.put("rightPowerRatio", 50);
+        result.put("leftPeakAngle", 90);
+        result.put("rightPeakAngle", 270);
+
+        if (kneeAngles.size() >= 15) {
+            // 从膝角峰谷估算提拉阻力指数
+            List<Integer> peaks = findPeaks(kneeAngles, 8);
+            int drag = 20;
+            if (peaks.size() >= 2) {
+                double valleyRatio = calculateMeanValleyRatio(kneeAngles, peaks);
+                drag = Math.max(0, Math.min(100, (int) Math.round((1.0 - valleyRatio) * 100)));
+            }
+            result.put("upstrokeDragIndex", drag);
+            result.put("forceCurvePoints", generateSymmetricCurveFromAngles(kneeAngles));
+        } else {
+            result.put("upstrokeDragIndex", 20);
+            result.put("forceCurvePoints", generateBilateralCurve(50, 50));
+        }
+
+        return result;
+    }
+
+    // ══════════════════════════════════════════════════════════════════════════
+    //  力量曲线生成（确定性，无随机值）
+    // ══════════════════════════════════════════════════════════════════════════
+
+    /**
+     * 根据左右腿发力比生成确定性双侧力量曲线。
+     * 左腿：0°~180° 下压正弦；右腿：180°~360° 下压正弦。
+     * 不包含任何随机噪声，保证相同输入总产生相同输出。
+     */
+    private List<Map<String, Object>> generateBilateralCurve(int leftRatio, int rightRatio) {
         List<Map<String, Object>> points = new ArrayList<>();
         double leftScale = leftRatio / 50.0;
         double rightScale = rightRatio / 50.0;
 
         for (int angle = 0; angle <= 360; angle += 5) {
-            Map<String, Object> point = new HashMap<>();
-            point.put("angle", angle);
-
             double leftV;
             if (angle <= 180) {
-                leftV = Math.sin(Math.toRadians(angle)) * 100 * leftScale;
+                leftV = Math.sin(Math.toRadians(angle)) * 100.0 * leftScale;
             } else {
-                leftV = -Math.sin(Math.toRadians(angle - 180)) * 15 * leftScale;
+                // 提拉阶段：轻微负值（被动阻力）
+                leftV = -Math.sin(Math.toRadians(angle - 180)) * 15.0 * leftScale;
             }
 
             double rightV;
             if (angle >= 180) {
-                rightV = Math.sin(Math.toRadians(angle - 180)) * 100 * rightScale;
+                rightV = Math.sin(Math.toRadians(angle - 180)) * 100.0 * rightScale;
             } else {
-                rightV = -Math.sin(Math.toRadians(angle)) * 15 * rightScale;
+                // 提拉阶段：轻微负值
+                rightV = -Math.sin(Math.toRadians(angle)) * 15.0 * rightScale;
             }
 
-            double noiseL = (Math.random() - 0.5) * 5;
-            double noiseR = (Math.random() - 0.5) * 5;
-            leftV = Math.max(-20, leftV + noiseL);
-            rightV = Math.max(-20, rightV + noiseR);
+            leftV = Math.max(-20, leftV);
+            rightV = Math.max(-20, rightV);
 
+            Map<String, Object> point = new HashMap<>();
+            point.put("angle", angle);
             point.put("leftVelocity", Math.round(leftV * 10) / 10.0);
             point.put("rightVelocity", Math.round(rightV * 10) / 10.0);
             point.put("totalVelocity", Math.round((Math.max(0, leftV) + Math.max(0, rightV)) * 10) / 10.0);
-
             points.add(point);
         }
         return points;
     }
 
     /**
-     * 生成默认的曲线数据
-     *
-     * @return 曲线数据
+     * 从侧面膝角时序生成对称力量曲线。
+     * 使用实际角度数据修正正弦基形，但保持左右对称。
      */
-    private List<Map<String, Object>> generateDefaultCurve() {
-        return generateSynthesizedCurve(50, 50);
+    private List<Map<String, Object>> generateSymmetricCurveFromAngles(List<Double> kneeAngles) {
+        List<Map<String, Object>> points = new ArrayList<>();
+        int n = kneeAngles.size();
+
+        for (int i = 0; i <= 72; i++) {
+            int angle = i * 5;
+            // 将角度映射到原始数据索引
+            int srcIdx = Math.min((int) ((double) i / 72.0 * n), n - 1);
+            double rawAngle = kneeAngles.get(srcIdx);
+
+            // 角度越大（越接近 BDC）→ 发力越强；归一化修正因子
+            double modifier = Math.max(0.6, Math.min(1.5, (rawAngle - 90.0) / 60.0 + 1.0));
+            double base = Math.abs(Math.sin(Math.toRadians(angle))) * 100.0 * modifier;
+
+            double leftV = angle <= 180 ? base : -(base * 0.1);
+            double rightV = angle > 180 ? base : -(base * 0.1);
+            leftV = Math.max(-20, leftV);
+            rightV = Math.max(-20, rightV);
+
+            Map<String, Object> point = new HashMap<>();
+            point.put("angle", angle);
+            point.put("leftVelocity", Math.round(leftV * 10) / 10.0);
+            point.put("rightVelocity", Math.round(rightV * 10) / 10.0);
+            point.put("totalVelocity", Math.round((Math.max(0, leftV) + Math.max(0, rightV)) * 10) / 10.0);
+            points.add(point);
+        }
+        return points;
+    }
+
+    // ══════════════════════════════════════════════════════════════════════════
+    //  信号处理工具方法
+    // ══════════════════════════════════════════════════════════════════════════
+
+    /**
+     * 简单峰值检测：要求候选点大于其前后 windowSize 帧内的所有值，
+     * 且相邻峰值最小间距为 windowSize 帧，避免重复计数。
+     */
+    private List<Integer> findPeaks(List<Double> data, int windowSize) {
+        List<Integer> peaks = new ArrayList<>();
+        if (data == null || data.size() < windowSize * 2 + 1) return peaks;
+
+        for (int i = windowSize; i < data.size() - windowSize; i++) {
+            double val = data.get(i);
+            boolean isPeak = true;
+            for (int j = i - windowSize; j <= i + windowSize; j++) {
+                if (j != i && data.get(j) >= val) {
+                    isPeak = false;
+                    break;
+                }
+            }
+            if (isPeak && (peaks.isEmpty() || i - peaks.get(peaks.size() - 1) > windowSize)) {
+                peaks.add(i);
+            }
+        }
+        return peaks;
+    }
+
+    /**
+     * 计算各踩踏周期振幅（峰值 - 段内谷值）的均值。
+     * 振幅差越大 → 腿部运动范围越大 → 作为发力强度代理。
+     */
+    private double calculateMeanAmplitude(List<Double> data, List<Integer> peaks) {
+        if (peaks.size() < 2) return 0.0;
+        double sumAmp = 0;
+        int count = 0;
+        for (int i = 0; i < peaks.size() - 1; i++) {
+            int start = peaks.get(i);
+            int end = peaks.get(i + 1);
+            double peakVal = data.get(start);
+            double valleyVal = data.subList(start, end).stream()
+                    .mapToDouble(Double::doubleValue).min().orElse(peakVal);
+            sumAmp += (peakVal - valleyVal);
+            count++;
+        }
+        return count > 0 ? sumAmp / count : 0.0;
+    }
+
+    /**
+     * 计算谷底相对高度比（谷底值 / 峰值），用于估算提拉阻力。
+     * 比值越高 → 谷底越浅 → 提拉越主动（提拉拖拽指数越低）。
+     */
+    private double calculateMeanValleyRatio(List<Double> data, List<Integer> peaks) {
+        if (peaks.size() < 2) return 0.5;
+        double sumRatio = 0;
+        int count = 0;
+        for (int i = 0; i < peaks.size() - 1; i++) {
+            int start = peaks.get(i);
+            int end = peaks.get(i + 1);
+            double peakVal = data.get(start);
+            double valleyVal = data.subList(start, end).stream()
+                    .mapToDouble(Double::doubleValue).min().orElse(peakVal);
+            if (peakVal > 0.001) {
+                sumRatio += valleyVal / peakVal;
+                count++;
+            }
+        }
+        return count > 0 ? sumRatio / count : 0.5;
+    }
+
+    // ══════════════════════════════════════════════════════════════════════════
+    //  数据提取工具
+    // ══════════════════════════════════════════════════════════════════════════
+
+    private boolean hasEnoughFrames(DynamicFittingRequest.ViewDetailsDTO view, int minFrames) {
+        return view != null && view.getFrameData() != null && view.getFrameData().size() >= minFrames;
+    }
+
+    private Double extractPointCoord(Map<String, Object> pts, String pointKey, String coord) {
+        Object pointObj = pts.get(pointKey);
+        if (!(pointObj instanceof Map)) return null;
+        @SuppressWarnings("unchecked")
+        Map<String, Object> ptMap = (Map<String, Object>) pointObj;
+        // 可见度过滤：v < 0.4 认为该点不可靠
+        Double v = extractDouble(ptMap, "v");
+        if (v != null && v < 0.4) return null;
+        return extractDouble(ptMap, coord);
+    }
+
+    private Double extractDouble(Map<String, Object> map, String key) {
+        Object val = map.get(key);
+        if (val == null) return null;
+        if (val instanceof Number) return ((Number) val).doubleValue();
+        try {
+            return Double.parseDouble(val.toString());
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    private Double extractDoubleFromMap(Map<String, Object> map, String key) {
+        return extractDouble(map, key);
     }
 }
