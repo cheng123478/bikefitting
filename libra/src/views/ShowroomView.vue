@@ -84,7 +84,7 @@
             <div class="bike-img-wrapper">
               <img :src="bike.img" :alt="bike.model" class="bike-img">
               <div class="card-overlay">
-                <button class="btn btn-sm btn-white">查看细节</button>
+                <button class="btn btn-sm btn-white" @click="openPreview(bike)">查看细节</button>
               </div>
               <span class="bike-year">{{ bike.year }}</span>
             </div>
@@ -110,6 +110,22 @@
       </main>
     </div>
   </div>
+
+  <!-- 图片放大预览 -->
+  <Teleport to="body">
+    <Transition name="preview-fade">
+      <div v-if="previewVisible" class="image-preview-overlay" @click="closePreview">
+        <div class="preview-content" @click.stop>
+          <button class="preview-close" @click="closePreview"><i class="fas fa-times"></i></button>
+          <img :src="previewImage" :alt="previewTitle" class="preview-img">
+          <div class="preview-info">
+            <span class="preview-brand">{{ previewBrand }}</span>
+            <h3 class="preview-title">{{ previewTitle }}</h3>
+          </div>
+        </div>
+      </div>
+    </Transition>
+  </Teleport>
   </div>
 </template>
 
@@ -147,6 +163,24 @@ const fetchData = async () => {
   } finally {
     loading.value = false;
   }
+};
+
+const previewVisible = ref(false);
+const previewImage = ref('');
+const previewTitle = ref('');
+const previewBrand = ref('');
+
+const openPreview = (bike) => {
+  previewImage.value = bike.img;
+  previewTitle.value = bike.model;
+  previewBrand.value = bike.brand;
+  previewVisible.value = true;
+  document.body.style.overflow = 'hidden';
+};
+
+const closePreview = () => {
+  previewVisible.value = false;
+  document.body.style.overflow = '';
 };
 
 onMounted(fetchData);
@@ -520,5 +554,91 @@ onMounted(fetchData);
   .brand-grid {
     grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
   }
+}
+
+/* 图片放大预览 */
+.image-preview-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  background: rgba(0, 0, 0, 0.85);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  backdrop-filter: blur(8px);
+}
+
+.preview-content {
+  position: relative;
+  max-width: 90vw;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.preview-img {
+  max-width: 100%;
+  max-height: 75vh;
+  object-fit: contain;
+  border-radius: 8px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+}
+
+.preview-close {
+  position: absolute;
+  top: -40px;
+  right: 0;
+  background: none;
+  border: none;
+  color: white;
+  font-size: 1.5rem;
+  cursor: pointer;
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  transition: 0.3s;
+}
+
+.preview-close:hover {
+  background: rgba(255, 255, 255, 0.15);
+}
+
+.preview-info {
+  margin-top: 20px;
+  text-align: center;
+}
+
+.preview-brand {
+  font-size: 0.8rem;
+  font-weight: 800;
+  color: var(--primary-color);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.preview-title {
+  color: white;
+  font-size: 1.4rem;
+  font-weight: 700;
+  margin-top: 6px;
+}
+
+.preview-fade-enter-active,
+.preview-fade-leave-active {
+  transition: all 0.3s ease;
+}
+
+.preview-fade-enter-from,
+.preview-fade-leave-to {
+  opacity: 0;
+}
+
+.preview-fade-enter-from .preview-content,
+.preview-fade-leave-to .preview-content {
+  transform: scale(0.92);
 }
 </style>

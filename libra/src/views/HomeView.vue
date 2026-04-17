@@ -156,20 +156,7 @@
               </div>
             </div>
 
-            <!-- Full Width Bar: Bike Recommendation -->
-            <div class="console-bar glass-panel" @click="router.push('/showroom')">
-              <div class="bar-content">
-                <i class="fas fa-magic spark-effect"></i>
-                <div class="bar-text">
-                  <span class="bar-title">单车推荐</span>
-                  <span class="bar-subtitle">基于您的生物力学模型，在展厅中智能检索最适配的品牌尺寸</span>
-                </div>
-              </div>
-              <div class="bar-action">
-                <span>EXPLORE</span>
-                <i class="fas fa-chevron-right"></i>
-              </div>
-            </div>
+
           </div>
         </div>
       </div>
@@ -387,13 +374,7 @@ onUnmounted(() => {
 .panel-title-sm { color: var(--text-main); font-size: 1.05rem; margin-bottom: 2px; font-weight: 700; }
 .panel-desc-sm { color: var(--text-muted); font-size: 0.75rem; }
 
-.console-bar { grid-column: span 2; display: flex; justify-content: space-between; align-items: center; padding: 20px 40px; border-left: 4px solid var(--primary-color); background: #fff; }
-.bar-content { display: flex; align-items: center; gap: 25px; }
-.spark-effect { font-size: 1.4rem; color: var(--accent-gold); }
-.bar-text { display: flex; flex-direction: column; }
-.bar-title { color: var(--text-main); font-size: 1.05rem; font-weight: 700; margin-bottom: 1px; }
-.bar-subtitle { color: var(--text-muted); font-size: 0.8rem; font-family: var(--font-serif); font-style: italic; }
-.bar-action { color: var(--primary-dark); font-size: 0.7rem; font-weight: 800; letter-spacing: 2px; display: flex; align-items: center; gap: 10px; }
+
 
 /* Animations */
 @keyframes spin { from { transform: rotate(0); } to { transform: rotate(360deg); } }
@@ -403,7 +384,6 @@ onUnmounted(() => {
 
 @media (max-width: 900px) {
   .console-layout { grid-template-columns: 1fr; }
-  .console-bar { grid-column: span 1; padding: 20px; }
   .showroom-horizontal-grid { grid-template-columns: 1fr 1fr; }
   .section-island { padding: 40px 20px; }
   .section-title { font-size: 2rem; }
@@ -417,7 +397,6 @@ onUnmounted(() => {
 
 @media (max-width: 900px) {
   .console-layout { grid-template-columns: 1fr; }
-  .console-bar { grid-column: span 1; }
   .showroom-horizontal-grid { grid-template-columns: 1fr 1fr; }
   .section-title { font-size: 2.2rem; }
 }
