@@ -33,7 +33,7 @@
                 <div class="zen-form-item full-width autocomplete-container">
                   <div class="label-row">
                     <label class="input-label">品牌 (中/英文搜索) *</label>
-                    <button v-if="formData.brand && !isEdit" type="button" class="btn-reset" @click="resetSearch">重新检索型号</button>
+                    <button v-if="formData.brand && !isEdit" type="button" class="btn-reset" :class="{ 'force-clickable': isGeometryLocked }" @click.stop.prevent="resetSearch">重新检索型号</button>
                   </div>
                   <div class="search-input-wrapper">
                     <input
@@ -55,42 +55,51 @@
                     <!-- 搜索结果下拉 -->
                     <transition name="fade-slide-y">
                       <div class="search-dropdown glass-card" v-if="showDropdown && formData.brand && !isEdit && !isManualMode">
-                        <div v-if="modelSuggestions.length === 0 && !isSearching" class="dropdown-empty">
-                          未在库中找到相关型号
+                        <!-- 顶部固定：手动录入入口 -->
+                        <div class="dropdown-header">
+                          <span class="header-text">未找到型号？</span>
                           <button class="manual-entry-btn" @mousedown="enableManualEntry">手动录入</button>
                         </div>
-                        <div v-for="item in modelSuggestions" :key="item.model" class="suggestion-item" @mousedown="selectModelGroup(item)">
-                          <div class="item-main">
-                            <span class="s-brand">{{ item.brand }}</span>
-                            <span class="s-model">{{ item.model }}</span>
+                        <div class="dropdown-divider"></div>
+                        <!-- 可滚动区域 -->
+                        <div class="dropdown-scroll-area">
+                          <div v-if="modelSuggestions.length === 0 && !isSearching" class="dropdown-empty">
+                            未在库中找到相关型号
                           </div>
-                          <span class="s-cn" v-if="item.brandCn">{{ item.brandCn }}</span>
+                          <div v-for="item in modelSuggestions" :key="item.model" class="suggestion-item" @mousedown="selectModelGroup(item)">
+                            <div class="item-main">
+                              <span class="s-brand">{{ item.brand }}</span>
+                              <span class="s-model">{{ item.model }}</span>
+                            </div>
+                            <span class="s-cn" v-if="item.brandCn">{{ item.brandCn }}</span>
+                          </div>
                         </div>
                       </div>
                     </transition>
-                    <!-- 搜索辅助提示：当有品牌输入但没有型号且不是手动模式时显示 -->
-                    <div class="manual-entry-helper" v-if="formData.brand && !formData.model && !isManualMode && !showDropdown && !isEdit">
-                      未找到型号？<button type="button" class="btn-text-link" @click="enableManualEntry">手动录入</button>
-                    </div>
                   </div>
                 </div>
 
-                <!-- 关联身份信息：仅在 1.手动模式 2.已选型号 3.编辑模式 时显示 -->
-                <template v-if="isManualMode || (formData.brand && formData.model) || isEdit">
+                <!-- 步骤 2：品牌和型号（选择型号后显示） -->
+                <template v-if="currentStep !== 'search' || isManualMode">
                   <div class="grid-2">
                     <div class="zen-form-item">
                       <label class="input-label">中文品牌</label>
-                      <input v-model="formData.brandCn" class="zen-input" :disabled="isGeometryLocked || isEdit" @focus="activeField = 'brandCn'">
+                      <input v-model="formData.brandCn" class="zen-input" :disabled="!isManualMode || isEdit" @focus="activeField = 'brandCn'">
                     </div>
                     <div class="zen-form-item">
                       <label class="input-label">具体型号 *</label>
-                      <input v-model="formData.model" class="zen-input" :disabled="isGeometryLocked || isEdit" @focus="activeField = 'model'">
+                      <input v-model="formData.model" class="zen-input" :disabled="!isManualMode || isEdit" @focus="activeField = 'model'">
                     </div>
                   </div>
+                </template>
 
-                  <!-- 级联：年份选择药丸 -->
-                  <div class="zen-form-item full-width" v-if="availableYears.length > 0 && !isManualMode && !formData.modelYear">
-                    <label class="input-label">选择生产年份</label>
+                <!-- 步骤 3：年份选择（自动模式下，选择型号后显示） -->
+                <template v-if="!isManualMode && currentStep !== 'search'">
+                  <!-- 年份选择药丸 -->
+                  <div class="zen-form-item full-width year-selection-highlight" v-if="availableYears.length > 0 && !formData.modelYear">
+                    <label class="input-label">
+                      <i class="fas fa-hand-point-right highlight-icon"></i> 选择生产年份
+                    </label>
                     <div class="pill-group">
                       <button v-for="y in availableYears" :key="y"
                               class="pill-btn" :class="{ active: formData.modelYear === y }"
@@ -100,9 +109,23 @@
                     </div>
                   </div>
 
-                  <!-- 级联：尺寸选择药丸 -->
-                  <div class="zen-form-item full-width" v-if="formData.modelYear && availableSizes.length > 0 && !isManualMode && !formData.size">
-                    <label class="input-label">选择车架尺码</label>
+                  <!-- 年份已选择后显示锁定状态 -->
+                  <div class="zen-form-item full-width" v-if="formData.modelYear">
+                    <label class="input-label">生产年份</label>
+                    <div class="locked-field">
+                      <span class="locked-value">{{ formData.modelYear }}</span>
+                      <span class="lock-icon"><i class="fas fa-lock"></i></span>
+                    </div>
+                  </div>
+                </template>
+
+                <!-- 步骤 4：尺码选择（自动模式下，选择年份后显示） -->
+                <template v-if="!isManualMode && formData.modelYear">
+                  <!-- 尺码选择药丸 -->
+                  <div class="zen-form-item full-width size-selection-highlight" v-if="availableSizes.length > 0 && !formData.size">
+                    <label class="input-label">
+                      <i class="fas fa-hand-point-right highlight-icon"></i> 选择车架尺码
+                    </label>
                     <div class="pill-group">
                       <button v-for="s in availableSizes" :key="s"
                               class="pill-btn" :class="{ active: formData.size === s }"
@@ -112,219 +135,239 @@
                     </div>
                   </div>
 
-                  <div class="grid-2">
-                    <div class="zen-form-item">
-                      <label class="input-label">年份</label>
-                      <input v-model="formData.modelYear" class="zen-input" placeholder="2024" :disabled="isGeometryLocked || isEdit" @focus="activeField = 'modelYear'">
-                    </div>
-                    <div class="zen-form-item">
-                      <label class="input-label">尺码</label>
-                      <input v-model="formData.size" class="zen-input" placeholder="例如: 52/M" :disabled="isGeometryLocked || isEdit" @focus="activeField = 'size'">
+                  <!-- 尺码已选择后显示锁定状态 -->
+                  <div class="zen-form-item full-width" v-if="formData.size">
+                    <label class="input-label">车架尺码</label>
+                    <div class="locked-field">
+                      <span class="locked-value">{{ formData.size }}</span>
+                      <span class="lock-icon"><i class="fas fa-lock"></i></span>
                     </div>
                   </div>
                 </template>
 
-                <div class="zen-form-item" @click="activeField = 'type'" v-if="isManualMode || (formData.brand && formData.model) || isEdit">
-                  <label class="input-label">单车类型</label>
-                  <div class="type-selector" :class="{ disabled: isGeometryLocked || isEdit }">
-                    <button v-for="type in bikeTypes" :key="type.code"
-                            :class="{active: formData.bikeType === type.code}"
-                            @click="formData.bikeType = type.code" type="button">
-                      {{ type.name }}
-                    </button>
+                <!-- 手动模式下的年份和尺码输入 -->
+                <template v-if="isManualMode">
+                  <div class="grid-2">
+                    <div class="zen-form-item">
+                      <label class="input-label">年份</label>
+                      <input v-model="formData.modelYear" class="zen-input" placeholder="2024" :disabled="isEdit" @focus="activeField = 'modelYear'">
+                    </div>
+                    <div class="zen-form-item">
+                      <label class="input-label">尺码</label>
+                      <input v-model="formData.size" class="zen-input" placeholder="例如: 52/M" :disabled="isEdit" @focus="activeField = 'size'">
+                    </div>
                   </div>
-                </div>
-              </div>
-              <div class="zen-form-item">
-                <label class="input-label">单车备注</label>
-                <input v-model="formData.remark" class="zen-input" placeholder="例如：我的主力爬坡单车" @focus="activeField = 'remark'">
+                </template>
+
+                <!-- 步骤 5：其他基础信息（自动模式下选择尺码后显示，手动模式下始终显示） -->
+                <template v-if="isManualMode || currentStep === 'complete'">
+                  <div class="zen-form-item" @click="activeField = 'type'">
+                    <label class="input-label">单车类型</label>
+                    <div class="type-selector" :class="{ disabled: !isManualMode && isGeometryLocked }">
+                      <button v-for="type in bikeTypes" :key="type.code"
+                              :class="{active: formData.bikeType === type.code}"
+                              @click="formData.bikeType = type.code" type="button">
+                        {{ type.name }}
+                      </button>
+                    </div>
+                  </div>
+                </template>
               </div>
 
-              <!-- 图片上传：带 /api 前缀回显 -->
-              <div class="zen-form-item full-width" v-if="isManualMode || (formData.brand && formData.model) || isEdit">
-                <label class="input-label">单车视觉快照</label>
-                <div class="image-uploader" @click="triggerUpload" :class="{ 'has-img': formData.imageUrl }" @mouseenter="activeField = 'imageUrl'">
-                  <img v-if="formData.imageUrl" :src="formData.imageUrl.startsWith('http') ? formData.imageUrl : '/api' + formData.imageUrl" class="preview-img" />
-                  <div v-else class="upload-placeholder">
-                    <i class="fas fa-camera-retro"></i>
-                    <span>上传实车美照</span>
-                    <p>建议使用白底或侧面无背景照片</p>
-                  </div>
-                  <input type="file" ref="fileInput" hidden @change="handleFileChange" accept="image/*" :disabled="isGeometryLocked || isEdit" />
-                  <div class="upload-mask" v-if="uploading">
-                    <i class="fas fa-circle-notch fa-spin"></i>
+              <!-- 单车备注和图片上传：不在锁定区域内，始终可编辑 -->
+              <template v-if="isManualMode || currentStep === 'complete'">
+                <div class="zen-form-item">
+                  <label class="input-label">单车备注</label>
+                  <input v-model="formData.remark" class="zen-input" placeholder="例如：我的主力爬坡单车" @focus="activeField = 'remark'">
+                </div>
+
+                <!-- 图片上传 -->
+                <div class="zen-form-item full-width">
+                  <label class="input-label">单车视觉快照</label>
+                  <div class="image-uploader" @click="triggerUpload" :class="{ 'has-img': formData.imageUrl }" @mouseenter="activeField = 'imageUrl'">
+                    <img v-if="formData.imageUrl" :src="formData.imageUrl.startsWith('http') ? formData.imageUrl : '/api' + formData.imageUrl" class="preview-img" />
+                    <div v-else class="upload-placeholder">
+                      <i class="fas fa-camera-retro"></i>
+                      <span>上传实车美照</span>
+                      <p>建议使用白底或侧面无背景照片</p>
+                    </div>
+                    <input type="file" ref="fileInput" hidden @change="handleFileChange" accept="image/*">
+                    <div class="upload-mask" v-if="uploading">
+                      <i class="fas fa-circle-notch fa-spin"></i>
+                    </div>
                   </div>
                 </div>
-              </div>
-
+              </template>
             </div>
           </div>
 
-          <div class="divider"></div>
-
-          <!-- 模块 02：车架几何 (DNA) -->
-          <div class="form-group" :class="{ 'locked-section': isGeometryLocked || isEdit }">
-            <div class="group-header">
-              <h4 class="group-title">02 车架几何 (Frame Geometry)</h4>
-              <div v-if="isGeometryLocked || isEdit" class="lock-tag"><i class="fas fa-shield-alt"></i> 数据已锁定</div>
-            </div>
-            <p class="group-desc">数据来源：厂商官网几何表。这是 Fitting 方案的基础。</p>
-            <div class="input-grid">
-              <div class="grid-2">
-                <div class="zen-form-item">
-                  <label class="input-label">堆高 * </label>
-                  <div class="input-with-unit">
-                    <input type="number" v-model.number="formData.stack" class="zen-input" :disabled="isGeometryLocked || isEdit" @focus="activeField = 'stack'">
-                    <span class="unit">mm</span>
-                  </div>
-                </div>
-                <div class="zen-form-item">
-                  <label class="input-label">前伸量 * </label>
-                  <div class="input-with-unit">
-                    <input type="number" v-model.number="formData.reach" class="zen-input" :disabled="isGeometryLocked || isEdit" @focus="activeField = 'reach'">
-                    <span class="unit">mm</span>
-                  </div>
-                </div>
+          <!-- 模块 02：车架几何（自动模式下选择尺码后显示，手动模式下始终显示） -->
+          <template v-if="isManualMode || currentStep === 'complete'">
+            <div class="divider"></div>
+            <div class="form-group" :class="{ 'locked-section': !isManualMode && isGeometryLocked }">
+              <div class="group-header">
+                <h4 class="group-title">02 车架几何 (Frame Geometry)</h4>
+                <div v-if="!isManualMode && isGeometryLocked" class="lock-tag"><i class="fas fa-shield-alt"></i> 数据已锁定</div>
               </div>
-              <div class="grid-3">
-                <div class="zen-form-item">
-                  <label class="input-label">立管角度 * </label>
-                  <div class="input-with-unit">
-                    <input type="number" step="0.1" v-model.number="formData.seatTubeAngle" class="zen-input" :disabled="isGeometryLocked || isEdit" @focus="activeField = 'seatTubeAngle'">
-                    <span class="unit">°</span>
+              <p class="group-desc" v-if="!isManualMode">数据来源：厂商官网几何表。这是 Fitting 方案的基础。</p>
+              <div class="input-grid">
+                <div class="grid-2">
+                  <div class="zen-form-item">
+                    <label class="input-label">堆高 * </label>
+                    <div class="input-with-unit">
+                      <input type="number" v-model.number="formData.stack" class="zen-input" :disabled="!isManualMode && isGeometryLocked" @focus="activeField = 'stack'">
+                      <span class="unit">mm</span>
+                    </div>
+                  </div>
+                  <div class="zen-form-item">
+                    <label class="input-label">前伸量 * </label>
+                    <div class="input-with-unit">
+                      <input type="number" v-model.number="formData.reach" class="zen-input" :disabled="!isManualMode && isGeometryLocked" @focus="activeField = 'reach'">
+                      <span class="unit">mm</span>
+                    </div>
                   </div>
                 </div>
-                <div class="zen-form-item">
-                  <label class="input-label">头管角度</label>
-                  <div class="input-with-unit">
-                    <input type="number" step="0.1" v-model.number="formData.headTubeAngle" class="zen-input" :disabled="isGeometryLocked || isEdit" @focus="activeField = 'headTubeAngle'">
-                    <span class="unit">°</span>
+                <div class="grid-3">
+                  <div class="zen-form-item">
+                    <label class="input-label">立管角度 * </label>
+                    <div class="input-with-unit">
+                      <input type="number" step="0.1" v-model.number="formData.seatTubeAngle" class="zen-input" :disabled="!isManualMode && isGeometryLocked" @focus="activeField = 'seatTubeAngle'">
+                      <span class="unit">°</span>
+                    </div>
+                  </div>
+                  <div class="zen-form-item">
+                    <label class="input-label">头管角度</label>
+                    <div class="input-with-unit">
+                      <input type="number" step="0.1" v-model.number="formData.headTubeAngle" class="zen-input" :disabled="!isManualMode && isGeometryLocked" @focus="activeField = 'headTubeAngle'">
+                      <span class="unit">°</span>
+                    </div>
+                  </div>
+                  <div class="zen-form-item">
+                    <label class="input-label">五通下沉</label>
+                    <div class="input-with-unit">
+                      <input type="number" v-model.number="formData.bbDrop" class="zen-input" :disabled="!isManualMode && isGeometryLocked" @focus="activeField = 'bbDrop'">
+                      <span class="unit">mm</span>
+                    </div>
                   </div>
                 </div>
-                <div class="zen-form-item">
-                  <label class="input-label">五通下沉</label>
-                  <div class="input-with-unit">
-                    <input type="number" v-model.number="formData.bbDrop" class="zen-input" :disabled="isGeometryLocked || isEdit" @focus="activeField = 'bbDrop'">
-                    <span class="unit">mm</span>
+                <div class="grid-2">
+                  <div class="zen-form-item">
+                    <label class="input-label">轴距</label>
+                    <div class="input-with-unit">
+                      <input type="number" v-model.number="formData.wheelBase" class="zen-input" :disabled="!isManualMode && isGeometryLocked" @focus="activeField = 'wheelBase'">
+                      <span class="unit">mm</span>
+                    </div>
                   </div>
-                </div>
-              </div>
-              <div class="grid-2">
-                <div class="zen-form-item">
-                  <label class="input-label">轴距</label>
-                  <div class="input-with-unit">
-                    <input type="number" v-model.number="formData.wheelBase" class="zen-input" :disabled="isGeometryLocked || isEdit" @focus="activeField = 'wheelBase'">
-                    <span class="unit">mm</span>
+                  <div class="zen-form-item">
+                    <label class="input-label">跨高</label>
+                    <div class="input-with-unit">
+                      <input type="number" v-model.number="formData.standOverHeight" class="zen-input" :disabled="!isManualMode && isGeometryLocked" @focus="activeField = 'standOverHeight'">
+                      <span class="unit">mm</span>
+                    </div>
                   </div>
-                </div>
-                <div class="zen-form-item">
-                  <label class="input-label">跨高</label>
-                  <div class="input-with-unit">
-                    <input type="number" v-model.number="formData.standOverHeight" class="zen-input" :disabled="isGeometryLocked || isEdit" @focus="activeField = 'standOverHeight'">
-                    <span class="unit">mm</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div class="divider"></div>
-
-          <!-- 模块 03：实车设定 (The Setup) -->
-          <div class="form-group">
-            <h4 class="group-title">03 实车设定 (Current Setup)</h4>
-            <p class="group-desc">使用卷尺测量目前车辆的真实调整值。</p>
-            <div class="input-grid">
-              <div class="grid-3">
-                <div class="zen-form-item">
-                  <label class="input-label">当前座高</label>
-                  <div class="input-with-unit">
-                    <input type="number" v-model.number="formData.saddleHeight" class="zen-input" @focus="activeField = 'saddleHeight'">
-                    <span class="unit">mm</span>
-                  </div>
-                </div>
-                <div class="zen-form-item">
-                  <label class="input-label">座垫后移</label>
-                  <div class="input-with-unit">
-                    <input type="number" v-model.number="formData.saddleSetback" class="zen-input" @focus="activeField = 'saddleSetback'">
-                    <span class="unit">mm</span>
-                  </div>
-                </div>
-                <div class="zen-form-item">
-                  <label class="input-label">座垫角度</label>
-                  <div class="input-with-unit">
-                    <input type="number" v-model.number="formData.saddleTilt" class="zen-input" @focus="activeField = 'saddleTilt'">
-                    <span class="unit">°</span>
-                  </div>
-                </div>
-              </div>
-              <div class="grid-3">
-                <div class="zen-form-item">
-                  <label class="input-label">把立长度</label>
-                  <div class="input-with-unit">
-                    <input type="number" v-model.number="formData.stemLength" class="zen-input" @focus="activeField = 'stemLength'">
-                    <span class="unit">mm</span>
-                  </div>
-                </div>
-                <div class="zen-form-item">
-                  <label class="input-label">把立角度</label>
-                  <div class="input-with-unit">
-                    <input type="number" step="1" v-model.number="formData.stemAngle" class="zen-input" @focus="activeField = 'stemAngle'">
-                    <span class="unit">°</span>
-                  </div>
-                </div>
-                <div class="zen-form-item">
-                  <label class="input-label">垫圈高度</label>
-                  <div class="input-with-unit">
-                    <input type="number" v-model.number="formData.spacersHeight" class="zen-input" @focus="activeField = 'spacersHeight'">
-                    <span class="unit">mm</span>
-                  </div>
-                </div>
-              </div>
-              <div class="grid-3">
-                <div class="zen-form-item">
-                  <label class="input-label">把横宽度</label>
-                  <div class="input-with-unit">
-                    <input type="number" v-model.number="formData.handlebarWidth" class="zen-input" @focus="activeField = 'handlebarWidth'">
-                    <span class="unit">mm</span>
-                  </div>
-                </div>
-                <div class="zen-form-item">
-                  <label class="input-label">曲柄长度</label>
-                  <div class="input-with-unit">
-                    <input type="number" v-model.number="formData.crankLength" class="zen-input" @focus="activeField = 'crankLength'">
-                    <span class="unit">mm</span>
-                  </div>
-                </div>
-                <div class="zen-form-item">
-                  <label class="input-label">车把落差</label>
-                  <div class="input-with-unit">
-                    <input type="number" v-model.number="formData.handlebarDrop" class="zen-input" @focus="activeField = 'handlebarDrop'">
-                    <span class="unit">mm</span>
-                  </div>
-                </div>
-              </div>
-              <div class="grid-2">
-                <div class="zen-form-item">
-                  <label class="input-label">座垫宽度</label>
-                  <div class="input-with-unit">
-                    <input type="number" v-model.number="formData.saddleWidth" class="zen-input" @focus="activeField = 'saddleWidth'">
-                    <span class="unit">mm</span>
-                  </div>
-                </div>
-                <div class="zen-form-item">
-                  <label class="input-label">踏板类型</label>
-                  <select v-model="formData.pedalType" class="zen-input" @focus="activeField = 'pedalType'">
-                    <option :value="null">请选择踏板类型</option>
-                    <option v-for="opt in pedalOptions" :key="opt.value" :value="opt.value">{{ opt.label }}</option>
-                  </select>
                 </div>
               </div>
             </div>
-          </div>
+          </template>
+
+          <!-- 模块 03：实车设定（自动模式下选择尺码后显示，手动模式下始终显示） -->
+          <template v-if="isManualMode || currentStep === 'complete'">
+            <div class="divider"></div>
+            <div class="form-group">
+              <h4 class="group-title">03 实车设定 (Current Setup)</h4>
+              <p class="group-desc">使用卷尺测量目前车辆的真实调整值。</p>
+              <div class="input-grid">
+                <div class="grid-3">
+                  <div class="zen-form-item">
+                    <label class="input-label">当前座高</label>
+                    <div class="input-with-unit">
+                      <input type="number" v-model.number="formData.saddleHeight" class="zen-input" @focus="activeField = 'saddleHeight'">
+                      <span class="unit">mm</span>
+                    </div>
+                  </div>
+                  <div class="zen-form-item">
+                    <label class="input-label">座垫后移</label>
+                    <div class="input-with-unit">
+                      <input type="number" v-model.number="formData.saddleSetback" class="zen-input" @focus="activeField = 'saddleSetback'">
+                      <span class="unit">mm</span>
+                    </div>
+                  </div>
+                  <div class="zen-form-item">
+                    <label class="input-label">座垫角度</label>
+                    <div class="input-with-unit">
+                      <input type="number" v-model.number="formData.saddleTilt" class="zen-input" @focus="activeField = 'saddleTilt'">
+                      <span class="unit">°</span>
+                    </div>
+                  </div>
+                </div>
+                <div class="grid-3">
+                  <div class="zen-form-item">
+                    <label class="input-label">把立长度</label>
+                    <div class="input-with-unit">
+                      <input type="number" v-model.number="formData.stemLength" class="zen-input" @focus="activeField = 'stemLength'">
+                      <span class="unit">mm</span>
+                    </div>
+                  </div>
+                  <div class="zen-form-item">
+                    <label class="input-label">把立角度</label>
+                    <div class="input-with-unit">
+                      <input type="number" step="1" v-model.number="formData.stemAngle" class="zen-input" @focus="activeField = 'stemAngle'">
+                      <span class="unit">°</span>
+                    </div>
+                  </div>
+                  <div class="zen-form-item">
+                    <label class="input-label">垫圈高度</label>
+                    <div class="input-with-unit">
+                      <input type="number" v-model.number="formData.spacersHeight" class="zen-input" @focus="activeField = 'spacersHeight'">
+                      <span class="unit">mm</span>
+                    </div>
+                  </div>
+                </div>
+                <div class="grid-3">
+                  <div class="zen-form-item">
+                    <label class="input-label">把横宽度</label>
+                    <div class="input-with-unit">
+                      <input type="number" v-model.number="formData.handlebarWidth" class="zen-input" @focus="activeField = 'handlebarWidth'">
+                      <span class="unit">mm</span>
+                    </div>
+                  </div>
+                  <div class="zen-form-item">
+                    <label class="input-label">曲柄长度</label>
+                    <div class="input-with-unit">
+                      <input type="number" v-model.number="formData.crankLength" class="zen-input" @focus="activeField = 'crankLength'">
+                      <span class="unit">mm</span>
+                    </div>
+                  </div>
+                  <div class="zen-form-item">
+                    <label class="input-label">车把落差</label>
+                    <div class="input-with-unit">
+                      <input type="number" v-model.number="formData.handlebarDrop" class="zen-input" @focus="activeField = 'handlebarDrop'">
+                      <span class="unit">mm</span>
+                    </div>
+                  </div>
+                </div>
+                <div class="grid-2">
+                  <div class="zen-form-item">
+                    <label class="input-label">座垫宽度</label>
+                    <div class="input-with-unit">
+                      <input type="number" v-model.number="formData.saddleWidth" class="zen-input" @focus="activeField = 'saddleWidth'">
+                      <span class="unit">mm</span>
+                    </div>
+                  </div>
+                  <div class="zen-form-item">
+                    <label class="input-label">踏板类型</label>
+                    <select v-model="formData.pedalType" class="zen-input" @focus="activeField = 'pedalType'">
+                      <option :value="null">请选择踏板类型</option>
+                      <option v-for="opt in pedalOptions" :key="opt.value" :value="opt.value">{{ opt.label }}</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </template>
 
           <!-- 底部操作栏 -->
-          <div class="form-actions-footer">
+          <div class="form-actions-footer" v-if="isManualMode || currentStep === 'complete'">
             <div class="footer-left">
               <button v-if="isEdit" type="button" class="btn-retire-text" @click="handleRetire">
                 <i class="fas fa-archive"></i> 退役这辆单车
@@ -340,7 +383,7 @@
         </main>
 
         <!-- ================= 3. 右侧：动态可视化指引 (Sticky) ================= -->
-        <aside class="guide-section">
+        <aside class="guide-section" v-if="isManualMode || currentStep !== 'search'">
           <div class="visualizer-container glass-card">
             <BikeVisualizer :activePart="activeField" :bikeType="formData.bikeType" />
           </div>
@@ -379,6 +422,9 @@ const submitting = ref(false);
 const activeField = ref('brand');
 const isGeometryLocked = ref(false);
 const isManualMode = ref(false);
+
+// 步骤状态：'search' -> 'brand_selected' -> 'year_selected' -> 'complete'
+const currentStep = ref('search');
 
 const bikeTypes = [
   { name: '公路车', code: 1 }, { name: '山地车', code: 2 },
@@ -525,6 +571,8 @@ onMounted(async () => {
         });
       }
 
+      // 编辑模式下直接进入完成状态
+      currentStep.value = 'complete';
       isGeometryLocked.value = !!formData.bikeModelId;
     } catch (e) {
       console.error('Failed to load bike detail', e);
@@ -534,7 +582,7 @@ onMounted(async () => {
 });
 
 const onSearchInput = () => {
-  if (isEdit.value || isManualMode.value || formData.bikeModelId) return;
+  if (isEdit.value || isManualMode.value || formData.bikeModelId || currentStep.value !== 'search') return;
   showDropdown.value = !!formData.brand;
   if (searchTimer) clearTimeout(searchTimer);
   isSearching.value = true;
@@ -558,6 +606,8 @@ const selectModelGroup = async (item) => {
     formData.modelYear = '';
     formData.size = '';
     isGeometryLocked.value = false;
+    // 进入品牌型号已选择状态
+    currentStep.value = 'brand_selected';
   } catch (e) {
     showToast('无法从数据库调取型号变体', 'error');
   }
@@ -567,6 +617,8 @@ const onYearSelect = (year) => {
   formData.modelYear = year;
   formData.size = '';
   isGeometryLocked.value = false;
+  // 进入年份已选择状态
+  currentStep.value = 'year_selected';
 };
 
 const onSizeSelect = (size) => {
@@ -579,6 +631,7 @@ const onSizeSelect = (size) => {
     formData.stack = match.stack;
     formData.reach = match.reach;
     formData.seatTubeAngle = match.seatTubeAngle;
+    formData.headTubeAngle = match.headTubeAngle;
     formData.bbDrop = match.bbDrop;
     // 自动填充其他几何 (如果库里有)
     if (match.wheelBase) formData.wheelBase = match.wheelBase;
@@ -586,6 +639,8 @@ const onSizeSelect = (size) => {
     if (match.imageUrl) formData.imageUrl = match.imageUrl;
 
     isGeometryLocked.value = true;
+    // 进入完成状态，展示所有模块
+    currentStep.value = 'complete';
     showToast('校准完成：官方数据已锁定', 'success');
   }
 };
@@ -595,6 +650,19 @@ const enableManualEntry = () => {
   formData.bikeModelId = null;
   isGeometryLocked.value = false;
   showDropdown.value = false;
+  selectedModelTree.value = [];
+  // 清空所有几何数据，确保手动录入时从零开始
+  formData.stack = null;
+  formData.reach = null;
+  formData.seatTubeAngle = null;
+  formData.headTubeAngle = null;
+  formData.bbDrop = null;
+  formData.wheelBase = null;
+  formData.standOverHeight = null;
+  formData.bikeType = null;
+  formData.imageUrl = '';
+  // 进入完成状态，展示所有模块
+  currentStep.value = 'complete';
   showToast('请手动输入实车几何数据', 'info');
 };
 
@@ -607,7 +675,10 @@ const resetSearch = () => {
   formData.model = '';
   formData.modelYear = '';
   formData.size = '';
+  formData.bikeType = null;
+  formData.imageUrl = '';
   selectedModelTree.value = [];
+  currentStep.value = 'search';
   showToast('搜索已重置', 'info');
 };
 
@@ -696,6 +767,7 @@ const submitForm = async () => {
   background: var(--bg-surface);
   border-radius: var(--radius-md);
   border: var(--border-glass);
+  min-height: 600px;
 }
 
 .group-title { font-size: 1.1rem; color: var(--primary-color); font-weight: 700; border-left: 3px solid var(--primary-color); padding-left: 12px; margin-bottom: 20px; }
@@ -745,9 +817,37 @@ const submitForm = async () => {
 .search-input-wrapper { position: relative; }
 .search-status-icon { position: absolute; right: 15px; top: 50%; transform: translateY(-50%); color: #ccc; }
 .search-dropdown {
-  position: absolute; top: calc(100% + 10px); left: 0; right: 0; z-index: 100;
+  position: absolute; top: calc(100% + 5px); left: 0; right: 0; z-index: 100;
   background: white; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.1);
-  max-height: 300px; overflow-y: auto;
+  max-height: 400px;
+  display: flex;
+  flex-direction: column;
+}
+
+.dropdown-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  background: #f8f8f8;
+  border-bottom: 1px solid #eee;
+  flex-shrink: 0;
+}
+
+.header-text {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+.dropdown-divider {
+  height: 1px;
+  background: #eee;
+  flex-shrink: 0;
+}
+
+.dropdown-scroll-area {
+  overflow-y: auto;
+  max-height: 320px;
 }
 .suggestion-item { padding: 15px 20px; cursor: pointer; border-bottom: 1px solid #F5F5F5; display: flex; justify-content: space-between; align-items: center; }
 .suggestion-item:hover { background: #f4f6f3; }
@@ -763,6 +863,7 @@ const submitForm = async () => {
 
 /* --- 锁定状态视觉 --- */
 .locked-section { opacity: 0.85; pointer-events: none; }
+.force-clickable { pointer-events: auto !important; position: relative; z-index: 10; }
 .locked-section .zen-input:disabled { background: #f8f8f8; cursor: not-allowed; border-color: #eee; color: #888; }
 .group-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
 .lock-tag { font-size: 0.75rem; color: var(--primary-color); font-weight: 800; background: #ebf0e9; padding: 4px 10px; border-radius: 4px; border: 1px solid var(--primary-color); }
@@ -786,6 +887,65 @@ const submitForm = async () => {
 
 .btn-reset { background: none; border: none; color: var(--primary-color); font-size: 0.75rem; font-weight: 700; cursor: pointer; text-decoration: underline; opacity: 0.8; transition: 0.3s; }
 .btn-reset:hover { opacity: 1; }
+
+/* 锁定字段样式 */
+.locked-field {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  background: #f8f8f8;
+  border: 1px solid #eee;
+  border-radius: var(--radius-sm);
+  color: #888;
+}
+.locked-value {
+  font-weight: 600;
+  color: var(--text-main);
+}
+.lock-icon {
+  color: var(--primary-color);
+  font-size: 0.9rem;
+}
+
+/* 年份/尺码选择高亮引导 */
+.year-selection-highlight,
+.size-selection-highlight {
+  animation: pulse-highlight 2s ease-in-out infinite;
+  padding: 16px;
+  margin: -8px;
+  border-radius: var(--radius-sm);
+  background: linear-gradient(135deg, rgba(92, 110, 88, 0.08) 0%, rgba(212, 175, 55, 0.08) 100%);
+  border: 2px dashed var(--primary-color);
+}
+
+.year-selection-highlight .input-label,
+.size-selection-highlight .input-label {
+  color: var(--primary-color);
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+.highlight-icon {
+  margin-right: 8px;
+  animation: bounce 1s ease-in-out infinite;
+}
+
+@keyframes pulse-highlight {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(92, 110, 88, 0.4);
+    border-color: var(--primary-color);
+  }
+  50% {
+    box-shadow: 0 0 20px 5px rgba(92, 110, 88, 0.2);
+    border-color: var(--accent-gold);
+  }
+}
+
+@keyframes bounce {
+  0%, 100% { transform: translateX(0); }
+  50% { transform: translateX(5px); }
+}
 
 /* 5. 底部操作 */
 .form-actions-footer {
