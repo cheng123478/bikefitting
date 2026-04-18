@@ -105,14 +105,14 @@
 
             <div class="metric-card" :class="{ 'in-range': metrics.torsoAngle >= 40 && metrics.torsoAngle <= 50 }">
               <div class="card-header">
-                <label>背部角度</label>
-                <div class="target-tag">目标: 40°-50°</div>
+                <label>躯干俯角 (Torso Pitch)</label>
+                <div class="target-tag">目标: 40°–50°</div>
               </div>
               <div class="val-wrapper">
                 <span class="val">{{ metrics.torsoAngle }}°</span>
-                <span class="insight">平衡破风与舒适</span>
+                <span class="insight">{{ metrics.torsoAngle < 30 ? '极度放松骠' : metrics.torsoAngle < 40 ? '较为流线型' : metrics.torsoAngle <= 50 ? '均衡 ✓' : '相对直立' }}</span>
               </div>
-              <div class="desc">身体趴伏的程度</div>
+              <div class="desc">和水平面的夹角：0°=完全俯伏（TT），90°=直立</div>
             </div>
 
             <div class="metric-card" :class="{ 'in-range': metrics.reachAngle >= 85 && metrics.reachAngle <= 95 }">
@@ -139,15 +139,17 @@
               <div class="desc">脚尖下压 / 脚跟下坠侦测 (垫高不合理表现)</div>
             </div>
 
-            <div class="metric-card" :class="{ 'in-range': Math.abs(metrics.kopsOffset) < 15 }">
+            <div class="metric-card" :class="{ 'in-range': Math.abs(metrics.kopsOffset) < 10 }">
               <div class="card-header">
                 <label>膝曲柄同心轴位 (KOPS)</label>
-                <div class="target-tag">健康距离 < 15px</div>
+                <div class="target-tag">理想偏移 &lt; 10%</div>
               </div>
               <div class="val-wrapper">
-                <span class="val" :class="{ warning: Math.abs(metrics.kopsOffset) > 20 }">{{ metrics.kopsOffset > 0 ? '偏前' : '退后' }} {{ Math.abs(metrics.kopsOffset) || 0 }}px</span>
+                <span class="val" :class="{ warning: Math.abs(metrics.kopsOffset) > 15 }">
+                  {{ metrics.kopsOffset > 0 ? '偏前' : '退后' }} {{ Math.abs(metrics.kopsOffset) || 0 }}%
+                </span>
               </div>
-              <div class="desc">3点钟方向时 膝盖-脚踏重垂面位移距离</div>
+              <div class="desc">3点钟时膝盖偏移量（以胫骨长度标准化，跨设备可比）</div>
             </div>
           </template>
 
@@ -365,7 +367,7 @@ const isRecording = ref(false);
 const recordingTime = ref(0);
 let recordTimer = null;
 const MAX_RECORD_TIME = 30;
-const MIN_DURATION = 0;
+const MIN_DURATION = 10; // 最短有效采集时长（秒），保证至少完成数个完整踩踏周期
 const ANALYSIS_SPEED = 0.2;
 const tiltAngle = ref(0);
 const isLevel = computed(() => Math.abs(tiltAngle.value) < 3);
@@ -710,6 +712,9 @@ const finishSession = () => {
     const avgTorso = torsoAngles.length > 0 ? (torsoAngles.reduce((a, b) => a + b, 0) / torsoAngles.length) : 0;
 
     // 踏频 (Cadence) 流水线粗算 (通过 Y 轴跨过中值线的时间和次数估计)
+    // 关键修正：上传模式以 ANALYSIS_SPEED 倍速播放，Date.now() 时间轴是真实视频时长的 1/ANALYSIS_SPEED 倍。
+    // 例：60s 视频以 0.2x 速播放耗时 300s（真实时钟），直接用则踏频偏低 5 倍。
+    // 修正方式：将 ts 时间差乘以 ANALYSIS_SPEED，还原为真实视频时长。
     let estimatedCadence = 0;
     if (ankleYCoords && ankleYCoords.length > 10 && timestamps.length > 10) {
       const minY = Math.min(...ankleYCoords);
@@ -719,7 +724,10 @@ const finishSession = () => {
       for (let i = 1; i < ankleYCoords.length; i++) {
         if (ankleYCoords[i-1] < midY && ankleYCoords[i] >= midY) crosses++;
       }
-      const durationMins = (timestamps[timestamps.length-1] - timestamps[0]) / 60000;
+      // timeScaleFactor：上传模式将墙钟时间还原为真实视频时间；摄像头模式无需修正
+      const timeScaleFactor = mode.value === 'upload' ? ANALYSIS_SPEED : 1;
+      const durationMs = (timestamps[timestamps.length - 1] - timestamps[0]) * timeScaleFactor;
+      const durationMins = durationMs / 60000;
       estimatedCadence = durationMins > 0 ? Math.round(crosses / durationMins) : 0;
     }
 

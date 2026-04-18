@@ -3,9 +3,21 @@
     <div class="view-header">
       <h2>
         <i class="fas fa-bolt"></i>
-        高阶踩踏动力学模拟分析 (Pedaling Pro)
+        高阶踩踏动力学分析 (Pedaling Pro)
       </h2>
       <span class="badge" style="background: rgba(212, 175, 55, 0.1); color: var(--accent-gold);">KINETICS</span>
+      <!-- 数据可信度标签 -->
+      <span v-if="data.bilateralConfidence === 'HIGH'" class="badge confidence-high">
+        <i class="fas fa-check-circle"></i> 正面双侧实测
+      </span>
+      <span v-else-if="data.bilateralConfidence === 'LOW'" class="badge confidence-low">
+        <i class="fas fa-exclamation-triangle"></i> 侧面单腿估算
+      </span>
+    </div>
+
+    <!-- 低可信度时显示说明 -->
+    <div v-if="data.bilateralConfidence === 'LOW' && data.analysisNote" class="data-note">
+      <i class="fas fa-info-circle"></i> {{ data.analysisNote }}
     </div>
 
     <!-- 1. Left/Right Power Balance -->
@@ -82,6 +94,16 @@
                 <div class="lbl">右膝</div>
               </div>
             </div>
+          </div>
+
+          <div class="idx-card" v-if="data.cadenceRpm">
+            <span class="idx-lbl">踏频 (Cadence)</span>
+            <span class="idx-v" :class="data.cadenceRpm >= 80 && data.cadenceRpm <= 100 ? 'text-success' : 'text-warning'">
+              {{ data.cadenceRpm }} <small style="font-size:1rem">RPM</small>
+            </span>
+            <span class="idx-eval" :class="data.cadenceRpm >= 80 && data.cadenceRpm <= 100 ? 'text-success' : 'text-warning'">
+              {{ data.cadenceRpm >= 80 && data.cadenceRpm <= 100 ? '✓ 节奏理想 (80–100 RPM)' : data.cadenceRpm < 80 ? '偏低 (建议加快节奏)' : '偏高 (建议确认牙盘配比)' }}
+            </span>
           </div>
 
         </div>
@@ -282,6 +304,24 @@ onUnmounted(() => {
 
 <style scoped>
 .pedaling-section { padding: 40px; margin-bottom: 25px; }
+
+.confidence-high { background: rgba(82, 196, 26, 0.12) !important; color: #52c41a !important; }
+.confidence-low  { background: rgba(250, 173, 20, 0.12) !important; color: #faad14 !important; }
+
+.data-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px 18px;
+  margin-bottom: 24px;
+  border-left: 3px solid var(--accent-gold);
+  background: rgba(212, 175, 55, 0.06);
+  border-radius: 0 8px 8px 0;
+  font-size: 0.88rem;
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+.data-note i { color: var(--accent-gold); margin-top: 2px; flex-shrink: 0; }
 
 .view-header { display: flex; align-items: center; gap: 15px; margin-bottom: 30px; border-bottom: 1px solid rgba(0,0,0,0.05); padding-bottom: 15px;}
 .view-header h2 { font-size: 1.4rem; color: var(--text-main); display: flex; align-items: center; gap: 12px; margin: 0; }

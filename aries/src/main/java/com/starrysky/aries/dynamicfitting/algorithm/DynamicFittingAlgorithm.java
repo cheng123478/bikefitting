@@ -4,12 +4,16 @@ import com.starrysky.aries.dynamicfitting.schema.DynamicFittingResultVO;
 import com.starrysky.aries.dynamicfitting.schema.DynamicFittingAdviceVO;
 import com.starrysky.aries.dynamicfitting.repository.DynamicFittingStandardRepository;
 import com.starrysky.aries.entity.DynamicFittingStandard;
+import com.starrysky.aries.util.BikeType;
+
 import jakarta.annotation.Resource;
 import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -26,6 +30,31 @@ public class DynamicFittingAlgorithm {
 
     @Resource
     private DynamicFittingStandardRepository standardRepository;
+
+    /**
+     * 各车型双侧对称性偏差阈值（°）。
+     * 车型越追求功率输出效率，容忍的双侧不对称程度越小。
+     *
+     * <p>
+     * <b>Key</b>: {@link com.starrysky.aries.util.BikeType#code}（与
+     * DynamicFittingStandard.bikeType 字段一致）<br>
+     * <b>Value</b>: 允许的最大左右偏差角度（°），超出则生成对称性告警建议。
+     *
+     * <p>
+     * 若车型不在此 Map 中，则使用 {@link #DEFAULT_BILATERAL_THRESHOLD} 兜底。
+     */
+    private static final Map<Integer, Double> BILATERAL_ASYMMETRY_THRESHOLDS;
+    static {
+        Map<Integer, Double> m = new HashMap<>();
+        m.put(BikeType.ROAD_BIKE.code, 5.0); // ROAD_BIKE (公路车) : 追求效率，阈值严格
+        m.put(BikeType.MOUNTAIN_BIKE.code, 8.0); // MOUNTAIN_BIKE(山地车) : 地形崎岖，阈值宽松
+        m.put(BikeType.GRAVEL_BIKE.code, 7.0); // GRAVEL_BIKE (全地形公路车): 综合用途，适中
+        m.put(BikeType.CITY_BIKE.code, 10.0); // CITY_BIKE (城市通勤车) : 舒适优先，最宽松
+        m.put(BikeType.TT_BIKE.code, 3.0); // TT_BIKE (铁三/计时车): 极度追求功率对称，最严格
+        BILATERAL_ASYMMETRY_THRESHOLDS = Collections.unmodifiableMap(m);
+    }
+    /** 未知车型的双侧对称性告警阈值默认值（°） */
+    private static final double DEFAULT_BILATERAL_THRESHOLD = 8.0;
 
     /**
      * 核心诊断逻辑
@@ -78,7 +107,7 @@ public class DynamicFittingAlgorithm {
         }
 
         // --- 2. 双侧对称性分析 (Bilateral Asymmetry) ---
-        performBilateralAudit(detectedMetrics, advices);
+        performBilateralAudit(detectedMetrics, advices, bikeType);
 
         // 3. 结果排序：按专业调整顺序 (锁片 -> 座垫 -> 车把)
         advices.sort(java.util.Comparator.comparing(DynamicFittingAdviceVO::getSequence)
@@ -104,7 +133,8 @@ public class DynamicFittingAlgorithm {
      * @param adviceContent 建议内容
      * @return 建议
      */
-    private DynamicFittingAdviceVO createAdvice(DynamicFittingStandard std, Double val, String adviceCode, String adviceContent) {
+    private DynamicFittingAdviceVO createAdvice(DynamicFittingStandard std, Double val, String adviceCode,
+            String adviceContent) {
         // 获取顺序: 1:Cleat, 2:Seat, 3:Handlebar/Stem
         int sequence = 3;
         if ("cleat".equalsIgnoreCase(std.getPart()) || "crank".equalsIgnoreCase(std.getPart()))
@@ -161,12 +191,22 @@ public class DynamicFittingAlgorithm {
     }
 
     /**
-     * 执行双侧对比分析
+     * 执行双侧对比分析。
+     * 根据车型从 {@link #BILATERAL_ASYMMETRY_THRESHOLDS} 动态查取阈值，
+     * 避免对所有车型硬编码同一个 8° 阈值。
      *
-     * @param metrics 指标值映射
-     * @param advices 调整建议列表
+     * @param metrics  指标值映射（key 须带 _L / _R 后缀的才会参与对称性判断）
+     * @param advices  调整建议列表，检测到不对称时追加告警条目
+     * @param bikeType 车辆类型代号，用于查取对应阈值
      */
-    private void performBilateralAudit(Map<String, Double> metrics, List<DynamicFittingAdviceVO> advices) {
+    private void performBilateralAudit(Map<String, Double> metrics,
+            List<DynamicFittingAdviceVO> advices,
+            Integer bikeType) {
+        // 根据车型查取阈值，未知车型使用默认值
+        double threshold = BILATERAL_ASYMMETRY_THRESHOLDS.getOrDefault(
+                bikeType, DEFAULT_BILATERAL_THRESHOLD);
+        String rangeText = String.format("双侧差値 < %.0f°", threshold);
+
         metrics.forEach((key, val) -> {
             if (key.endsWith("_L")) {
                 String rightKey = key.replace("_L", "_R");
@@ -175,19 +215,20 @@ public class DynamicFittingAlgorithm {
                     double rightVal = metrics.get(rightKey);
                     double delta = Math.abs(leftVal - rightVal);
 
-                    // 如果两侧偏差超过 10% 或 阈值(通常为 5-8度)
-                    if (delta > 8.0) {
+                    if (delta > threshold) {
                         advices.add(DynamicFittingAdviceVO.builder()
                                 .part("body")
                                 .type("check")
                                 .code("advice.asymmetry.warning")
-                                .adviceContent("检测到双侧指标不平衡，建议检查身体柔韧性、核心稳定性或是否存在结构性长短腿。")
+                                .adviceContent(String.format(
+                                        "检测到双侧指标不平衡（差値 %.1f°，超出该车型阈値 %.0f°），建议检查身体柔韧性、核心稳定性或是否存在结构性长短腿。",
+                                        delta, threshold))
                                 .metric(key.substring(0, key.length() - 2))
-                                .val(null)
-                                .range("Delta < 5")
+                                .val(delta)
+                                .range(rangeText)
                                 .importance(1)
                                 .sequence(0)
-                                .build()); // 顺序为0，最先展示
+                                .build()); // sequence=0：双侧不对称告警最先展示
                     }
                 }
             }

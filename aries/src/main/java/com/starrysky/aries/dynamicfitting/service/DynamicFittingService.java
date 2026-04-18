@@ -1,6 +1,7 @@
 package com.starrysky.aries.dynamicfitting.service;
 
 import com.alibaba.fastjson2.JSON;
+import com.alibaba.fastjson2.TypeReference;
 import com.starrysky.aries.dynamicfitting.algorithm.DynamicFittingAlgorithm;
 import com.starrysky.aries.dynamicfitting.algorithm.PedalingSimulationAlgorithm;
 import com.starrysky.aries.dynamicfitting.repository.DynamicFittingMotionDataRepository;
@@ -166,6 +167,10 @@ public class DynamicFittingService {
                 }
 
                 // 汇总 summary
+                // P11 修复：在后端根据 frameData 计算稳定性指标 (StdDev, CV, Variance)
+                Map<String, Object> computedStats = calculateStabilityStats(viewDetailsDTO.getFrameData());
+                summary.putAll(computedStats);
+
                 overallSummary.put(viewType, summary);
             }
 
@@ -349,7 +354,7 @@ public class DynamicFittingService {
 
         // 解析指标数据 (扁平化)
         Map<String, Map<String, Object>> overallSummary = JSON.parseObject(result.getSummaryJson(),
-                new com.alibaba.fastjson2.TypeReference<Map<String, Map<String, Object>>>() {
+                new TypeReference<>() {
                 });
 
         if (overallSummary != null) {
@@ -437,7 +442,8 @@ public class DynamicFittingService {
                         .idealRange(advice != null ? (advice.getRange() != null ? advice.getRange() : "--") : "--")
                         .advice(advice != null ? (advice.getAdviceContent() != null ? advice.getAdviceContent() : advice.getCode()) : "处于理想范围")
                         .build());
-            } else if (key.equals("avgTorso") || key.equals("minHip") || key.equals("maxSpineTilt") || key.equals("maxPelvisSway")) {
+            } else if (key.equals("avgTorso") || key.equals("minHip") || key.equals("maxSpineTilt") || key.equals("maxPelvisSway")
+                    || key.equals("kopsOffset") || key.equals("cadenceRpm") || key.equals("ankleAtBdc")) {
                 // 处理一些不带后缀但也是核心指标的字段
                 DynamicFittingAdviceVO advice = advices.stream()
                         .filter(a -> a.getMetric().equalsIgnoreCase(key))
@@ -638,6 +644,63 @@ public class DynamicFittingService {
         resultRepository.findBySession_Id(sessionId).ifPresent(resultRepository::delete);
 
         sessionRepository.deleteById(sessionId);
+    }
+
+    /**
+     * 计算时序数据的稳定性指标 (均值、标准差、变异系数)
+     * P11 修复核心逻辑
+     *
+     * @param frameData 帧数据列表
+     * @return 统计指标 Map
+     */
+    private Map<String, Object> calculateStabilityStats(List<Map<String, Object>> frameData) {
+        if (frameData == null || frameData.isEmpty()) {
+            return Collections.emptyMap();
+        }
+
+        // 1. 采集各个指标的时序序列
+        Map<String, List<Double>> seriesMap = new HashMap<>();
+        for (Map<String, Object> frame : frameData) {
+            Object metricsObj = frame.get("metrics");
+            if (metricsObj instanceof Map) {
+                @SuppressWarnings("unchecked")
+                Map<String, Object> metrics = (Map<String, Object>) metricsObj;
+                metrics.forEach((k, v) -> {
+                    Double val = convertToDouble(v);
+                    if (val != null) {
+                        seriesMap.computeIfAbsent(k, key -> new ArrayList<>()).add(val);
+                    }
+                });
+            }
+        }
+
+        // 2. 计算统计学指标
+        Map<String, Object> stats = new HashMap<>();
+        seriesMap.forEach((metric, values) -> {
+            int n = values.size();
+            if (n < 5) return; // 数据点太少不计算统计性指标
+
+            double sum = 0;
+            for (Double v : values) sum += v;
+            double mean = sum / n;
+
+            double sumSqDiff = 0;
+            for (Double v : values) {
+                sumSqDiff += Math.pow(v - mean, 2);
+            }
+            double variance = sumSqDiff / n;
+            double stdDev = Math.sqrt(variance);
+            // CV (变异系数) = 标准差 / 均值 * 100%
+            double cv = (Math.abs(mean) > 0.001) ? (stdDev / Math.abs(mean)) * 100 : 0;
+
+            // 保留两位小数
+            stats.put(metric + "Mean", Math.round(mean * 100.0) / 100.0);
+            stats.put(metric + "StdDev", Math.round(stdDev * 100.0) / 100.0);
+            stats.put(metric + "CV", Math.round(cv * 100.0) / 100.0);
+            stats.put(metric + "Variance", Math.round(variance * 100.0) / 100.0);
+        });
+
+        return stats;
     }
 
     private String uploadBase64Image(String base64, Long userId, String viewType, String tag) {
