@@ -393,7 +393,7 @@
               <h4>{{ activeFieldInfo.title }}</h4>
               <p>{{ activeFieldInfo.desc }}</p>
               <div class="fittor-tip" v-if="activeFieldInfo.tip">
-                <strong>Fittor 建议：</strong> {{ activeFieldInfo.tip }}
+                <strong>Fitter 建议：</strong> {{ activeFieldInfo.tip }}
               </div>
             </div>
           </Transition>
@@ -1003,7 +1003,7 @@ const submitForm = async () => {
   color: var(--text-muted);
   line-height: 1.7;
 }
-/* Fittor 建议块 */
+/* Fitter 建议块 */
 .fittor-tip {
   margin-top: 18px;
   padding: 15px;

@@ -82,7 +82,7 @@
         <section class="expert-conclusion glass-card" v-scroll-reveal>
           <div class="conclusion-header">
             <i class="fas fa-stethoscope"></i>
-            <span>Fittor 专家进化诊断</span>
+            <span>Fitter 专家进化诊断</span>
           </div>
           <p class="conclusion-text">{{ compData.evolutionSummary }}</p>
         </section>

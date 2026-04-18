@@ -9,7 +9,7 @@
         <header class="dialog-header">
           <div class="header-info">
             <div class="status-dot"></div>
-            <span class="title">Fittor 智脑</span>
+            <span class="title">Fitter 智脑</span>
             <span class="subtitle">Online</span>
           </div>
           <button class="btn-close" @click="toggleChat">

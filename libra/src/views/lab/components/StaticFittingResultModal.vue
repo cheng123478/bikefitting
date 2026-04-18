@@ -115,7 +115,7 @@
 
           <!-- 4. 深度诊断文案列表 -->
           <div class="diagnosis-section">
-            <h4 class="section-title">Fittor 深度诊断报告</h4>
+            <h4 class="section-title">Fitter 深度诊断报告</h4>
             <div class="diag-list">
               <div v-for="item in result.details" :key="item.id" class="diag-card">
                 <div class="diag-header">

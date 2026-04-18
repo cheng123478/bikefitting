@@ -76,11 +76,11 @@
               </div>
             </section>
 
-            <!-- 第三块：Fittor 评估结论 -->
+            <!-- 第三块：Fitter 评估结论 -->
             <section class="info-section" :class="{ 'locked-section': !hasFlexData }">
               <h4 class="section-h4">
                 <i :class="hasFlexData ? 'fas fa-check-circle' : 'fas fa-lock'"></i>
-                Fittor 评估结论
+                Fitter 评估结论
               </h4>
 
               <div v-if="hasFlexData" class="unlocked-content">
@@ -108,10 +108,10 @@
                   </ul>
                 </div>
 
-                <!-- 3. Fittor 建议 -->
+                <!-- 3. Fitter 建议 -->
                 <div class="evaluation-block advice-block" v-if="profile.advice && profile.advice.length > 0">
                   <h5 class="block-title">
-                    <i class="fas fa-lightbulb"></i> Fittor 建议
+                    <i class="fas fa-lightbulb"></i> Fitter 建议
                   </h5>
                   <ul class="advice-list">
                     <li v-for="(item, index) in profile.advice" :key="index" class="advice-item">
@@ -123,7 +123,7 @@
               </div>
 
               <div v-else class="lock-overlay" @click="handleReEdit(3)">
-                <p>录入胸椎旋转与举臂角度，解锁Fittor专业评估结论</p>
+                <p>录入胸椎旋转与举臂角度，解锁Fitter专业评估结论</p>
                 <span class="cta-link">去完善数据 <i class="fas fa-chevron-right"></i></span>
               </div>
             </section>
@@ -397,7 +397,7 @@ const goToGarage = () => {
   transition: all 0.3s ease;
 }
 
-/* Fittor 评估结论样式 */
+/* Fitter 评估结论样式 */
 /* 1. 通用评估区块样式 */
 .evaluation-block {
   margin-bottom: 25px;
@@ -504,7 +504,7 @@ const goToGarage = () => {
   color: var(--text-body);
 }
 
-/* 4. Fittor 建议区块 - 深鼠尾草绿 */
+/* 4. Fitter 建议区块 - 深鼠尾草绿 */
 .advice-block {
   border-left-color: #6E8565;
   background: linear-gradient(135deg, #e5e9e2 0%, #dce2da 100%);

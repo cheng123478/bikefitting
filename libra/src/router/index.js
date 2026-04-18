@@ -100,6 +100,12 @@ const router = createRouter({
             meta: { hideNavbar: true, requiresAuth: false }
         },
         {
+            path: '/lab/realtime',
+            name: 'RealtimeGuard',
+            component: () => import('@/views/lab/realtime/RealtimeGuardView.vue'),
+            meta: { title: '姿态实时监护', requiresAuth: true }
+        },
+        {
             path: '/lab/archives',
             component: () => import('@/views/lab/archives/ArchiveLayout.vue'),
             children: [
