@@ -132,8 +132,8 @@ public class FittorDiagnosticsManager {
         StringBuilder logic = new StringBuilder();
 
         // A. 空间坐标解释
-        if (res.getRecStackPlus() != null && res.getRecReachPlus() != null) {
-            v.put("stackPlus", res.getRecStackPlus());
+        if (res.getTargetBarHeight() != null && res.getRecReachPlus() != null) {
+            v.put("stackPlus", res.getTargetBarHeight());
             v.put("reachPlus", res.getRecReachPlus());
             v.put("recValue", res.getRecHandlebarDrop() != null ? res.getRecHandlebarDrop() : "--");
             logic.append(diagLib.getTemplate("module_3_upper_body", "space_logic", v));
@@ -324,8 +324,8 @@ public class FittorDiagnosticsManager {
             if (res.getRecReachPlus() != null) res.setRecReachPlus(res.getRecReachPlus() - 10);
             if (res.getRecHandlebarDrop() != null) {
                 res.setRecHandlebarDrop(res.getRecHandlebarDrop() - 10);
-                if (res.getRecStackPlus() != null && res.getRecSeatHeight() != null)
-                    res.setRecStackPlus(res.getRecSeatHeight() - res.getRecHandlebarDrop());
+                if (res.getTargetBarHeight() != null && res.getRecSeatHeight() != null)
+                    res.setTargetBarHeight(res.getRecSeatHeight() - res.getRecHandlebarDrop());
             }
             addDetail(res, "核心与腰背", "腰背酸痛", diagLib.getTemplate("module_5_safety", "pain_lower_back", v));
         }

@@ -39,26 +39,39 @@
 
         <!-- 3. 数据网格 (Bento Grid) -->
         <div class="scroll-body">
-          <div class="metrics-grid">
+          <!-- 建议实车设定 -->
+          <div class="setup-module">
+            <h4 class="module-title"><i class="fas fa-sliders-h"></i> 建议实车设定</h4>
+            <div class="metrics-grid">
             <!-- 组 A: 下肢动力 -->
             <div class="metric-group">
               <h4 class="group-label">POWER BASE / 下肢动力</h4>
-              <div class="data-row highlight">
-                <span class="l">建议座高</span>
-                <span class="v">{{ result.recSeatHeight }}<small>mm</small></span>
-              </div>
-              <div class="data-sub-grid">
-                <div class="data-item">
+              <div class="lower-body-grid">
+                <div class="data-card">
+                  <span class="l">建议座高</span>
+                  <span class="v">{{ result.recSeatHeight }}<small>mm</small></span>
+                </div>
+                <div class="data-card">
                   <span class="l">座垫后移</span>
                   <span class="v">{{ result.recSetback }}<small>mm</small></span>
                 </div>
-                <div class="data-item">
+                <div class="data-card">
                   <span class="l">曲柄长度</span>
                   <span class="v">{{ result.recCrankLength }}<small>mm</small></span>
                 </div>
-                <div class="data-item">
+                <div class="data-card">
                   <span class="l">座垫推荐宽</span>
                   <span class="v">{{ result.recSaddleWidth }}<small>mm</small></span>
+                </div>
+                <div class="data-card wide">
+                  <span class="l">
+                    推荐车架Stack
+                    <span class="info-tooltip-wrapper">
+                      <i class="info-icon fas fa-exclamation-circle"></i>
+                      <span class="tooltip-text">该高度可通过调整垫圈高度与把立角度实现</span>
+                    </span>
+                  </span>
+                  <span class="v">{{ result.recFrameStack }}<small>mm</small></span>
                 </div>
               </div>
             </div>
@@ -66,25 +79,37 @@
             <!-- 组 B: 上肢座舱 -->
             <div class="metric-group">
               <h4 class="group-label">COCKPIT / 上肢座舱</h4>
-              <div class="data-row highlight gold">
-                <span class="l">前伸 Reach+</span>
-                <span class="v">{{ result.recReachPlus }}<small>mm</small></span>
-              </div>
-              <div class="data-sub-grid">
-                <div class="data-item">
-                  <span class="l">堆高 Stack+</span>
-                  <span class="v">{{ result.recStackPlus }}<small>mm</small></span>
+              <div class="lower-body-grid">
+                <div class="data-card">
+                  <span class="l">车把高度</span>
+                  <span class="v">{{ result.targetBarHeight }}<small>mm</small></span>
                 </div>
-                <div class="data-item">
+                <div class="data-card">
                   <span class="l">车把落差</span>
                   <span class="v">{{ result.recHandlebarDrop }}<small>mm</small></span>
                 </div>
-                <div class="data-item">
+                <div class="data-card">
+                  <span class="l">垫圈高度</span>
+                  <span class="v warning" v-if="result.recSpacerHeight == null">需补全角度</span>
+                  <span class="v" v-else>{{ result.recSpacerHeight }}<small>mm</small></span>
+                </div>
+                <div class="data-card">
                   <span class="l">把立长度</span>
                   <span class="v warning" v-if="!result.recStemLength">需补全角度</span>
                   <span class="v" v-else>{{ result.recStemLength }}<small>mm</small></span>
                 </div>
+                <div class="data-card wide">
+                  <span class="l">
+                    推荐前伸Reach
+                    <span class="info-tooltip-wrapper">
+                      <i class="info-icon fas fa-exclamation-circle"></i>
+                      <span class="tooltip-text">该前伸可通过调整把立长度与座垫前后位置实现</span>
+                    </span>
+                  </span>
+                  <span class="v">{{ result.recReachPlus }}<small>mm</small></span>
+                </div>
               </div>
+            </div>
             </div>
           </div>
 
@@ -171,6 +196,9 @@ const posterImage = ref(null);
 const showSharePreview = ref(false);
 
 const close = () => emit('update:visible', false);
+const showInfo = (msg) => {
+  alert(msg);
+};
 const confirmToReport = () => {
   close();
   emit('to-report');
@@ -373,11 +401,27 @@ const formatDate = (dateStr) => {
   overflow-y: auto;
 }
 
+.setup-module {
+  margin-bottom: 40px;
+}
+
+.module-title {
+  font-size: 0.85rem;
+  color: #555;
+  letter-spacing: 1px;
+  margin: 0 0 16px 4px;
+  font-weight: 600;
+}
+
+.module-title i {
+  margin-right: 6px;
+  color: #8B7355;
+}
+
 .metrics-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 25px;
-  margin-bottom: 40px;
 }
 
 .metric-group {
@@ -385,6 +429,154 @@ const formatDate = (dateStr) => {
   border-radius: 16px;
   padding: 20px;
   border: 1px solid rgba(0, 0, 0, 0.02);
+}
+
+.lower-body-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.data-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 14px 10px;
+  min-height: 68px;
+  border: 1px solid #E8E8E4;
+  border-radius: 10px;
+  background: #FFFFFF;
+  transition: all 0.2s ease;
+  cursor: default;
+  box-sizing: border-box;
+}
+
+.data-card:hover {
+  border-color: #C8C8C0;
+  background: #FAFAF5;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+}
+
+.data-card:hover .v {
+  color: #5C6E58;
+}
+
+.data-card.wide {
+  grid-column: 1 / -1;
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: center;
+  padding: 18px 24px;
+  background: #5C6E58;
+  border-color: #5C6E58;
+  border-radius: 12px;
+}
+
+.data-card.wide .l {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 0;
+  font-size: 0.75rem;
+  color: rgba(255, 255, 255, 0.8);
+  letter-spacing: 1px;
+}
+
+.data-card.wide .info-icon {
+  font-size: 0.7rem;
+  color: rgba(255, 255, 255, 0.5);
+  cursor: help;
+  transition: color 0.2s ease;
+}
+
+.data-card.wide .info-icon:hover {
+  color: #FFFFFF;
+}
+
+.info-tooltip-wrapper {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+.tooltip-text {
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + 8px);
+  transform: translateX(-50%);
+  width: max-content;
+  max-width: 220px;
+  padding: 10px 14px;
+  background: #FFFFFF;
+  color: #333;
+  font-size: 0.7rem;
+  line-height: 1.5;
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+  opacity: 0;
+  visibility: hidden;
+  transition: all 0.25s ease;
+  z-index: 100;
+  letter-spacing: 0;
+}
+
+.tooltip-text::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  border: 6px solid transparent;
+  border-top-color: #FFFFFF;
+}
+
+.info-tooltip-wrapper:hover .tooltip-text {
+  opacity: 1;
+  visibility: visible;
+  transform: translateX(-50%) translateY(-4px);
+}
+
+.data-card.wide .v {
+  font-size: 1.6rem;
+  color: #FFFFFF;
+}
+
+.data-card.wide .v small {
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.data-card.wide:hover {
+  background: #4D5F49;
+  border-color: #4D5F49;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(92, 110, 88, 0.3);
+}
+
+.data-card.wide:hover .v {
+  color: #FFFFFF;
+}
+
+.data-card .l {
+  font-size: 0.65rem;
+  color: #999;
+  letter-spacing: 0.5px;
+  margin-bottom: 6px;
+}
+
+.data-card .v {
+  font-size: 1.3rem;
+  font-weight: bold;
+  color: #333;
+  font-family: var(--font-serif);
+}
+
+.data-card .v small {
+  font-size: 0.6rem;
+  color: #999;
+  margin-left: 2px;
+  font-weight: normal;
 }
 
 .group-label {
@@ -441,6 +633,11 @@ const formatDate = (dateStr) => {
   font-size: 1.2rem;
   font-weight: bold;
   color: #333;
+}
+
+.data-card .v.warning {
+  color: #CF1322;
+  font-size: 0.8rem;
 }
 
 .data-item .v.warning {

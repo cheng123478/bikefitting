@@ -88,7 +88,7 @@
                 <p class="step-desc">这决定了您能耐受多大的落差（Drop）。</p>
                 <div class="input-grid">
                   <div class="zen-form-item" @click="setGuide('thoracic_rot')">
-                    <label class="input-label">坐姿抱胸旋转</label>
+                    <label class="input-label">坐姿胸椎旋转</label>
                     <div class="angle-selector">
                       <div class="angle-option" :class="{active: formData.thoracicRotationAngle === 85}" @click="formData.thoracicRotationAngle = 85">
                         <span class="angle-circle"></span>

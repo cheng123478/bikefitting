@@ -175,12 +175,12 @@ const guides = {
     tips: []
   },
   thoracic_rot: {
-    title: '坐姿抱胸旋转 / Seated Rotation',
+    title: '坐姿胸椎旋转 / Seated Thoracic Rotation',
     desc: '评估胸椎旋转灵活性，影响骑行时的上身姿态调整能力。',
-    image: '/image/fitting/height.png',
+    image: '/image/fitting/thoracicspine.png',
     tips: [
       { label: '准备工作', content: '受测者坐于平面（凳子或地面），双脚平放于地面，双膝弯曲约90°，双脚与髋同宽。\n骨盆保持中立位，脊柱自然直立。' },
-      { label: '测量姿势', content: '双臂交叉抱于胸前（双手放于对侧肩膀）。\n保持骨盆稳定不动，缓慢向一侧旋转上半身，直至达到最大可控范围。' },
+      { label: '测量姿势', content: '双臂抬起放置于后脑勺。\n保持骨盆稳定不动，缓慢向一侧旋转上半身，直至达到最大可控范围。' },
       { label: '注意事项', content: '• 骨盆必须保持稳定，不可随身体旋转\n• 避免借助惯性或快速扭转\n• 保持脊柱直立，避免含胸或过度挺腰\n• 动作过程中保持呼吸自然，不可屏气\n• 若出现疼痛，应立即停止测试' }
     ]
   },
@@ -195,7 +195,7 @@ const guides = {
   },
   pain_level: {
     title: '痛感评估 / Pain Assessment',
-    desc: '在完成坐姿抱胸旋转和手臂上举测试时，根据你的真实感受选择最接近的一项：',
+    desc: '在完成坐姿胸椎旋转和手臂上举测试时，根据你的真实感受选择最接近的一项：',
     image: '/image/fitting/pain.png',
     tips: [
       { label: '0级', content: '完全没有不适或疼痛，动作轻松完成' },
