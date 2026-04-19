@@ -102,7 +102,7 @@ const handleMenuClick = (path) => {
 };
 
 const handleLogout = async () => {
-  const isConfirmed = await showConfirm(`确认要退出“骑迹”并结束本次会话吗？`, '安全注销');
+  const isConfirmed = await showConfirm(`确认要退出"骑迹"并结束本次会话吗？`, '安全退出');
   if (isConfirmed) {
     logout().then(() => {
       userStore.logout();

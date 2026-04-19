@@ -112,15 +112,15 @@
                   <div class="field-values">
                     <div class="v-item">
                       <span class="v-label">当前</span>
-                      <span class="v-current">{{ field.current }}{{ field.unit }}</span>
+                      <span class="v-current">{{ field.current }}<template v-if="field.current !== '--'">{{ field.unit }}</template></span>
                     </div>
                     <div class="v-item">
                       <span class="v-label">推荐</span>
-                      <span class="v-ideal">{{ field.ideal }}{{ field.unit }}</span>
+                      <span class="v-ideal">{{ field.ideal }}<template v-if="field.ideal !== '--'">{{ field.unit }}</template></span>
                     </div>
                     <div class="v-item" :class="field.deltaClass">
                       <span class="v-label">偏差</span>
-                      <span class="v-delta">{{ field.delta > 0 ? '+' : '' }}{{ field.delta }}{{ field.unit }}</span>
+                      <span class="v-delta">{{ field.delta === '--' ? '--' : (field.delta > 0 ? '+' : '') + field.delta + field.unit }}</span>
                     </div>
                   </div>
                 </div>
@@ -246,21 +246,24 @@ const deviationFields = computed(() => {
   // 从 mechanicalAdjustments 中提取当前值和推荐值
   fieldConfig.forEach(config => {
     const item = adjustments.find(a => a.label === config.label);
-    const currentVal = item ? (item.currentValue || 0) : 0;
-    const idealVal = item ? (item.idealValue || 0) : 0;
-    const delta = idealVal - currentVal; // 偏差 = 推荐值 - 当前值
+    const hasData = !!item;
+    const currentVal = hasData ? item.currentValue : null;
+    const idealVal = hasData ? item.idealValue : null;
+    const delta = (currentVal != null && idealVal != null) ? idealVal - currentVal : null;
 
     let deltaClass = 'neutral';
-    if (Math.abs(delta) <= 5) deltaClass = 'good';
-    else if (Math.abs(delta) <= 15) deltaClass = 'warning';
-    else deltaClass = 'danger';
+    if (delta != null) {
+      if (Math.abs(delta) <= 5) deltaClass = 'good';
+      else if (Math.abs(delta) <= 15) deltaClass = 'warning';
+      else deltaClass = 'danger';
+    }
 
     fields.push({
       name: config.name,
       unit: config.unit,
-      current: currentVal || '--',
-      ideal: idealVal,
-      delta: delta,
+      current: currentVal != null ? currentVal : '--',
+      ideal: idealVal != null ? idealVal : '--',
+      delta: delta != null ? delta : '--',
       deltaClass: deltaClass
     });
   });

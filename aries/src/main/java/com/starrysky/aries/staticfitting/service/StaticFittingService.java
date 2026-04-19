@@ -361,6 +361,42 @@ public class StaticFittingService {
                 expertDiagnoses.add("🔴 骑行姿态过" + (m.getDelta().intValue() > 0 ? "短" : "长") + "，建议调整把立长度。");
         }
 
+        // 坐垫后移
+        if (ideal.getRecSetback() != null && setup.getSaddleSetback() != null) {
+            StaticFittingMetricVO m = buildMetric("Setback (座垫后移)", ideal.getRecSetback(), setup.getSaddleSetback(), 5, "影响发力角度与膝盖健康");
+            mechanicalAdjustments.add(m);
+        }
+
+        // 曲柄长度
+        if (ideal.getRecCrankLength() != null && setup.getCrankLength() != null) {
+            StaticFittingMetricVO m = buildMetric("Crank Length (曲柄长度)", ideal.getRecCrankLength(), setup.getCrankLength(), 2, "影响踩踏效率与膝盖负荷");
+            mechanicalAdjustments.add(m);
+        }
+
+        // 坐垫推荐宽
+        if (ideal.getRecSaddleWidth() != null && setup.getSaddleWidth() != null) {
+            StaticFittingMetricVO m = buildMetric("Saddle Width (坐垫推荐宽)", ideal.getRecSaddleWidth(), setup.getSaddleWidth(), 5, "影响坐骨支撑与舒适度");
+            mechanicalAdjustments.add(m);
+        }
+
+        // 车把落差
+        if (ideal.getRecHandlebarDrop() != null && setup.getHandlebarDrop() != null) {
+            StaticFittingMetricVO m = buildMetric("Handlebar Drop (车把落差)", ideal.getRecHandlebarDrop(), setup.getHandlebarDrop(), 10, "影响骑行姿态与风阻");
+            mechanicalAdjustments.add(m);
+        }
+
+        // 垫圈高度
+        if (ideal.getRecSpacerHeight() != null && setup.getSpacersHeight() != null) {
+            StaticFittingMetricVO m = buildMetric("Spacer Height (垫圈高度)", ideal.getRecSpacerHeight(), setup.getSpacersHeight(), 5, "影响车把高度与舒适度");
+            mechanicalAdjustments.add(m);
+        }
+
+        // 把立长度
+        if (ideal.getRecStemLength() != null && setup.getStemLength() != null) {
+            StaticFittingMetricVO m = buildMetric("Stem Length (把立长度)", ideal.getRecStemLength(), setup.getStemLength(), 5, "影响前伸量与操控");
+            mechanicalAdjustments.add(m);
+        }
+
         if (ideal.getRecCrankLength() != null && setup.getCrankLength() != null && !ideal.getRecCrankLength().equals(setup.getCrankLength())) {
             HardwareUpgradeVO h = new HardwareUpgradeVO();
             h.setPart("曲柄长度");
