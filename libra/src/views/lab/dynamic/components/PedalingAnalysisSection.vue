@@ -49,12 +49,14 @@
       <!-- 2. Force Curve Chart -->
       <div class="chart-box">
         <h4 class="sub-label">360° 发力平顺度概览 (Force Curve)</h4>
+        <p class="chart-desc text-muted">反映踩踏过程中的输出平稳性。波峰越宽、波谷越浅，代表发力越连续。</p>
         <div ref="curveChartDom" class="echarts-dom"></div>
       </div>
 
       <!-- 2.5 360 Radar/Polar Chart -->
       <div class="chart-box">
         <h4 class="sub-label">360° 发力极坐标圆周盘 (Polar Phase)</h4>
+        <p class="chart-desc text-muted">像时钟一样显示发力的时机。最强的动力应出现在 3 点钟方向（90°）。</p>
         <div ref="radarChartDom" class="echarts-dom"></div>
       </div>
       
@@ -130,13 +132,15 @@ let echartInstance = null;
 let radarInstance = null;
 
 const getAngleClass = (angle) => {
-  if (angle >= 85 && angle <= 105) return 'text-success';
+  const relativeAngle = angle % 180;
+  if (relativeAngle >= 85 && relativeAngle <= 105) return 'text-success';
   return 'text-warning';
 };
 
 const getAngleDesc = (angle) => {
-  if (angle < 85) return '发力过早 (坐垫偏前)';
-  if (angle > 105) return '发力滞后 (坐垫偏后)';
+  const relativeAngle = angle % 180;
+  if (relativeAngle < 85) return '发力过早 (坐垫偏前)';
+  if (relativeAngle > 105) return '发力滞后 (坐垫偏后)';
   return '相对标准 (3点方向)';
 };
 

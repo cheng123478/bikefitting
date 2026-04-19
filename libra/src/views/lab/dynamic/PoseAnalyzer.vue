@@ -367,7 +367,7 @@ const isRecording = ref(false);
 const recordingTime = ref(0);
 let recordTimer = null;
 const MAX_RECORD_TIME = 30;
-const MIN_DURATION = 10; // 最短有效采集时长（秒），保证至少完成数个完整踩踏周期
+const MIN_DURATION = 1; // 最短有效采集时长（秒），保证至少完成数个完整踩踏周期
 const ANALYSIS_SPEED = 0.2;
 const tiltAngle = ref(0);
 const isLevel = computed(() => Math.abs(tiltAngle.value) < 3);
@@ -461,7 +461,7 @@ const forceDrawSingleFrame = () => {
 // ==========================================
 const drawLoop = () => {
   if (!canvasRef.value || !videoRef.value) return;
-  if (mode.value === 'upload' && (videoRef.value.paused || videoRef.value.ended)) return;
+  if (mode.value === 'upload' && videoRef.value.ended) return;
 
   const ctx = canvasRef.value.getContext('2d');
   const width = videoRef.value.videoWidth;
