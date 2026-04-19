@@ -82,7 +82,7 @@ public class JwtFilter extends OncePerRequestFilter {
         if (!StringUtils.hasText(header) || !header.startsWith("Bearer ")) {
             log.warn("未获取到令牌 | IP: {} | URI: {}", IpUtil.getRequestIp(request), request.getRequestURI());
             response.getWriter().write(objectMapper
-                    .writeValueAsString(ResponseResult.failure(HttpStatus.UNAUTHORIZED.value(), "未获取到客户令牌")));
+                    .writeValueAsString(ResponseResult.failure(HttpStatus.UNAUTHORIZED.value(), "请先登录或注册！")));
             return;
         }
         try {

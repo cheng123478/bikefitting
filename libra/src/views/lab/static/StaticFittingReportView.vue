@@ -49,35 +49,53 @@
               <h3 class="section-title"><i class="fas fa-vector-square"></i> 车架骨架匹配 (Frame Compatibility)</h3>
               <p class="section-desc">验证当前车架尺码是否符合您的身体比例。若此处存在严重偏差，后期调教效果将受限。</p>
 
-              <div class="frame-grid">
-                <!-- 堆高 Stack -->
-                <div class="frame-card glass-card" v-if="report.frameStackCheck">
-                  <div class="fc-header">
-                    <h4>{{ report.frameStackCheck.label }}</h4>
-                    <span class="status-badge" :class="report.frameStackCheck.status">
-                      {{ getStatusText(report.frameStackCheck.status) }}
-                    </span>
+              <div class="compatibility-grid two-col">
+                <!-- Stack 匹配 -->
+                <div class="compat-card" v-if="report.frameStackCheck">
+                  <h4 class="compat-title">Stack 匹配</h4>
+                  <div class="compat-body">
+                    <div class="compat-status">
+                      <span v-if="report.frameStackCheck.status === 'PERFECT'" class="status-tag tag-yellow">完美契合</span>
+                      <span v-else-if="report.frameStackCheck.status === 'ADJUST'" class="status-tag tag-green">建议微调</span>
+                      <span v-else-if="report.frameStackCheck.status === 'WARNING'" class="status-tag tag-red">严重偏差</span>
+                    </div>
+                    <div class="compat-values">
+                      <div class="value-item">
+                        <span class="current">{{ report.frameStackCheck.currentValue || '--' }}</span>
+                        <span class="value-label">当前</span>
+                      </div>
+                      <span class="sep">/</span>
+                      <div class="value-item">
+                        <span class="ideal">{{ report.frameStackCheck.idealValue }}{{ report.frameStackCheck.unit }}</span>
+                        <span class="value-label">推荐</span>
+                      </div>
+                    </div>
+                    <p class="compat-reason">{{ report.frameStackCheck.reason }}</p>
                   </div>
-                  <div class="fc-data">
-                    <div class="val">现状: {{ report.frameStackCheck.currentValue || '--' }} <small>{{ report.frameStackCheck.unit }}</small></div>
-                    <div class="val ideal">理想: {{ report.frameStackCheck.idealValue }} <small>{{ report.frameStackCheck.unit }}</small></div>
-                  </div>
-                  <p class="fc-reason">{{ report.frameStackCheck.reason }}</p>
                 </div>
 
-                <!-- 前伸 Reach -->
-                <div class="frame-card glass-card" v-if="report.frameReachCheck">
-                  <div class="fc-header">
-                    <h4>{{ report.frameReachCheck.label }}</h4>
-                    <span class="status-badge" :class="report.frameReachCheck.status">
-                      {{ getStatusText(report.frameReachCheck.status) }}
-                    </span>
+                <!-- Reach 匹配 -->
+                <div class="compat-card" v-if="report.frameReachCheck">
+                  <h4 class="compat-title">Reach 匹配</h4>
+                  <div class="compat-body">
+                    <div class="compat-status">
+                      <span v-if="report.frameReachCheck.status === 'PERFECT'" class="status-tag tag-yellow">完美契合</span>
+                      <span v-else-if="report.frameReachCheck.status === 'ADJUST'" class="status-tag tag-green">建议微调</span>
+                      <span v-else-if="report.frameReachCheck.status === 'WARNING'" class="status-tag tag-red">严重偏差</span>
+                    </div>
+                    <div class="compat-values">
+                      <div class="value-item">
+                        <span class="current">{{ report.frameReachCheck.currentValue || '--' }}</span>
+                        <span class="value-label">当前</span>
+                      </div>
+                      <span class="sep">/</span>
+                      <div class="value-item">
+                        <span class="ideal">{{ report.frameReachCheck.idealValue }}{{ report.frameReachCheck.unit }}</span>
+                        <span class="value-label">推荐</span>
+                      </div>
+                    </div>
+                    <p class="compat-reason">{{ report.frameReachCheck.reason }}</p>
                   </div>
-                  <div class="fc-data">
-                    <div class="val">现状: {{ report.frameReachCheck.currentValue || '--' }} <small>{{ report.frameReachCheck.unit }}</small></div>
-                    <div class="val ideal">理想: {{ report.frameReachCheck.idealValue }} <small>{{ report.frameReachCheck.unit }}</small></div>
-                  </div>
-                  <p class="fc-reason">{{ report.frameReachCheck.reason }}</p>
                 </div>
               </div>
             </section>
@@ -87,34 +105,24 @@
               <h3 class="section-title"><i class="fas fa-sliders-h"></i> 设定偏差分析 (Setup Deviations)</h3>
               <p class="section-desc">对比您当前的单车设定与 Aries 计算出的黄金生物力学坐标。</p>
 
-              <div class="setup-list">
-                <div v-for="(metric, index) in report.setupDetails" :key="index" class="setup-item glass-card">
-
-                  <div class="item-head">
-                    <div class="item-title">
-                      <span class="dot" :class="metric.status"></span>
-                      <h4>{{ metric.label }}</h4>
+              <!-- 7个字段方框网格 -->
+              <div class="deviation-grid">
+                <div v-for="(field, index) in deviationFields" :key="index" class="deviation-card">
+                  <h4 class="field-name">{{ field.name }}</h4>
+                  <div class="field-values">
+                    <div class="v-item">
+                      <span class="v-label">当前</span>
+                      <span class="v-current">{{ field.current }}<template v-if="field.current !== '--'">{{ field.unit }}</template></span>
                     </div>
-                    <div class="item-action" :class="metric.status">{{ metric.action }}</div>
-                  </div>
-
-                  <div class="item-compare">
-                    <div class="c-box current">
-                      <span class="c-label">当前设定</span>
-                      <span class="c-val">{{ metric.currentValue || '--' }}<small>{{ metric.unit }}</small></span>
+                    <div class="v-item">
+                      <span class="v-label">推荐</span>
+                      <span class="v-ideal">{{ field.ideal }}<template v-if="field.ideal !== '--'">{{ field.unit }}</template></span>
                     </div>
-                    <div class="c-arrow"><i class="fas fa-arrow-right"></i></div>
-                    <div class="c-box ideal">
-                      <span class="c-label">理想建议</span>
-                      <span class="c-val">{{ metric.idealValue }}<small>{{ metric.unit }}</small></span>
-                    </div>
-                    <div class="c-delta" :class="metric.status">
-                      <span class="d-label">偏差</span>
-                      <span class="d-val">{{ metric.delta > 0 ? '+' : '' }}{{ metric.delta }}</span>
+                    <div class="v-item" :class="field.deltaClass">
+                      <span class="v-label">偏差</span>
+                      <span class="v-delta">{{ field.delta === '--' ? '--' : (field.delta > 0 ? '+' : '') + field.delta + field.unit }}</span>
                     </div>
                   </div>
-
-                  <div class="item-reason"><i class="fas fa-info-circle"></i> {{ metric.reason }}</div>
                 </div>
               </div>
             </section>
@@ -217,6 +225,52 @@ const getStatusText = (status) => {
   return map || '未知';
 };
 
+// 计算偏差字段数据
+const deviationFields = computed(() => {
+  if (!report.value) return [];
+
+  const fields = [];
+  const adjustments = report.value.mechanicalAdjustments || [];
+
+  // 字段配置与后端 label 的映射
+  const fieldConfig = [
+    { key: 'seatHeight', name: '建议座高', unit: 'mm', label: 'Saddle Height (座垫高度)' },
+    { key: 'setback', name: '坐垫后移', unit: 'mm', label: 'Setback (座垫后移)' },
+    { key: 'crankLength', name: '曲柄长度', unit: 'mm', label: 'Crank Length (曲柄长度)' },
+    { key: 'saddleWidth', name: '坐垫推荐宽', unit: 'mm', label: 'Saddle Width (坐垫推荐宽)' },
+    { key: 'handlebarDrop', name: '车把落差', unit: 'mm', label: 'Handlebar Drop (车把落差)' },
+    { key: 'spacerHeight', name: '垫圈高度', unit: 'mm', label: 'Spacer Height (垫圈高度)' },
+    { key: 'stemLength', name: '把立长度', unit: 'mm', label: 'Stem Length (把立长度)' }
+  ];
+
+  // 从 mechanicalAdjustments 中提取当前值和推荐值
+  fieldConfig.forEach(config => {
+    const item = adjustments.find(a => a.label === config.label);
+    const hasData = !!item;
+    const currentVal = hasData ? item.currentValue : null;
+    const idealVal = hasData ? item.idealValue : null;
+    const delta = (currentVal != null && idealVal != null) ? idealVal - currentVal : null;
+
+    let deltaClass = 'neutral';
+    if (delta != null) {
+      if (Math.abs(delta) <= 5) deltaClass = 'good';
+      else if (Math.abs(delta) <= 15) deltaClass = 'warning';
+      else deltaClass = 'danger';
+    }
+
+    fields.push({
+      name: config.name,
+      unit: config.unit,
+      current: currentVal != null ? currentVal : '--',
+      ideal: idealVal != null ? idealVal : '--',
+      delta: delta != null ? delta : '--',
+      deltaClass: deltaClass
+    });
+  });
+
+  return fields;
+});
+
 const goToGarage = () => {
   router.push({ path: '/lab/garage/edit', query: { id: bikeId.value } });
 };
@@ -309,23 +363,69 @@ onMounted(async () => {
 .section-desc { font-size: 0.9rem; color: var(--text-muted); margin-bottom: 25px; }
 
 /* Frame Check Cards */
-.frame-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
-.frame-card { padding: 25px; }
-.fc-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
-.fc-header h4 { margin: 0; font-size: 1.1rem; color: var(--text-main); }
-.status-badge { font-size: 0.75rem; padding: 4px 10px; border-radius: 12px; font-weight: bold; }
-.status-badge.PERFECT { background: #E8F5E9; color: #2E7D32; }
-.status-badge.ADJUST { background: #FFF3E0; color: #E65100; }
-.status-badge.WARNING { background: #FFEBEE; color: #C62828; }
-.fc-data { display: flex; gap: 20px; margin-bottom: 15px; }
-.fc-data .val { font-size: 0.9rem; color: var(--text-muted); }
-.fc-data .ideal { color: var(--primary-color); font-weight: bold; }
-.fc-reason { font-size: 0.85rem; color: var(--text-muted); border-top: 1px dashed #EEE; padding-top: 15px; margin: 0; }
+.compatibility-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+.compatibility-grid.two-col { grid-template-columns: repeat(2, 1fr); }
+.compat-card { background: #FFFFFF; border-radius: 12px; padding: 20px; border: 1px solid #E8E8E4; transition: all 0.2s ease; }
+.compat-card:hover { border-color: #D0D0C8; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06); }
+.compat-title { font-size: 0.75rem; color: #999; letter-spacing: 1px; margin: 0 0 15px 0; text-transform: uppercase; }
+.compat-body { display: flex; flex-direction: column; gap: 12px; }
+.compat-status { font-size: 0.7rem; padding: 4px 10px; border-radius: 12px; font-weight: bold; display: inline-block; width: fit-content; }
+.status-tag { padding: 4px 12px; border-radius: 12px; font-size: 0.75rem; font-weight: bold; }
+.tag-yellow { background: #FFF8E1; color: #F57F17; border: 1px solid #FFECB3; }
+.tag-green { background: #E8F5E9; color: #2E7D32; border: 1px solid #C8E6C9; }
+.tag-red { background: #FFEBEE; color: #C62828; border: 1px solid #FFCDD2; }
+.compat-values { display: flex; align-items: center; gap: 6px; font-size: 1.4rem; font-family: var(--font-serif); }
+.value-item { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.value-item .current { color: #333; font-weight: bold; }
+.value-item .ideal { color: #5C6E58; font-weight: bold; }
+.value-label { font-size: 0.6rem; color: #999; font-family: var(--font-sans); letter-spacing: 0.5px; }
+.compat-values .sep { color: #CCC; font-size: 1rem; }
+.compat-reason { font-size: 0.8rem; color: #888; line-height: 1.5; margin: 0; padding-top: 8px; border-top: 1px dashed #EEE; }
+.compat-card.overall { background: #5C6E58; border-color: #5C6E58; color: #FFFFFF; }
+.compat-card.overall:hover { background: #4D5F49; border-color: #4D5F49; }
+.compat-card.overall .compat-title { color: rgba(255, 255, 255, 0.7); }
+.overall-score { display: flex; align-items: baseline; gap: 4px; }
+.overall-score .score { font-size: 2.2rem; font-weight: bold; font-family: var(--font-serif); }
+.overall-score .label { font-size: 0.85rem; opacity: 0.8; }
+.overall-section { display: flex; flex-direction: column; gap: 6px; }
+.section-label { font-size: 0.7rem; color: rgba(255, 255, 255, 0.6); letter-spacing: 0.5px; }
+.overall-desc { font-size: 0.9rem; opacity: 0.95; margin: 0; font-weight: 500; }
+.overall-score.PERFECT { color: #A5D6A7; }
+.overall-score.ADJUST { color: #FFCC80; }
+.overall-score.WARNING { color: #EF9A9A; }
+
+@media (max-width: 768px) {
+  .compatibility-grid,
+  .compatibility-grid.two-col { grid-template-columns: 1fr; }
+}
 
 /* Setup Detail List */
 .setup-list { display: flex; flex-direction: column; gap: 20px; }
 .setup-item { padding: 25px; border-left: 4px solid transparent; transition: 0.3s; }
 .setup-item:hover { border-left-color: var(--primary-color); transform: translateX(5px); }
+
+/* Deviation Grid */
+.deviation-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+.deviation-card { background: #FFFFFF; border-radius: 12px; padding: 16px; border: 1px solid #E8E8E4; transition: all 0.2s ease; }
+.deviation-card:hover { border-color: #D0D0C8; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06); }
+.field-name { font-size: 0.75rem; color: #999; letter-spacing: 0.5px; margin: 0 0 12px 0; text-transform: uppercase; }
+.field-values { display: flex; flex-direction: column; gap: 8px; }
+.v-item { display: flex; justify-content: space-between; align-items: center; }
+.v-label { font-size: 0.7rem; color: #AAA; }
+.v-current { font-size: 1rem; font-weight: bold; color: #333; font-family: var(--font-serif); }
+.v-ideal { font-size: 1rem; font-weight: bold; color: #5C6E58; font-family: var(--font-serif); }
+.v-delta { font-size: 0.9rem; font-weight: bold; font-family: var(--font-serif); }
+.v-item.good .v-delta { color: #2E7D32; }
+.v-item.warning .v-delta { color: #F57F17; }
+.v-item.danger .v-delta { color: #C62828; }
+.v-item.neutral .v-delta { color: #666; }
+
+@media (max-width: 1024px) {
+  .deviation-grid { grid-template-columns: repeat(3, 1fr); }
+}
+@media (max-width: 768px) {
+  .deviation-grid { grid-template-columns: repeat(2, 1fr); }
+}
 
 .item-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
 .item-title { display: flex; align-items: center; gap: 10px; }
@@ -374,7 +474,6 @@ onMounted(async () => {
   .summary-box { justify-content: center; }
 }
 @media (max-width: 768px) {
-  .frame-grid { grid-template-columns: 1fr; }
   .item-compare { flex-wrap: wrap; gap: 15px; }
   .c-delta { border-left: none; border-top: 1px solid #eee; padding-left: 0; padding-top: 15px; width: 100%; text-align: center; flex: none; }
 }

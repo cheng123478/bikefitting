@@ -23,8 +23,10 @@ public class StaticFittingResultVO {
     private Integer recSetback;
     private Integer recCrankLength;
     private Integer recReachPlus;
-    private Integer recStackPlus;
+    private Integer recFrameStack;
+    private Integer targetBarHeight;
     private Integer recHandlebarDrop;
+    private Integer recSpacerHeight;
     private Integer recHandlebarWidth;
     private Integer recSaddleWidth;
     private Integer recStemLength;

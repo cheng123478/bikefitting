@@ -24,7 +24,7 @@
         <aside class="assets-column" v-scroll-reveal.delay="100">
           <h3 class="column-title">
             <span class="en-prefix">PROFILES</span>
-            <span class="cn-text">骑士身体档案</span>
+            <span class="cn-text">骑士档案</span>
           </h3>
 
           <!-- A. 身体图谱卡片 -->

@@ -43,12 +43,16 @@ public class StaticFittingResult {
     @Comment("建议把立长度")
     private Integer recStemLength;
     // --- 空间坐标数据 (Stack/Reach Plus) ---
-    @Comment("建议车把堆高坐标(Stack+)")
-    private Integer recStackPlus;
+    @Comment("推荐车架Stack (跨高×车型系数)")
+    private Integer recFrameStack;
+    @Comment("建议车把高度(Stack+)")
+    private Integer targetBarHeight;
     @Comment("建议空间前伸坐标(Reach+)")
     private Integer recReachPlus;
     @Comment("建议车把落差(Drop)")
     private Integer recHandlebarDrop;
+    @Comment("建议垫圈高度(Spacer)")
+    private Integer recSpacerHeight;
     // --- 中间评分(用于展示报告雷达图) ---
     @Comment("计算出的胸椎灵活性得分")
     private Integer thoracicScore;

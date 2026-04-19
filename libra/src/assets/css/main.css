@@ -814,9 +814,6 @@ h3 {
 
 .guide-area {
   flex: 0.7;
-  max-height: calc(100vh - 260px);
-  overflow-y: auto;
-  overflow-x: hidden;
   position: sticky;
   top: calc(var(--header-height) + 40px);
 }

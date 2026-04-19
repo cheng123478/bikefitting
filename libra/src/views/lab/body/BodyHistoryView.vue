@@ -267,12 +267,12 @@ watch(isChartVisible, (val) => { if (val) nextTick(() => myChart?.resize()); });
 const loadHistory = async (page = 0) => {
   loading.value = true;
   try {
-    const res = await getUserBodyHistory(page, pagination.size);
-    const data = res.data || res;
+    const data = await getUserBodyHistory(page, pagination.size);
+    // 响应拦截器已解包 res.data，data 直接就是 Page 对象
     historyList.value = data.content || [];
     pagination.currentPage = data.number || 0;
     pagination.totalPages = data.totalPages || 0;
-    pagination.totalElements = data.totalElements || 0;
+    pagination.totalElements = data.totalElements ?? historyList.value.length;
   } catch (error) {
     console.error("加载失败", error);
   } finally {
