@@ -77,7 +77,7 @@ public class PedalingSimulationAlgorithm {
                 result.put("bilateralConfidence", "LOW");
                 result.put("dataSource", "side");
                 result.put("analysisNote",
-                        "侧面视频无法区分左右腿，双侧发力数据为对称估算值。如需精确双侧分析，请额外采集正面视频。");
+                        "当前基于【侧面视角】分析。由于单侧视频无法区分双腿，系统采用了对称动力学模型模拟双腿输出。此结果可参考踩踏相位（Timing），但无法真实反映左右腿力量差异（Balance）。建议上传正面视频以激活双侧实测模式。");
             } else {
                 // 数据完全不足 → 返回 null，让前端隐藏踩踏分析模块
                 return null;
