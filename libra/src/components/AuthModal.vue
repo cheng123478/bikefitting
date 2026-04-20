@@ -68,12 +68,12 @@
           {{ isLoading ? '登录中...' : '立即登录' }}
         </button>
 
-        <div class="social-divider"><span>或者</span></div>
-        <div class="social-login-btns">
-          <button type="button" class="wechat-btn" @click="wechatLogin">
-            <i class="fab fa-weixin"></i> 微信一键登录
-          </button>
-        </div>
+<!--        <div class="social-divider"><span>或者</span></div>-->
+<!--        <div class="social-login-btns">-->
+<!--          <button type="button" class="wechat-btn" @click="wechatLogin">-->
+<!--            <i class="fab fa-weixin"></i> 微信一键登录-->
+<!--          </button>-->
+<!--        </div>-->
       </form>
 
       <!-- 注册表单 -->
@@ -115,12 +115,12 @@
           {{ isLoading ? '注册中...' : '注册并登录' }}
         </button>
 
-        <div class="social-divider"><span>社交账号快捷注册</span></div>
-        <div class="social-login-btns">
-          <button type="button" class="wechat-btn" @click="wechatLogin">
-            <i class="fab fa-weixin"></i> 微信授权注册
-          </button>
-        </div>
+<!--        <div class="social-divider"><span>社交账号快捷注册</span></div>-->
+<!--        <div class="social-login-btns">-->
+<!--          <button type="button" class="wechat-btn" @click="wechatLogin">-->
+<!--            <i class="fab fa-weixin"></i> 微信授权注册-->
+<!--          </button>-->
+<!--        </div>-->
       </form>
     </div>
   </div>

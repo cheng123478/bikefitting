@@ -16,10 +16,9 @@ export default defineConfig({
     port: 80,
     https: false,
     proxy: {
-      '/api': {
-        target: 'http://127.0.0.1:9201/aries',
+      '/aries': {
+        target: 'http://127.0.0.1:9200',
         changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/api/, '')
       }
     }
   },

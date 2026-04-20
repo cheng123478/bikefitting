@@ -73,8 +73,8 @@ export const useUserStore = defineStore('user', () => {
         const user = data.user || data;
 
         // Normalize avatar URL
-        if (user?.avatar && !user.avatar.startsWith('/api')) {
-            user.avatar = `/api${user.avatar}`;
+        if (user?.avatar) {
+            user.avatar = `${user.avatar}`;
         }
 
         syncStorage({

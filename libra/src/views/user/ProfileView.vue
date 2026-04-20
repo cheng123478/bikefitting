@@ -338,7 +338,7 @@ const handleAvatarChange = async (e) => {
     userForm.avatar = res;
 
     // 更新 Store
-    userStore.userInfo.avatar = "/api" + res;
+    userStore.userInfo.avatar = res;
     localStorage.setItem('user_info', JSON.stringify(userStore.userInfo));
     showToast('头像更新成功', 'success');
   } catch (error) {

@@ -25,7 +25,7 @@ const router = createRouter({
             path: '/lab',
             name: 'lab',
             component: () => import('@/views/lab/LabView.vue'),
-            meta: { title: '实验室', requiresAuth: false }
+            meta: { title: '实验室', requiresAuth: true }
         },
         {
             path: '/lab/body',
@@ -49,25 +49,25 @@ const router = createRouter({
             path: '/lab/garage',
             name: 'lab-garage',
             component: () => import('@/views/lab/garage/GarageView.vue'),
-            meta: { title: '车库', requiresAuth: false }
+            meta: { title: '车库', requiresAuth: true }
         },
         {
             path: '/lab/garage/edit',
             name: 'lab-garage-edit',
             component: () => import('@/views/lab/garage/BikeEditView.vue'),
-            meta: { title: '维护单车信息', requiresAuth: false }
+            meta: { title: '维护单车信息', requiresAuth: true }
         },
         {
             path: '/lab/report/static',
             name: 'lab-report-static',
             component: () => import('@/views/lab/static/StaticFittingReportView.vue'),
-            meta: { title: '静态Fitting报告', requiresAuth: false }
+            meta: { title: '静态Fitting报告', requiresAuth: true }
         },
         {
             path: '/lab/report/dynamic',
             name: 'lab-report-dynamic',
             component: () => import('@/views/lab/dynamic/DynamicFittingReportView.vue'),
-            meta: { title: '动态分析报告', requiresAuth: false }
+            meta: { title: '动态分析报告', requiresAuth: true }
         },
         {
             path: '/lab/static',
@@ -79,32 +79,32 @@ const router = createRouter({
             path: '/lab/dynamic',
             name: 'lab-dynamic',
             component: () => import('@/views/lab/dynamic/DynamicFittingHub.vue'),
-            meta: { title: '动态Fitting', requiresAuth: false }
+            meta: { title: '动态Fitting', requiresAuth: true }
         },
         {
             path: '/lab/dynamic/capture',
             name: 'lab-dynamic-capture',
             component: () => import('@/views/lab/dynamic/PoseAnalyzer.vue'),
-            meta: { hideNavbar: true, requiresAuth: false }
+            meta: { hideNavbar: true, requiresAuth: true }
         },
         {
             path: '/lab/dynamic/session/submitted',
             name: 'lab-dynamic-session-submitted',
             component: () => import('@/views/lab/dynamic/DynamicFittingSubmitted.vue'),
-            meta: { hideNavbar: true, requiresAuth: false }
+            meta: { hideNavbar: true, requiresAuth: true }
         },
         {
             path: '/lab/dynamic/session',
             name: 'lab-dynamic-session',
             component: () => import('@/views/lab/dynamic/DynamicFittingSessionView.vue'),
-            meta: { hideNavbar: true, requiresAuth: false }
+            meta: { hideNavbar: true, requiresAuth: true }
         },
-        {
-            path: '/lab/realtime',
-            name: 'RealtimeGuard',
-            component: () => import('@/views/lab/realtime/RealtimeGuardView.vue'),
-            meta: { title: '姿态实时监护', requiresAuth: true }
-        },
+        // {
+        //     path: '/lab/realtime',
+        //     name: 'RealtimeGuard',
+        //     component: () => import('@/views/lab/realtime/RealtimeGuardView.vue'),
+        //     meta: { title: '姿态实时监护', requiresAuth: true }
+        // },
         {
             path: '/lab/archives',
             component: () => import('@/views/lab/archives/ArchiveLayout.vue'),
