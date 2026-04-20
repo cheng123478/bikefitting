@@ -13,6 +13,7 @@ import com.starrysky.aries.user.schema.UserResponse;
 import com.starrysky.aries.user.service.UserService;
 import com.starrysky.aries.util.ResponseResult;
 import com.starrysky.aries.util.ResponseResultStatus;
+import com.starrysky.aries.util.upload.CosUtil;
 import com.starrysky.aries.util.upload.FileUploadResult;
 import com.starrysky.aries.util.upload.FileUploadUtil;
 import jakarta.annotation.Resource;
@@ -26,6 +27,7 @@ import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.util.Map;
 import java.util.UUID;
@@ -47,6 +49,8 @@ public class UserController {
     private UserService userService;
     @Resource
     private FileUploadUtil fileUploadUtil;
+    @Resource
+    private CosUtil cosUtil;
     @Resource
     private RedisUtil redisUtil;
 
@@ -157,20 +161,32 @@ public class UserController {
     @PostMapping("/avatar")
     public ResponseResult<String> uploadAvatar(@AuthenticationPrincipal User user,
             @RequestParam("file") MultipartFile file) {
-        FileUploadResult fileUploadResult;
+        String key = String.format("/%d/user/%s.%s",
+                user.getId(), UUID.randomUUID(), file.getContentType().split("/")[1]);
+
         try {
-            fileUploadResult = fileUploadUtil.uploadPic(user.getId() + "/avatar", file);
+            String url = cosUtil.upload(file.getInputStream(), file.getSize(), key);
+            userService.editAvatar(user.getPhone(), url);
+            return ResponseResult.success(url);
         } catch (IOException e) {
             log.warn("上传头像失败", e);
             return ResponseResult.failure(500, "上传头像失败");
         }
-        if (fileUploadResult.isResult()) {
-            userService.editAvatar(user.getPhone(), "/resource" + fileUploadResult.getUrl());
-            return ResponseResult.success("/resource" + fileUploadResult.getUrl());
-        } else {
-            log.warn("上传头像,修改头像信息失败: {}", fileUploadResult.getMessage());
-            return ResponseResult.failure(500, fileUploadResult.getMessage());
-        }
+//
+//        FileUploadResult fileUploadResult;
+//        try {
+//            fileUploadResult = fileUploadUtil.uploadPic(user.getId() + "/avatar", file);
+//        } catch (IOException e) {
+//            log.warn("上传头像失败", e);
+//            return ResponseResult.failure(500, "上传头像失败");
+//        }
+//        if (fileUploadResult.isResult()) {
+//            userService.editAvatar(user.getPhone(), "/resource" + fileUploadResult.getUrl());
+//            return ResponseResult.success("/resource" + fileUploadResult.getUrl());
+//        } else {
+//            log.warn("上传头像,修改头像信息失败: {}", fileUploadResult.getMessage());
+//            return ResponseResult.failure(500, fileUploadResult.getMessage());
+//        }
     }
 
     /**
