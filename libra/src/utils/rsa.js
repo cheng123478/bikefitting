@@ -2,7 +2,7 @@ import JSEncrypt from 'jsencrypt'
 
 export function rsaEncrypt(txt) {
     const encryptor = new JSEncrypt();
-    let rawKey = "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAoz7yrSeKcDMEC+sM14CvCLyOGK5k6AJDgxCVWOPI/1DNMnY4suBc31bDFTaCwXFQuMiu3j04Bb8zfmH4bAxuRTYCTC3C1dEMlHEjVPA3xBZi55n+DaFHWzt24hLmN7lpNHVNh1A4z9jfMUXNtSA/x41m1CUqBGzieztVKLhUv29vW+zAs/Z2x+p4oFbMXodaxpYhrOFdG7Y14xE3Tr3wMLZbyV6ms2id0oVjLZ3JGiQUJ25YcIXjBrc8Himorw47Qpr+csarZS6dolWKSQlheXsdxxu160eqv5CE95nVAAQ4sbKTwqDtXGpYdJBsf9pvugdUSoUrl7Ewh4kLEAH6FwIDAQAB";
+    let rawKey = "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAt69hbXjJtv0mMNEVURviXG1eDdQCgc3odChsxz1ghggQlrbFwktgCqTWY/jWVqmKXrAmYV7WboXsF+g8M9pqLwDUZfHWoaBYA/VV3HIE6IV6vegLflan4wRJe89pgUP6pUrMhJ5wWlevarccrZpnyHxmWJHj26I31hSrb2KlGp64o7Yu6h3bzNZZNnRBZN7QDaEa2wK28ntfCmRcRKnIbkHRPi2/A8Ue/c2XDnX6Tf08OoiqNm35cjHJt6APmJwszca1e5Uhfu5mM1ylywrHEVsNO4Wrg/kFSyGqLsIRlIuLghVuvYbf7QX8JInvwz0wox9gihi53RQeJ8x3SsRtvQIDAQAB";
     // 补全标准 PEM 头尾
     const publicKey = `-----BEGIN PUBLIC KEY-----
     ${rawKey}

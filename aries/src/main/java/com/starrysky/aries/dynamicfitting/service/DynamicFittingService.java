@@ -16,7 +16,6 @@ import com.starrysky.aries.userbody.repository.UserBodyRepository;
 import com.starrysky.aries.util.FittingStatus;
 import com.starrysky.aries.util.RidingPainType;
 import com.starrysky.aries.util.upload.CosUtil;
-import com.starrysky.aries.util.upload.FileUploadResult;
 import com.starrysky.aries.util.upload.FileUploadUtil;
 import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
@@ -27,6 +26,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.io.ByteArrayInputStream;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.*;
@@ -712,14 +712,14 @@ public class DynamicFittingService {
             }
             byte[] bytes = Base64.getDecoder().decode(data);
 
-            String middlePath = "/" + userId + "/fitting/";
-            FileUploadResult fileUploadResult = fileUploadUtil.uploadPic(middlePath, bytes);
-            return fileUploadResult.getUrl();
+//            String middlePath = "/" + userId + "/fitting/";
+//            FileUploadResult fileUploadResult = fileUploadUtil.uploadPic(middlePath, bytes);
+//            return fileUploadResult.getUrl();
 
-            // String key = String.format("fitting/%d/%s_%s_%s.png",
-            // sessionId, viewType, tag, UUID.randomUUID().toString().substring(0, 8));
-            //
-            // return cosUtil.upload(new ByteArrayInputStream(bytes), bytes.length, key);
+             String key = String.format("/%d/fitting/%s_%s_%s.png",
+                     userId, viewType, tag, UUID.randomUUID().toString().substring(0, 8));
+
+             return cosUtil.upload(new ByteArrayInputStream(bytes), bytes.length, key);
         } catch (Exception e) {
             log.error("上传 Base64 图片失败: {} - {}", viewType, tag, e);
             return "";
