@@ -233,6 +233,7 @@ public class UserBikeService {
             vo.setModelYear(model.getModelYear());
             vo.setImageUrl(model.getImageUrl());
             vo.setBikeType(model.getBikeType());
+            vo.setFrameSize(model.getSize()); // 车架尺码
 
             // --- 1. 计算 STR (车架激进程度) ---
             if (isPositive(model.getStack()) && isPositive(model.getReach())) {
@@ -255,6 +256,11 @@ public class UserBikeService {
                         + (setup.getStemLength() != null ? setup.getStemLength() * Math.sin(angleRad) : 0);
                 vo.setEffectiveStackPlus(Math.round(stackPlus * 10.0) / 10.0);
             }
+        }
+
+        // 曲柄长度（从 setup 中获取）
+        if (setup != null && setup.getCrankLength() != null) {
+            vo.setCrankLength(setup.getCrankLength());
         }
 
         return vo;

@@ -33,6 +33,28 @@ public class BikeModelService {
      * @return 搜索结果
      */
     public List<BikeModelSearchVO> searchModels(String keyword) {
+        // 如果关键词包含空格，尝试分词搜索（品牌 + 型号）
+        if (keyword != null && keyword.contains(" ")) {
+            String[] parts = keyword.trim().split("\\s+");
+            if (parts.length >= 2) {
+                String brandKeyword = parts[0];
+                String modelKeyword = parts[1];
+                // 如果还有更多词，合并到型号搜索中
+                for (int i = 2; i < parts.length; i++) {
+                    modelKeyword += " " + parts[i];
+                }
+                
+                List<Object[]> results = bikeModelRepository.findDistinctBrandAndModelBySeparatedKeywords(
+                        brandKeyword, modelKeyword);
+                if (!results.isEmpty()) {
+                    return results.stream()
+                            .map(row -> new BikeModelSearchVO((String) row[0], (String) row[1], (String) row[2]))
+                            .collect(Collectors.toList());
+                }
+            }
+        }
+        
+        // 否则使用原有的单关键词搜索
         List<Object[]> results = bikeModelRepository.findDistinctBrandAndModelByKeyword(keyword);
         return results.stream()
                 .map(row -> new BikeModelSearchVO((String) row[0], (String) row[1], (String) row[2]))

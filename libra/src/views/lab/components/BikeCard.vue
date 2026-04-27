@@ -32,7 +32,7 @@
       <div class="bike-meta">
         <span>{{ bike.frameSize || '--' }} 尺码</span>
         <span class="dot">·</span>
-        <span>{{ bike.crankLength || '--' }}mm 曲柄</span>
+        <span>{{ getBikeTypeName(bike.bikeType) }}</span>
       </div>
 
       <!-- 新增：显示备注 -->
