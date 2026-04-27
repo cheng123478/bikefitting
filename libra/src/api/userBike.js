@@ -79,3 +79,13 @@ export function restoreUserBike(id) {
         method: 'put'
     });
 }
+
+/**
+ * 获取用户的在役车辆数量
+ */
+export function getActiveBikeCount() {
+    return request({
+        url: '/user-bike/count/active',
+        method: 'get'
+    });
+}

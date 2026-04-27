@@ -130,4 +130,15 @@ public class UserBikeController {
             return ResponseResult.failure(500, fileUploadResult.getMessage());
         }
     }
+
+    /**
+     * 获取用户的在役车辆数量
+     *
+     * @param user 当前登录用户
+     * @return 在役车辆数量
+     */
+    @GetMapping("/count/active")
+    public ResponseResult<Long> getActiveBikeCount(@AuthenticationPrincipal User user) {
+        return ResponseResult.success(userBikeService.getActiveBikeCount(user.getId()));
+    }
 }

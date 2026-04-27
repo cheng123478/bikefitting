@@ -32,11 +32,11 @@
 
         <div class="header-right stats-box">
           <div class="stat-item">
-            <span class="val">12</span><span class="lbl">Fitting 报告</span>
+            <span class="val">{{ fittingReportCount }}</span><span class="lbl">Fitting 报告</span>
           </div>
           <div class="divider-v"></div>
           <div class="stat-item">
-            <span class="val">3</span><span class="lbl">我的车辆</span>
+            <span class="val">{{ activeBikeCount }}</span><span class="lbl">我的车辆</span>
           </div>
           <div class="divider-v"></div>
           <div class="stat-item">
@@ -288,6 +288,9 @@ import {
   updateUserProfile,
   uploadAvatar
 } from '@/api/profile.js';
+import { getStaticFittingCount } from '@/api/staticFitting.js';
+import { getDynamicFittingCount } from '@/api/dynamicFitting.js';
+import { getActiveBikeCount } from '@/api/userBike.js';
 
 // ================== 基础状态 ==================
 const router = useRouter();
@@ -296,6 +299,8 @@ const userStore = useUserStore();
 const currentTab = ref(route.query.tab || 'basic');
 const defaultAvatar = '/src/assets/image/default-avatar.png';
 const isSubmitting = ref(false); // 通用提交 loading 状态
+const fittingReportCount = ref(0); // Fitting报告总数
+const activeBikeCount = ref(0); // 在役车辆数
 
 const menuItems = [
   { id: 'basic', name: '个人资料', icon: 'far fa-id-card' },
@@ -489,7 +494,7 @@ const handleDeleteAccount = async () => {
 };
 
 // ================== 初始化 ==================
-onMounted(() => {
+onMounted(async () => {
   // 1. 回显个人基本信息
   if (userStore.userInfo) {
     Object.assign(userForm, {
@@ -501,6 +506,32 @@ onMounted(() => {
       gender: userStore.userInfo.gender !== undefined ? userStore.userInfo.gender : 0,
       birthday: userStore.userInfo.birthday || ''
     });
+  }
+
+  // 2. 获取Fitting报告总数（静态几何诊断报告 + 动态视觉分析报告）
+  try {
+    const [staticCount, dynamicCount] = await Promise.all([
+      getStaticFittingCount(),
+      getDynamicFittingCount()
+    ]);
+    console.log('静态报告数量:', staticCount, '类型:', typeof staticCount);
+    console.log('动态报告数量:', dynamicCount, '类型:', typeof dynamicCount);
+    // 确保转换为数字类型再相加
+    const staticNum = Number(staticCount) || 0;
+    const dynamicNum = Number(dynamicCount) || 0;
+    fittingReportCount.value = staticNum + dynamicNum;
+    console.log('总报告数量:', fittingReportCount.value);
+  } catch (error) {
+    console.error('获取Fitting报告数量失败:', error);
+  }
+
+  // 3. 获取在役车辆数
+  try {
+    const bikeCount = await getActiveBikeCount();
+    console.log('在役车辆数量:', bikeCount, '类型:', typeof bikeCount);
+    activeBikeCount.value = Number(bikeCount) || 0;
+  } catch (error) {
+    console.error('获取在役车辆数量失败:', error);
   }
 });
 </script>

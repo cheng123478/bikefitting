@@ -62,6 +62,13 @@ public class StaticFittingService {
     }
 
     /**
+     * 获取用户的静态Fitting报告总数
+     */
+    public long countByUserId(Long userId) {
+        return staticFittingResultRepository.countByUserId(userId);
+    }
+
+    /**
      * 计算静态调教
      *
      * @param request 静态调教请求

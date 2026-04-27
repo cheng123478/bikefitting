@@ -80,3 +80,16 @@ export function deleteSession(sessionId) {
         method: 'delete'
     });
 }
+
+/**
+ * 获取用户的动态Fitting报告总数
+ */
+export function getDynamicFittingCount() {
+    return request({
+        url: '/dynamic-fitting/count',
+        method: 'get'
+    }).then(res => {
+        console.log('[动态报告] 原始响应:', res);
+        return res;
+    });
+}

@@ -48,4 +48,15 @@ public interface StaticFittingResultRepository extends JpaRepository<StaticFitti
             "WHERE u.user.id = :userId " +
             "ORDER BY r.fittingTime DESC")
     Page<Object[]> findHistoryByUserId(@Param("userId") Long userId, Pageable pageable);
+
+    /**
+     * 根据用户ID统计静态Fitting报告数量
+     *
+     * @param userId 用户ID
+     * @return 报告数量
+     */
+    @Query("SELECT COUNT(DISTINCT r.id) FROM StaticFittingResult r " +
+            "JOIN UserBody u ON r.userBodyId = u.id " +
+            "WHERE u.user.id = :userId")
+    long countByUserId(@Param("userId") Long userId);
 }

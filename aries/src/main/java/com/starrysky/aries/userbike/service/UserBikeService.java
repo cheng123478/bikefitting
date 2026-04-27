@@ -272,6 +272,16 @@ public class UserBikeService {
         }
     }
 
+    /**
+     * 获取用户的在役车辆数量
+     *
+     * @param userId 用户ID
+     * @return 在役车辆数量
+     */
+    public long getActiveBikeCount(Long userId) {
+        return userBikeRepository.countByUserIdAndStatus(userId, BikeStatus.ACTIVE.code);
+    }
+
     private boolean isPositive(Number n) {
         return n != null && n.doubleValue() > 0;
     }

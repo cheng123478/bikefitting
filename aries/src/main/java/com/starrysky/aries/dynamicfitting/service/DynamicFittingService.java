@@ -725,4 +725,14 @@ public class DynamicFittingService {
             return "";
         }
     }
+
+    /**
+     * 获取用户的动态Fitting报告总数
+     *
+     * @param userId 用户ID
+     * @return 报告数量
+     */
+    public long countByUserId(Long userId) {
+        return resultRepository.countByUserId(userId);
+    }
 }

@@ -4,6 +4,7 @@ import com.starrysky.aries.entity.User;
 import com.starrysky.aries.staticfitting.schema.StaticFittingReportVO;
 import com.starrysky.aries.staticfitting.schema.StaticFittingResultVO;
 import com.starrysky.aries.staticfitting.service.StaticFittingService;
+import com.starrysky.aries.util.ResponseResult;
 import jakarta.annotation.Resource;
 import org.springframework.data.domain.Page;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -57,6 +58,17 @@ public class StaticFittingController {
                                                   @RequestParam(value = "page", defaultValue = "1") int page,
                                                   @RequestParam(value = "size", defaultValue = "10") int size) {
         return staticFittingService.getHistoryByUserId(user.getId(), page, size);
+    }
+
+    /**
+     * 获取用户的静态Fitting报告总数
+     *
+     * @param user 当前登录用户
+     * @return 报告总数
+     */
+    @GetMapping("/count")
+    public ResponseResult<Long> getStaticFittingCount(@AuthenticationPrincipal User user) {
+        return ResponseResult.success(staticFittingService.countByUserId(user.getId()));
     }
 
 }
