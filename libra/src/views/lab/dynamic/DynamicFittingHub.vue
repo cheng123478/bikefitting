@@ -114,16 +114,16 @@
               <div v-if="session.front" class="data-preview">
                 <div class="mini-dashboard">
                   <div class="m-item">
-                      <span class="l">平均膝角(L/R)</span>
-                      <span class="v">{{ session.front.summary?.avgLeftKnee || '--' }}°/{{ session.front.summary?.avgRightKnee || '--' }}°</span>
+                      <span class="l">左右横摆(L/R)</span>
+                      <span class="v">{{ session.front.summary?.maxWobble_L || session.front.summary?.maxWobble || '--' }}<span style="font-size:0.7rem">mm</span> / {{ session.front.summary?.maxWobble_R || session.front.summary?.maxWobble || '--' }}<span style="font-size:0.7rem">mm</span></span>
                   </div>
                   <div class="m-item">
-                    <span class="l">最大膝轨迹</span>
-                    <span class="v">{{ session.front.summary?.maxWobble || '--' }}px</span>
+                    <span class="l">躯干/骨盆侧倾极值</span>
+                    <span class="v">{{ session.front.summary?.maxTilt || session.front.summary?.frontMaxHipTilt || '--' }}<span style="font-size:0.7rem">°</span></span>
                   </div>
                   <div class="m-item">
-                    <span class="l">最大重心晃动</span>
-                    <span class="v">{{ session.front.summary?.maxTilt || '--' }}px</span>
+                    <span class="l">采集帧数</span>
+                    <span class="v">{{ session.front.summary?.frameCount || '--' }}</span>
                   </div>
                 </div>
               </div>

@@ -34,6 +34,11 @@
           <div class="summary-content">
             <h2 class="level-tag" :class="getScoreClass(report.matchScore)">{{ report.matchLevel }}</h2>
             <p class="summary-text">{{ report.summary }}</p>
+            <div class="report-legend">
+              <span class="l-item"><i class="status-dot ok"></i> 正常</span>
+              <span class="l-item"><i class="status-dot adjust"></i> 建议调整 (ADJUST)</span>
+              <span class="l-item" title="建议调整代表该项生物力学指标偏离了职业理想参考范围"><i class="fas fa-info-circle"></i></span>
+            </div>
             <div class="quick-stats">
               <div class="stat"><span class="l">采集视角</span><span class="v">{{ report.viewsCount }}</span></div>
               <div class="stat"><span class="l">骑行单车</span><span class="v">{{ report.bikeName }}</span></div>
@@ -62,24 +67,28 @@
                 <span class="badge">{{ viewType.toUpperCase() }}</span>
               </div>
 
-              <!-- Metrics -->
-              <div class="metric-grid">
-                <div v-for="m in getMetricsForView(viewType)" :key="m.label" class="m-card" :class="m.status">
-                  <div class="m-head">
-                    <span class="m-label">{{ m.label }}</span>
-                    <span class="m-status-text" v-if="m.status !== 'OK'">{{ m.status }}</span>
-                  </div>
-                  <div class="m-vals">
-                    <div class="v-group">
-                      <span class="v-label">实测</span>
-                      <span class="v-num">{{ m.currentValue }}<span v-if="viewType === 'side'">°</span></span>
+              <!-- Metrics Groups -->
+              <div v-for="(group, gIdx) in getMetricGroups(viewType)" :key="gIdx" class="metric-group-wrapper">
+                <h4 v-if="group.title" class="group-title" style="margin-top: 5px; margin-bottom: 20px; font-size: 1.15rem; color: var(--primary-color);">{{ group.title }}</h4>
+                <div class="metric-grid">
+                  <div v-for="m in group.metrics" :key="m.label" class="m-card" :class="m.status">
+                    <div class="m-head">
+                      <span class="m-label">{{ m.label }}</span>
+                      <span class="m-status-text" v-if="m.status !== 'OK'">{{ m.status }}</span>
                     </div>
-                    <div class="v-group" v-if="m.idealRange && m.idealRange !== '--'">
-                      <span class="v-label">理想</span>
-                      <span class="v-num">{{ m.idealRange }}</span>
+                    <div class="m-vals">
+                      <div class="v-group">
+                        <span class="v-label">实测</span>
+                        <span class="v-num" :class="{'out-of-range': m.status !== 'OK'}">{{ m.currentValue }}<span style="font-size: 0.9rem; margin-left: 2px;">{{ getUnit(m.label, viewType) }}</span></span>
+                      </div>
+                      <div class="v-group" v-if="m.idealRange && m.idealRange !== '--'">
+                        <span class="v-label">理想</span>
+                        <span class="v-num">{{ m.idealRange }}<span style="font-size: 0.9rem; margin-left: 2px;">{{ getUnit(m.label, viewType) }}</span></span>
+                      </div>
                     </div>
+                    <p class="m-desc-text" style="font-size: 0.8rem; color: #888; margin-bottom: 5px; line-height: 1.4;">{{ getDescription(m.label) }}</p>
+                    <p class="m-advice" v-if="m.advice && m.status !== 'OK'">{{ m.advice }}</p>
                   </div>
-                  <p class="m-advice" v-if="m.advice && m.status !== 'OK'">{{ m.advice }}</p>
                 </div>
               </div>
 
@@ -206,6 +215,28 @@ const getMetricsForView = (vt) => {
   return [];
 };
 
+const getMetricGroups = (vt) => {
+  const metrics = getMetricsForView(vt);
+  if (vt === 'front') {
+    // 彻底过滤掉正面视图中的“膝部伸展角度”（存在严重透视畸变缺失参考意义且会误导买家）
+    const cleanMetrics = metrics.filter(m => !m.label.includes('伸展度') && !m.label.includes('双膝平均') && !m.label.toLowerCase().includes('kneeangle'));
+    
+    const groupA = cleanMetrics.filter(m => m.label.includes('肩') || m.label.includes('骨盆') || m.label.includes('脊柱') || m.label.includes('躯干') || m.label.includes('Tilt'));
+    const groupB = cleanMetrics.filter(m => !groupA.includes(m) && (m.label.includes('横摆') || m.label.includes('Wobble') || m.label.includes('膝')));
+    const groupC = cleanMetrics.filter(m => !groupA.includes(m) && !groupB.includes(m) && (m.label.includes('肘') || m.label.includes('Flare')));
+    const other = cleanMetrics.filter(m => !groupA.includes(m) && !groupB.includes(m) && !groupC.includes(m));
+    
+    const res = [];
+    if (groupA.length) res.push({ title: '🎯 身体中轴稳定分析', metrics: groupA });
+    if (groupB.length) res.push({ title: '🦵 下肢力线及控制分析', metrics: groupB });
+    if (groupC.length) res.push({ title: '💪 上肢操控及气动分析', metrics: groupC });
+    if (other.length) res.push({ title: '📌 其他特征参数', metrics: other });
+    return res.length > 0 ? res : [{ title: '', metrics: cleanMetrics }];
+  }
+  
+  return [{ title: '', metrics: metrics }];
+};
+
 const getReadableLabel = (tag) => {
   const labels = {
     'bdc': '下死点(B.D.C)',
@@ -217,6 +248,26 @@ const getReadableLabel = (tag) => {
     'max_drop': '最大下坠'
   };
   return labels[tag] || tag;
+};
+
+const getUnit = (label, viewType) => {
+  if (label.includes('角') || label.includes('倾') || label.includes('Tilt') || label.includes('度')) return '°';
+  if (label.includes('横摆') || label.includes('跨度') || label.includes('偏离')) return 'mm';
+  if (label.includes('外张') || label.includes('摇摆') || label.includes('Flare') || label.includes('距')) return 'px';
+  if (label.includes('下坠')) return '%';
+  // Fallback
+  return viewType === 'side' ? '°' : '';
+};
+
+const getDescription = (label) => {
+  if (label.includes('肩')) return '过大说明上半身可能存在严重代偿发力，或核心力量薄弱无法稳起躯干。';
+  if (label.includes('骨盆侧倾')) return '骨盆的大幅扭动通常暗示坐垫过高、坐垫过窄或者存在长短腿导致的过度伸展。';
+  if (label.includes('横摆')) return '俗称“画龙”。横向摇摆严重不仅大量损耗踩踏功率，还会直接引发膝关节外侧发炎（髂胫束综合征）。';
+  if (label.includes('外张') || label.includes('肘')) return '反映上身气动性。外张距离越远说明风阻截面越大，通常由于车把过宽导致。';
+  if (label.includes('脊柱') || label.includes('躯干')) return '反映躯干与车辆的中轴线对齐程度，越接近0代表骑行姿态越直立稳固。';
+  if (label.includes('伸展度')) return '决定座管高度的核心指标，过低易导致膝前痛，过高易导致膝后腘窝痛。';
+  if (label.includes('脚踝')) return '反映踩踏技术的流畅性，过大说明存在“垫脚尖”踩踏倾向。';
+  return '根据生物力学模型对您的身体关键特征进行追踪量化。';
 };
 
 const setChartRef = (el, viewType) => {
@@ -455,7 +506,12 @@ onUnmounted(() => {
 .view-header h2 i { color: var(--primary-color); }
 .badge { background: rgba(0,0,0,0.05); padding: 4px 10px; border-radius: 12px; font-size: 0.7rem; font-weight: 700; color: var(--text-muted); letter-spacing: 1px;}
 
-.metric-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 20px; margin-bottom: 30px; }
+.report-legend { display: flex; gap: 15px; margin-top: 5px; font-size: 0.75rem; color: var(--text-muted); align-items: center; }
+.status-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-right: 4px; }
+.status-dot.ok { background: #52c41a; }
+.status-dot.adjust { background: #ff4d4f; }
+
+.metric-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 20px; margin-bottom: 30px; }
 .m-card { padding: 20px; border-radius: 12px; border: 1px solid rgba(0,0,0,0.05); background: var(--bg-surface); }
 .m-card.ADJUST { background: rgba(212, 175, 55, 0.03); border-left: 4px solid var(--accent-gold); }
 .m-card.WARNING { background: rgba(255, 77, 79, 0.03); border-left: 4px solid #ff4d4f; }
@@ -467,6 +523,7 @@ onUnmounted(() => {
 .v-group { display: flex; flex-direction: column; }
 .v-label { font-size: 0.7rem; color: var(--text-muted); }
 .v-num { font-family: var(--font-serif); font-size: 1.3rem; font-weight: 700; color: var(--primary-color); }
+.v-num.out-of-range { color: #ff4d4f; }
 
 .m-advice { font-size: 0.85rem; color: var(--text-muted); line-height: 1.5; border-top: 1px dotted rgba(0,0,0,0.1); padding-top: 10px; margin-top: auto;}
 

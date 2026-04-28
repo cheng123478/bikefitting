@@ -49,14 +49,20 @@
       <!-- 2. Force Curve Chart -->
       <div class="chart-box">
         <h4 class="sub-label">360° 发力平顺度概览 (Force Curve)</h4>
-        <p class="chart-desc text-muted">反映踩踏过程中的输出平稳性。波峰越宽、波谷越浅，代表发力越连续。</p>
+        <div class="layman-desc">
+          <strong>怎么看懂这幅图？</strong><br/>
+          蓝色曲线代表左腿，红色代表右腿。当您向下踩踏到底时，曲线会到达最高峰。理想情况下，波峰越圆润宽广、两波交接的波谷越浅，说明您踩得越“圆”、发力越连贯没有死角。
+        </div>
         <div ref="curveChartDom" class="echarts-dom"></div>
       </div>
 
       <!-- 2.5 360 Radar/Polar Chart -->
       <div class="chart-box">
         <h4 class="sub-label">360° 发力极坐标圆周盘 (Polar Phase)</h4>
-        <p class="chart-desc text-muted">像时钟一样显示发力的时机。最强的动力应出现在 3 点钟方向（90°）。</p>
+        <div class="layman-desc">
+          <strong>图里的“花瓣”代表什么？</strong><br/>
+          这就像是把您的发力画在了自行车的牙盘上。最饱满、鼓出的方向指明了您发力最猛的阶段（通常应指向右下方 3点~4点钟方向）。如果左右颜色覆盖面积相差很大，说明存在偏科发力。
+        </div>
         <div ref="radarChartDom" class="echarts-dom"></div>
       </div>
       
@@ -82,20 +88,26 @@
               </span>
               <span class="text-sm ml-2" style="color:var(--text-muted)"> (越小越平顺) </span>
             </div>
+            <span class="idx-eval" style="color:var(--text-muted); font-size: 0.75rem; margin-top: 5px;">
+              数值偏大意味着脚踏处于上拉阶段时存在卡顿或对抗。
+            </span>
           </div>
           
           <div class="idx-card" v-if="data.lateralWobbleLeft != null && data.lateralWobbleRight != null">
-            <span class="idx-lbl">侧向位移稳定性 (Lateral Wobble)</span>
+            <span class="idx-lbl">膝盖侧向位移/晃动 (Knee Wobble)</span>
             <div class="flex-row mt-2" style="display:flex; justify-content:space-between; width: 100%;">
               <div class="wobble-item text-center">
                 <div class="val text-warning">{{ data.lateralWobbleLeft.toFixed(1) }} mm</div>
-                <div class="lbl">左膝</div>
+                <div class="lbl">左膝晃幅</div>
               </div>
               <div class="wobble-item text-center">
                 <div class="val text-warning">{{ data.lateralWobbleRight.toFixed(1) }} mm</div>
-                <div class="lbl">右膝</div>
+                <div class="lbl">右膝晃幅</div>
               </div>
             </div>
+            <span class="idx-eval" style="color:var(--text-muted); font-size: 0.75rem; margin-top: 8px;">
+              代替脚踏中心偏离仪，从正面视角测量膝关节踩踏时的画圆跑偏量。越小说明力量传导越笔直无损耗。
+            </span>
           </div>
 
           <div class="idx-card" v-if="data.cadenceRpm">
@@ -159,6 +171,7 @@ const renderChart = () => {
       echartInstance = echarts.init(curveChartDom.value);
     }
     const option = {
+      color: ['#007BFF', '#DC3545', '#888888'],
       tooltip: { trigger: 'axis' },
       legend: {
         data: ['左腿相对输出', '右腿相对输出', '合力'],
@@ -230,6 +243,7 @@ const renderChart = () => {
     const rightPolar = points.map(p => [Math.max(0, p.rightVelocity ?? p.rightV), p.angle]);
 
     const polarOption = {
+      color: ['#007BFF', '#DC3545', '#888888'],
       tooltip: { trigger: 'item' },
       legend: { show: false },
       polar: { center: ['50%', '50%'], radius: '75%' },
@@ -372,6 +386,17 @@ onUnmounted(() => {
 }
 
 .chart-box { background: var(--bg-surface); padding: 20px; border-radius: 12px; border: 1px solid rgba(0,0,0,0.05); }
+.layman-desc {
+  background: rgba(0, 123, 255, 0.05);
+  border-left: 3px solid #007BFF;
+  padding: 12px 15px;
+  border-radius: 4px;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  line-height: 1.6;
+  margin-bottom: 5px;
+}
+.layman-desc strong { color: var(--text-main); font-size: 0.9rem; }
 .echarts-dom { width: 100%; height: 350px; }
 
 .indices-box { background: var(--bg-surface); padding: 20px; border-radius: 12px; border: 1px solid rgba(0,0,0,0.05); }

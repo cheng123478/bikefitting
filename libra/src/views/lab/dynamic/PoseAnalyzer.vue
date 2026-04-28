@@ -155,24 +155,6 @@
 
           <!-- 正面模式 -->
           <template v-else-if="viewType === 'front'">
-            <div class="metric-card" :class="{ 'in-range': metrics.frontMaxLKnee > 0 && Math.abs(metrics.frontMaxLKnee - metrics.frontMaxRKnee) < 3 }">
-              <div class="card-header">
-                <label>双膝对称度</label>
-                <div class="target-tag">目标差 < 3°</div>
-              </div>
-              <div class="dual-vals">
-                <div class="val-item">
-                  <span class="l">左膝极限</span>
-                  <span class="v">{{ metrics.frontMaxLKnee || '--' }}°</span>
-                </div>
-                <div class="val-item">
-                  <span class="l">右膝极限</span>
-                  <span class="v">{{ metrics.frontMaxRKnee || '--' }}°</span>
-                </div>
-              </div>
-              <div class="desc">左右触底伸展角对比 (揭示发力差)</div>
-            </div>
-
             <div class="metric-card" :class="{ 'in-range': metrics.frontMaxLWobble < 10 && metrics.frontMaxRWobble < 10 }">
               <div class="card-header">
                 <label>膝盖追踪 (偏离率)</label>
@@ -766,13 +748,18 @@ const finishSession = () => {
 
     localData = {
       summary: {
-        avgLeftKnee: cleanNum(getAvg(leftKneeAngles)),
-        avgRightKnee: cleanNum(getAvg(rightKneeAngles)),
-        lKneeVariance: cleanNum(getVariance(leftKneeAngles)),
-        rKneeVariance: cleanNum(getVariance(rightKneeAngles)),
+        avgKnee_L: cleanNum(getAvg(leftKneeAngles)),
+        avgKnee_R: cleanNum(getAvg(rightKneeAngles)),
+        kneeVariance_L: cleanNum(getVariance(leftKneeAngles)),
+        kneeVariance_R: cleanNum(getVariance(rightKneeAngles)),
+        maxWobble_L: cleanNum(getMaxAbs(leftKneeWobbles)),
+        maxWobble_R: cleanNum(getMaxAbs(rightKneeWobbles)),
         maxWobbleRatio: cleanNum(Math.max(getMaxAbs(leftKneeWobbles), getMaxAbs(rightKneeWobbles))),
+        maxWobble: cleanNum(Math.max(getMaxAbs(leftKneeWobbles), getMaxAbs(rightKneeWobbles))),
         maxHipTilt: cleanNum(getMaxAbs(hipTilts)),
         maxShoulderTilt: cleanNum(getMaxAbs(shoulderTilts)),
+        maxElbowFlare_L: cleanNum(getMax(leftElbowFlares || [])),
+        maxElbowFlare_R: cleanNum(getMax(rightElbowFlares || [])),
         maxElbowFlare: cleanNum(Math.max(getMax(leftElbowFlares || []), getMax(rightElbowFlares || []))),
         frameCount: frameData.length
       },
@@ -804,9 +791,9 @@ const finishSession = () => {
         maxPelvisSway: cleanNum(getMaxAbs(pelvisSways)),
         maxSpineTilt: cleanNum(getMaxAbs(spineTilts)),
         spineRockingVar: cleanNum(getVariance(spineTilts)),
-        maxLeftHipDrop: cleanNum(getMaxAbs(leftHipDrops)),
-        maxRightHipDrop: cleanNum(getMaxAbs(rightHipDrops)),
-        avgShoulderTilt: cleanNum(getAvg(shoulderTilts || [])),
+        maxHipDrop_L: cleanNum(getMaxAbs(leftHipDrops)),
+        maxHipDrop_R: cleanNum(getMaxAbs(rightHipDrops)),
+        maxShoulderTilt: cleanNum(getMaxAbs(shoulderTilts || [])),
         frameCount: frameData.length
       },
       triggerMetrics: { max_swayVal: rawTrigger.max_swayVal, max_dropVal: rawTrigger.max_dropVal },
