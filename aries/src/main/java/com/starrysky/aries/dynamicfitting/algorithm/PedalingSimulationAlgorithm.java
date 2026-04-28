@@ -135,9 +135,9 @@ public class PedalingSimulationAlgorithm {
 
         if (leftKneeY.size() < 30) return null; // 帧数不足，分析结果不可靠
 
-        // 峰值检测（windowSize=8：要求峰值领先/落后8帧均为最优）
-        List<Integer> leftPeaks = findPeaks(leftKneeY, 8);
-        List<Integer> rightPeaks = findPeaks(rightKneeY, 8);
+        // 峰值检测（windowSize=4：适应高踏频短周期）
+        List<Integer> leftPeaks = findPeaks(leftKneeY, 4);
+        List<Integer> rightPeaks = findPeaks(rightKneeY, 4);
 
         if (leftPeaks.size() < 2 || rightPeaks.size() < 2) return null;
 
@@ -170,11 +170,19 @@ public class PedalingSimulationAlgorithm {
         // 从正面 summary 提取膝盖横摆量（归一化用骨盆宽度）
         if (frontView.getSummary() != null) {
             Map<String, Object> fs = frontView.getSummary();
-            Double wobble = extractDoubleFromMap(fs, "maxWobbleRatio");
-            if (wobble == null) wobble = extractDoubleFromMap(fs, "maxWobble");
-            if (wobble != null) {
-                result.put("lateralWobbleLeft", Math.round(wobble * 10) / 10.0);
-                result.put("lateralWobbleRight", Math.round(wobble * 10) / 10.0);
+            Double wobbleL = extractDoubleFromMap(fs, "maxWobble_L");
+            Double wobbleR = extractDoubleFromMap(fs, "maxWobble_R");
+            
+            if (wobbleL != null && wobbleR != null) {
+                result.put("lateralWobbleLeft", Math.round(wobbleL * 10) / 10.0);
+                result.put("lateralWobbleRight", Math.round(wobbleR * 10) / 10.0);
+            } else {
+                Double wobble = extractDoubleFromMap(fs, "maxWobbleRatio");
+                if (wobble == null) wobble = extractDoubleFromMap(fs, "maxWobble");
+                if (wobble != null) {
+                    result.put("lateralWobbleLeft", Math.round(wobble * 10) / 10.0);
+                    result.put("lateralWobbleRight", Math.round(wobble * 10) / 10.0);
+                }
             }
         }
 
@@ -216,7 +224,7 @@ public class PedalingSimulationAlgorithm {
 
         if (kneeAngles.size() >= 15) {
             // 从膝角峰谷估算提拉阻力指数
-            List<Integer> peaks = findPeaks(kneeAngles, 8);
+            List<Integer> peaks = findPeaks(kneeAngles, 4);
             int drag = 20;
             if (peaks.size() >= 2) {
                 double valleyRatio = calculateMeanValleyRatio(kneeAngles, peaks);
@@ -270,7 +278,7 @@ public class PedalingSimulationAlgorithm {
             point.put("angle", angle);
             point.put("leftVelocity", Math.round(leftV * 10) / 10.0);
             point.put("rightVelocity", Math.round(rightV * 10) / 10.0);
-            point.put("totalVelocity", Math.round((Math.max(0, leftV) + Math.max(0, rightV)) * 10) / 10.0);
+            point.put("totalVelocity", Math.round((leftV + rightV) * 10) / 10.0);
             points.add(point);
         }
         return points;
@@ -303,7 +311,7 @@ public class PedalingSimulationAlgorithm {
             point.put("angle", angle);
             point.put("leftVelocity", Math.round(leftV * 10) / 10.0);
             point.put("rightVelocity", Math.round(rightV * 10) / 10.0);
-            point.put("totalVelocity", Math.round((Math.max(0, leftV) + Math.max(0, rightV)) * 10) / 10.0);
+            point.put("totalVelocity", Math.round((leftV + rightV) * 10) / 10.0);
             points.add(point);
         }
         return points;

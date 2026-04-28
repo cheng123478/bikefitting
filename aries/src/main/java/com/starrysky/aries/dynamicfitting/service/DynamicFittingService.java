@@ -209,6 +209,7 @@ public class DynamicFittingService {
             result.setSummaryJson(JSON.toJSONString(overallSummary));
             result.setStabilityJson(JSON.toJSONString(stabilitySummary));
             result.setAdviceJson(JSON.toJSONString(analysisResult.getAdvices()));
+            result.setStandardJson(JSON.toJSONString(analysisResult.getStandardRanges()));
             resultRepository.save(result);
 
             // 4. 更新状态为已完成
@@ -354,16 +355,26 @@ public class DynamicFittingService {
 
         // 解析指标数据 (扁平化)
         Map<String, Map<String, Object>> overallSummary = JSON.parseObject(result.getSummaryJson(),
-                new TypeReference<>() {
-                });
+                new TypeReference<>() {});
+
+        Map<String, String> standardRanges = null;
+        if (org.springframework.util.StringUtils.hasText(result.getStandardJson())) {
+            try {
+                standardRanges = JSON.parseObject(result.getStandardJson(), new TypeReference<>() {});
+            } catch (Exception e) {
+                log.warn("解析会话 {} 的标准范围失败", sessionId);
+            }
+        }
+        reportVO.setStandardRanges(standardRanges);
 
         if (overallSummary != null) {
+            Map<String, String> finalSR = standardRanges;
             reportVO.setSideData(
-                    new DynamicFittingReportVO.ViewData(mapToMetricVO(overallSummary.get("side"), advices)));
+                    new DynamicFittingReportVO.ViewData(mapToMetricVO(overallSummary.get("side"), advices, finalSR)));
             reportVO.setFrontData(
-                    new DynamicFittingReportVO.ViewData(mapToMetricVO(overallSummary.get("front"), advices)));
+                    new DynamicFittingReportVO.ViewData(mapToMetricVO(overallSummary.get("front"), advices, finalSR)));
             reportVO.setBackData(
-                    new DynamicFittingReportVO.ViewData(mapToMetricVO(overallSummary.get("back"), advices)));
+                    new DynamicFittingReportVO.ViewData(mapToMetricVO(overallSummary.get("back"), advices, finalSR)));
 
             // 提取被合成好的 PedalingData 数据并装配给前端
             if (overallSummary.containsKey("pedalingData")) {
@@ -396,68 +407,63 @@ public class DynamicFittingService {
      * @return 指标VO对象
      */
     private List<DynamicFittingMetricVO> mapToMetricVO(Map<String, Object> metrics,
-                                                       List<DynamicFittingAdviceVO> advices) {
+                                                       List<DynamicFittingAdviceVO> advices,
+                                                       Map<String, String> standardRanges) {
         if (metrics == null)
             return Collections.emptyList();
 
         List<DynamicFittingMetricVO> vos = new ArrayList<>();
         metrics.forEach((key, val) -> {
-            // 过滤并处理统计指标 (Median/Val/Mean)
-            if (key.endsWith("Median") || key.endsWith("Val") || key.endsWith("Mean")) {
-                String baseKey = key.replaceAll("(Median|Val|Mean)$", "");
-
-                // 查找对应的诊断建议
-                DynamicFittingAdviceVO advice = advices.stream()
-                        .filter(a -> a.getMetric().equalsIgnoreCase(baseKey) || a.getMetric().equalsIgnoreCase(key))
-                        .findFirst().orElse(null);
-
-                String label = getMetricLabel(baseKey);
-                if (label.equals(baseKey)) { // 如果没翻译，尝试翻译 baseKey 的 baseKey
-                    // 处理类似 frontMaxLKnee -> kneeAngle 的嵌套映射 (简单处理)
-                    String lowerKey = baseKey.toLowerCase();
-                    if (lowerKey.contains("knee")) {
-                        label = getMetricLabel("kneeAngle");
-                    } else if (lowerKey.contains("hip")) {
-                        label = getMetricLabel("hipAngle");
-                    } else if (lowerKey.contains("torso") || lowerKey.contains("spine")) {
-                        label = getMetricLabel("torsoAngle");
-                    } else if (lowerKey.contains("ankle")) {
-                        label = getMetricLabel("ankleAngle");
-                    } else if (lowerKey.contains("pelvis")) {
-                        label = getMetricLabel("maxPelvisSway");
-                    } else if (lowerKey.contains("elbow")) {
-                        label = getMetricLabel("elbowAngle");
-                    }
-                    
-                    // 附加原始标识，避免前端显示多个名称完全相同的指标
-                    if (!label.equals(baseKey)) {
-                        label = label + " (" + baseKey + ")";
-                    }
-                }
-
-                vos.add(DynamicFittingMetricVO.builder()
-                        .label(label)
-                        .currentValue(String.format("%.1f", convertToDouble(val)))
-                        .status(advice != null ? (advice.getType() != null ? advice.getType().toUpperCase() : "ADJUST") : "OK")
-                        .idealRange(advice != null ? (advice.getRange() != null ? advice.getRange() : "--") : "--")
-                        .advice(advice != null ? (advice.getAdviceContent() != null ? advice.getAdviceContent() : advice.getCode()) : "处于理想范围")
-                        .build());
-            } else if (key.equals("avgTorso") || key.equals("minHip") || key.equals("maxSpineTilt") || key.equals("maxPelvisSway")
-                    || key.equals("kopsOffset") || key.equals("cadenceRpm") || key.equals("ankleAtBdc")) {
-                // 处理一些不带后缀但也是核心指标的字段
+            if (key.equals("maxHipDrop_L") || key.equals("maxHipDrop_R")) {
+                return; // Skip individual processing, will combine below
+            }
+            
+            if (key.equals("avgTorso") || key.equals("minHip") || key.equals("maxSpineTilt") || key.equals("maxPelvisSway")
+                    || key.equals("kopsOffset") || key.equals("cadenceRpm") || key.equals("ankleAtBdc") || key.equals("ankleY") || key.equals("maxHip")
+                    || key.equals("maxKnee") || key.equals("maxShoulder") || key.equals("maxWobble") || key.equals("maxTilt") || key.equals("maxElbowFlare")
+                    || key.equals("maxShoulderTilt") || key.equals("spineRockingVar")
+                    || key.equals("maxHipTilt")) {
+                
                 DynamicFittingAdviceVO advice = advices.stream()
                         .filter(a -> a.getMetric().equalsIgnoreCase(key))
                         .findFirst().orElse(null);
+
+                String range = advice != null ? advice.getRange() : (standardRanges != null ? standardRanges.getOrDefault(key, "--") : "--");
 
                 vos.add(DynamicFittingMetricVO.builder()
                         .label(getMetricLabel(key))
                         .currentValue(String.format("%.1f", convertToDouble(val)))
                         .status(advice != null ? "ADJUST" : "OK")
-                        .idealRange(advice != null ? advice.getRange() : "--")
+                        .idealRange(range)
                         .advice(advice != null ? (advice.getAdviceContent() != null ? advice.getAdviceContent() : advice.getCode()) : "处于理想范围")
                         .build());
             }
         });
+
+        // 合并左右骨盆下坠 (Hip Drop) 到一张卡片
+        if (metrics.containsKey("maxHipDrop_L") || metrics.containsKey("maxHipDrop_R")) {
+            Double lVal = convertToDouble(metrics.get("maxHipDrop_L"));
+            Double rVal = convertToDouble(metrics.get("maxHipDrop_R"));
+            if (lVal == null) lVal = 0.0;
+            if (rVal == null) rVal = 0.0;
+
+            DynamicFittingAdviceVO adviceL = advices.stream().filter(a -> "maxHipDrop_L".equalsIgnoreCase(a.getMetric())).findFirst().orElse(null);
+            DynamicFittingAdviceVO adviceR = advices.stream().filter(a -> "maxHipDrop_R".equalsIgnoreCase(a.getMetric())).findFirst().orElse(null);
+            DynamicFittingAdviceVO adviceAsym = advices.stream().filter(a -> "maxHipDrop".equalsIgnoreCase(a.getMetric())).findFirst().orElse(null);
+
+            DynamicFittingAdviceVO finalAdvice = adviceAsym != null ? adviceAsym : (adviceL != null ? adviceL : adviceR);
+            String status = finalAdvice != null ? "ADJUST" : "OK";
+            String adviceText = finalAdvice != null ? (finalAdvice.getAdviceContent() != null ? finalAdvice.getAdviceContent() : finalAdvice.getCode()) : "根据生物力学模型对您的身体关键特征进行追踪量化。";
+            String range = finalAdvice != null && finalAdvice.getRange() != null ? finalAdvice.getRange() : (standardRanges != null ? standardRanges.getOrDefault("maxHipDrop", "--") : "--");
+
+            vos.add(DynamicFittingMetricVO.builder()
+                    .label("左右侧骨盆下坠")
+                    .currentValue(String.format("L:%.1f R:%.1f", lVal, rVal))
+                    .status(status)
+                    .idealRange(range)
+                    .advice(adviceText)
+                    .build());
+        }
         return vos;
     }
 
@@ -472,25 +478,45 @@ public class DynamicFittingService {
         // 侧面
         labels.put("kneeAngle", "膝角 (伸展度)");
         labels.put("hipAngle", "髋角 (重心枢轴)");
-        labels.put("torsoAngle", "背部角度");
+        labels.put("torsoAngle", "躯干夹角");
         labels.put("ankleAngle", "踝角");
         labels.put("elbowAngle", "肘部角度");
+        labels.put("ankleAtBdc", "下死点踝角");
+        labels.put("cadenceRpm", "实时踏频");
+        labels.put("kopsOffset", "膝盖前移量(KOPS)");
+        
         // 正面
-        labels.put("avgLeftKnee", "左膝中值角度");
-        labels.put("avgRightKnee", "右膝中值角度");
+        labels.put("avgKnee", "双膝平均角度");
+        labels.put("kneeVariance", "膝角波动方差");
         labels.put("maxWobble", "膝盖最大横摆");
         labels.put("maxTilt", "身体最大侧倾");
-        // 背面
-        labels.put("maxPelvisSway", "骨盆横移量");
-        labels.put("maxSpineTilt", "脊柱侧中心偏移");
-        labels.put("maxLeftHipDrop", "左侧骨盆下坠");
-        labels.put("maxRightHipDrop", "右侧骨盆下坠");
-
-        // 核心原始指标映射
+        labels.put("maxElbowFlare", "手肘最大外张");
+        labels.put("maxHipTilt", "骨盆最大侧倾");
+        labels.put("maxShoulderTilt", "高低肩最大偏角");
+        labels.put("hipTilt", "骨盆实时侧倾");
+        labels.put("shoulderTilt", "肩膀实时偏角");
+        labels.put("rightKneeAngle", "右腿伸展度");
+        labels.put("leftKneeAngle", "左腿伸展度");
+        labels.put("rightKneeWobble", "右膝横摆偏离量");
+        labels.put("leftKneeWobble", "左膝横摆偏离量");
+        labels.put("rightElbowFlare", "右肘外张角度");
+        labels.put("leftElbowFlare", "左肘外张角度");
+        
+        // 稳定性与汇总
+        labels.put("ankleY", "脚踝垂直波动轨迹");
         labels.put("avgTorso", "平均躯干角度");
-        labels.put("minHip", "曲柄顶点最小髋角");
+        labels.put("minHip", "上死点最小髋角");
         labels.put("maxHip", "曲柄底端最大髋角");
         labels.put("avgKneeLateral", "膝盖横向偏移均值");
+        labels.put("maxKnee", "最大膝角 (伸展度)");
+        labels.put("maxShoulder", "最大肩角 (前伸量)");
+
+        // 背面
+        labels.put("maxPelvisSway", "骨盆横摆位移");
+        labels.put("maxSpineTilt", "脊柱侧中心偏移");
+        labels.put("spineRockingVar", "脊柱侧偏波动极差");
+        labels.put("maxHipDrop_L", "左侧骨盆下坠");
+        labels.put("maxHipDrop_R", "右侧骨盆下坠");
 
         return labels.getOrDefault(key, key);
     }
@@ -530,7 +556,7 @@ public class DynamicFittingService {
 
         // 3. 建议数量统计
         if (advices != null && !advices.isEmpty()) {
-            long adjustCount = advices.stream().filter(a -> "adjust".equals(a.getType())).count();
+            long adjustCount = advices.size();
             if (adjustCount > 0) {
                 sb.append(String.format("共包含 %d 项关键调整指导。", adjustCount));
             }
