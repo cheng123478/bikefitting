@@ -1,6 +1,7 @@
 package com.starrysky.aries.advice;
 
 import com.starrysky.aries.exception.BizException;
+import com.starrysky.aries.membership.exception.MembershipException;
 import com.starrysky.aries.util.IpUtil;
 import com.starrysky.aries.util.ResponseResult;
 import com.starrysky.aries.util.ResponseResultStatus;
@@ -30,6 +31,16 @@ public class GlobalExceptionHandler {
         log.warn("[业务异常] URI: {} | Code: {} | Msg: {}",
                 request.getRequestURI(), e.getCode(), e.getMessage());
         return ResponseResult.failure(e.getCode(), e.getMessage());
+    }
+
+    /**
+     * 处理会员权限异常
+     */
+    @ExceptionHandler(value = MembershipException.class)
+    public ResponseResult<Void> membershipExceptionHandler(HttpServletRequest request, MembershipException e) {
+        log.warn("[权限不足异常] URI: {} | Code: {} | Msg: {}",
+                request.getRequestURI(), e.getCode(), e.getMessage());
+        return ResponseResult.failure(e.getCode() != null ? e.getCode() : 403, e.getMessage());
     }
 
     /**
