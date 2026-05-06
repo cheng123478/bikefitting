@@ -23,4 +23,12 @@ public interface UserBikeRepository extends JpaRepository<UserBike, Long> {
      */
     Optional<UserBike> findTopByUserIdAndStatusOrderByCreateTimeDesc(Long userId, Integer status);
 
+    /**
+     * 根据用户ID和状态统计单车数量
+     *
+     * @param userId 用户ID
+     * @param status 状态 (1:有效)
+     * @return 数量
+     */
+    long countByUserIdAndStatus(Long userId, Integer status);
 }

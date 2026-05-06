@@ -11,8 +11,9 @@ package com.starrysky.aries.redis;
 public class RedisConstant {
     public static final String AUTHENTICATION = "starrysky:aries:authen:";
     public static final int AUTHENTICATION_TIMEOUT = 60 * 60 * 24 * 7;
-//    public static final String REFRESH_TOKEN = "starrysky:aries:refresh:";
-//    public static final int REFRESH_TOKEN_TIMEOUT = 60 * 60 * 24 * 7;
+
+    public static final String MEM_DYNAMIC_QUOTA = "starrysky:aries:mem:dynamic:quota:";
+
     public static final String ALI_SMS_CODE_CACHE = "starrysky:aries:sms:";
     public static final int ALI_SMS_CODE_TIMEOUT = 60 * 5;
 
