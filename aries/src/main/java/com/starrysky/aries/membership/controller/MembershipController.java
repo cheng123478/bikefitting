@@ -7,6 +7,7 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import jakarta.annotation.Resource;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -19,6 +20,9 @@ import java.util.Map;
 @RestController
 @RequestMapping("/membership")
 public class MembershipController {
+
+    @Resource
+    private com.starrysky.aries.membership.repository.UserMembershipRepository userMembershipRepository;
 
     /**
      * 获取当前用户的专属邀请码
@@ -34,5 +38,25 @@ public class MembershipController {
         // 前端拼装示例: https://www.bikefitting.com/register?inviter=xxx
         data.put("queryParam", "inviter=" + code);
         return ResponseResult.success(data);
+    }
+
+    /**
+     * 获取当前用户的会员与资产信息
+     *
+     * @param user 当前登录用户
+     * @return 会员信息
+     */
+    @GetMapping("/info")
+    public ResponseResult<com.starrysky.aries.entity.UserMembership> getMembershipInfo(@AuthenticationPrincipal User user) {
+        com.starrysky.aries.entity.UserMembership membership = userMembershipRepository.findById(user.getId())
+                .orElseGet(() -> {
+                    com.starrysky.aries.entity.UserMembership newMem = new com.starrysky.aries.entity.UserMembership();
+                    newMem.setUserId(user.getId());
+                    newMem.setMemberType(com.starrysky.aries.membership.enums.MemberTypeEnum.FREE);
+                    newMem.setTokenBalance(0);
+                    newMem.setTotalInvites(0);
+                    return userMembershipRepository.save(newMem);
+                });
+        return ResponseResult.success(membership);
     }
 }

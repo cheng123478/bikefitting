@@ -7,7 +7,7 @@ import com.starrysky.aries.util.ResponseResult;
 import com.starrysky.aries.util.ResponseResultStatus;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.security.access.AccessDeniedException;
+
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -40,7 +40,7 @@ public class GlobalExceptionHandler {
     public ResponseResult<Void> membershipExceptionHandler(HttpServletRequest request, MembershipException e) {
         log.warn("[权限不足异常] URI: {} | Code: {} | Msg: {}",
                 request.getRequestURI(), e.getCode(), e.getMessage());
-        return ResponseResult.failure(e.getCode() != null ? e.getCode() : 403, e.getMessage());
+        return ResponseResult.failure(e.getCode() != null ? e.getCode() : 40301, e.getMessage());
     }
 
     /**
@@ -54,18 +54,6 @@ public class GlobalExceptionHandler {
         log.warn("[参数校验失败] URI: {} | Msg: {}", request.getRequestURI(), msg);
         return ResponseResult.failure(ResponseResultStatus.BAD_REQUEST.getCode(), msg);
     }
-
-    /**
-     * 处理权限不足异常(Spring Security)
-     * 场景：普通用户访问管理员接口
-     * 日志策略：WARN，记录IP以便风控
-     */
-    @ExceptionHandler(AccessDeniedException.class)
-    public ResponseResult<Void> handleAccessDenied(HttpServletRequest request, AccessDeniedException e) {
-        log.warn("[权限不足] IP: {} | URI: {}，{}", IpUtil.getRequestIp(request), request.getRequestURI(), e.getMessage());
-        return ResponseResult.failure(ResponseResultStatus.FORBIDDEN.getCode(), "权限不足，无法访问");
-    }
-
 
     /**
      * 处理系统未知异常

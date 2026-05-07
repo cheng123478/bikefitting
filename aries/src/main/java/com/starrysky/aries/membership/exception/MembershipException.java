@@ -11,7 +11,7 @@ public class MembershipException extends RuntimeException {
 
     public MembershipException(String message) {
         super(message);
-        this.code = 403; // Default forbidden/insufficient privilege code
+        this.code = 40301; // Default forbidden/insufficient privilege code
     }
 
     public MembershipException(Integer code, String message) {
