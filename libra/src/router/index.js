@@ -182,6 +182,11 @@ const router = createRouter({
 
 // --- 全局路由守卫 ---
 router.beforeEach((to, from, next) => {
+    // 0. 捕获裂变邀请码
+    if (to.query.inviter) {
+        localStorage.setItem('INVITER_CODE', to.query.inviter);
+    }
+
     const userStore = useUserStore();
 
     // 1. 设置网页标题

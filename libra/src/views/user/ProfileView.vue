@@ -270,6 +270,9 @@
             </div>
           </div>
 
+          <!-- TAB 3: 会员特权 -->
+          <MembershipTab v-if="currentTab === 'membership'" />
+
         </div>
       </div>
     </div>
@@ -299,8 +302,11 @@ const isSubmitting = ref(false); // 通用提交 loading 状态
 
 const menuItems = [
   { id: 'basic', name: '个人资料', icon: 'far fa-id-card' },
-  { id: 'security', name: '账号安全', icon: 'fas fa-shield-alt' }
+  { id: 'security', name: '账号安全', icon: 'fas fa-shield-alt' },
+  { id: 'membership', name: '会员特权', icon: 'fas fa-crown' }
 ];
+
+import MembershipTab from './components/MembershipTab.vue';
 
 // ================== 个人资料逻辑 ==================
 const userForm = reactive({ name: '', phone: '', city: '', introduction: '', avatar: '', gender: 0, birthday: '' });
