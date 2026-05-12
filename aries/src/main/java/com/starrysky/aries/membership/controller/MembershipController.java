@@ -1,6 +1,8 @@
 package com.starrysky.aries.membership.controller;
 
 import com.starrysky.aries.entity.User;
+import com.starrysky.aries.entity.UserMembership;
+import com.starrysky.aries.membership.enums.MemberTypeEnum;
 import com.starrysky.aries.util.InviteCodeUtil;
 import com.starrysky.aries.util.ResponseResult;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -9,6 +11,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import jakarta.annotation.Resource;
 
+import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -48,13 +51,14 @@ public class MembershipController {
      */
     @GetMapping("/info")
     public ResponseResult<com.starrysky.aries.entity.UserMembership> getMembershipInfo(@AuthenticationPrincipal User user) {
-        com.starrysky.aries.entity.UserMembership membership = userMembershipRepository.findById(user.getId())
+        UserMembership membership = userMembershipRepository.findById(user.getId())
                 .orElseGet(() -> {
-                    com.starrysky.aries.entity.UserMembership newMem = new com.starrysky.aries.entity.UserMembership();
+                    UserMembership newMem = new UserMembership();
                     newMem.setUserId(user.getId());
-                    newMem.setMemberType(com.starrysky.aries.membership.enums.MemberTypeEnum.FREE);
+                    newMem.setMemberType(MemberTypeEnum.FREE);
                     newMem.setTokenBalance(0);
                     newMem.setTotalInvites(0);
+                    newMem.setCreateTime(LocalDateTime.now());
                     return userMembershipRepository.save(newMem);
                 });
         return ResponseResult.success(membership);

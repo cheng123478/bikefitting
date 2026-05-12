@@ -2,8 +2,11 @@ package com.starrysky.aries.user.service;
 
 import cn.hutool.core.lang.Snowflake;
 import com.starrysky.aries.entity.User;
+import com.starrysky.aries.entity.UserMembership;
 import com.starrysky.aries.exception.BizException;
+import com.starrysky.aries.membership.enums.MemberTypeEnum;
 import com.starrysky.aries.membership.event.UserRegisteredEvent;
+import com.starrysky.aries.membership.repository.UserMembershipRepository;
 import com.starrysky.aries.sms.service.SmsService;
 import com.starrysky.aries.user.repository.UserRepository;
 import com.starrysky.aries.user.schema.UserRequest;
@@ -40,6 +43,8 @@ import java.time.temporal.ChronoUnit;
 public class UserService {
     @Resource
     private UserRepository userRepository;
+    @Resource
+    private UserMembershipRepository userMembershipRepository;
     @Resource
     private SmsService smsService;
     @Resource
@@ -86,7 +91,17 @@ public class UserService {
         if (user == null) {
             // --- 场景 A：纯新用户 ---
             user = handleNewRegistration(identifier, isWeChat);
-            return userRepository.save(user);
+
+            user = userRepository.save(user);
+            // 增加用户会员
+            UserMembership newMem = new UserMembership();
+            newMem.setUserId(user.getId());
+            newMem.setMemberType(MemberTypeEnum.FREE);
+            newMem.setTokenBalance(0);
+            newMem.setTotalInvites(0);
+            newMem.setCreateTime(LocalDateTime.now());
+            userMembershipRepository.save(newMem);
+            return user;
         }
 
         if (Boolean.TRUE.equals(user.getIsDeleted())) {

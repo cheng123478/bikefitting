@@ -55,7 +55,7 @@ public class UserMembership {
     private LocalDateTime createTime;
 
     @LastModifiedDate
-    @Column(nullable = false)
+    @Column
     @Comment("账户最后更新时间")
     private LocalDateTime updateTime;
 
