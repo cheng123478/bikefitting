@@ -83,7 +83,8 @@
                 </div>
               </div>
 
-              <!-- Snapshots & Evidence -->
+              <!-- Snapshots & Evidence (暂时隐藏) -->
+              <!-- 
               <div class="evidence-block" v-if="snapshotsMap[viewType]?.length">
                 <h4 class="sub-label"><i class="fas fa-camera"></i> 捕捉帧 (Evidence)</h4>
                 <div class="snapshot-grid">
@@ -96,6 +97,7 @@
                   </div>
                 </div>
               </div>
+              -->
 
               <!-- Pro Chart & Skeleton Animation -->
               <div class="pro-analysis-row">

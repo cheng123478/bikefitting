@@ -77,11 +77,23 @@ public class LabService {
             List<LabDashboardVO.BikeSummaryVO> bikesvo = bikes.stream().map(bike -> {
                 LabDashboardVO.BikeSummaryVO bikeSummaryVO = new LabDashboardVO.BikeSummaryVO();
                 bikeSummaryVO.setId(bike.getId());
-                bikeSummaryVO.setBrand(bike.getBikeModel().getBrand());
-                bikeSummaryVO.setBrandCn(bike.getBikeModel().getBrandCn());
-                bikeSummaryVO.setModel(bike.getBikeModel().getModel());
-                bikeSummaryVO.setModelYear(bike.getBikeModel().getModelYear());
-                bikeSummaryVO.setBikeType(bike.getBikeModel().getBikeType());
+                
+                // 容错处理：捕获 BikeModel 被删除的异常
+                try {
+                    if (bike.getBikeModel() != null) {
+                        bikeSummaryVO.setBrand(bike.getBikeModel().getBrand());
+                        bikeSummaryVO.setBrandCn(bike.getBikeModel().getBrandCn());
+                        bikeSummaryVO.setModel(bike.getBikeModel().getModel());
+                        bikeSummaryVO.setModelYear(bike.getBikeModel().getModelYear());
+                        bikeSummaryVO.setBikeType(bike.getBikeModel().getBikeType());
+                    }
+                } catch (Exception e) {
+                    // 如果 BikeModel 已被删除，设置默认值
+                    bikeSummaryVO.setBrand("Unknown");
+                    bikeSummaryVO.setBrandCn("未知品牌");
+                    bikeSummaryVO.setModel("未知型号");
+                }
+                
                 bikeSummaryVO.setRemark(bike.getRemark());
                 // 赋值状态
                 bikeSummaryVO.setHasStaticReport(finalStaticIds.contains(bike.getId()));

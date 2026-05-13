@@ -2,7 +2,8 @@ package com.starrysky.aries.util;
 
 public enum BikeStatus {
     ACTIVE(1, "现役"),
-    RETIRED(2, "退役");
+    RETIRED(2, "退役"),
+    DELETED(3, "已删除");
 
     public final int code;
     public final String title;

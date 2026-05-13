@@ -107,6 +107,19 @@ public class UserBikeController {
     }
 
     /**
+     * 删除单车
+     * 从我的车库中彻底删除某辆单车（在役或退役）。
+     *
+     * @param user 当前登录用户
+     * @param id   单车ID
+     */
+    @LogAudit("删除单车")
+    @DeleteMapping("/delete/{id}")
+    public void delete(@AuthenticationPrincipal User user, @PathVariable Long id) {
+        userBikeService.deleteBike(user, id);
+    }
+
+    /**
      * 上传单车图片
      *
      * @param user 当前登录用户

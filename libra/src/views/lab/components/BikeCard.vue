@@ -56,8 +56,13 @@
       <div class="update-time">
         <i class="far fa-clock"></i> {{ formatDate(bike.createTime) }}
       </div>
-      <div class="action-hint" @click.stop="goToReport">
-        查看诊断 <i class="fas fa-stethoscope"></i>
+      <div class="footer-actions">
+        <div class="action-hint" @click.stop="goToReport">
+          查看诊断 <i class="fas fa-stethoscope"></i>
+        </div>
+        <div class="action-delete" @click.stop="handleDelete" title="删除单车">
+          <i class="fas fa-trash-alt"></i>
+        </div>
       </div>
     </footer>
   </div>
@@ -73,7 +78,7 @@ const props = defineProps({
   bike: { type: Object, required: true }
 });
 
-const emit = defineEmits(['open-showcase']);
+const emit = defineEmits(['open-showcase', 'delete']);
 const handleShowcaseClick = () => {
   emit('open-showcase', props.bike);
 };
@@ -109,6 +114,10 @@ const handleQuickEdit = () => {
 
 const goToReport = () => {
   router.push({ path: '/lab/report', query: { bikeId: props.bike.id } });
+};
+
+const handleDelete = () => {
+  emit('delete', props.bike);
 };
 </script>
 
@@ -254,8 +263,24 @@ const goToReport = () => {
   align-items: center;
 }
 .update-time { font-size: 0.75rem; color: var(--text-muted); }
+.footer-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
 .action-hint { font-size: 0.8rem; font-weight: 700; color: var(--primary-color); }
 .action-hint:hover { cursor: pointer; }
+.action-delete {
+  font-size: 0.9rem;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.3s;
+  padding: 4px;
+}
+.action-delete:hover {
+  color: #ff4444;
+  transform: scale(1.1);
+}
 .quick-edit-btn {
   position: absolute; top: 10px; right: 10px;
   width: 28px; height: 28px; border-radius: 50%;

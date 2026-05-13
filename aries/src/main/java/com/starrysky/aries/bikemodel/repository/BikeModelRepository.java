@@ -34,6 +34,19 @@ public interface BikeModelRepository extends JpaRepository<BikeModel, Long> {
     List<Object[]> findDistinctBrandAndModelByKeyword(@Param("keyword") String keyword);
 
     /**
+     * 分词搜索：按品牌+型号分别搜索
+     *
+     * @param brandKeyword 品牌关键字
+     * @param modelKeyword 型号关键字
+     * @return 搜索结果
+     */
+    @Query("SELECT DISTINCT b.brand, b.brandCn, b.model FROM BikeModel b " +
+            "WHERE (b.brand LIKE %:brandKeyword% OR b.brandCn LIKE %:brandKeyword%) " +
+            "AND b.model LIKE %:modelKeyword%")
+    List<Object[]> findDistinctBrandAndModelBySeparatedKeywords(@Param("brandKeyword") String brandKeyword,
+                                                                 @Param("modelKeyword") String modelKeyword);
+
+    /**
      * 获取选定型号的所有变体
      *
      * @param brand 品牌

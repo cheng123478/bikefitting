@@ -3,6 +3,7 @@ package com.starrysky.aries.lab.controller;
 import com.starrysky.aries.entity.User;
 import com.starrysky.aries.lab.schema.LabDashboardVO;
 import com.starrysky.aries.lab.service.LabService;
+import com.starrysky.aries.util.ResponseResult;
 import com.starrysky.aries.util.RidingPainType;
 import jakarta.annotation.Resource;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -30,8 +31,8 @@ public class LabController {
     private LabService labService;
 
     @GetMapping("/dashboard")
-    public LabDashboardVO getDashboard(@AuthenticationPrincipal User user) {
-        return labService.getDashboard(user.getId());
+    public ResponseResult<LabDashboardVO> getDashboard(@AuthenticationPrincipal User user) {
+        return ResponseResult.success(labService.getDashboard(user.getId()));
     }
 
     /**
@@ -40,14 +41,14 @@ public class LabController {
      * @return 痛点选项列表
      */
     @GetMapping("/pain-options")
-    public List<Map<String, String>> getPainOptions() {
-        return Arrays.stream(RidingPainType.values())
+    public ResponseResult<List<Map<String, String>>> getPainOptions() {
+        return ResponseResult.success(Arrays.stream(RidingPainType.values())
                 .map(type -> {
                     Map<String, String> map = new HashMap<>();
                     map.put("code", type.getCode());
                     map.put("description", type.getDescription());
                     return map;
                 })
-                .collect(Collectors.toList());
+                .collect(Collectors.toList()));
     }
 }

@@ -81,6 +81,17 @@ export function restoreUserBike(id) {
 }
 
 /**
+ * 删除单车（彻底删除）
+ * @param {Long} id 单车主键ID
+ */
+export function deleteUserBike(id) {
+    return request({
+        url: `/user-bike/delete/${id}`,
+        method: 'delete'
+    });
+}
+
+/**
  * 获取用户的在役车辆数量
  */
 export function getActiveBikeCount() {

@@ -1,5 +1,5 @@
 <template>
-  <!-- 单车添加或修改时右侧指示图 -->
+  <!-- 单车添加或修改时右侧指示�?-->
   <div class="bike-visualizer-container">
     <svg viewBox="0 0 850 450" class="bike-svg" xmlns="http://www.w3.org/2000/svg">
       <defs>
@@ -18,6 +18,22 @@
         <marker id="arrow" markerWidth="10" markerHeight="10" refX="5" refY="3" orient="auto" markerUnits="strokeWidth">
           <path d="M0,0 L0,6 L9,3 z" fill="var(--accent-gold)"/>
         </marker>
+        
+        <!-- 小箭头（用于把立长度等） -->
+        <marker id="arrow-small" markerWidth="7" markerHeight="7" refX="4" refY="2" orient="auto" markerUnits="strokeWidth">
+          <path d="M0,0 L0,4 L6,2 z" fill="var(--accent-gold)"/>
+        </marker>
+        
+        <!-- 垫圈柔和发光滤镜 -->
+        <filter id="spacerGlow" x="-50%" y="-50%" width="200%" height="200%">
+          <feGaussianBlur stdDeviation="3" result="blur"/>
+          <feFlood flood-color="#D4AF37" flood-opacity="0.6" result="color"/>
+          <feComposite in="color" in2="blur" operator="in" result="glow"/>
+          <feMerge>
+            <feMergeNode in="glow"/>
+            <feMergeNode in="SourceGraphic"/>
+          </feMerge>
+        </filter>
       </defs>
 
       <!-- 底图 -->
@@ -33,7 +49,7 @@
         <!-- REACH (L) -->
         <template v-if="activePart === 'frameReach' || activePart === 'reach'">
           <path :d="`M${c.bb.x},${c.groundY} V${c.stackY}`" class="helper-dashed"/>
-          <!-- 核心修复：y 坐标增加 0.1 偏移，确保渲染 -->
+          <!-- 核心修复：y 坐标增加 0.1 偏移，确保渲�?-->
           <path :d="`M${c.bb.x},${c.stackY} L${c.htTop.x},${c.stackY + 0.1}`" class="indicator-glow"
                 marker-end="url(#arrow)" stroke-width="3" />
           <path :d="`M${c.htTop.x},${c.stackY} V${c.htTop.y}`" class="helper-solid"/>
@@ -68,7 +84,8 @@
         <!-- SADDLE HEIGHT (A) -->
         <template v-if="activePart === 'saddleHeight' || activePart === 'saddle_height'">
           <path :d="`M${c.bb.x},${c.bb.y} L${c.saddle.x + 40},${c.saddle.y + 20}`" class="indicator-glow"
-                marker-end="url(#arrow)"/>
+                marker-end="url(#arrow)"
+                :transform="!isRoadType ? 'rotate(-5, ' + (c.saddle.x + 40) + ', ' + (c.saddle.y + 20) + ')' : ''"/>
           <text :x="c.saddle.x - 40" :y="c.saddle.y + 60" class="metric-label">A (HEIGHT)</text>
         </template>
 
@@ -80,6 +97,21 @@
           <circle :cx="c.saddle.x - 20" :cy="c.saddle.y" r="5" fill="var(--accent-gold)"/>
           <text :x="c.bb.x - 50" :y="c.saddle.y - 10" class="metric-label">C (SETBACK)</text>
         </template>
+
+        <!-- SADDLE TILT (座垫角度) -->
+        <template v-if="activePart === 'saddleTilt'">
+          <!-- 水平参考虚线 -->
+          <path :d="`M${c.saddle.x - 20},${c.saddle.y} L${c.saddle.x + 220},${c.saddle.y}`" class="helper-dashed"/>
+          <!-- 座垫实际角度线-->
+          <path :d="`M${c.saddle.x - 10},${c.saddle.y} L${c.saddle.x + 90},${c.saddle.y - 15}`" class="indicator-glow"
+                marker-end="url(#arrow)"/>
+          <!-- 角度弧线 -->
+          <path :d="`M${c.saddle.x + 70},${c.saddle.y} A35,35 0 0 0 ${c.saddle.x + 68},${c.saddle.y - 11}`" class="indicator-glow"
+                stroke-width="3"/>
+          <text :x="c.saddle.x + 105" :y="c.saddle.y - 20" class="metric-label">TILT (角度)</text>
+        </template>
+
+        <!-- SADDLE WIDTH (座垫宽度) - 替换背景图，无需额外标注 -->
 
         <!-- BB DROP (J) -->
         <template v-if="activePart === 'bbDrop'">
@@ -123,10 +155,61 @@
 
         <!-- HANDLEBAR DROP (车把落差) -->
         <template v-if="activePart === 'handlebarDrop'">
+          <!-- 座垫高度水平参考虚线 -->
           <path :d="`M${c.saddle.x},${c.saddle.y} H${c.htTop.x + 30}`" class="helper-dashed"/>
-          <path :d="`M${c.htTop.x + 20},${c.saddle.y} V${c.htTop.y}`" class="indicator-glow"
-                marker-end="url(#arrow)"/>
-          <text :x="c.htTop.x + 35" :y="c.saddle.y + (c.htTop.y - c.saddle.y)/2" class="metric-label">DROP</text>
+          <!-- 车把中心水平参考虚线 -->
+          <path :d="`M${c.htTop.x - 80},${c.htTop.y - 25} H${c.stemEnd.x - 60}`" class="helper-dashed"/>
+          <!-- 落差金色垂直指示线 -->
+          <line :x1="c.htTop.x + 25" :y1="c.saddle.y" :x2="c.htTop.x + 25.5" :y2="c.htTop.y - 25"
+                stroke="var(--accent-gold)" stroke-width="3" stroke-dasharray="6,4"/>
+          <text :x="c.htTop.x + 40" :y="c.saddle.y + 20" class="metric-label">DROP</text>
+          <text :x="c.htTop.x + 40" :y="c.saddle.y + 40" class="metric-label" font-size="14">把立落差</text>
+        </template>
+
+        <!-- STEM LENGTH (把立长度) -->
+        <template v-if="activePart === 'stemLength'">
+          <!-- 把立长度指示线 -->
+          <path :d="isRoadType 
+            ? `M${c.htTop.x - 30},${c.htTop.y - 60} L${c.stemEnd.x - 45},${c.stemEnd.y - 70}` 
+            : `M${c.htTop.x - 15},${c.htTop.y - 15} L${c.htTop.x + (c.stemEnd.x - c.htTop.x)/4},${c.stemEnd.y - 17}`" 
+                class="indicator-glow" marker-end="url(#arrow-small)"
+                :transform="!isRoadType ? 'rotate(-15, ' + (c.htTop.x - 15) + ', ' + (c.htTop.y - 15) + ')' : ''"/>
+          <text :x="c.htTop.x + (c.stemEnd.x - c.htTop.x)/2 - 20" :y="c.htTop.y - 55" class="metric-label">STEM (把立长度)</text>
+        </template>
+
+        <!-- STEM ANGLE (把立角度) -->
+        <template v-if="activePart === 'stemAngle'">
+          <!-- 水平参考虚线 -->
+          <path :d="isRoadType 
+            ? `M${c.htTop.x - 40},${c.htTop.y - 65} L${c.stemEnd.x - 20},${c.htTop.y - 65}` 
+            : `M${c.htTop.x - 20},${c.htTop.y -5} L${c.stemEnd.x},${c.htTop.y - 5}`"
+                class="helper-dashed"/>
+          <!-- 把立角度指示线 -->
+          <path :d="isRoadType 
+            ? `M${c.htTop.x - 30},${c.htTop.y - 60} L${c.stemEnd.x - 45},${c.stemEnd.y - 85}` 
+            : `M${c.htTop.x - 30},${c.htTop.y - 10} L${c.stemEnd.x - 45},${c.stemEnd.y - 45}`"
+                class="indicator-glow" marker-end="url(#arrow-small)"/>
+          <!-- 角度弧线 -->
+          <path :d="isRoadType 
+            ? `M${c.htTop.x + 20},${c.htTop.y - 65} A20,20 0 0 0 ${c.htTop.x + 18},${c.htTop.y - 72}` 
+            : `M${c.htTop.x + 20},${c.htTop.y - 15} A20,20 0 0 0 ${c.htTop.x + 18},${c.htTop.y - 22}`" 
+                class="indicator-glow" stroke-width="3"/>
+          <text :x="c.htTop.x + (c.stemEnd.x - c.htTop.x)/2 - 25" :y="c.htTop.y - 75" class="metric-label">STEM ANGLE (角度)</text>
+        </template>
+
+        <!-- SPACERS HEIGHT (垫圈高度) -->
+        <template v-if="activePart === 'spacersHeight'">
+          <!-- 垫圈高度指示线 -->
+          <path :d="`M${c.htTop.x - 20},${c.htTop.y - 20} L${c.htTop.x - 20},${c.htTop.y - 50}`" class="indicator-glow"
+                marker-start="url(#arrow-small)" marker-end="url(#arrow-small)"/>
+          <!-- 垫圈区域高亮矩形（带动画效果） -->
+          <rect :x="c.htTop.x - 28" :y="c.htTop.y - 50" :width="28" :height="12"
+                fill="rgba(212, 175, 55, 0.4)" stroke="var(--accent-gold)" stroke-width="2.5" rx="2"
+                :transform="'rotate(-15, ' + (c.htTop.x + 164) + ', ' + (c.htTop.y - 84) + ')'"
+                filter="url(#spacerGlow)">
+            <animate attributeName="opacity" values="0.4;1;0.4" dur="2s" repeatCount="indefinite"/>
+          </rect>
+          <text :x="c.htTop.x + 5" :y="c.htTop.y - 30" class="metric-label">SPACERS (垫圈)</text>
         </template>
 
         <!-- 五通中心原点 -->
@@ -139,17 +222,37 @@
 </template>
 
 <script setup>
-import {computed} from 'vue';
+import {computed, ref} from 'vue';
 import bgRoad from '@/assets/image/road-bike.png';
 import bgMtb from '@/assets/image/mtb-bike.png';
+import saddleWidthImg from '@/assets/image/saddleWidth.png';
+import flatPedalImg from '@/assets/image/flatPedal.png';
+import roadLockImg from '@/assets/image/roadLock.png';
+import mountainLockImg from '@/assets/image/mountain.png';
+
+const showSaddleWidthTooltip = ref(false);
 
 const props = defineProps({
   activePart: String,
-  bikeType: Number
+  bikeType: Number,
+  pedalType: Number
 });
 
 const isRoadType = computed(() => [1, 3, 4].includes(props.bikeType));
-const currentBgImage = computed(() => isRoadType.value ? bgRoad : bgMtb);
+const currentBgImage = computed(() => {
+  // 座垫宽度
+  if (props.activePart === 'saddleWidth') {
+    return saddleWidthImg;
+  }
+  // 踏板类型
+  if (props.activePart === 'pedalType') {
+    if (props.pedalType === 1) return flatPedalImg;
+    if (props.pedalType === 2) return roadLockImg;
+    if (props.pedalType === 3) return mountainLockImg;
+  }
+  // 默认自行车背景
+  return isRoadType.value ? bgRoad : bgMtb;
+});
 
 /**
  * 最终校准坐标系 (Based on BB Point)
@@ -157,30 +260,31 @@ const currentBgImage = computed(() => isRoadType.value ? bgRoad : bgMtb);
 const coords = {
   // 公路车坐标系
   road: {
-    bb: {x: 310, y: 310},         // 原点 (已确认)
+    bb: {x: 310, y: 310},         // 原点 
 
     // 关键点位
     rearAxle: {x: 145, y: 310},   // 后轴 (BB Drop=0视感)
     frontAxle: {x: 540, y: 310},  // 前轴
 
-    htTop: {x: 470, y: 140},      // 头管顶 (Stack/Reach 终点)
-    stackY: 140,                    // Stack 高度水平线
+    htTop: {x: 470, y: 140},      // 头管(Stack/Reach 终点)
+    stackY: 140,                    // Stack 高度水平
 
-    stTop: {x: 270, y: 155},      // 立管顶 (上管交汇处)
+    stTop: {x: 270, y: 155},      // 立管(上管交汇)
     saddle: {x: 200, y: 40},      // 座垫中心
 
     stemEnd: {x: 550, y: 120},    // 把立末端
-    groundY: 400,                   // 地面线
+    groundY: 400,                   // 地面
     standOverHeight: 150,
 
     // 右侧子图
     barDetail: {x1: 710, x2: 815, y: 115, cx: 730},
-    crankDetail: {cx: 740, cy: 300, endX: 800, endY: 350}
+    crankDetail: {cx: 740, cy: 300, endX: 800, endY: 350},
+    saddleWidthDetail: {x1: 690, x2: 790, y: 200, cx: 740}
   },
 
   // 山地车坐标系
   mtb: {
-    bb: {x: 310, y: 300},         // 原点 (已确认)
+    bb: {x: 310, y: 300},         // 原点 
 
     rearAxle: {x: 160, y: 280},
     frontAxle: {x: 520, y: 280},
@@ -197,7 +301,8 @@ const coords = {
 
     // 右侧子图
     barDetail: {x1: 650, x2: 780, y: 120, cx: 735},
-    crankDetail: {cx: 680, cy: 280, endX: 730, endY: 330}
+    crankDetail: {cx: 680, cy: 280, endX: 730, endY: 330},
+    saddleWidthDetail: {x1: 690, x2: 790, y: 200, cx: 740}
   }
 };
 
@@ -229,7 +334,7 @@ const c = computed(() => isRoadType.value ? coords.road : coords.mtb);
   filter: contrast(1.1);
 }
 
-/* 核心：金色流动线条 (纯循环，无卡顿) */
+/* 核心：金色流动线*/
 .indicator-glow {
   stroke: var(--accent-gold);
   stroke-dasharray: 12, 6;
@@ -281,4 +386,19 @@ const c = computed(() => isRoadType.value ? coords.road : coords.mtb);
   font-weight: 700;
   text-transform: uppercase;
 }
+
+.spacer-highlight {
+  filter: url(#spacerGlow);
+  animation: glowPulse 2s infinite alternate;
+}
+
+@keyframes glowPulse {
+  from {
+    opacity: 0.3;
+  }
+  to {
+    opacity: 0.6;
+  }
+}
+
 </style>

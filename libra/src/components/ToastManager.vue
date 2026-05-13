@@ -11,6 +11,7 @@
           <!-- 图标 -->
           <i v-if="item.type === 'success'" class="fas fa-check-circle icon"></i>
           <i v-else-if="item.type === 'error'" class="fas fa-times-circle icon"></i>
+          <i v-else-if="item.type === 'warning'" class="fas fa-exclamation-triangle icon"></i>
           <i v-else class="fas fa-info-circle icon"></i>
 
           <span class="text">{{ item.message }}</span>
@@ -84,6 +85,9 @@ const handleCancel = () => {
 
 .toast-card.error .icon { color: #C18C7E; /* Danger Red */ }
 .toast-card.error { border-left: 4px solid #C18C7E; }
+
+.toast-card.warning .icon { color: #E89F6E; /* Warning Orange */ }
+.toast-card.warning { border-left: 4px solid #E89F6E; }
 
 .toast-card.info .icon { color: var(--primary-color); }
 .toast-card.info { border-left: 4px solid var(--primary-color); }
