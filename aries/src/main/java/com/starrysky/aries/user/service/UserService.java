@@ -2,19 +2,28 @@ package com.starrysky.aries.user.service;
 
 import cn.hutool.core.lang.Snowflake;
 import com.starrysky.aries.entity.User;
+import com.starrysky.aries.entity.UserMembership;
 import com.starrysky.aries.exception.BizException;
+import com.starrysky.aries.membership.enums.MemberTypeEnum;
+import com.starrysky.aries.membership.event.UserRegisteredEvent;
+import com.starrysky.aries.membership.repository.UserMembershipRepository;
 import com.starrysky.aries.sms.service.SmsService;
 import com.starrysky.aries.user.repository.UserRepository;
 import com.starrysky.aries.user.schema.UserRequest;
 import com.starrysky.aries.util.Constant;
 import com.starrysky.aries.util.EncryptUtil;
 import jakarta.annotation.Resource;
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.security.authentication.LockedException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
+import org.springframework.web.context.request.RequestAttributes;
+import org.springframework.web.context.request.RequestContextHolder;
+import org.springframework.web.context.request.ServletRequestAttributes;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -35,11 +44,15 @@ public class UserService {
     @Resource
     private UserRepository userRepository;
     @Resource
+    private UserMembershipRepository userMembershipRepository;
+    @Resource
     private SmsService smsService;
     @Resource
     private PasswordEncoder passwordEncoder;
     @Resource
     private Snowflake snowflake;
+    @Resource
+    private ApplicationEventPublisher eventPublisher;
 
     /**
      * 注册和登录，用户手机短信注册和登录
@@ -78,7 +91,17 @@ public class UserService {
         if (user == null) {
             // --- 场景 A：纯新用户 ---
             user = handleNewRegistration(identifier, isWeChat);
-            return userRepository.save(user);
+
+            user = userRepository.save(user);
+            // 增加用户会员
+            UserMembership newMem = new UserMembership();
+            newMem.setUserId(user.getId());
+            newMem.setMemberType(MemberTypeEnum.FREE);
+            newMem.setTokenBalance(0);
+            newMem.setTotalInvites(0);
+            newMem.setCreateTime(LocalDateTime.now());
+            userMembershipRepository.save(newMem);
+            return user;
         }
 
         if (Boolean.TRUE.equals(user.getIsDeleted())) {
@@ -108,7 +131,30 @@ public class UserService {
             if (exist != null) {
                 return exist; // 并发情况下如果已被创建，则直接返回
             }
-            return createNewUser(identifier, isWeChat);
+            User newUser = createNewUser(identifier, isWeChat);
+            // 抛出注册事件，携带邀请码
+            publishRegistrationEvent(newUser);
+            return newUser;
+        }
+    }
+
+    /**
+     * 注册新用户时，如果是受邀请的，则处发起事件，引出后续处理，后续处理在MembershipEventListener里
+     *
+     * @param newUser 新用户
+     */
+    private void publishRegistrationEvent(User newUser) {
+        try {
+            RequestAttributes attributes = RequestContextHolder.getRequestAttributes();
+            if (attributes instanceof ServletRequestAttributes) {
+                HttpServletRequest request = ((ServletRequestAttributes) attributes).getRequest();
+                String inviterCode = request.getHeader("X-Inviter-Code");
+                if (StringUtils.hasText(inviterCode)) {
+                    eventPublisher.publishEvent(new UserRegisteredEvent(newUser.getId(), inviterCode));
+                }
+            }
+        } catch (Exception e) {
+            log.error("抛出注册事件失败", e);
         }
     }
 

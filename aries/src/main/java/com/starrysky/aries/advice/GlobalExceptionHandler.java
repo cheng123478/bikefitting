@@ -1,12 +1,13 @@
 package com.starrysky.aries.advice;
 
 import com.starrysky.aries.exception.BizException;
+import com.starrysky.aries.membership.exception.MembershipException;
 import com.starrysky.aries.util.IpUtil;
 import com.starrysky.aries.util.ResponseResult;
 import com.starrysky.aries.util.ResponseResultStatus;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.security.access.AccessDeniedException;
+
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -33,6 +34,16 @@ public class GlobalExceptionHandler {
     }
 
     /**
+     * 处理会员权限异常
+     */
+    @ExceptionHandler(value = MembershipException.class)
+    public ResponseResult<Void> membershipExceptionHandler(HttpServletRequest request, MembershipException e) {
+        log.warn("[权限不足异常] URI: {} | Code: {} | Msg: {}",
+                request.getRequestURI(), e.getCode(), e.getMessage());
+        return ResponseResult.failure(e.getCode() != null ? e.getCode() : 40301, e.getMessage());
+    }
+
+    /**
      * 处理参数校验异常(使用@Valid或@Validated触发)
      * 场景：手机号为空、密码长度不够
      * 日志策略：WARN，不打印堆栈
@@ -43,18 +54,6 @@ public class GlobalExceptionHandler {
         log.warn("[参数校验失败] URI: {} | Msg: {}", request.getRequestURI(), msg);
         return ResponseResult.failure(ResponseResultStatus.BAD_REQUEST.getCode(), msg);
     }
-
-    /**
-     * 处理权限不足异常(Spring Security)
-     * 场景：普通用户访问管理员接口
-     * 日志策略：WARN，记录IP以便风控
-     */
-    @ExceptionHandler(AccessDeniedException.class)
-    public ResponseResult<Void> handleAccessDenied(HttpServletRequest request, AccessDeniedException e) {
-        log.warn("[权限不足] IP: {} | URI: {}，{}", IpUtil.getRequestIp(request), request.getRequestURI(), e.getMessage());
-        return ResponseResult.failure(ResponseResultStatus.FORBIDDEN.getCode(), "权限不足，无法访问");
-    }
-
 
     /**
      * 处理系统未知异常

@@ -55,7 +55,7 @@ public class UserMembershipService {
 
         switch (privilegeType) {
             case DYNAMIC_FITTING:
-//                handleDynamicFittingConsumption(membership);
+                handleDynamicFittingConsumption(membership);
                 break;
             case GARAGE_EXPANSION:
                 handleGarageExpansionCheck(membership);
@@ -76,47 +76,47 @@ public class UserMembershipService {
      *
      * @param membership 用户会员信息
      */
-//    private void handleDynamicFittingConsumption(UserMembership membership) {
-//        boolean isPro = membership.isProActive();
-//
-//        if (isPro) {
-//            // PRO用户：检查当日限额 10 次
-//            String dateKey = LocalDate.now().format(DateTimeFormatter.BASIC_ISO_DATE);
-////            String redisKey = RedisConstant.MEM_DYNAMIC_QUOTA + dateKey + ":" + membership.getUserId();
-//
-//            long currentUsage = stringRedisTemplate.opsForValue().increment(redisKey);
-//            if (currentUsage == 1) {
-//                // 第一次访问设置过期时间为24小时
-//                stringRedisTemplate.expire(redisKey, 24, TimeUnit.HOURS);
-//            }
-//
-//            if (currentUsage > PRO_DAILY_DYNAMIC_LIMIT) {
-//                log.warn("User {} exceeded PRO daily dynamic limit", membership.getUserId());
-//                throw new MembershipException("PRO会员每日分析次数已达上限(" + PRO_DAILY_DYNAMIC_LIMIT + "次)");
-//            }
-//            // 正常放行
-//        } else {
-//            // 免费用户：惰性扣费逻辑
-//            LocalDate today = LocalDate.now();
-//            LocalDate lastRefresh = membership.getLastTokenRefreshDate();
-//
-//            boolean isFreeAvailable = (lastRefresh == null || ChronoUnit.DAYS.between(lastRefresh, today) >= 2);
-//
-//            if (isFreeAvailable) {
-//                // 扣除免费额度，更新最后一次发放/消费日期为今天
-//                membership.setLastTokenRefreshDate(today);
-//                userMembershipRepository.save(membership);
-//                log.info("User {} consumed 2-day free token", membership.getUserId());
-//            } else if (membership.getTokenBalance() > 0) {
-//                // 扣除永久余额
-//                membership.setTokenBalance(membership.getTokenBalance() - 1);
-//                userMembershipRepository.save(membership);
-//                log.info("User {} consumed 1 permanent token, remaining: {}", membership.getUserId(), membership.getTokenBalance());
-//            } else {
-//                throw new MembershipException("您的可用分析次数不足，请开通PRO会员或邀请好友获取奖励！");
-//            }
-//        }
-//    }
+    private void handleDynamicFittingConsumption(UserMembership membership) {
+        boolean isPro = membership.isProActive();
+
+        if (isPro) {
+            // PRO用户：检查当日限额 10 次
+            String dateKey = LocalDate.now().format(DateTimeFormatter.BASIC_ISO_DATE);
+            String redisKey = RedisConstant.MEM_DYNAMIC_QUOTA + dateKey + ":" + membership.getUserId();
+
+            long currentUsage = stringRedisTemplate.opsForValue().increment(redisKey);
+            if (currentUsage == 1) {
+                // 第一次访问设置过期时间为24小时
+                stringRedisTemplate.expire(redisKey, 24, TimeUnit.HOURS);
+            }
+
+            if (currentUsage > PRO_DAILY_DYNAMIC_LIMIT) {
+                log.warn("User {} exceeded PRO daily dynamic limit", membership.getUserId());
+                throw new MembershipException("PRO会员每日分析次数已达上限(" + PRO_DAILY_DYNAMIC_LIMIT + "次)");
+            }
+            // 正常放行
+        } else {
+            // 免费用户：惰性扣费逻辑
+            LocalDate today = LocalDate.now();
+            LocalDate lastRefresh = membership.getLastTokenRefreshDate();
+
+            boolean isFreeAvailable = (lastRefresh == null || ChronoUnit.DAYS.between(lastRefresh, today) >= 2);
+
+            if (isFreeAvailable) {
+                // 扣除免费额度，更新最后一次发放/消费日期为今天
+                membership.setLastTokenRefreshDate(today);
+                userMembershipRepository.save(membership);
+                log.info("User {} consumed 2-day free token", membership.getUserId());
+            } else if (membership.getTokenBalance() > 0) {
+                // 扣除永久余额
+                membership.setTokenBalance(membership.getTokenBalance() - 1);
+                userMembershipRepository.save(membership);
+                log.info("User {} consumed 1 permanent token, remaining: {}", membership.getUserId(), membership.getTokenBalance());
+            } else {
+                throw new MembershipException("您的可用分析次数不足，请开通PRO会员或邀请好友获取奖励！");
+            }
+        }
+    }
 
     /**
      * 处理车库扩展检查

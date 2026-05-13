@@ -5,7 +5,7 @@
       <!-- 加载状态 -->
       <div v-if="loading" class="loading-state">
         <div class="radar-spinner"></div>
-        <p>Aries 正在生成生物力学诊断报告...</p>
+        <p>{{ PROJECT_CONFIG.MASCOT }} 正在生成生物力学诊断报告...</p>
       </div>
 
       <!-- 报告主体 -->
@@ -103,7 +103,7 @@
             <!-- 3. 调教设定明细 (可调项目) -->
             <section class="section-block">
               <h3 class="section-title"><i class="fas fa-sliders-h"></i> 设定偏差分析 (Setup Deviations)</h3>
-              <p class="section-desc">对比您当前的单车设定与 Aries 计算出的黄金生物力学坐标。</p>
+              <p class="section-desc">对比您当前的单车设定与 {{ PROJECT_CONFIG.MASCOT }} 计算出的黄金生物力学坐标。</p>
 
               <!-- 7个字段方框网格 -->
               <div class="deviation-grid">
@@ -179,6 +179,7 @@ import { ref, computed, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { getFittingReport, getFittingReportById } from '@/api/staticFitting.js';
 import { showToast } from '@/utils/toast.js';
+import { PROJECT_CONFIG } from '@/config/constants';
 
 const route = useRoute();
 const router = useRouter();

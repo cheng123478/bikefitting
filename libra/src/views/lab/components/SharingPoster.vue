@@ -18,12 +18,12 @@
       <!-- 1. 顶部：品牌与用户信息 -->
       <header class="poster-header">
         <div class="brand-badge">
-          <span class="brand-cn">骑迹</span>
-          <span class="brand-en">RideTrace</span>
+          <span class="brand-cn">{{ PROJECT_CONFIG.NAME }}</span>
+          <span class="brand-en">{{ PROJECT_CONFIG.NAME_EN }}</span>
         </div>
         <div class="user-meta">
           <div class="user-info">
-            <span class="username">{{ safeResult.username || 'Aries Rider' }}</span>
+            <span class="username">{{ safeResult.username || `${PROJECT_CONFIG.MASCOT} Rider` }}</span>
             <span class="report-date">{{ formatDate(safeResult.fittingTime) }}</span>
           </div>
           <!-- 推荐使用真实图片，这里用首字母代替 FontAwesome -->
@@ -77,7 +77,7 @@
       <footer class="poster-footer">
         <div class="footer-left">
           <p class="slogan">每一次发力，皆有迹可循。</p>
-          <p class="sub-slogan">RideTrace · 智能单车静态几何适配</p>
+          <p class="sub-slogan">{{ PROJECT_CONFIG.NAME_EN }} · 智能单车静态几何适配</p>
         </div>
         <div class="qr-code-section">
           <qrcode-vue
@@ -99,6 +99,8 @@ import { ref, onMounted, computed, watch, nextTick } from 'vue';
 import * as echarts from 'echarts';
 import html2canvas from 'html2canvas';
 import QrcodeVue from 'qrcode.vue';
+import request from '@/api/request.js';
+import { PROJECT_CONFIG } from '@/config/constants';
 
 const props = defineProps({
   result: {
@@ -110,6 +112,7 @@ const props = defineProps({
 const posterRef = ref(null);
 const chartRef = ref(null);
 const cachedPosterImage = ref(null); // 图片缓存机制
+const inviteCode = ref('');
 let myChart = null;
 
 // 防御性计算属性，避免 result 为 null 时报错
@@ -118,9 +121,22 @@ const safeResult = computed(() => props.result || {});
 // 动态生成分享链接
 const shareUrl = computed(() => {
   const origin = window.location.origin;
-  // 调整为跳转到实验室主页，引导扫码者开启自己的之旅
-  return `${origin}/lab`;
+  if (inviteCode.value) {
+    return `${origin}/?inviter=${inviteCode.value}`;
+  }
+  return `${origin}/`;
 });
+
+const fetchInviteCode = async () => {
+  try {
+    const res = await request.get('/membership/invite-code');
+    if (res.code === 200) {
+      inviteCode.value = res.data.inviteCode;
+    }
+  } catch (e) {
+    console.error('获取邀请码失败', e);
+  }
+};
 
 const calculatedScore = computed(() => {
   return safeResult.value.thoracicScore || 85;
@@ -187,6 +203,7 @@ const initChart = async () => {
 
 onMounted(() => {
   if (props.result) initChart();
+  fetchInviteCode();
 });
 
 watch(() => props.result, (newVal) => {

@@ -53,6 +53,10 @@ public class DynamicFittingResult {
     @Column(columnDefinition = "JSON")
     private String stabilityJson;
 
+    @Comment("检测指标的标准参考范围汇总")
+    @Column(columnDefinition = "JSON")
+    private String standardJson;
+
     @Comment("生成时间")
     @CreationTimestamp
     private LocalDateTime createTime;

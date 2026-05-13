@@ -5,6 +5,7 @@ import lombok.*;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 
 /**
  * 动态Fitting结果VO-诊断核心结果
@@ -26,4 +27,7 @@ public class DynamicFittingResultVO {
 
     // 诊断生成的详细建议列表
     private List<DynamicFittingAdviceVO> advices;
+
+    // 记录所有涉及指标的标准范围 (即便指标正常也返回，用于前端展示)
+    private Map<String, String> standardRanges;
 }

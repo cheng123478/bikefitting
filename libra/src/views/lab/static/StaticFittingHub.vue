@@ -5,8 +5,8 @@
       <!-- Header -->
       <header class="page-header fade-up">
         <div class="header-left">
-          <h1 class="title">静态诊断分析</h1>
-          <p class="subtitle">Aries 引擎已就绪，请完善本次调教的偏好与身体反馈。</p>
+          <h2 class="title serif-title">静态调教中心</h2>
+          <p class="subtitle">{{ PROJECT_CONFIG.MASCOT }} 引擎已就绪，请完善本次调教的偏好与身体反馈。</p>
         </div>
         <div class="header-actions">
           <button class="btn-text back-btn" @click="handleBack">
@@ -66,8 +66,8 @@
 
           <div class="task-info">
             <span class="label">ENGINE STATUS</span>
-            <div class="selected-text">
-              准备启动: <strong class="highlight">Aries 核心计算引擎</strong>
+            <div class="launch-label">
+              准备启动: <strong class="highlight">{{ PROJECT_CONFIG.MASCOT }} 核心计算引擎</strong>
             </div>
             <p class="desc-text" v-if="selectedPains.length > 0">已搭载 <strong>{{ selectedPains.length }}</strong> 项医疗修正参数。</p>
             <p class="desc-text" v-else>使用标准基准模式计算。</p>
@@ -108,6 +108,7 @@ import { useRoute, useRouter } from 'vue-router';
 import { useLabStore } from '@/stores/lab.js';
 import { staticFitting } from "@/api/staticFitting.js";
 import { showToast } from '@/utils/toast';
+import { PROJECT_CONFIG } from '@/config/constants';
 import StaticFittingResultModal from "@/views/lab/components/StaticFittingResultModal.vue";
 import PainSelector from "@/views/lab/components/PainSelector.vue";
 
@@ -161,7 +162,7 @@ const startEngine = async () => {
 
   isCalculating.value = true;
   try {
-    showToast('Aries 引擎正在计算...', 'loading');
+    showToast(`${PROJECT_CONFIG.MASCOT} 引擎正在计算...`, 'loading');
     const bId = selectedBike.value ? selectedBike.value.id : null;
     const res = await staticFitting(bId, selectedPains.value);
     calculationResult.value = res.data || res;

@@ -72,6 +72,7 @@ public class DynamicFittingAlgorithm {
 
         // 记录所有找到的指标，用于后续对称性分析
         Map<String, Double> detectedMetrics = new java.util.HashMap<>();
+        Map<String, String> standardRanges = new java.util.HashMap<>();
 
         for (DynamicFittingStandard std : standards) {
             String metricKey = std.getMetricKey();
@@ -87,6 +88,7 @@ public class DynamicFittingAlgorithm {
 
             if (val != null) {
                 detectedMetrics.put(metricKey, val);
+                standardRanges.put(metricKey, String.format("%.1f-%.1f", std.getMinVal(), std.getMaxVal()));
 
                 // 计算该指标得分 (非对称)
                 double score = calculateAsymmetricScore(val, std);
@@ -107,7 +109,21 @@ public class DynamicFittingAlgorithm {
         }
 
         // --- 2. 双侧对称性分析 (Bilateral Asymmetry) ---
-        performBilateralAudit(detectedMetrics, advices, bikeType);
+        // 展平所有视角的指标以供双侧对比，不局限于数据库中配置的指标
+        Map<String, Double> allMetrics = new HashMap<>();
+        for (Object viewSum : summary.values()) {
+            if (viewSum instanceof Map) {
+                @SuppressWarnings("unchecked")
+                Map<String, Object> map = (Map<String, Object>) viewSum;
+                map.forEach((k, v) -> {
+                    Double val = convertToDouble(v);
+                    if (val != null) {
+                        allMetrics.put(k, val);
+                    }
+                });
+            }
+        }
+        performBilateralAudit(allMetrics, advices, bikeType, standardRanges);
 
         // 3. 结果排序：按专业调整顺序 (锁片 -> 座垫 -> 车把)
         advices.sort(java.util.Comparator.comparing(DynamicFittingAdviceVO::getSequence)
@@ -121,6 +137,7 @@ public class DynamicFittingAlgorithm {
         return DynamicFittingResultVO.builder()
                 .matchScore(finalScore)
                 .advices(advices)
+                .standardRanges(standardRanges)
                 .build();
     }
 
@@ -201,7 +218,8 @@ public class DynamicFittingAlgorithm {
      */
     private void performBilateralAudit(Map<String, Double> metrics,
             List<DynamicFittingAdviceVO> advices,
-            Integer bikeType) {
+            Integer bikeType,
+            Map<String, String> standardRanges) {
         // 根据车型查取阈值，未知车型使用默认值
         double threshold = BILATERAL_ASYMMETRY_THRESHOLDS.getOrDefault(
                 bikeType, DEFAULT_BILATERAL_THRESHOLD);
@@ -216,16 +234,41 @@ public class DynamicFittingAlgorithm {
                     double delta = Math.abs(leftVal - rightVal);
 
                     if (delta > threshold) {
+                        String baseMetric = key.substring(0, key.length() - 2);
+                        String metricName = "指征";
+                        String unit = "°";
+                        if (baseMetric.toLowerCase().contains("knee")) {
+                            if (baseMetric.toLowerCase().contains("variance") || baseMetric.toLowerCase().contains("stddev") || baseMetric.toLowerCase().contains("cv")) {
+                                metricName = "膝部角度波动方差";
+                            } else {
+                                metricName = "膝部伸展角度";
+                            }
+                        }
+                        if (baseMetric.toLowerCase().contains("elbow")) metricName = "手肘外张角度";
+                        if (baseMetric.toLowerCase().contains("wobble")) {
+                            metricName = "膝部横向跨度";
+                            unit = "mm";
+                        }
+                        if (baseMetric.toLowerCase().contains("hipdrop")) {
+                            metricName = "骨盆下坠幅度";
+                            unit = "%";
+                        }
+                        
+                        String adviceText = String.format(
+                                "检测到双侧【%s】极度不平衡（左右差値 %.1f%s，超出设定的容差阈値 %.0f%s）。这通常是相关肌群发力不均或代偿引起的，建议进一步排查身体柔韧性、核心稳定性，或核实是否存在由不恰当锁片设置引发的结构性长短腿效应。",
+                                metricName, delta, unit, threshold, unit);
+                                
+                        String rangeStr = String.format("双侧差値 < %.0f%s", threshold, unit);
+                        standardRanges.put(baseMetric, rangeStr);
+                                
                         advices.add(DynamicFittingAdviceVO.builder()
                                 .part("body")
                                 .type("check")
-                                .code("advice.asymmetry.warning")
-                                .adviceContent(String.format(
-                                        "检测到双侧指标不平衡（差値 %.1f°，超出该车型阈値 %.0f°），建议检查身体柔韧性、核心稳定性或是否存在结构性长短腿。",
-                                        delta, threshold))
-                                .metric(key.substring(0, key.length() - 2))
+                                .code("advice.asymmetry.warning." + baseMetric)
+                                .adviceContent(adviceText)
+                                .metric(baseMetric)
                                 .val(delta)
-                                .range(rangeText)
+                                .range(rangeStr)
                                 .importance(1)
                                 .sequence(0)
                                 .build()); // sequence=0：双侧不对称告警最先展示

@@ -87,7 +87,7 @@
                   <div class="ring"></div>
                   <i class="fas fa-microchip ai-icon"></i>
                 </div>
-                <h4>Aries 引擎正在解算</h4>
+                <h4>{{ PROJECT_CONFIG.MASCOT }} 引擎正在解算</h4>
                 <p>我们正在根据采集的视频流构建您的生物力学模型，请稍后刷新查看结果。</p>
               </div>
               <!-- 骨架屏 -->
@@ -157,7 +157,7 @@
               <div class="error-visual">
                 <i class="fas fa-exclamation-triangle warn-icon"></i>
                 <h4>任务解算失败</h4>
-                <p>Aries 无法在上传的视频中精确定位关键点，请确保环境光线充足且无遮挡后重新尝试。</p>
+                <p>{{ PROJECT_CONFIG.MASCOT }} 无法在上传的视频中精确定位关键点，请确保环境光线充足且无遮挡后重新尝试。</p>
               </div>
               <div class="action-footer">
                 <button class="btn btn-outline" @click="handleDelete(selectedSession.id)">清理无效记录</button>
@@ -181,6 +181,7 @@ import { ref, onMounted, computed } from 'vue';
 import { useRouter } from 'vue-router';
 import { getSessionHistory, deleteSession, getDiagnosisResult } from '@/api/dynamicFitting';
 import { showToast, showConfirm } from '@/utils/toast';
+import { PROJECT_CONFIG } from '@/config/constants';
 import dayjs from 'dayjs';
 
 const router = useRouter();

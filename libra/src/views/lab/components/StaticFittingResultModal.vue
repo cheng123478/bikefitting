@@ -133,7 +133,7 @@
         <footer class="result-footer">
           <div class="footer-info">
             <i class="fas fa-database"></i>
-            Aries Engine Analysis Complete.
+            {{ PROJECT_CONFIG.MASCOT }} Engine Analysis Complete.
           </div>
           <div class="footer-btns">
             <button class="btn-zen-text" @click="handleShare">
@@ -182,6 +182,7 @@
 
 <script setup>
 import {computed, ref, nextTick} from 'vue';
+import { PROJECT_CONFIG } from '@/config/constants';
 import SharingPoster from './SharingPoster.vue';
 
 const props = defineProps({

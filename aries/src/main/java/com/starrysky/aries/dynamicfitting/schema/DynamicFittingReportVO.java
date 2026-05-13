@@ -43,6 +43,9 @@ public class DynamicFittingReportVO {
     // 踩踏分析专属数据
     private PedalingData pedalingData;
 
+    // 诊断标准范围映射
+    private Map<String, String> standardRanges;
+
     @Data
     @AllArgsConstructor
     @NoArgsConstructor

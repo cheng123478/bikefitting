@@ -33,6 +33,7 @@ public class AriesAccessDeniedHandler implements AccessDeniedHandler {
         log.warn("鉴权失败 | 路径: {} | 原因: {}", request.getRequestURI(), accessDeniedException.getMessage());
         response.setContentType(MediaType.APPLICATION_JSON_VALUE);
         response.setCharacterEncoding("UTF-8");
-        response.getWriter().print(objectMapper.writeValueAsString(ResponseResult.failure(ResponseResultStatus.UNAUTHORIZED, "您无权访问，请更换账号或联系管理员！")));
+        response.setStatus(HttpServletResponse.SC_FORBIDDEN);
+        response.getWriter().print(objectMapper.writeValueAsString(ResponseResult.failure(ResponseResultStatus.FORBIDDEN, "您无权访问，请更换账号或联系管理员！")));
     }
 }

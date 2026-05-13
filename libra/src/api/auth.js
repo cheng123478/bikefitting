@@ -1,4 +1,5 @@
 import request from '@/api/request.js';
+import { STORAGE_KEYS } from '@/config/constants.js';
 
 /**
  * 发送短信验证码
@@ -18,7 +19,18 @@ export function sendSmsCode(phone) {
  */
 export function registerUser(data) {
     // 对应后端 SmsCodeAuthenticationFilter 处理的路径
-    return request.post('/user/login/sms', data);
+    const inviterCode = localStorage.getItem(STORAGE_KEYS.INVITER_CODE);
+    const headers = {};
+    if (inviterCode) {
+        headers['X-Inviter-Code'] = inviterCode;
+    }
+    return request.post('/user/login/sms', data, { headers }).then(res => {
+        // 注册/登录成功后，清除本地邀请码（阅后即焚）
+        if (res.code === 200) {
+            localStorage.removeItem(STORAGE_KEYS.INVITER_CODE);
+        }
+        return res;
+    });
 }
 
 /**
@@ -26,7 +38,17 @@ export function registerUser(data) {
  * @param {Object} data - 包含 { code, type: 'web'|'mini' }
  */
 export function loginByWeChat(data) {
-    return request.post('/user/login/wechat', data);
+    const inviterCode = localStorage.getItem(STORAGE_KEYS.INVITER_CODE);
+    const headers = {};
+    if (inviterCode) {
+        headers['X-Inviter-Code'] = inviterCode;
+    }
+    return request.post('/user/login/wechat', data, { headers }).then(res => {
+        if (res.code === 200) {
+            localStorage.removeItem(STORAGE_KEYS.INVITER_CODE);
+        }
+        return res;
+    });
 }
 
 /**

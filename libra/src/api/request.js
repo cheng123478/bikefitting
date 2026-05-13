@@ -65,6 +65,12 @@ service.interceptors.response.use(
             case BIZ_CODE.AUTH_SESSION_MISSING:
                 performFullLogout('登录会话已过期，请重新登录');
                 return Promise.reject(new Error(res.message));
+            case BIZ_CODE.MEMBERSHIP_REQUIRED:
+                if (!config.silent) {
+                    showToast(res.message || '特权不足，请升级会员', 'warning');
+                    router.push({ path: '/user/profile', query: { tab: 'membership' } });
+                }
+                return Promise.reject(new Error(res.message || '特权不足'));
             default:
                 // 静默模式允许组件局部处理特定的错误
                 if (!config.silent) {

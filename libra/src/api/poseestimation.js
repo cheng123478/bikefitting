@@ -358,7 +358,9 @@ export function usePoseEstimation(viewModeRef = 'side') {
             ts: Date.now() - collectedData.value.startTime,
             pts: {
                 L_SHOULDER: dual.left.shoulder, R_SHOULDER: dual.right.shoulder,
-                L_HIP: dual.left.hip, R_HIP: dual.right.hip
+                L_HIP: dual.left.hip, R_HIP: dual.right.hip,
+                L_KNEE: dual.left.knee, R_KNEE: dual.right.knee,
+                L_ANKLE: dual.left.ankle, R_ANKLE: dual.right.ankle
             },
             metrics: {
                 pelvisSway: currentMetrics.pelvisSway,
@@ -439,7 +441,7 @@ export function usePoseEstimation(viewModeRef = 'side') {
             ts: Date.now() - collectedData.value.startTime,
             pts: {
                 EAR: pts.ear, SHOULDER: pts.shoulder, WRIST: pts.wrist, ELBOW: pts.elbow,
-                HIP: pts.hip, KNEE: pts.knee, ANKLE: pts.ankle, TOE: pts.toe
+                HIP: pts.hip, KNEE: pts.knee, ANKLE: pts.ankle, HEEL: pts.heel, TOE: pts.toe
             },
             metrics: {
                 kneeAngle: Number(knee.toFixed(1)),

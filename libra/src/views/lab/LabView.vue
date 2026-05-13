@@ -6,14 +6,14 @@
       <header class="lab-intro" v-scroll-reveal>
         <div class="intro-left">
           <h1 class="lab-title">实验室控制台</h1>
-          <p class="page-subtitle">Aries 视觉引擎与生物力学分析中枢</p>
+          <p class="page-subtitle">{{ PROJECT_CONFIG.MASCOT }} 视觉引擎与生物力学分析中枢</p>
         </div>
 
         <!-- 极简的引擎状态指示器 -->
         <div class="engine-status-wrapper">
-          <div class="engine-status" title="Aries 引擎运作正常，随时待命">
+          <div class="engine-status" :title="`${PROJECT_CONFIG.MASCOT} 引擎运作正常，随时待命`">
             <span class="status-dot"></span>
-            <span class="status-text">Aries Engine: Online</span>
+            <span class="status-text">{{ PROJECT_CONFIG.MASCOT }} Engine: Online</span>
           </div>
         </div>
       </header>
@@ -102,7 +102,7 @@
 
                 <div class="engine-body">
                     <div class="status-content">
-                      <p class="desc-text">基于当前身体图谱生成调教建议。Aries 引擎已就绪，请启动静态计算。</p>
+                      <p class="desc-text">基于当前身体图谱生成调教建议。{{ PROJECT_CONFIG.MASCOT }} 引擎已就绪，请启动静态计算。</p>
                       <div class="action-footer">
                         <button class="btn-primary-sm" @click="goToStatic">
                           生成调教方案 <i class="fas fa-magic"></i>
@@ -168,6 +168,7 @@
 import { ref, computed, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useLabStore } from '@/stores/lab.js';
+import { PROJECT_CONFIG } from '@/config/constants';
 import { showToast } from '@/utils/toast.js';
 
 const route = useRoute();

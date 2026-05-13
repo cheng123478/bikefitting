@@ -5,7 +5,7 @@
       <header class="showroom-intro" v-scroll-reveal>
         <div class="intro-left">
           <h1 class="showroom-title serif-title">单车展厅</h1>
-          <p class="page-subtitle">Aries 顶级单车几何数据库 & 选号中心</p>
+          <p class="page-subtitle">{{ PROJECT_CONFIG.MASCOT }} 顶级单车几何数据库 & 选号中心</p>
         </div>
 
         <div class="data-status-wrapper">
@@ -132,6 +132,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue';
 import { showroomService } from '@/api/mockService';
+import { PROJECT_CONFIG } from '@/config/constants';
 
 const brands = ref([]);
 const categories = ref([]);

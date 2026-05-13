@@ -18,7 +18,7 @@
           <div class="text-area">
             <h2 class="state-title">数据正在建模</h2>
             <p class="state-desc">
-              Aries 引擎正在解析 <strong>{{ bikeName }}</strong> 的生物力学数据。<br>
+              {{ PROJECT_CONFIG.MASCOT }} 引擎正在解析 <strong>{{ bikeName }}</strong> 的生物力学数据。<br>
               您可以稍后在“存档中心”查收完整的调教建议。
             </p>
           </div>
@@ -46,7 +46,7 @@
             <h2 class="state-title">调教方案已就绪</h2>
             <p class="state-desc">
               计算已完成！基于您的 <strong>{{ bikeName }}</strong> 骑行姿态，<br>
-              Aries 已经准备好了您的精密优化报告。
+              {{ PROJECT_CONFIG.MASCOT }} 已经准备好了您的精密优化报告。
             </p>
           </div>
 
@@ -67,6 +67,7 @@
 import { ref, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { getFittingSessionDetail } from '@/api/dynamicFitting'; // 请确保路径正确
+import { PROJECT_CONFIG } from '@/config/constants';
 
 const route = useRoute();
 const router = useRouter();
@@ -101,7 +102,7 @@ const syncStatus = async () => {
       currentStatus.value = 2;
     }
   } catch (error) {
-    console.warn('Aries Status Sync Interrupted');
+    console.warn(`${PROJECT_CONFIG.MASCOT} Status Sync Interrupted`);
   }
 };
 

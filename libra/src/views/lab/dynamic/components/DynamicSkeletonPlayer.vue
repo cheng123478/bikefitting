@@ -36,6 +36,7 @@
 
 <script setup>
 import { ref, watch, onMounted, onUnmounted, computed } from 'vue';
+import { PROJECT_CONFIG } from '@/config/constants';
 
 const props = defineProps({
   viewType: {
@@ -144,10 +145,18 @@ const drawFrame = (index) => {
     drawLine(ctx, pts.ELBOW, pts.WRIST, lColor);
     drawLine(ctx, pts.HIP, pts.KNEE, lColor);
     drawLine(ctx, pts.KNEE, pts.ANKLE, lColor);
-    drawLine(ctx, pts.ANKLE, pts.TOE, lColor);
+    
+    // 绘制脚踝三角形 (Ankle -> Heel -> Toe -> Ankle)
+    if (pts.ANKLE && pts.HEEL && pts.TOE) {
+      drawLine(ctx, pts.ANKLE, pts.HEEL, lColor);
+      drawLine(ctx, pts.HEEL, pts.TOE, lColor);
+      drawLine(ctx, pts.TOE, pts.ANKLE, lColor);
+    } else {
+      drawLine(ctx, pts.ANKLE, pts.TOE, lColor);
+    }
     
     // Draw joints
-    ['EAR','SHOULDER','ELBOW','WRIST','HIP','KNEE','ANKLE','TOE'].forEach(k => {
+    ['EAR','SHOULDER','ELBOW','WRIST','HIP','KNEE','ANKLE','HEEL','TOE'].forEach(k => {
       drawPoint(ctx, pts[k], pColor);
     });
   } else {
@@ -163,6 +172,22 @@ const drawFrame = (index) => {
     if (pts.L_ANKLE) drawLine(ctx, pts.L_KNEE, pts.L_ANKLE, lColor);
     if (pts.R_KNEE) drawLine(ctx, pts.R_HIP, pts.R_KNEE, lColor);
     if (pts.R_ANKLE) drawLine(ctx, pts.R_KNEE, pts.R_ANKLE, lColor);
+
+    // Spine Line (Back View Only)
+    if (vt === 'BACK' && pts.L_SHOULDER && pts.R_SHOULDER && pts.L_HIP && pts.R_HIP) {
+      ctx.beginPath();
+      ctx.setLineDash([4, 4]);
+      const sMidX = (pts.L_SHOULDER.x + pts.R_SHOULDER.x) / 2 * 640;
+      const sMidY = (pts.L_SHOULDER.y + pts.R_SHOULDER.y) / 2 * 480;
+      const hMidX = (pts.L_HIP.x + pts.R_HIP.x) / 2 * 640;
+      const hMidY = (pts.L_HIP.y + pts.R_HIP.y) / 2 * 480;
+      ctx.moveTo(sMidX, sMidY);
+      ctx.lineTo(hMidX, hMidY);
+      ctx.strokeStyle = pColor; // Gold color for spine
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
 
     // Draw joints
     ['L_SHOULDER','R_SHOULDER','L_HIP','R_HIP','L_KNEE','R_KNEE','L_ANKLE','R_ANKLE'].forEach(k => {
@@ -181,10 +206,10 @@ const drawFrame = (index) => {
   // 2. Watermark & Brand (Bottom Right)
   ctx.textAlign = 'right';
   
-  // Brand name "骑迹"
+  // Brand name
   ctx.fillStyle = '#FFFFFF';
   ctx.font = 'bold 22px sans-serif';
-  ctx.fillText('骑迹', 640 - pad, 480 - 40);
+  ctx.fillText(PROJECT_CONFIG.NAME, 640 - pad, 480 - 40);
   
   // URL
   ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
