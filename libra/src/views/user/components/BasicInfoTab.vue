@@ -30,9 +30,9 @@
         </div>
         <div class="input-wrapper">
           <label>当前手机号</label>
-          <div class="input-group disabled">
-            <input type="text" v-model="userForm.phone" class="zen-input" disabled>
+          <div class="input-group disabled icon-input">
             <i class="fas fa-lock input-icon"></i>
+            <input type="text" v-model="userForm.phone" class="zen-input" disabled>
           </div>
           <small class="helper-text" @click="$emit('switch-tab', 'security')">去“账号安全”修改 ></small>
         </div>
@@ -91,6 +91,7 @@ import { reactive, ref, onMounted, computed } from 'vue';
 import { useUserStore } from '@/stores/user.js';
 import { showToast } from '@/utils/toast.js';
 import { updateUserProfile, uploadAvatar } from '@/api/profile.js';
+import { STORAGE_KEYS } from '@/config/constants';
 
 const emit = defineEmits(['switch-tab']);
 const userStore = useUserStore();
@@ -131,7 +132,7 @@ const handleAvatarChange = async (e) => {
     userForm.avatar = res;
     // 同步更新 Store
     userStore.userInfo.avatar = res;
-    localStorage.setItem('user_info', JSON.stringify(userStore.userInfo));
+    localStorage.setItem(STORAGE_KEYS.USER_INFO, JSON.stringify(userStore.userInfo));
     showToast('头像更新成功', 'success');
   } catch (error) {
     showToast('头像上传失败', 'error');
@@ -145,7 +146,7 @@ const updateProfile = async () => {
     isSubmitting.value = true;
     await updateUserProfile(userForm);
     userStore.setUserInfo({ ...userStore.userInfo, ...userForm });
-    localStorage.setItem('user_info', JSON.stringify(userStore.userInfo));
+    localStorage.setItem(STORAGE_KEYS.USER_INFO, JSON.stringify(userStore.userInfo));
     showToast('个人资料已保存', 'success');
   } catch (error) {
     // handled by request interceptor
@@ -238,8 +239,16 @@ onMounted(() => {
 .input-wrapper label { display: block; margin-bottom: 8px; font-size: 0.9rem; color: var(--text-muted); }
 
 .input-group { position: relative; }
-.input-group.disabled .zen-input { background: #f5f5f5; cursor: not-allowed; }
-.input-group .right-icon { left: auto; right: 12px; pointer-events: none; font-size: 0.8rem; }
+.input-group.disabled .zen-input { background: #f8f8f8; cursor: not-allowed; opacity: 0.8; }
+.input-group .right-icon { left: auto; right: 15px; pointer-events: none; font-size: 0.75rem; color: var(--text-muted); }
+
+/* 隐藏 Select 默认箭头 */
+.select-arrow {
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  padding-right: 40px !important; /* 为右侧自定义图标留空 */
+}
 
 .helper-text { font-size: 0.8rem; color: var(--primary-color); cursor: pointer; margin-top: 5px; display: inline-block; }
 .form-footer { margin-top: 30px; display: flex; justify-content: flex-end; }

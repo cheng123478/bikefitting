@@ -36,6 +36,7 @@
 
 <script setup>
 import { ref, watch, onMounted, onUnmounted, computed } from 'vue';
+import { PROJECT_CONFIG } from '@/config/constants';
 
 const props = defineProps({
   viewType: {
@@ -205,10 +206,10 @@ const drawFrame = (index) => {
   // 2. Watermark & Brand (Bottom Right)
   ctx.textAlign = 'right';
   
-  // Brand name "骑迹"
+  // Brand name
   ctx.fillStyle = '#FFFFFF';
   ctx.font = 'bold 22px sans-serif';
-  ctx.fillText('骑迹', 640 - pad, 480 - 40);
+  ctx.fillText(PROJECT_CONFIG.NAME, 640 - pad, 480 - 40);
   
   // URL
   ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';

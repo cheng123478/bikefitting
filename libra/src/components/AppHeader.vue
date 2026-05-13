@@ -7,8 +7,8 @@
         <router-link to="/" class="brand-link">
           <img src="@/assets/image/logo.png" alt="Logo" class="logo-img">
           <div class="logo-text-group">
-            <span class="brand-text">骑迹</span>
-            <span class="brand-en-text">RIDETRACE</span>
+            <span class="brand-text">{{ PROJECT_CONFIG.NAME }}</span>
+            <span class="brand-en-text">{{ PROJECT_CONFIG.NAME_EN }}</span>
           </div>
         </router-link>
       </div>
@@ -78,6 +78,7 @@ import { useRouter, useRoute } from 'vue-router';
 import { useUserStore } from '@/stores/user';
 import { logout } from "@/api/auth.js";
 import { showToast, showConfirm } from "@/utils/toast.js";
+import { PROJECT_CONFIG } from '@/config/constants';
 
 const emit = defineEmits(['open-auth']);
 const router = useRouter();
@@ -102,7 +103,7 @@ const handleMenuClick = (path) => {
 };
 
 const handleLogout = async () => {
-  const isConfirmed = await showConfirm(`确认要退出"骑迹"并结束本次会话吗？`, '安全退出');
+  const isConfirmed = await showConfirm(`确认要退出"${PROJECT_CONFIG.NAME}"并结束本次会话吗？`, '安全退出');
   if (isConfirmed) {
     logout().then(() => {
       userStore.logout();

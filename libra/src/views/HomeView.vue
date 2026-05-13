@@ -109,7 +109,7 @@
         <div class="section-island bg-lab-island">
           <div class="section-header-row">
             <div class="header-left">
-              <span class="section-tag glow">ARIES CONSOLE</span>
+              <span class="section-tag glow">{{ PROJECT_CONFIG.MASCOT }} CONSOLE</span>
               <h2 class="section-title serif-title">实验室控制台</h2>
               <p class="section-subtitle">生物力学与单车几何的数字化映射中心</p>
             </div>
@@ -189,6 +189,7 @@ import { ref, onMounted, onUnmounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { showroomService } from '@/api/mockService';
 import DOMPurify from 'dompurify';
+import { PROJECT_CONFIG } from '@/config/constants';
 
 const router = useRouter();
 const showBackToTop = ref(false);
@@ -196,8 +197,8 @@ const showBackToTop = ref(false);
 const slides = ref([
   {
     bg: 'https://images.unsplash.com/photo-1541625602330-2277a4c46182?q=80&w=2070&auto=format&fit=crop',
-    slogan: 'Fitting Is Science<br><span class="hero-highlight">Aries 1.0 Performance</span>',
-    desc: '从 Baseline 诊断到展厅探索，由 Aries 定义您的骑行几何。',
+    slogan: `Fitting Is Science<br><span class="hero-highlight">${PROJECT_CONFIG.MASCOT} 1.0 Performance</span>`,
+    desc: `从 Baseline 诊断到展厅探索，由 ${PROJECT_CONFIG.MASCOT} 定义您的骑行几何。`,
     link: '#lab',
     btnText: '进入中枢',
     btnIcon: 'fas fa-rocket',
@@ -216,8 +217,8 @@ const slides = ref([
   {
     bg: 'https://images.unsplash.com/photo-1511994298241-608e28f14fde?q=80&w=2070&auto=format&fit=crop',
     icon: 'fas fa-video',
-    slogan: '动态视觉追踪<br><span class="hero-highlight">Vision Intelligence</span>',
-    desc: '实时关节角度捕捉与踩踏轨迹分析，进阶版 Aries 1.5 即将开启公测。',
+    slogan: `动态视觉追踪<br><span class="hero-highlight">Vision Intelligence</span>`,
+    desc: `实时关节角度捕捉与踩踏轨迹分析，进阶版 ${PROJECT_CONFIG.MASCOT} 1.5 即将开启公测。`,
     btnText: '了解未来',
     btnIcon: 'fas fa-atom',
     link: '#lab',

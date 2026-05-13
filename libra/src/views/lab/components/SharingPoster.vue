@@ -18,12 +18,12 @@
       <!-- 1. 顶部：品牌与用户信息 -->
       <header class="poster-header">
         <div class="brand-badge">
-          <span class="brand-cn">骑迹</span>
-          <span class="brand-en">RideTrace</span>
+          <span class="brand-cn">{{ PROJECT_CONFIG.NAME }}</span>
+          <span class="brand-en">{{ PROJECT_CONFIG.NAME_EN }}</span>
         </div>
         <div class="user-meta">
           <div class="user-info">
-            <span class="username">{{ safeResult.username || 'Aries Rider' }}</span>
+            <span class="username">{{ safeResult.username || `${PROJECT_CONFIG.MASCOT} Rider` }}</span>
             <span class="report-date">{{ formatDate(safeResult.fittingTime) }}</span>
           </div>
           <!-- 推荐使用真实图片，这里用首字母代替 FontAwesome -->
@@ -77,7 +77,7 @@
       <footer class="poster-footer">
         <div class="footer-left">
           <p class="slogan">每一次发力，皆有迹可循。</p>
-          <p class="sub-slogan">RideTrace · 智能单车静态几何适配</p>
+          <p class="sub-slogan">{{ PROJECT_CONFIG.NAME_EN }} · 智能单车静态几何适配</p>
         </div>
         <div class="qr-code-section">
           <qrcode-vue
@@ -100,6 +100,7 @@ import * as echarts from 'echarts';
 import html2canvas from 'html2canvas';
 import QrcodeVue from 'qrcode.vue';
 import request from '@/api/request.js';
+import { PROJECT_CONFIG } from '@/config/constants';
 
 const props = defineProps({
   result: {

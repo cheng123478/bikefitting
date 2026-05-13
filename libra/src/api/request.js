@@ -65,8 +65,7 @@ service.interceptors.response.use(
             case BIZ_CODE.AUTH_SESSION_MISSING:
                 performFullLogout('登录会话已过期，请重新登录');
                 return Promise.reject(new Error(res.message));
-            case 403:
-            case 40301:
+            case BIZ_CODE.MEMBERSHIP_REQUIRED:
                 if (!config.silent) {
                     showToast(res.message || '特权不足，请升级会员', 'warning');
                     router.push({ path: '/user/profile', query: { tab: 'membership' } });

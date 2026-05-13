@@ -14,7 +14,7 @@
 
       <div v-if="loading" class="loading-full">
         <div class="pulse-loader"></div>
-        <p>Aries 正在调取您的动态分析报告及全部视角序列...</p>
+        <p>{{ PROJECT_CONFIG.MASCOT }} 正在调取您的动态分析报告及全部视角序列...</p>
       </div>
 
       <div v-else-if="report" class="report-body">
@@ -86,7 +86,7 @@
                         <span class="v-num">{{ m.idealRange }}<span style="font-size: 0.9rem; margin-left: 2px;">{{ getUnit(m.label, viewType) }}</span></span>
                       </div>
                     </div>
-                    <p class="m-desc-text" style="font-size: 0.8rem; color: #888; margin-bottom: 5px; line-height: 1.4;">{{ getDescription(m.label) }}</p>
+                    <p v-if="getDescription(m.label)" class="m-desc-text" style="font-size: 0.8rem; color: #888; margin-bottom: 5px; line-height: 1.4;">{{ getDescription(m.label) }}</p>
                     <p class="m-advice" v-if="m.advice && m.status !== 'OK'">{{ m.advice }}</p>
                   </div>
                 </div>
@@ -161,6 +161,7 @@ import { showToast } from '@/utils/toast.js';
 import * as echarts from 'echarts';
 import dayjs from 'dayjs';
 import html2canvas from 'html2canvas';
+import { PROJECT_CONFIG } from '@/config/constants';
 
 import DynamicSkeletonPlayer from './components/DynamicSkeletonPlayer.vue';
 import PedalingAnalysisSection from './components/PedalingAnalysisSection.vue';
@@ -260,14 +261,17 @@ const getUnit = (label, viewType) => {
 };
 
 const getDescription = (label) => {
-  if (label.includes('肩')) return '过大说明上半身可能存在严重代偿发力，或核心力量薄弱无法稳起躯干。';
-  if (label.includes('骨盆侧倾')) return '骨盆的大幅扭动通常暗示坐垫过高、坐垫过窄或者存在长短腿导致的过度伸展。';
-  if (label.includes('横摆')) return '俗称“画龙”。横向摇摆严重不仅大量损耗踩踏功率，还会直接引发膝关节外侧发炎（髂胫束综合征）。';
-  if (label.includes('外张') || label.includes('肘')) return '反映上身气动性。外张距离越远说明风阻截面越大，通常由于车把过宽导致。';
-  if (label.includes('脊柱') || label.includes('躯干')) return '反映躯干与车辆的中轴线对齐程度，越接近0代表骑行姿态越直立稳固。';
-  if (label.includes('伸展度')) return '决定座管高度的核心指标，过低易导致膝前痛，过高易导致膝后腘窝痛。';
-  if (label.includes('脚踝')) return '反映踩踏技术的流畅性，过大说明存在“垫脚尖”踩踏倾向。';
-  return '根据生物力学模型对您的身体关键特征进行追踪量化。';
+  if (label.includes('肩')) return '反映上身稳定性。角度过大通常意味着核心力量不足或存在耸肩代偿。';
+  if (label.includes('骨盆侧倾') || label.includes(' Pelvis Tilt')) return '骨盆的大幅扭动通常暗示坐垫过高、过窄或双腿伸展不均衡。';
+  if (label.includes('横摆') || label.includes('Wobble')) return '膝关节的横向偏移会大幅损耗功率，并增加髂胫束（ITB）受损风险。';
+  if (label.includes('外张') || label.includes('肘')) return '反映风阻截面。外张过大通常由于车把过宽或上半身过于紧张。';
+  if (label.includes('脊柱') || label.includes('躯干')) return '反映躯干与车辆中轴线的对齐度，越接近 0° 骑行姿态越稳固。';
+  if (label.includes('伸展度')) return '决定座管高度的核心指标。过高易引发膝后痛，过低易引发膝前痛。';
+  if (label.includes('踝角') || label.includes('Ankle')) return '反映脚踝在踩踏过程中的代偿。过大通常意味着存在“垫脚尖”式发力。';
+  if (label.includes('髋角') || label.includes('Hip')) return '反映大腿与腹部的夹角。过小（上死点）会产生撞击感并压迫呼吸。';
+  if (label.includes('踏频')) return '高踏频有利于减轻肌肉负担，但过高的踏频若无稳定核心支撑则会产生身体跳动。';
+  if (label.includes('KOPS')) return '反映膝盖与脚踏轴心的垂直力线关系，关系到力量传导效率。';
+  return '';
 };
 
 const setChartRef = (el, viewType) => {

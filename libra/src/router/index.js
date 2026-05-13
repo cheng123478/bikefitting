@@ -2,6 +2,7 @@ import { createRouter, createWebHistory } from 'vue-router';
 import { useUserStore } from '@/stores/user';
 import { showToast } from '@/utils/toast';
 import HomeView from '@/views/HomeView.vue';
+import { STORAGE_KEYS, PROJECT_CONFIG } from "@/config/constants.js";
 
 const router = createRouter({
     history: createWebHistory(import.meta.env.BASE_URL),
@@ -184,13 +185,13 @@ const router = createRouter({
 router.beforeEach((to, from, next) => {
     // 0. 捕获裂变邀请码
     if (to.query.inviter) {
-        localStorage.setItem('INVITER_CODE', to.query.inviter);
+        localStorage.setItem(STORAGE_KEYS.INVITER_CODE, to.query.inviter);
     }
 
     const userStore = useUserStore();
 
     // 1. 设置网页标题
-    const appTitle = '骑迹';
+    const appTitle = PROJECT_CONFIG.NAME;
     document.title = to.meta.title ? `${to.meta.title} | ${appTitle}` : appTitle;
 
     // 2. 鉴权逻辑

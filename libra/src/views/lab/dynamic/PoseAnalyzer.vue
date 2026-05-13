@@ -283,7 +283,7 @@
             <!-- 分析中：进度条 -->
             <div class="analysis-progress-box" v-if="!isAnalysisComplete">
               <div class="bar-header">
-                <span>Aries 引擎逐帧解析中（0.2倍速）...</span>
+                <span>{{ PROJECT_CONFIG.MASCOT }} 引擎逐帧解析中（0.2倍速）...</span>
                 <span>{{ analyzeProgress }}%</span>
               </div>
               <div class="bar-bg">
@@ -315,6 +315,7 @@ import {Camera} from '@mediapipe/camera_utils';
 import {usePoseEstimation} from '@/api/poseestimation';
 import {showToast} from '@/utils/toast';
 import {useDynamicSessionStore} from '@/stores/dynamicSession';
+import {PROJECT_CONFIG} from '@/config/constants';
 
 const router = useRouter();
 const route = useRoute();

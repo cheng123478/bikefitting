@@ -5,8 +5,8 @@
       <!-- Header -->
       <header class="page-header fade-up">
         <div class="header-left">
-          <h1 class="title">动态视觉实验室<span class="beta-tag">BETA</span></h1>
-          <p class="subtitle">Aries 引擎已就绪，请选择采集视角以启动或补充分析。</p>
+          <h2 class="title serif-title">动态分析中心</h2>
+          <p class="subtitle">{{ PROJECT_CONFIG.MASCOT }} 引擎已就绪，请选择采集视角以启动或补充分析。</p>
         </div>
         <div class="header-actions">
           <button v-if="capturedCount > 0" class="btn-text text-danger" style="margin-right: 15px;" @click="discardSession">
@@ -55,11 +55,12 @@
         <div class="view-card glass-card pain-assessment-card">
           <div class="card-header">
             <div class="card-icon"><i class="fas fa-heartbeat"></i></div>
-            <h3>近期骑行痛点 <span class="subtitle-tip">(可选填)</span></h3>
+            <div class="header-text">
+              <h3 class="panel-title">身体状态映射</h3>
+              <p class="desc-text-sm">勾选不适部位，{{ PROJECT_CONFIG.MASCOT }} 将引入医疗级修正参数以优化动态建议。</p>
+            </div>
           </div>
           <div class="card-body">
-            <p class="desc-text-sm">勾选不适部位，Aries 将引入医疗级修正参数以优化动态建议。</p>
-
             <PainSelector v-model="session.painLevels" />
           </div>
         </div>
@@ -224,6 +225,7 @@ import { useRoute, useRouter } from 'vue-router';
 import { useLabStore } from '@/stores/lab.js';
 import { useDynamicSessionStore } from "@/stores/dynamicSession.js";
 import { showToast, showConfirm } from '@/utils/toast';
+import { PROJECT_CONFIG } from '@/config/constants';
 import PainSelector from "@/views/lab/components/PainSelector.vue";
 
 const route = useRoute();
@@ -301,11 +303,11 @@ const submitAnalysis = async () => {
   }
 
   if (!session.value.side) {
-    const confirmBasic = await showConfirm(
-        '未检测到侧面视角数据。Aries 将无法生成关于座垫高度和前伸量的精准建议。是否继续提交已有的视角分析？',
-        '缺少侧面数据'
-    );
-    if (!confirmBasic) return;
+      const isConfirmed = await showConfirm(
+        `未检测到侧面视角数据。${PROJECT_CONFIG.MASCOT} 将无法生成关于座垫高度和前伸量的精准建议。是否继续提交已有的视角分析？`,
+        '视角缺失确认'
+      );
+    if (!isConfirmed) return;
   }
 
   try {
@@ -496,7 +498,7 @@ const getViewDesc = (v) => {
 
 .card-icon {
   width: 50px; height: 50px;
-  background: var(--bg-soft);
+  background: var(--bg-surface);
   color: var(--primary-color);
   border-radius: 12px;
   display: flex; align-items: center; justify-content: center;

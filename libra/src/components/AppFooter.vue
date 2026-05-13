@@ -3,9 +3,9 @@
     <div class="container footer-content">
       <!-- 1. 品牌栏 -->
       <div class="footer-col brand-col">
-        <h4 class="footer-brand">骑迹</h4>
+        <h4 class="footer-brand">{{ PROJECT_CONFIG.NAME }}</h4>
         <p class="brand-desc">
-          让每一位骑士在呼吸与律动中，<br>找到最舒适的姿态。
+          {{ PROJECT_CONFIG.TAGLINE }}
         </p>
       </div>
 
@@ -23,9 +23,9 @@
       <div class="footer-col">
         <h4 class="footer-label">关注我们</h4>
         <div class="social-links">
-          <a href="#" target="_blank" aria-label="WeChat"><i class="fab fa-weixin"></i></a>
-          <a href="#" target="_blank" aria-label="Instagram"><i class="fab fa-instagram"></i></a>
-          <a href="#" target="_blank" aria-label="Strava"><i class="fab fa-strava"></i></a>
+          <a :href="'mailto:' + CONTACT_CONFIG.SUPPORT_EMAIL" target="_blank" title="Email"><i class="fas fa-envelope"></i></a>
+          <a v-if="CONTACT_CONFIG.GITHUB_REPO" :href="CONTACT_CONFIG.GITHUB_REPO" target="_blank" title="GitHub"><i class="fab fa-github"></i></a>
+          <a v-if="CONTACT_CONFIG.OFFICIAL_WEBSITE" :href="CONTACT_CONFIG.OFFICIAL_WEBSITE" target="_blank" title="Website"><i class="fas fa-globe"></i></a>
         </div>
       </div>
     </div>
@@ -34,7 +34,7 @@
     <div class="copyright-bar">
       <div class="container">
         <p>
-          &copy; {{ currentYear }} 骑迹.
+          &copy; {{ currentYear }} {{ PROJECT_CONFIG.NAME }}.
           <span>All Rights Reserved.</span>
         </p>
       </div>
@@ -44,6 +44,7 @@
 
 <script setup>
 import { ref } from 'vue';
+import { PROJECT_CONFIG, CONTACT_CONFIG } from '@/config/constants';
 const currentYear = ref(new Date().getFullYear());
 </script>
 
