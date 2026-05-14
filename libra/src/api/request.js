@@ -8,7 +8,7 @@ import { showToast } from '@/utils/toast.js';
 import router from '@/router/index.js';
 import { BIZ_CODE, HTTP_STATUS_MSG } from '@/config/constants';
 
-const BASE_URL = import.meta.env.VITE_API_BASE_URL || '/aries';
+const BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
 const TIMEOUT = 15000;
 
 // Token 刷新状态
@@ -65,12 +65,6 @@ service.interceptors.response.use(
             case BIZ_CODE.AUTH_SESSION_MISSING:
                 performFullLogout('登录会话已过期，请重新登录');
                 return Promise.reject(new Error(res.message));
-            case BIZ_CODE.MEMBERSHIP_REQUIRED:
-                if (!config.silent) {
-                    showToast(res.message || '特权不足，请升级会员', 'warning');
-                    router.push({ path: '/user/profile', query: { tab: 'membership' } });
-                }
-                return Promise.reject(new Error(res.message || '特权不足'));
             default:
                 // 静默模式允许组件局部处理特定的错误
                 if (!config.silent) {

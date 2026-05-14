@@ -52,7 +52,7 @@ public class BikeModel {
     // --- 3. 辅助信息 ---
     @Comment("车型图片")
     private String imageUrl;
-    @Column(columnDefinition = "LONGTEXT COMMENT '车型描述'")
+    @Column(columnDefinition = "TEXT COMMENT '车型描述'")
     private String description;
     @Comment("价格")
     private Integer price;

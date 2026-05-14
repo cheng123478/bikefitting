@@ -74,8 +74,8 @@ import { useUserStore } from '@/stores/user.js';
 // Components
 import BasicInfoTab from './components/BasicInfoTab.vue';
 import SecurityTab from './components/SecurityTab.vue';
-// import MembershipTab from './components/MembershipTab.vue';
-import MembershipTab from './components/MembershipDonationTab.vue';
+import MembershipTab from './components/MembershipTab.vue';
+//import MembershipTab from './components/MembershipDonationTab.vue';
 
 const route = useRoute();
 const userStore = useUserStore();

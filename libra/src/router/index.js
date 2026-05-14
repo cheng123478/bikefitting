@@ -2,7 +2,6 @@ import { createRouter, createWebHistory } from 'vue-router';
 import { useUserStore } from '@/stores/user';
 import { showToast } from '@/utils/toast';
 import HomeView from '@/views/HomeView.vue';
-import { STORAGE_KEYS, PROJECT_CONFIG } from "@/config/constants.js";
 
 const router = createRouter({
     history: createWebHistory(import.meta.env.BASE_URL),
@@ -21,12 +20,19 @@ const router = createRouter({
             component: () => import('@/views/ShowroomView.vue'),
             meta: { title: '单车展厅', requiresAuth: true }
         },
+        // 单车详情
+        {
+            path: '/showroom/:id',
+            name: 'bike-detail',
+            component: () => import('@/views/BikeDetailView.vue'),
+            meta: { title: '单车详情', requiresAuth: true }
+        },
         // --- 实验室 模块 ---
         {
             path: '/lab',
             name: 'lab',
             component: () => import('@/views/lab/LabView.vue'),
-            meta: { title: '实验室', requiresAuth: true }
+            meta: { title: '实验室', requiresAuth: false }
         },
         {
             path: '/lab/body',
@@ -50,25 +56,25 @@ const router = createRouter({
             path: '/lab/garage',
             name: 'lab-garage',
             component: () => import('@/views/lab/garage/GarageView.vue'),
-            meta: { title: '车库', requiresAuth: true }
+            meta: { title: '车库', requiresAuth: false }
         },
         {
             path: '/lab/garage/edit',
             name: 'lab-garage-edit',
             component: () => import('@/views/lab/garage/BikeEditView.vue'),
-            meta: { title: '维护单车信息', requiresAuth: true }
+            meta: { title: '维护单车信息', requiresAuth: false }
         },
         {
             path: '/lab/report/static',
             name: 'lab-report-static',
             component: () => import('@/views/lab/static/StaticFittingReportView.vue'),
-            meta: { title: '静态Fitting报告', requiresAuth: true }
+            meta: { title: '静态Fitting报告', requiresAuth: false }
         },
         {
             path: '/lab/report/dynamic',
             name: 'lab-report-dynamic',
             component: () => import('@/views/lab/dynamic/DynamicFittingReportView.vue'),
-            meta: { title: '动态分析报告', requiresAuth: true }
+            meta: { title: '动态分析报告', requiresAuth: false }
         },
         {
             path: '/lab/static',
@@ -80,32 +86,32 @@ const router = createRouter({
             path: '/lab/dynamic',
             name: 'lab-dynamic',
             component: () => import('@/views/lab/dynamic/DynamicFittingHub.vue'),
-            meta: { title: '动态Fitting', requiresAuth: true }
+            meta: { title: '动态Fitting', requiresAuth: false }
         },
         {
             path: '/lab/dynamic/capture',
             name: 'lab-dynamic-capture',
             component: () => import('@/views/lab/dynamic/PoseAnalyzer.vue'),
-            meta: { hideNavbar: true, requiresAuth: true }
+            meta: { hideNavbar: true, requiresAuth: false }
         },
         {
             path: '/lab/dynamic/session/submitted',
             name: 'lab-dynamic-session-submitted',
             component: () => import('@/views/lab/dynamic/DynamicFittingSubmitted.vue'),
-            meta: { hideNavbar: true, requiresAuth: true }
+            meta: { hideNavbar: true, requiresAuth: false }
         },
         {
             path: '/lab/dynamic/session',
             name: 'lab-dynamic-session',
             component: () => import('@/views/lab/dynamic/DynamicFittingSessionView.vue'),
-            meta: { hideNavbar: true, requiresAuth: true }
+            meta: { hideNavbar: true, requiresAuth: false }
         },
-        // {
-        //     path: '/lab/realtime',
-        //     name: 'RealtimeGuard',
-        //     component: () => import('@/views/lab/realtime/RealtimeGuardView.vue'),
-        //     meta: { title: '姿态实时监护', requiresAuth: true }
-        // },
+        {
+            path: '/lab/realtime',
+            name: 'RealtimeGuard',
+            component: () => import('@/views/lab/realtime/RealtimeGuardView.vue'),
+            meta: { title: '姿态实时监护', requiresAuth: true }
+        },
         {
             path: '/lab/archives',
             component: () => import('@/views/lab/archives/ArchiveLayout.vue'),
@@ -183,15 +189,10 @@ const router = createRouter({
 
 // --- 全局路由守卫 ---
 router.beforeEach((to, from, next) => {
-    // 0. 捕获裂变邀请码
-    if (to.query.inviter) {
-        localStorage.setItem(STORAGE_KEYS.INVITER_CODE, to.query.inviter);
-    }
-
     const userStore = useUserStore();
 
     // 1. 设置网页标题
-    const appTitle = PROJECT_CONFIG.NAME;
+    const appTitle = '骑迹';
     document.title = to.meta.title ? `${to.meta.title} | ${appTitle}` : appTitle;
 
     // 2. 鉴权逻辑

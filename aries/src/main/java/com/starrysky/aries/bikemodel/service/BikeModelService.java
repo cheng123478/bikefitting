@@ -4,12 +4,21 @@ import com.starrysky.aries.bikemodel.repository.BikeModelRepository;
 import com.starrysky.aries.bikemodel.schema.BikeModelDTO;
 import com.starrysky.aries.bikemodel.schema.BikeModelSearchVO;
 import com.starrysky.aries.bikemodel.schema.BikeModelVO;
+import com.starrysky.aries.bikemodel.schema.CategoryVO;
+import com.starrysky.aries.bikemodel.schema.ShowroomResponseDTO;
 import com.starrysky.aries.entity.BikeModel;
+import com.starrysky.aries.exception.BizException;
+import jakarta.persistence.criteria.Predicate;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.BeanUtils;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -33,28 +42,6 @@ public class BikeModelService {
      * @return 搜索结果
      */
     public List<BikeModelSearchVO> searchModels(String keyword) {
-        // 如果关键词包含空格，尝试分词搜索（品牌 + 型号）
-        if (keyword != null && keyword.contains(" ")) {
-            String[] parts = keyword.trim().split("\\s+");
-            if (parts.length >= 2) {
-                String brandKeyword = parts[0];
-                String modelKeyword = parts[1];
-                // 如果还有更多词，合并到型号搜索中
-                for (int i = 2; i < parts.length; i++) {
-                    modelKeyword += " " + parts[i];
-                }
-                
-                List<Object[]> results = bikeModelRepository.findDistinctBrandAndModelBySeparatedKeywords(
-                        brandKeyword, modelKeyword);
-                if (!results.isEmpty()) {
-                    return results.stream()
-                            .map(row -> new BikeModelSearchVO((String) row[0], (String) row[1], (String) row[2]))
-                            .collect(Collectors.toList());
-                }
-            }
-        }
-        
-        // 否则使用原有的单关键词搜索
         List<Object[]> results = bikeModelRepository.findDistinctBrandAndModelByKeyword(keyword);
         return results.stream()
                 .map(row -> new BikeModelSearchVO((String) row[0], (String) row[1], (String) row[2]))
@@ -108,6 +95,107 @@ public class BikeModelService {
     }
 
     /**
+     * 获取单车展厅列表（分页）
+     *
+     * @param keyword 搜索关键字
+     * @param bikeTypes 单车类型筛选（逗号分隔）
+     * @param brands 品牌筛选（逗号分隔）
+     * @param minPrice 最低价格
+     * @param maxPrice 最高价格
+     * @param sortBy 排序方式
+     * @param pageable 分页参数
+     * @return 展厅单车分页数据
+     */
+    public ShowroomResponseDTO getShowroomBikes(String keyword, String bikeTypes, String brands,
+                                                Integer minPrice, Integer maxPrice, String sortBy, Pageable pageable) {
+        // 转换 bikeTypes 为整数列表
+        List<Integer> bikeTypeList = new ArrayList<>();
+        if (StringUtils.hasText(bikeTypes)) {
+            bikeTypeList = Arrays.stream(bikeTypes.split(","))
+                    .map(String::trim)
+                    .filter(s -> StringUtils.hasText(s) && !"all".equals(s))
+                    .map(Integer::valueOf)
+                    .collect(Collectors.toList());
+        }
+
+        // 转换 brands 为字符串列表
+        List<String> brandList = new ArrayList<>();
+        if (StringUtils.hasText(brands)) {
+            brandList = Arrays.stream(brands.split(","))
+                    .map(String::trim)
+                    .filter(s -> StringUtils.hasText(s) && !"all".equals(s))
+                    .collect(Collectors.toList());
+        }
+
+        // 使用数据库层面去重查询，每个model只返回一条记录
+        Page<BikeModel> page = bikeModelRepository.findDistinctModels(keyword, bikeTypes, bikeTypeList, brands, brandList, minPrice, maxPrice, pageable);
+
+        List<BikeModelVO> bikeVOs = page.getContent().stream()
+                .map(this::convertToVO)
+                .collect(Collectors.toList());
+
+        return ShowroomResponseDTO.builder()
+                .bikes(bikeVOs)
+                .brands(getAllBrands())
+                .categories(getAllCategories())
+                .total(page.getTotalElements())
+                .build();
+    }
+
+    /**
+     * 获取所有品牌列表
+     *
+     * @return 品牌列表
+     */
+    public List<String> getAllBrands() {
+        return bikeModelRepository.findDistinctBrands();
+    }
+
+    /**
+     * 获取所有分类列表
+     *
+     * @return 分类列表
+     */
+    public List<CategoryVO> getAllCategories() {
+        // 硬编码分类数据，与前端期望的结构一致
+        return Arrays.asList(
+                CategoryVO.builder().id("1").name("公路车").icon("fas fa-route").build(),
+                CategoryVO.builder().id("2").name("山地车").icon("fas fa-tree").build(),
+                CategoryVO.builder().id("3").name("Gravel").icon("fas fa-mountain").build(),
+                CategoryVO.builder().id("4").name("城市车").icon("fas fa-city").build()
+        );
+    }
+
+    /**
+     * 获取单车详情
+     *
+     * @param id 单车ID
+     * @return 单车详情
+     */
+    public BikeModelVO getBikeDetail(Long id) {
+        BikeModel bikeModel = bikeModelRepository.findById(id)
+                .orElseThrow(() -> new BizException("单车不存在"));
+        return convertToVO(bikeModel);
+    }
+
+    /**
+     * 根据车型名称获取所有尺寸列表
+     *
+     * @param modelName 车型名称
+     * @param brand 品牌（可选，用于更精确匹配）
+     * @return 该车型的所有尺寸列表
+     */
+    public List<BikeModelVO> getModelSizes(String modelName, String brand) {
+        List<BikeModel> models;
+        if (StringUtils.hasText(brand)) {
+            models = bikeModelRepository.findByModelAndBrandOrderBySize(modelName, brand);
+        } else {
+            models = bikeModelRepository.findByModelOrderBySize(modelName);
+        }
+        return models.stream().map(this::convertToVO).collect(Collectors.toList());
+    }
+
+    /**
      * 单车模型实体转换为VO
      *
      * @param entity 单车模型实体
@@ -116,6 +204,8 @@ public class BikeModelService {
     private BikeModelVO convertToVO(BikeModel entity) {
         BikeModelVO vo = new BikeModelVO();
         BeanUtils.copyProperties(entity, vo);
+        // 显式赋值 price 字段，确保正确转换
+        vo.setPrice(entity.getPrice());
         return vo;
     }
 }
