@@ -113,7 +113,7 @@
               v-for="(bike, index) in bikes"
               :key="bike.id"
               class="bike-card glass-card"
-              v-scroll-reveal="{ delay: index * 30 }"
+              v-scroll-reveal="{ delay: index * 18 }"
             >
               <div class="bike-img-wrapper" @click="goToDetail(bike.id)">
                 <img :src="bike.img" :alt="bike.model" class="bike-img">
@@ -207,7 +207,7 @@ const activeBrands = ref([]);
 const searchQuery = ref('');
 
 const page = ref(1);
-const size = 30;
+const size = 18;
 
 // 价格区间筛选
 const minPrice = ref(null);
