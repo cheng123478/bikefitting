@@ -228,6 +228,24 @@ const goToReport = () => {
 
 .ml-2 { margin-left: 8px; }
 
+/* --- 响应式适配 --- */
+@media (max-width: 768px) {
+  .submitted-page { padding: 80px 20px; }
+  .content-card { padding: 40px 25px; border-radius: 24px; }
+  .visual-area { width: 80px; height: 80px; margin-bottom: 25px; }
+  .success-pop { font-size: 2rem; }
+  .state-title { font-size: 1.5rem; }
+  .state-desc { font-size: 0.85rem; margin-bottom: 25px; }
+  .action-area { flex-direction: column; width: 100%; gap: 12px; }
+  .btn { width: 100%; justify-content: center; }
+  .btn-xl { padding: 14px 20px; }
+}
+
+@media (max-width: 480px) {
+  .content-card { padding: 30px 20px; }
+  .state-title { font-size: 1.4rem; }
+}
+
 /* 关键帧 */
 @keyframes zen-pulse {
   0% { transform: scale(0.8); opacity: 1; }

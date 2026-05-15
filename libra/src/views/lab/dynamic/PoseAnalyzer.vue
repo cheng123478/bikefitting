@@ -1488,4 +1488,71 @@ onUnmounted(() => {
 .fade-enter-from, .fade-leave-to {
   opacity: 0;
 }
+
+/* --- 6. 响应式适配 --- */
+@media (max-width: 900px) {
+  .hud-metrics { width: 200px; right: 15px; top: 15px; }
+  .metric-card .val { font-size: 1.5rem; }
+  .playback-controls { width: 90%; }
+}
+
+@media (max-width: 768px) {
+  .analyzer-header { padding: 15px 20px; }
+  .en-tag { display: none; } /* 移动端隐藏英文标签 */
+  
+  /* HUD 关键适配：改为紧凑型列表，并在录制时自动半透明 */
+  .hud-metrics {
+    top: 70px;
+    right: 10px;
+    width: 160px;
+    gap: 8px;
+  }
+  
+  .metric-card {
+    padding: 8px 12px;
+    border-radius: 10px;
+    background: rgba(15, 15, 12, 0.85);
+  }
+  
+  .metric-card label { font-size: 0.7rem; }
+  .target-tag { display: none; } /* 移动端隐藏目标建议以节省空间 */
+  .metric-card .val { font-size: 1.3rem; }
+  .val-item .v { font-size: 1.2rem; }
+  .desc { display: none; } /* 隐藏详细描述 */
+  
+  .is-recording .hud-metrics { opacity: 0.5; } /* 录制时半透明减少干扰 */
+
+  /* 上传遮罩适配 */
+  .upload-box { padding: 30px 20px; border-radius: 20px; width: 90%; }
+  .upload-icon-wrapper { font-size: 2.5rem; }
+  .upload-box h3 { font-size: 1.2rem; }
+  .sub-text { font-size: 0.8rem; margin-bottom: 20px; }
+
+  /* 引导适配 */
+  .ghost-bike { width: 70%; }
+  .tip-text { font-size: 0.9rem; padding: 0 20px; }
+
+  /* 控制条适配 */
+  .playback-controls { bottom: 100px; padding: 10px 15px; gap: 12px; }
+  .btn-play { width: 34px; height: 34px; font-size: 1rem; }
+  .time-display { font-size: 0.75rem; min-width: 60px; }
+
+  .stage-controls { bottom: 20px; }
+  .btn-record { width: 66px; height: 66px; }
+  .record-inner { width: 50px; height: 50px; }
+  .progress-ring { width: 66px; height: 66px; }
+  .ring-val { stroke-width: 3; }
+  .hint { font-size: 0.85rem; }
+
+  .analysis-progress-box { width: 85%; padding: 15px; }
+  .btn-save-result { padding: 10px 25px; font-size: 0.9rem; }
+  .btn-text-reupload { padding: 10px 20px; font-size: 0.9rem; }
+}
+
+@media (max-width: 480px) {
+  .hud-metrics { width: 140px; top: 60px; }
+  .metric-card .val { font-size: 1.2rem; }
+  .val-item .v { font-size: 1.1rem; }
+  .upload-box { padding: 25px 15px; }
+}
 </style>

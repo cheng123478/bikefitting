@@ -563,10 +563,48 @@ const getViewDesc = (v) => {
 
 .content-end-tip { margin-top: 30px; text-align: center; font-size: 0.85rem; color: var(--text-muted); }
 
+/* --- 4. 响应式适配 --- */
 @media (max-width: 1024px) {
   .top-selection-row { grid-template-columns: 1fr; }
-  .views-container { grid-template-columns: 1fr 1fr; }
-  .glass-card-premium { flex-direction: column; text-align: center; }
-  .btn-group { flex-direction: column; width: 100%; }
+  .views-container { grid-template-columns: repeat(2, 1fr); }
+  .glass-card-premium { flex-direction: column; text-align: center; gap: 30px; }
+  .btn-group { width: 100%; }
+}
+
+@media (max-width: 768px) {
+  .hub-page { padding: 100px 0 60px; }
+  
+  /* Header 适配 */
+  .page-header { flex-direction: column; align-items: flex-start; gap: 15px; margin-bottom: 30px; }
+  .title { font-size: 1.8rem; }
+  .subtitle { font-size: 0.9rem; }
+  .header-actions { width: 100%; justify-content: space-between; }
+  .header-actions .btn-text { font-size: 0.85rem; margin-right: 0 !important; }
+
+  /* 选择区适配 */
+  .top-selection-row { gap: 20px; margin-bottom: 30px; }
+  .card-header { padding: 20px 20px 10px; }
+  .card-body { padding: 0 20px 20px; }
+  
+  /* 视角列表：单列显示 */
+  .views-container { grid-template-columns: 1fr; gap: 15px; }
+  .view-item { padding: 20px; }
+  .card-icon { width: 44px; height: 44px; font-size: 1.2rem; }
+  .card-text h3 { font-size: 1.1rem; }
+  .mini-dashboard { grid-template-columns: repeat(2, 1fr); }
+
+  /* 底部操作面板适配 */
+  .bottom-action-section { padding: 25px 20px; border-radius: 20px; }
+  .task-info .selected-text { font-size: 1.4rem; }
+  .btn-group { flex-direction: column; gap: 12px; }
+  .btn-action { width: 100%; justify-content: center; padding: 18px; border-radius: 12px; }
+  .btn-icon { font-size: 1.3rem; }
+}
+
+@media (max-width: 480px) {
+  .title { font-size: 1.6rem; }
+  .mini-dashboard { grid-template-columns: 1fr; }
+  .btn-group { gap: 10px; }
+  .btn-action .main { font-size: 0.95rem; }
 }
 </style>

@@ -556,16 +556,59 @@ onUnmounted(() => {
 .text-warning { color: var(--warning-color); }
 .text-danger { color: #ff4d4f; }
 
+/* --- 5. 响应式适配 --- */
 @media (max-width: 900px) {
-  .pro-analysis-row { grid-template-columns: 1fr; }
+  .pro-analysis-row { grid-template-columns: 1fr; gap: 30px; }
+  .echarts-dom { height: 300px; }
 }
 
 @media (max-width: 768px) {
-  .report-hero { flex-direction: column; padding: 30px; text-align: center; gap: 30px; }
-  .summary-text { padding-left: 0; border-left: none; }
-  .quick-stats { justify-content: center; }
-  .metric-grid { grid-template-columns: 1fr; }
-  .action-bar { flex-direction: column; }
-  .view-section { padding: 20px; }
+  .dynamic-report-page { padding: 80px 0 40px; }
+  
+  /* Header 适配 */
+  .report-header { margin-bottom: 25px; }
+  .meta-info { display: none; } /* 移动端隐藏日期 meta */
+
+  /* Hero 适配 */
+  .report-hero { 
+    flex-direction: column; 
+    padding: 30px 20px; 
+    text-align: center; 
+    gap: 25px; 
+    border-left: none;
+    border-top: 4px solid var(--primary-color);
+  }
+  .score-orbit { width: 110px; height: 110px; }
+  .summary-text { 
+    padding-left: 0; 
+    border-left: none; 
+    font-size: 0.9rem;
+    margin: 15px 0;
+  }
+  .report-legend { justify-content: center; flex-wrap: wrap; }
+  .quick-stats { justify-content: center; gap: 30px; }
+
+  /* 指标卡片适配 */
+  .metric-grid { grid-template-columns: 1fr; gap: 15px; }
+  .m-card { padding: 18px; }
+  .m-vals { gap: 20px; justify-content: space-between; }
+  .v-num { font-size: 1.2rem; }
+  
+  /* 捕捉帧横向滑动优化 */
+  .snap-card { width: 160px; }
+
+  /* 底部操作 */
+  .view-section { padding: 25px 15px; border-radius: 16px; }
+  .action-bar { flex-direction: column; gap: 12px; width: 100%; }
+  .btn { width: 100%; justify-content: center; padding: 14px; }
+  
+  .equip-card { padding: 20px; border-radius: 12px; }
+}
+
+@media (max-width: 480px) {
+  .report-hero { padding: 25px 15px; }
+  .level-tag { font-size: 1.1rem; }
+  .m-vals { flex-direction: row; }
+  .v-group { flex: 1; }
 }
 </style>

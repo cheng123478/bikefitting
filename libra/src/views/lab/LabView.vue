@@ -499,8 +499,67 @@ onMounted(async () => {
 }
 .quick-link:hover { border-color: var(--primary-color); color: var(--primary-color); background: rgba(255, 255, 255, 0.5); }
 
+/* --- 4. 响应式适配 --- */
 @media (max-width: 1024px) {
-  .lab-workspace { grid-template-columns: 1fr; }
+  .lab-workspace { grid-template-columns: 1fr; gap: 30px; }
   .engines-grid { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 768px) {
+  .lab-dashboard-page { padding: 100px 0 60px; }
+  
+  /* Header 适配 */
+  .lab-intro { 
+    flex-direction: column; 
+    align-items: flex-start; 
+    gap: 15px; 
+    margin-bottom: 35px;
+  }
+  .lab-title { font-size: 1.8rem; }
+  .page-subtitle { font-size: 0.9rem; }
+  .engine-status { padding: 6px 14px; }
+
+  /* 资产卡片适配 */
+  .asset-card { padding: 18px; }
+  .card-icon { width: 38px; height: 38px; font-size: 1rem; }
+  .card-content h4 { font-size: 1rem; }
+  .score-val { font-size: 1.1rem; }
+
+  /* 引擎卡片适配 */
+  .engine-card { 
+    flex-direction: column; 
+    padding: 25px 20px !important; 
+    gap: 15px; 
+  }
+  
+  .static-engine { 
+    background: #fff; /* 手机端改回纯白背景减少视觉负担 */
+    border-color: rgba(0,0,0,0.05);
+  }
+
+  .engine-visual { width: 56px; height: 56px; font-size: 1.2rem; }
+  .engine-title { font-size: 1.3rem; margin-bottom: 10px; }
+  .desc-text { font-size: 0.85rem; }
+
+  .action-footer { 
+    margin-top: 10px; 
+    flex-direction: column; 
+  }
+  
+  .btn-primary-sm, .btn-gold-sm { 
+    width: 100%; 
+    justify-content: center; 
+    padding: 12px;
+  }
+
+  /* 标题组件适配 */
+  .column-title .cn-text { font-size: 0.95rem; }
+  .column-title .en-prefix { font-size: 0.6rem; margin-right: 8px; padding-right: 8px; }
+}
+
+@media (max-width: 480px) {
+  .lab-title { font-size: 1.6rem; }
+  .engine-status-wrapper { width: 100%; }
+  .engine-status { width: 100%; justify-content: center; }
 }
 </style>

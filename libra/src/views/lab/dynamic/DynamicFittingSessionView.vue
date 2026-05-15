@@ -71,7 +71,7 @@
               <span class="v text-success">良好</span>
             </div>
             <div class="preview-actions">
-              <button class="btn-text text-muted" @click="openModeSelector('back')">
+              <button class="btn-text text-muted" @click="startCapture('back')">
                 <i class="fas fa-redo"></i> 重新采集
               </button>
             </div>
@@ -79,7 +79,7 @@
 
           <!-- 未采集状态 -->
           <div v-else class="empty-box">
-            <button class="btn-add outline" @click="openModeSelector('back')">
+            <button class="btn-add outline" @click="startCapture('back')">
               <i class="fas fa-plus"></i> 添加
             </button>
           </div>
@@ -132,7 +132,6 @@ import { computed } from 'vue';
 import { useRouter } from 'vue-router';
 import { useDynamicSessionStore } from '@/stores/dynamicSession';
 import { showConfirm, showToast } from '@/utils/toast';
-// import { uploadDynamicSession } from '@/api/fitting'; // 你的后端接口
 
 const router = useRouter();
 const store = useDynamicSessionStore();
@@ -162,18 +161,15 @@ const discardSession = async () => {
 
 const submitAnalysis = async () => {
   try {
-    showToast('正在上传数据包...', 'loading');
-
-    // 组装大对象发送给后端
-    // await uploadDynamicSession(session.value);
-
-    // 模拟成功
-    setTimeout(() => {
-      store.clearSession(); // 清空缓存
-      showToast('分析完成！', 'success');
-      router.push('/lab/archives?tab=dynamic'); // 跳转到历史/结果页
-    }, 1500);
-
+    showToast('正在上传数据包...', 'info');
+    const vo = await store.submit();
+    if (vo && vo.id) {
+      store.clearSession();
+      router.push({
+        path: '/lab/dynamic/session/submitted',
+        query: { id: vo.id, status: vo.status, bikeName: vo.userBikeInfo?.brandModel }
+      });
+    }
   } catch (e) {
     showToast('提交失败', 'error');
   }
@@ -181,7 +177,7 @@ const submitAnalysis = async () => {
 </script>
 
 <style scoped>
-.session-page { padding: 100px 0; min-height: 100vh; background: transparent; }
+.session-page { padding: 100px 0 160px; min-height: 100vh; background: transparent; }
 .page-header { text-align: center; margin-bottom: 50px; }
 .session-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 30px; margin-bottom: 80px; }
 
@@ -206,7 +202,7 @@ const submitAnalysis = async () => {
 .preview-box { margin-top: 20px; }
 .mini-metric { display: flex; justify-content: space-between; margin-bottom: 10px; font-size: 0.9rem; }
 .mini-metric .v { font-weight: bold; color: var(--primary-color); }
-.fake-wave { height: 40px; background: url('data:image/svg+xml;utf8,<svg ...>') repeat-x; opacity: 0.5; } /* 模拟波形 */
+.fake-wave { height: 40px; background: rgba(0,0,0,0.05); border-radius: 8px; } /* 模拟波形占位 */
 
 .session-footer {
   position: fixed; bottom: 40px; left: 50%; transform: translateX(-50%);
@@ -214,6 +210,7 @@ const submitAnalysis = async () => {
   display: flex; justify-content: space-between; align-items: center;
   border-radius: 20px; background: rgba(255,255,255,0.95);
   box-shadow: 0 15px 40px rgba(0,0,0,0.1); z-index: 100;
+  backdrop-filter: blur(10px);
 }
 
 .status-warning { color: var(--warning-color); display: flex; align-items: center; gap: 8px; font-size: 0.95rem; }
@@ -240,5 +237,45 @@ const submitAnalysis = async () => {
 .btn-submit.ready:hover {
   background: var(--primary-dark);
   transform: translateY(-2px);
+}
+
+/* --- 响应式适配 --- */
+@media (max-width: 900px) {
+  .session-grid { grid-template-columns: 1fr; gap: 20px; margin-bottom: 150px; }
+  .session-page { padding: 80px 0 160px; }
+}
+
+@media (max-width: 768px) {
+  .page-header { margin-bottom: 30px; }
+  .page-header h1 { font-size: 1.8rem; }
+  .page-header p { font-size: 0.9rem; padding: 0 20px; }
+
+  .capture-card { padding: 25px 20px; min-height: 200px; }
+  
+  .session-footer {
+    width: 100%;
+    max-width: none;
+    bottom: 0;
+    left: 0;
+    transform: none;
+    border-radius: 20px 20px 0 0;
+    padding: 20px;
+    flex-direction: column;
+    gap: 20px;
+    text-align: center;
+  }
+  
+  .status-success { flex-direction: column; text-align: center; gap: 8px; }
+  .status-success i { font-size: 1.4rem; }
+  .main-msg { font-size: 0.9rem; }
+
+  .footer-btns { width: 100%; flex-direction: column; gap: 10px; }
+  .footer-btns button { width: 100%; justify-content: center; }
+  .btn-submit { order: -1; }
+}
+
+@media (max-width: 480px) {
+  .page-header h1 { font-size: 1.6rem; }
+  .session-footer { padding: 15px; }
 }
 </style>
