@@ -52,6 +52,10 @@ public class BikeModel {
     // --- 3. 辅助信息 ---
     @Comment("车型图片")
     private String imageUrl;
+    @Column(columnDefinition = "TEXT COMMENT '车型描述'")
+    private String description;
+    @Comment("价格")
+    private Integer price;
     @Comment("数据来源URL (爬虫抓取的原始页面)")
     private String sourceUrl;
     @Comment("数据来源类型 (1:官方同步, 2:用户手动, 3:AI识别)")

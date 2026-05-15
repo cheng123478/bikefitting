@@ -9,7 +9,7 @@
       </div>
 
       <!-- 登录表单 -->
-      <form v-if="activeTab === 'login'" class="auth-form animate-fade" @submit.prevent="handleLogin">
+      <form v-if="activeTab === 'login'" class="auth-form animate-fade" @submit.prevent="handleLogin" novalidate>
         <h3 class="form-title">欢迎回来</h3>
         <div class="input-field-group">
           <i class="fas fa-mobile-alt input-icon"></i>
@@ -63,7 +63,7 @@
           </label>
         </div>
 
-        <button type="submit" class="btn btn-primary btn-block" :disabled="isLoading || !isAgreed">
+        <button type="submit" class="btn btn-primary btn-block" :disabled="isLoading">
           <i v-if="isLoading" class="fas fa-spinner fa-spin"></i>
           {{ isLoading ? '登录中...' : '立即登录' }}
         </button>
@@ -77,7 +77,7 @@
       </form>
 
       <!-- 注册表单 -->
-      <form v-if="activeTab === 'register'" class="auth-form animate-fade" @submit.prevent="handleRegister">
+      <form v-if="activeTab === 'register'" class="auth-form animate-fade" @submit.prevent="handleRegister" novalidate>
         <h3 class="form-title">加入 BikeFit Pro</h3>
         <div class="input-field-group">
           <i class="fas fa-mobile-alt input-icon"></i>
@@ -110,7 +110,7 @@
           </label>
         </div>
 
-        <button type="submit" class="btn btn-primary btn-block" :disabled="isLoading || !isAgreed">
+        <button type="submit" class="btn btn-primary btn-block" :disabled="isLoading">
           <i v-if="isLoading" class="fas fa-spinner fa-spin"></i>
           {{ isLoading ? '注册中...' : '注册并登录' }}
         </button>
@@ -212,18 +212,45 @@ const sendCode = async (type) => {
 
 // 登录处理
 const handleLogin = async () => {
+  console.log('[登录] 开始校验', { phone: loginForm.phone, mode: loginMode.value });
+  
+  // 校验手机号
+  if (!loginForm.phone) {
+    console.log('[登录] 未输入手机号');
+    showToast('请输入手机号', 'error');
+    return;
+  }
   if (!isValidPhone(loginForm.phone)) {
+    console.log('[登录] 手机号格式错误');
     showToast('请输入正确的手机号码', 'error');
     return;
   }
-  // 简单校验
-  if (loginMode.value === 'sms' && !loginForm.code) {
-    return showToast('请输入验证码', 'error');
+  
+  // 根据登录模式校验
+  if (loginMode.value === 'password') {
+    // 密码登录模式
+    if (!loginForm.password) {
+      console.log('[登录] 未输入密码');
+      showToast('请输入密码', 'error');
+      return;
+    }
+  } else {
+    // 验证码登录模式
+    if (!loginForm.code) {
+      console.log('[登录] 未输入验证码');
+      showToast('请先获取验证码', 'error');
+      return;
+    }
   }
-  if (loginMode.value === 'password' && !loginForm.password) {
-    return showToast('请输入密码', 'error');
-
+  
+  // 检查是否勾选协议
+  if (!isAgreed.value) {
+    console.log('[登录] 未勾选协议');
+    showToast('请勾选阅读并同意《用户协议》和《隐私政策》', 'warning');
+    return;
   }
+  
+  console.log('[登录] 校验通过，开始提交');
   isLoading.value = true;
   if (loginMode.value === 'password') {
     await loginByPassword({
@@ -260,7 +287,24 @@ const handleLogin = async () => {
 
 // 注册处理
 const handleRegister = async () => {
-  if (!registerForm.code) return showToast('请输入验证码', 'error');
+  // 校验手机号
+  if (!registerForm.phone) {
+    return showToast('请输入手机号', 'error');
+  }
+  if (!isValidPhone(registerForm.phone)) {
+    return showToast('请输入正确的手机号码', 'error');
+  }
+  
+  // 校验验证码
+  if (!registerForm.code) {
+    return showToast('请先获取验证码', 'error');
+  }
+  
+  // 检查是否勾选协议
+  if (!isAgreed.value) {
+    return showToast('请勾选阅读并同意《用户协议》和《隐私政策》', 'warning');
+  }
+  
   isLoading.value = true;
   await registerUser({
     phone: registerForm.phone,

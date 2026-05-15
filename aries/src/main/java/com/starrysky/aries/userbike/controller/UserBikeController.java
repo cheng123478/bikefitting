@@ -107,6 +107,19 @@ public class UserBikeController {
     }
 
     /**
+     * 删除单车
+     * 从我的车库中彻底删除某辆单车（在役或退役）。
+     *
+     * @param user 当前登录用户
+     * @param id   单车ID
+     */
+    @LogAudit("删除单车")
+    @DeleteMapping("/delete/{id}")
+    public void delete(@AuthenticationPrincipal User user, @PathVariable Long id) {
+        userBikeService.deleteBike(user, id);
+    }
+
+    /**
      * 上传单车图片
      *
      * @param user 当前登录用户
@@ -129,5 +142,16 @@ public class UserBikeController {
             log.warn("上传单车图片失败: {}", fileUploadResult.getMessage());
             return ResponseResult.failure(500, fileUploadResult.getMessage());
         }
+    }
+
+    /**
+     * 获取用户的在役车辆数量
+     *
+     * @param user 当前登录用户
+     * @return 在役车辆数量
+     */
+    @GetMapping("/count/active")
+    public ResponseResult<Long> getActiveBikeCount(@AuthenticationPrincipal User user) {
+        return ResponseResult.success(userBikeService.getActiveBikeCount(user.getId()));
     }
 }

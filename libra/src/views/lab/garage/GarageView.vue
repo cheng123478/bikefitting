@@ -50,6 +50,7 @@
             :is-retired="currentTab === 'retired'"
             v-scroll-reveal="index"
             @open-showcase="openShowcase"
+            @delete="handleDeleteBike"
         />
 
         <!-- 快速添加入口（仅在“在役”标签显示） -->
@@ -96,10 +97,10 @@
 import { ref, onMounted, onUnmounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { useUserStore } from '@/stores/user.js';
-import { getMyGarage, getRetiredGarage } from '@/api/userBike.js'; // 引入修正后的API
+import { getMyGarage, getRetiredGarage, deleteUserBike } from '@/api/userBike.js';
 import BikeCard from '@/views/lab/components/BikeCard.vue';
 import BikeShowcase from '@/views/lab/components/BikeShowcase.vue';
-import { showToast } from '@/utils/toast.js';
+import { showToast, showConfirm } from '@/utils/toast.js';
 
 const router = useRouter();
 const userStore = useUserStore();
@@ -176,6 +177,28 @@ onUnmounted(() => {
 
 const handleAddNew = () => router.push('/showroom');
 const handleAddNewManual = () => router.push('/lab/garage/edit');
+
+/**
+ * 处理删除单车
+ */
+const handleDeleteBike = async (bike) => {
+  const bikeName = bike.brandModel || `${bike.brand || ''} ${bike.model || ''}`.trim() || '此单车';
+  const isConfirmed = await showConfirm(
+    `您确定要删除${bikeName}吗？此操作不可恢复。`,
+    '删除确认'
+  );
+  
+  if (isConfirmed) {
+    try {
+      await deleteUserBike(bike.id);
+      showToast('删除成功', 'success');
+      refreshData();
+    } catch (error) {
+      console.error('删除失败:', error);
+      showToast('删除失败', 'error');
+    }
+  }
+};
 
 onMounted(() => {
   loadBikeList();

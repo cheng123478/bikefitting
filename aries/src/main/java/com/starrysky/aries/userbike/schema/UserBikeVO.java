@@ -36,6 +36,8 @@ public class UserBikeVO {
     private String modelYear;
     private String imageUrl;
     private Integer bikeType;
+    private String frameSize; // 车架尺码
+    private Integer crankLength; // 曲柄长度
 
     // --- Fittor 生物力学分析扩展 ---
 

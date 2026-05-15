@@ -203,6 +203,23 @@ public class UserBikeService {
     }
 
     /**
+     * 删除单车（软删除）
+     *
+     * @param user 当前登录用户
+     * @param id   单车ID
+     */
+    @Transactional(rollbackFor = Exception.class)
+    public void deleteBike(User user, Long id) {
+        UserBike bike = userBikeRepository.findById(id)
+                .orElseThrow(() -> new BizException(500, "该单车不存在"));
+        if (!user.getId().equals(bike.getUser().getId())) {
+            throw new BizException(500, "无权进行此操作");
+        }
+        bike.setStatus(BikeStatus.DELETED.code);
+        userBikeRepository.save(bike);
+    }
+
+    /**
      * 【Fittor 核心转换逻辑】
      * 负责处理空数据并计算实车空间坐标
      *
@@ -218,43 +235,65 @@ public class UserBikeService {
         vo.setRemark(entity.getRemark());
         vo.setStatus(entity.getStatus());
 
-        BikeModelVO bikeModelVO = new BikeModelVO();
-        BeanUtils.copyProperties(entity.getBikeModel(), bikeModelVO);
-        vo.setBikeModelVO(bikeModelVO);
+        // 容错处理：捕获 BikeModel 被删除的异常
+        try {
+            BikeModelVO bikeModelVO = new BikeModelVO();
+            BeanUtils.copyProperties(entity.getBikeModel(), bikeModelVO);
+            vo.setBikeModelVO(bikeModelVO);
+            
+            BikeModel model = entity.getBikeModel();
+            if (model != null) {
+                vo.setBrand(model.getBrand());
+                vo.setBrandCn(model.getBrandCn());
+                vo.setModel(model.getModel());
+                vo.setModelYear(model.getModelYear());
+                vo.setImageUrl(model.getImageUrl());
+                vo.setBikeType(model.getBikeType());
+                vo.setFrameSize(model.getSize()); // 车架尺码
+
+                // --- 1. 计算 STR (车架激进程度) ---
+                if (isPositive(model.getStack()) && isPositive(model.getReach())) {
+                    double str = (double) model.getStack() / model.getReach();
+                    vo.setFrameStr(Math.round(str * 100.0) / 100.0);
+                }
+
+                // --- 2. 计算 Effective Reach+ (实车水平总前伸) ---
+                if (isPositive(model.getReach()) && setup != null && isPositive(setup.getStemLength())) {
+                    double angleRad = Math.toRadians(setup.getStemAngle() != null ? Math.abs(setup.getStemAngle()) : 7.0);
+                    double reachPlus = model.getReach() + (setup.getStemLength() * Math.cos(angleRad));
+                    vo.setEffectiveReachPlus(Math.round(reachPlus * 10.0) / 10.0);
+                }
+
+                // --- 3. 计算 Effective Stack+ (实车垂直总高度) ---
+                if (isPositive(model.getStack()) && setup != null) {
+                    double angleRad = Math.toRadians(setup.getStemAngle() != null ? Math.abs(setup.getStemAngle()) : 7.0);
+                    double spacers = setup.getSpacersHeight() != null ? setup.getSpacersHeight() : 0;
+                    double stackPlus = model.getStack() + spacers
+                            + (setup.getStemLength() != null ? setup.getStemLength() * Math.sin(angleRad) : 0);
+                    vo.setEffectiveStackPlus(Math.round(stackPlus * 10.0) / 10.0);
+                }
+            }
+        } catch (Exception e) {
+            // BikeModel 已被删除，设置默认值并标记该UserBike为已删除
+            log.warn("发现孤立的 UserBike 记录 | UserBike ID: {} | 关联的 BikeModel 不存在，自动软删除", entity.getId());
+            
+            // 软删除这个孤立的 UserBike
+            entity.setStatus(BikeStatus.DELETED.code);
+            userBikeRepository.save(entity);
+            
+            vo.setBrand("Unknown");
+            vo.setBrandCn("未知品牌");
+            vo.setModel("未知型号");
+            vo.setStatus(BikeStatus.DELETED.code);
+        }
+        
         UserBikeSetupVO userBikeSetupVO = new UserBikeSetupVO();
         BeanUtils.copyProperties(setup, userBikeSetupVO);
         vo.setCurrentSetupVO(userBikeSetupVO);
 
-        BikeModel model = entity.getBikeModel();
-        if (model != null) {
-            vo.setBrand(model.getBrand());
-            vo.setBrandCn(model.getBrandCn());
-            vo.setModel(model.getModel());
-            vo.setModelYear(model.getModelYear());
-            vo.setImageUrl(model.getImageUrl());
-            vo.setBikeType(model.getBikeType());
-
-            // --- 1. 计算 STR (车架激进程度) ---
-            if (isPositive(model.getStack()) && isPositive(model.getReach())) {
-                double str = (double) model.getStack() / model.getReach();
-                vo.setFrameStr(Math.round(str * 100.0) / 100.0);
-            }
-
-            // --- 2. 计算 Effective Reach+ (实车水平总前伸) ---
-            if (isPositive(model.getReach()) && setup != null && isPositive(setup.getStemLength())) {
-                double angleRad = Math.toRadians(setup.getStemAngle() != null ? Math.abs(setup.getStemAngle()) : 7.0);
-                double reachPlus = model.getReach() + (setup.getStemLength() * Math.cos(angleRad));
-                vo.setEffectiveReachPlus(Math.round(reachPlus * 10.0) / 10.0);
-            }
-
-            // --- 3. 计算 Effective Stack+ (实车垂直总高度) ---
-            if (isPositive(model.getStack()) && setup != null) {
-                double angleRad = Math.toRadians(setup.getStemAngle() != null ? Math.abs(setup.getStemAngle()) : 7.0);
-                double spacers = setup.getSpacersHeight() != null ? setup.getSpacersHeight() : 0;
-                double stackPlus = model.getStack() + spacers
-                        + (setup.getStemLength() != null ? setup.getStemLength() * Math.sin(angleRad) : 0);
-                vo.setEffectiveStackPlus(Math.round(stackPlus * 10.0) / 10.0);
-            }
+        // 曲柄长度（从 setup 中获取）
+        if (setup != null && setup.getCrankLength() != null) {
+            vo.setCrankLength(setup.getCrankLength());
         }
 
         return vo;
@@ -270,6 +309,16 @@ public class UserBikeService {
         if (isPositive(setup.getSaddleHeight()) && setup.getSaddleHeight() < 400) {
             throw new IllegalArgumentException("单车设定异常：座垫高度数值过小，请核实是否以毫米(mm)为单位。");
         }
+    }
+
+    /**
+     * 获取用户的在役车辆数量
+     *
+     * @param userId 用户ID
+     * @return 在役车辆数量
+     */
+    public long getActiveBikeCount(Long userId) {
+        return userBikeRepository.countByUserIdAndStatus(userId, BikeStatus.ACTIVE.code);
     }
 
     private boolean isPositive(Number n) {

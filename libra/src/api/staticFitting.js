@@ -57,3 +57,16 @@ export function getFittingResultHistory(currentPage) {
         params: { page: currentPage, size: 10 }
     });
 }
+
+/**
+ * 获取用户的静态Fitting报告总数
+ */
+export function getStaticFittingCount() {
+    return request({
+        url: '/static-fitting/count',
+        method: 'get'
+    }).then(res => {
+        console.log('[静态报告] 原始响应:', res);
+        return res;
+    });
+}

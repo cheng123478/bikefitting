@@ -385,7 +385,7 @@
         <!-- ================= 3. 右侧：动态可视化指引 (Sticky) ================= -->
         <aside class="guide-section" v-if="isManualMode || currentStep !== 'search'">
           <div class="visualizer-container glass-card">
-            <BikeVisualizer :activePart="activeField" :bikeType="formData.bikeType" />
+            <BikeVisualizer :activePart="activeField" :bikeType="formData.bikeType" :pedalType="formData.pedalType" />
           </div>
 
           <Transition name="fade-slide" mode="out-in">
@@ -514,7 +514,7 @@ const fieldGuides = {
   // --- 03 实车设定 (The Setup) ---
   'saddleHeight': { title: '座垫高度 (Saddle Height)', desc: '五通中心沿立管至座垫顶面中心点的距离。', tip: 'Fitting 中最重要的参数，直接决定踩踏效率和膝盖健康。' },
   'saddleSetback': { title: '座垫后移量 (Saddle Setback)', desc: '座垫鼻尖相对于五通中心垂直线的水平位移。', tip: '建议使用铅垂线从坐垫鼻头垂直向下对准五通轴心，测量其水平距离。' },
-  'saddleTilt': { title: '座垫倾角 (Saddle Tilt)', desc: '座垫中心线与垂直线的夹角。', tip: '决定了会阴压力。' },
+  'saddleTilt': { title: '座垫倾角 (Saddle Tilt)', desc: '座垫中心线与水平线的夹角。', tip: '决定了会阴压力。' },
   'stemLength': { title: '把立长度 (Stem Length)', desc: '把立中心盖到车把夹持位中心点的距离。', tip: '调整上肢拉伸感（Reach）最直接的零件。' },
   'stemAngle': { title: '把立角度 (Stem Angle)', desc: '把立中心线与垂直方向的夹角。', tip: '通过翻转把立可显著改变车头高度。' },
   'spacersHeight': { title: '垫圈高度 (Spacers Height)', desc: '把立下方所有垫圈的总高度。', tip: '在不更换把立的情况下调节车头高低的唯一手段。' },

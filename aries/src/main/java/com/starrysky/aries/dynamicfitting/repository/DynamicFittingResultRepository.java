@@ -33,4 +33,13 @@ public interface DynamicFittingResultRepository extends JpaRepository<DynamicFit
      * @return Fitting结果
      */
     Optional<DynamicFittingResult> findBySession_Id(Long sessionId);
+
+    /**
+     * 根据用户ID统计动态Fitting报告数量
+     *
+     * @param userId 用户ID
+     * @return 报告数量
+     */
+    @Query("SELECT COUNT(DISTINCT r.id) FROM DynamicFittingResult r JOIN DynamicFittingSession s ON r.session.id = s.id WHERE s.user.id = :userId")
+    long countByUserId(@Param("userId") Long userId);
 }

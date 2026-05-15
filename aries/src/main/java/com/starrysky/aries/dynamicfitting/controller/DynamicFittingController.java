@@ -122,4 +122,15 @@ public class DynamicFittingController {
         dynamicFittingService.deleteFittingSession(id);
         return ResponseResult.success("删除成功");
     }
+
+    /**
+     * 获取用户的动态Fitting报告总数
+     *
+     * @param user 当前登录用户
+     * @return 报告总数
+     */
+    @GetMapping("/count")
+    public ResponseResult<Long> getDynamicFittingCount(@AuthenticationPrincipal User user) {
+        return ResponseResult.success(dynamicFittingService.countByUserId(user.getId()));
+    }
 }
