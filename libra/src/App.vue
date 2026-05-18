@@ -22,6 +22,6 @@ import {useUserStore} from "@/stores/user";
 const userStore = useUserStore();
 
 onMounted(() => {
-  userStore.initUser();
+  // Initialization is now handled internally by the user store upon creation.
 });
 </script>

@@ -63,6 +63,10 @@ service.interceptors.response.use(
                 return handleTokenExpired(config);
             case BIZ_CODE.AUTH_TOKEN_INVALID:
             case BIZ_CODE.AUTH_SESSION_MISSING:
+                // 如果当前正在刷新令牌，这很可能是并发请求拿到了被刚刷新的旧Token，所以被判定为无效，应当加入队列等待新Token重试
+                if (isRefreshing) {
+                    return handleTokenExpired(config);
+                }
                 performFullLogout('登录会话已过期，请重新登录');
                 return Promise.reject(new Error(res.message));
             default:
@@ -80,6 +84,8 @@ service.interceptors.response.use(
         if (response && response.status === 401) {
             const bizCode = response.data?.code;
             if (bizCode === BIZ_CODE.AUTH_TOKEN_EXPIRED) {
+                return handleTokenExpired(config);
+            } else if (isRefreshing && (bizCode === BIZ_CODE.AUTH_TOKEN_INVALID || bizCode === BIZ_CODE.AUTH_SESSION_MISSING)) {
                 return handleTokenExpired(config);
             } else {
                 performFullLogout(response.data?.message || HTTP_STATUS_MSG[401]);

@@ -60,110 +60,13 @@
 
         <!-- 右侧：详情面板 (Details Panel) -->
         <main class="detail-column fade-up delay-1">
-          <div v-if="selectedSession" class="detail-card glass-card">
-
-            <div class="detail-header">
-              <div class="dh-left">
-                <span class="meta-label">DYNAMIC ANALYSIS DETAIL</span>
-                <h3>动态分析详情</h3>
-              </div>
-              <div class="dh-right">
-                <div class="pain-tags" v-if="selectedSession.painLabels && selectedSession.painLabels.length > 0">
-                  <span class="pain-tag" v-for="label in selectedSession.painLabels" :key="label">
-                    [{{ label }}]
-                  </span>
-                </div>
-                <span class="bike-tag">
-                   <i class="fas fa-tag"></i> {{ selectedSession.bikeName }}
-                </span>
-              </div>
-            </div>
-
-            <!-- 状态 1：正在分析 -->
-            <div v-if="selectedSession.status === 1" class="state-container processing">
-              <div class="zen-loader">
-                <div class="loader-rings">
-                  <div class="ring"></div>
-                  <div class="ring"></div>
-                  <i class="fas fa-microchip ai-icon"></i>
-                </div>
-                <h4>{{ PROJECT_CONFIG.MASCOT }} 引擎正在解算</h4>
-                <p>我们正在根据采集的视频流构建您的生物力学模型，请稍后刷新查看结果。</p>
-              </div>
-              <!-- 骨架屏 -->
-              <div class="skeleton-content">
-                <div class="sk-line"></div>
-                <div class="sk-line short"></div>
-                <div class="sk-blocks">
-                  <div class="sk-b"></div><div class="sk-b"></div>
-                </div>
-              </div>
-            </div>
-
-            <!-- 状态 2：分析完成 -->
-            <div v-else-if="selectedSession.status === 2" class="state-container completed">
-              <div v-if="detailLoading" class="inner-loading">
-                <i class="fas fa-spinner fa-spin"></i> 正在调取诊断结论...
-              </div>
-
-              <template v-else>
-                <div class="result-hero">
-                  <div class="score-viz">
-                    <svg viewBox="0 0 100 100">
-                      <circle class="rail" cx="50" cy="50" r="45"></circle>
-                      <circle class="progress" cx="50" cy="50" r="45" :style="scoreRingStyle"></circle>
-                    </svg>
-                    <div class="score-text">
-                      <span class="num">{{ selectedSession.matchScore || '--' }}</span>
-                      <span class="unit">MATCH</span>
-                    </div>
-                  </div>
-
-                    <div class="summary-info">
-                      <h4 :class="getScoreClass(selectedSession.matchScore)">诊断摘要已就绪</h4>
-                      
-                      <!-- 总结性标语 -->
-                      <p class="summary-hero-text">快速预览您的核心调整建议，如需查看关节角度与轨迹剖析，请点击“查看深度报告”。</p>
-
-                      <!-- 详细清单 -->
-                      <div class="summary-text-list" v-if="selectedSession.equipmentSuggestions && selectedSession.equipmentSuggestions.length > 0">
-                        <p class="summary-text" v-for="(code, index) in selectedSession.equipmentSuggestions" :key="index">
-                          • {{ code }}
-                        </p>
-                      </div>
-                      <p class="summary-text" v-else>
-                        已根据您的车型标准完成生物力学评估，整体处于理想范围。
-                      </p>
-
-                      <div class="meta-info">
-                        <span><i class="far fa-clock"></i> 采样时刻：{{ formatDate(selectedSession.sessionTime, 'HH:mm') }}</span>
-                      </div>
-                    </div>
-                </div>
-
-                <div class="action-footer">
-                  <button class="btn btn-primary main-action" @click="handleViewReport(selectedSession)">
-                    <i class="fas fa-file-alt"></i> 查看完整深度报告
-                  </button>
-                  <button class="btn btn-outline" @click="handleDelete(selectedSession.id)">
-                    <i class="fas fa-trash-alt"></i> 删除存档
-                  </button>
-                </div>
-              </template>
-            </div>
-
-            <!-- 状态 3：失败 -->
-            <div v-else class="state-container failed">
-              <div class="error-visual">
-                <i class="fas fa-exclamation-triangle warn-icon"></i>
-                <h4>任务解算失败</h4>
-                <p>{{ PROJECT_CONFIG.MASCOT }} 无法在上传的视频中精确定位关键点，请确保环境光线充足且无遮挡后重新尝试。</p>
-              </div>
-              <div class="action-footer">
-                <button class="btn btn-outline" @click="handleDelete(selectedSession.id)">清理无效记录</button>
-              </div>
-            </div>
-          </div>
+          <DynamicArchiveDetail 
+            v-if="selectedSession" 
+            :selectedSession="selectedSession" 
+            :detailLoading="detailLoading"
+            @viewReport="handleViewReport"
+            @delete="handleDelete"
+          />
 
           <!-- 未选中 -->
           <div v-else class="empty-detail glass-card">
@@ -174,10 +77,29 @@
       </div>
     </div>
   </div>
+
+    <!-- Mobile Bottom Drawer -->
+    <Transition name="drawer-slide">
+      <div v-if="isMobileDrawerOpen && selectedSession" class="mobile-drawer-overlay" @click.self="closeDrawer">
+        <div class="mobile-drawer-content">
+           <div class="drawer-handle" @click="closeDrawer"></div>
+           <button class="drawer-close-btn" @click="closeDrawer">&times;</button>
+           <div class="drawer-scroll-area">
+             <DynamicArchiveDetail 
+                :selectedSession="selectedSession" 
+                :detailLoading="detailLoading"
+                @viewReport="handleViewReport"
+                @delete="handleDelete"
+             />
+           </div>
+        </div>
+      </div>
+    </Transition>
 </template>
 
 <script setup>
-import { ref, onMounted, computed } from 'vue';
+import { ref, onMounted } from 'vue';
+import DynamicArchiveDetail from './components/DynamicArchiveDetail.vue';
 import { useRouter } from 'vue-router';
 import { getSessionHistory, deleteSession, getDiagnosisResult } from '@/api/dynamicFitting';
 import { showToast, showConfirm } from '@/utils/toast';
@@ -188,6 +110,8 @@ const router = useRouter();
 const loading = ref(true);
 const sessions = ref([]);
 const selectedSession = ref(null);
+const isMobileDrawerOpen = ref(false);
+const closeDrawer = () => { isMobileDrawerOpen.value = false; };
 const detailLoading = ref(false);
 
 // 分页逻辑
@@ -219,6 +143,7 @@ const loadHistory = async (isMore = false) => {
 
 const selectSession = async (session) => {
   selectedSession.value = session;
+  if (window.innerWidth <= 900) { isMobileDrawerOpen.value = true; }
 };
 
 const handleLoadMore = () => {
@@ -228,21 +153,7 @@ const handleLoadMore = () => {
 
 const formatDate = (date, format) => date ? dayjs(date).format(format) : '--';
 
-const getScoreClass = (score) => {
-  if (!score && score !== 0) return 'text-muted';
-  if (score >= 90) return 'text-success';
-  if (score >= 75) return 'text-warning';
-  return 'text-danger';
-};
 
-const scoreRingStyle = computed(() => {
-  const score = selectedSession.value?.matchScore || 0;
-  const circ = 2 * Math.PI * 45;
-  return {
-    strokeDasharray: circ,
-    strokeDashoffset: circ - (score / 100) * circ
-  };
-});
 
 const handleViewReport = (session) => {
   router.push({path: '/lab/report/dynamic', query: {sessionId: session.id}});
@@ -696,5 +607,47 @@ onMounted(loadHistory);
 .btn-load-more:hover {
   border-color: var(--primary-color);
   color: var(--primary-color);
+}
+
+/* --- Drawer Mobile Styles --- */
+.mobile-drawer-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.5);
+  z-index: 9999;
+  display: flex;
+  align-items: flex-end;
+}
+.mobile-drawer-content {
+  width: 100%;
+  background: #fff;
+  border-radius: 20px 20px 0 0;
+  padding: 20px;
+  position: relative;
+  max-height: 85vh;
+  display: flex;
+  flex-direction: column;
+}
+.drawer-handle {
+  width: 40px; height: 5px; background: #ddd; border-radius: 3px; margin: 0 auto 15px;
+}
+.drawer-close-btn {
+  position: absolute; right: 20px; top: 15px; background: none; border: none; font-size: 1.5rem; color: #999;
+}
+.drawer-scroll-area {
+  overflow-y: auto;
+  flex: 1;
+}
+
+.drawer-slide-enter-active, .drawer-slide-leave-active {
+  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.3s;
+}
+.drawer-slide-enter-from, .drawer-slide-leave-to {
+  transform: translateY(100%);
+  opacity: 0;
+}
+
+@media (max-width: 900px) {
+  .detail-column { display: none !important; }
 }
 </style>

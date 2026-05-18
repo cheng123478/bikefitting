@@ -193,6 +193,12 @@ const navigateToReport = () => {
   background: transparent;
 }
 
+@media (max-width: 768px) {
+  .hub-page {
+    padding: 100px 0 40px;
+  }
+}
+
 /* Header */
 .page-header {
   display: flex; justify-content: space-between; align-items: flex-end;
@@ -411,8 +417,8 @@ const navigateToReport = () => {
 .submit-action:disabled:hover { transform: none; }
 
 @media (max-width: 1024px) {
-  .view-grid { grid-template-columns: 1fr; }
-  .action-panel { flex-direction: column; text-align: center; }
+  .view-grid { grid-template-columns: 1fr; gap: 15px; }
+  .action-panel { flex-direction: column; text-align: center; gap: 20px; padding: 20px; }
   .btn-group { width: 100%; flex-direction: column; }
   .btn-action { justify-content: center; }
 }

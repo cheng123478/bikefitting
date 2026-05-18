@@ -862,6 +862,48 @@ small {
   pointer-events: none;
 }
 
+/* Mobile Responsiveness */
+@media (max-width: 768px) {
+  .fitting-result-overlay {
+    padding: 10px;
+  }
+  .result-header {
+    flex-direction: column;
+    align-items: flex-start;
+    padding: 20px;
+    gap: 15px;
+  }
+  .header-main h3 {
+    font-size: 1.4rem;
+  }
+  .tags-row, .pain-tags {
+    flex-wrap: wrap;
+  }
+  .scroll-body {
+    padding: 20px;
+    max-height: 70vh;
+  }
+  .metrics-grid {
+    grid-template-columns: 1fr;
+  }
+  .result-footer {
+    flex-direction: column;
+    padding: 20px;
+    gap: 15px;
+    text-align: center;
+  }
+  .footer-btns {
+    flex-direction: column;
+    width: 100%;
+    gap: 10px;
+  }
+  .footer-btns button {
+    width: 100%;
+    justify-content: center;
+    padding: 12px;
+  }
+}
+
 /* Modal Transition */
 .modal-fade-enter-active, .modal-fade-leave-active {
   transition: all 0.5s cubic-bezier(0.16, 1, 0.3, 1);

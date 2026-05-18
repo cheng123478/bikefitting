@@ -24,21 +24,21 @@ export const useUserStore = defineStore('user', () => {
 
         if (user !== undefined) {
             userInfo.value = user;
-            user
+            user && user !== 'undefined' && user !== 'null'
                 ? localStorage.setItem(STORAGE_KEYS.USER_INFO, JSON.stringify(user))
                 : localStorage.removeItem(STORAGE_KEYS.USER_INFO);
         }
 
         if (access !== undefined) {
             accessToken.value = access;
-            access
+            access && access !== 'undefined' && access !== 'null'
                 ? localStorage.setItem(STORAGE_KEYS.ACCESS_TOKEN, access)
                 : localStorage.removeItem(STORAGE_KEYS.ACCESS_TOKEN);
         }
 
         if (refresh !== undefined) {
             refreshToken.value = refresh;
-            refresh
+            refresh && refresh !== 'undefined' && refresh !== 'null'
                 ? localStorage.setItem(STORAGE_KEYS.REFRESH_TOKEN, refresh)
                 : localStorage.removeItem(STORAGE_KEYS.REFRESH_TOKEN);
         }
@@ -54,9 +54,11 @@ export const useUserStore = defineStore('user', () => {
             const storedAccess = localStorage.getItem(STORAGE_KEYS.ACCESS_TOKEN);
             const storedRefresh = localStorage.getItem(STORAGE_KEYS.REFRESH_TOKEN);
 
-            if (storedUser) userInfo.value = JSON.parse(storedUser);
-            if (storedAccess) accessToken.value = storedAccess;
-            if (storedRefresh) refreshToken.value = storedRefresh;
+            const isValid = (val) => val && val !== 'undefined' && val !== 'null';
+
+            if (isValid(storedUser)) userInfo.value = JSON.parse(storedUser);
+            if (isValid(storedAccess)) accessToken.value = storedAccess;
+            if (isValid(storedRefresh)) refreshToken.value = storedRefresh;
         } catch (e) {
             console.error('[UserStore] Failed to hydrate state from storage', e);
             logout(); // Reset on corruption
@@ -111,6 +113,9 @@ export const useUserStore = defineStore('user', () => {
      */
     const openAuthModal = () => { showAuthModal.value = true; };
     const closeAuthModal = () => { showAuthModal.value = false; };
+
+    // Immediately hydrate state upon store creation to avoid race conditions with router guards.
+    initUser();
 
     return {
         userInfo,

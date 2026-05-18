@@ -1,7 +1,5 @@
 <template>
-  <!-- 包装容器：如果已经生成了图片，就直接展示图片；否则展示 DOM 用于截图 -->
   <div class="poster-wrapper">
-    <!-- 生成后的纯图片展示区 (用于用户长按保存) -->
     <img
         v-if="cachedPosterImage"
         :src="cachedPosterImage"
@@ -9,85 +7,65 @@
         alt="Fitting Report Poster"
     />
 
-    <!-- 原始 DOM 渲染区 (截图前展示，生成图片后隐藏，避免重复渲染) -->
     <div
         v-show="!cachedPosterImage"
         class="poster-container"
         ref="posterRef"
     >
-      <!-- 1. 顶部：品牌与用户信息 -->
       <header class="poster-header">
         <div class="brand-badge">
           <span class="brand-cn">{{ PROJECT_CONFIG.NAME }}</span>
-          <span class="brand-en">{{ PROJECT_CONFIG.NAME_EN }}</span>
+          <span class="brand-en">{{ PROJECT_CONFIG.NAME_EN }} LAB</span>
         </div>
-        <div class="user-meta">
-          <div class="user-info">
-            <span class="username">{{ safeResult.username || `${PROJECT_CONFIG.MASCOT} Rider` }}</span>
-            <span class="report-date">{{ formatDate(safeResult.fittingTime) }}</span>
-          </div>
-          <!-- 推荐使用真实图片，这里用首字母代替 FontAwesome -->
-          <div class="avatar-circle">
-            {{ (safeResult.username || 'A').charAt(0).toUpperCase() }}
-          </div>
+        <div class="user-info">
+          <span class="username">{{ posterUsername }}</span>
+          <span class="rider-title">{{ riderTitle }}</span>
         </div>
       </header>
 
-      <!-- 2. 主视觉：分数与雷达图 -->
       <main class="poster-body">
-        <div class="score-card">
-          <div class="score-info">
-            <p class="score-label">FITTING GRADE</p>
-            <h1 class="fitting-score">{{ calculatedScore }}</h1>
-          </div>
-          <!-- 雷达图容器缩小并靠右 -->
-          <div ref="chartRef" class="radar-chart-mini"></div>
-        </div>
-
-        <!-- 3. 核心洞察：硬核数据矩阵 (骑士最爱分享的内容) -->
-        <div class="metrics-grid">
-          <div class="metric-item">
-            <span class="m-label">建议座高</span>
-            <span class="m-value">{{ safeResult.recSeatHeight || '745' }} <small>mm</small></span>
-          </div>
-          <div class="metric-item">
-            <span class="m-label">座垫后飘</span>
-            <span class="m-value">{{ safeResult.recSaddleSetback || '50' }} <small>mm</small></span>
-          </div>
-          <div class="metric-item">
-            <span class="m-label">把立长度</span>
-            <span class="m-value">{{ safeResult.recStemLength || '100' }} <small>mm</small></span>
-          </div>
-          <div class="metric-item">
-            <span class="m-label">曲柄建议</span>
-            <span class="m-value">{{ safeResult.recCrankLength || '170' }} <small>mm</small></span>
+        
+        <div class="score-badge-section">
+          <div class="score-badge">
+            <span class="badge-label">综合适配评估</span>
+            <div class="badge-value-wrapper">
+              <span class="badge-val">{{ calculatedScore }}</span>
+              <span class="badge-unit">分</span>
+            </div>
           </div>
         </div>
 
-        <!-- 4. 专家诊断 -->
-        <div class="verdict-section">
-          <svg class="quote-icon" viewBox="0 0 24 24" width="20" height="20">
-            <path fill="#D4AF37" d="M14.017 21v-7.391c0-5.704 3.731-9.57 8.983-10.609l.995 2.151c-2.432.917-3.995 3.638-3.995 5.849h4v10h-9.983zm-14.017 0v-7.391c0-5.704 3.748-9.57 9-10.609l.996 2.151c-2.433.917-3.996 3.638-3.996 5.849h3.983v10h-9.983z"/>
-          </svg>
-          <p class="verdict-text">{{ expertVerdict }}</p>
+        <div class="chart-section">
+          <div ref="radarChartRef" class="radar-chart"></div>
+        </div>
+
+        <div class="conclusion-section">
+          <div class="aha-moment">
+            <div class="aha-card danger">
+              <div class="aha-icon"><i class="fas fa-heartbeat"></i> 临床体征诊断</div>
+              <p class="aha-text">{{ diagnosisText }}</p>
+            </div>
+            <div class="aha-card info">
+              <div class="aha-icon"><i class="fas fa-file-medical-alt"></i> 骑士处方提要</div>
+              <p class="aha-text">{{ prescriptionText }}</p>
+            </div>
+          </div>
         </div>
       </main>
 
-      <!-- 5. 底部：二维码与 Slogan -->
       <footer class="poster-footer">
         <div class="footer-left">
-          <p class="slogan">每一次发力，皆有迹可循。</p>
-          <p class="sub-slogan">{{ PROJECT_CONFIG.NAME_EN }} · 智能单车静态几何适配</p>
+          <p class="slogan">你的单车是在帮你，还是毁你？</p>
+          <p class="sub-slogan">长按扫码，开启你的专属单车几何体检 👉</p>
         </div>
         <div class="qr-code-section">
           <qrcode-vue
               :value="shareUrl"
-              :size="55"
+              :size="56"
               level="H"
               background="#fff"
-              foreground="#334030"
+              foreground="#1D1D1F"
           />
-          <span class="qr-text">扫码体验智能调教</span>
         </div>
       </footer>
     </div>
@@ -95,12 +73,13 @@
 </template>
 
 <script setup>
-import { ref, onMounted, computed, watch, nextTick } from 'vue';
-import * as echarts from 'echarts';
+import { ref, onMounted, computed, watch, nextTick, markRaw } from 'vue';
 import html2canvas from 'html2canvas';
 import QrcodeVue from 'qrcode.vue';
+import * as echarts from 'echarts';
 import request from '@/api/request.js';
 import { PROJECT_CONFIG } from '@/config/constants';
+import { useUserStore } from '@/stores/user';
 
 const props = defineProps({
   result: {
@@ -109,16 +88,123 @@ const props = defineProps({
   }
 });
 
+const userStore = useUserStore();
 const posterRef = ref(null);
-const chartRef = ref(null);
-const cachedPosterImage = ref(null); // 图片缓存机制
+const radarChartRef = ref(null);
+const cachedPosterImage = ref(null);
 const inviteCode = ref('');
-let myChart = null;
+let chartInstance = null;
 
-// 防御性计算属性，避免 result 为 null 时报错
 const safeResult = computed(() => props.result || {});
 
-// 动态生成分享链接
+// === Username Logic ===
+const posterUsername = computed(() => {
+  if (safeResult.value.username) return safeResult.value.username;
+  try {
+    const userInfoStr = localStorage.getItem('user_info');
+    if (userInfoStr) {
+      const userInfo = JSON.parse(userInfoStr);
+      return userInfo.name;
+    }
+  } catch (e) {
+    console.warn('Failed to parse user_info from localStorage', e);
+  }
+  return `${PROJECT_CONFIG.MASCOT} Rider`;
+});
+
+// === Radar Data Derivation ===
+const radarDimensions = computed(() => {
+  const res = safeResult.value;
+  const details = res.details || [];
+  const detailsStr = JSON.stringify(details);
+  const tagsStr = JSON.stringify(res.riderTags || []);
+  const painCount = res.painLabels?.length || 0;
+
+  // 1. 柔韧素质
+  const flex = res.thoracicScore || 80;
+  
+  // 2. 核心力量
+  let core = 85;
+  if (detailsStr.includes('核心') || detailsStr.includes('稳定') || detailsStr.includes('预警')) {
+    core -= 20;
+  } else if (flex > 80) {
+    core += 5; // 如果柔韧好，核心通常给点福利
+  }
+
+  // 3. 抗伤痛指数
+  const painResist = Math.max(30, 100 - (painCount * 15));
+
+  // 4. 下肢杠杆
+  let legLeverage = 80;
+  if (detailsStr.includes('长股骨') || tagsStr.includes('长股骨') || detailsStr.includes('发力')) {
+    legLeverage += 15;
+  }
+
+  // 5. 器材适配
+  let equipFit = 90;
+  if (detailsStr.includes('规格') || detailsStr.includes('把立') || detailsStr.includes('更换') || detailsStr.includes('升级')) {
+    equipFit -= 15;
+  }
+
+  return {
+    flexibility: flex,
+    core: core,
+    painResistance: painResist,
+    legLeverage: legLeverage,
+    equipmentFit: equipFit
+  };
+});
+
+// === Dynamic Texts ===
+const riderTitle = computed(() => {
+  const d = radarDimensions.value;
+  let max = -1;
+  let title = '[普通骑手]';
+  
+  if (d.flexibility > max) { max = d.flexibility; title = '[柔韧度 S 级]'; }
+  if (d.core > max) { max = d.core; title = '[核心王者]'; }
+  if (d.painResistance > max) { max = d.painResistance; title = '[无伤行者]'; }
+  if (d.legLeverage > max) { max = d.legLeverage; title = '[功率机器]'; }
+  if (d.equipmentFit > max) { max = d.equipmentFit; title = '[原车绝配]'; }
+  
+  return title;
+});
+
+const calculatedScore = computed(() => {
+  return safeResult.value.matchScore || safeResult.value.thoracicScore || 85;
+});
+
+const diagnosisText = computed(() => {
+  const details = safeResult.value.details || [];
+  const painDetail = details.find(d => 
+    d.bodyFeature && (d.bodyFeature.includes('痛') || d.bodyFeature.includes('酸') || d.bodyFeature.includes('麻'))
+  );
+  if (painDetail) {
+    return `检测到该骑士存在【${painDetail.bodyFeature}】隐患，原车几何设定对局部肌肉与神经产生异常压迫。`;
+  }
+  return '躯干与核心体征表现良好，但目前车辆的粗略设定可能正在制约其发力效率。';
+});
+
+const prescriptionText = computed(() => {
+  const res = safeResult.value;
+  const fields = [];
+  let previewItem = '';
+  
+  if (res.recSeatHeight) { fields.push('座高'); if(!previewItem) previewItem = `建议座高调整至 ${res.recSeatHeight}mm`; }
+  if (res.recSetback) { fields.push('座垫位置'); if(!previewItem) previewItem = `建议座垫后移 ${res.recSetback}mm`; }
+  if (res.recReachPlus) { fields.push('前伸量'); if(!previewItem) previewItem = `建议前伸量(Reach+)调整至 ${res.recReachPlus}mm`; }
+  if (res.recHandlebarDrop) { fields.push('落差'); if(!previewItem) previewItem = `建议车把落差调整为 ${res.recHandlebarDrop}mm`; }
+  if (res.recStemLength) { fields.push('把立'); }
+  if (res.recCrankLength) { fields.push('曲柄'); }
+  
+  const count = fields.length || 3;
+  
+  if (previewItem) {
+    return `【关键参数公开】${previewItem}。系统已针对该骑士分析其余 ${Math.max(1, count - 1)} 项专属防伤痛调教指令。`;
+  }
+  return `${PROJECT_CONFIG.MASCOT}-已针对其关键部位，分析了 ${count} 项专属防伤痛调教指令。`;
+});
+
 const shareUrl = computed(() => {
   const origin = window.location.origin;
   if (inviteCode.value) {
@@ -138,109 +224,146 @@ const fetchInviteCode = async () => {
   }
 };
 
-const calculatedScore = computed(() => {
-  return safeResult.value.thoracicScore || 85;
-});
-
-const expertVerdict = computed(() => {
-  if (safeResult.value.details && safeResult.value.details.length > 0) {
-    return safeResult.value.details[0].adjustmentLogic;
+const initChart = () => {
+  if (!radarChartRef.value) return;
+  if (chartInstance) {
+    chartInstance.dispose();
   }
-  return "躯干角度与踩踏发力区间均处于黄金分割点，建议保持当前几何设定，通过增加核心力量训练进一步提升功率输出。";
-});
-
-const formatDate = (dateStr) => {
-  if (!dateStr) return new Date().toLocaleDateString().replace(/\//g, '-');
-  return dateStr.split(' ')[0];
-};
-
-const initChart = async () => {
-  // 确保 DOM 已经渲染
-  await nextTick();
-  if (!chartRef.value || cachedPosterImage.value) return;
-
-  if (myChart) myChart.dispose();
-  myChart = echarts.init(chartRef.value);
-
+  chartInstance = markRaw(echarts.init(radarChartRef.value, null, { renderer: 'svg' })); 
+  
+  // 动态读取 CSS 主题色变量，实现 ECharts 图表与页面主题全自动联动
+  let themeColor = '#0A84FF';
+  if (posterRef.value) {
+    const style = getComputedStyle(posterRef.value);
+    const customColor = style.getPropertyValue('--primary-color').trim();
+    if (customColor) {
+      themeColor = customColor;
+    }
+  }
+  
+  const d = radarDimensions.value;
   const option = {
+    animation: false, 
     radar: {
-      indicator:[
-        { name: '柔韧', max: 100 },
-        { name: '稳定', max: 100 },
-        { name: '效率', max: 100 },
-        { name: '比例', max: 100 },
-        { name: '核心', max: 100 }
+      indicator: [
+        { name: '脊柱柔韧', max: 100 },
+        { name: '核心支撑', max: 100 },
+        { name: '抗伤痛值', max: 100 },
+        { name: '下肢杠杆', max: 100 },
+        { name: '器材适配', max: 100 }
       ],
-      shape: 'polygon', // 改为多边形，视觉更硬核
+      shape: 'polygon',
+      center: ['50%', '50%'],
       radius: '65%',
-      splitNumber: 3,
-      axisName: { color: '#787673', fontSize: 9 },
-      splitLine: { lineStyle: { color: 'rgba(92, 110, 88, 0.2)' } },
-      splitArea: { show: false },
-      axisLine: { lineStyle: { color: 'rgba(92, 110, 88, 0.2)' } }
+      splitNumber: 4,
+      axisName: {
+        color: '#86868B', // Secondary text
+        fontSize: 11,
+        fontWeight: 'bold',
+      },
+      splitArea: {
+        areaStyle: {
+          color: ['#F9F9FB', '#F4F5F7', '#EFEFF2', '#EAECEF'],
+        }
+      },
+      axisLine: {
+        lineStyle: { color: 'rgba(0,0,0,0.05)' } 
+      },
+      splitLine: {
+        lineStyle: { color: 'rgba(0,0,0,0.08)' }
+      }
     },
-    series: [{
-      type: 'radar',
-      data:[{
-        value:[
-          safeResult.value.flexibility || 85,
-          safeResult.value.stability || 80,
-          safeResult.value.efficiency || 90,
-          safeResult.value.proportion || 88,
-          safeResult.value.core || 75
-        ],
-        symbol: 'circle',
-        symbolSize: 4,
-        itemStyle: { color: '#D4AF37' },
-        areaStyle: { color: 'rgba(212, 175, 55, 0.4)' },
-        lineStyle: { width: 1.5, color: '#D4AF37' }
-      }]
-    }]
+    series: [
+      {
+        name: 'Clinical Stats',
+        type: 'radar',
+        data: [
+          {
+            value: [d.flexibility, d.core, d.painResistance, d.legLeverage, d.equipmentFit],
+            name: '能力分布',
+            itemStyle: {
+              color: themeColor
+            },
+            areaStyle: {
+              color: themeColor,
+              opacity: 0.15 // 利用 opacity 做透明度，完美适配任意格式的主题色（Hex/RGB）
+            },
+            lineStyle: {
+              width: 2,
+              color: themeColor
+            }
+          }
+        ]
+      }
+    ]
   };
-
-  myChart.setOption(option);
+  
+  chartInstance.setOption(option);
 };
 
 onMounted(() => {
-  if (props.result) initChart();
   fetchInviteCode();
+  nextTick(() => {
+    initChart();
+  });
 });
 
 watch(() => props.result, (newVal) => {
   if (newVal) {
-    cachedPosterImage.value = null; // 数据变化时清空缓存
-    initChart();
+    cachedPosterImage.value = null;
+    nextTick(() => {
+      initChart();
+    });
   }
 }, { deep: true });
 
-// 暴露给父组件的方法
 defineExpose({
   generateImage: async () => {
-    // 1. 如果已经生成过，直接返回缓存！避免重复消耗性能
     if (cachedPosterImage.value) {
       return cachedPosterImage.value;
     }
 
-    // 2. 确保图表完全渲染完毕
     await nextTick();
     if (!posterRef.value) return null;
 
     try {
-      // 为了保证 html2canvas 截图时 Echarts 动画已完成
-      if (myChart) {
-        myChart.setOption({ animation: false }); // 临时关闭动画
-      }
+      // 【终极方案】将元素临时挂载到视口绝对左上角，脱离所有父元素的 margin/padding/scroll/transform 干扰
+      const originalPosition = posterRef.value.style.position;
+      const originalTop = posterRef.value.style.top;
+      const originalLeft = posterRef.value.style.left;
+      const originalZIndex = posterRef.value.style.zIndex;
 
+      posterRef.value.style.position = 'fixed';
+      posterRef.value.style.top = '0px';
+      posterRef.value.style.left = '0px';
+      posterRef.value.style.zIndex = '-9999'; // 放在最底层，用户无感知
+
+      // 稍微等待 DOM 和 Echarts 渲染更新
+      await new Promise(resolve => setTimeout(resolve, 300));
+
+      const rect = posterRef.value.getBoundingClientRect();
       const canvas = await html2canvas(posterRef.value, {
         useCORS: true,
-        scale: 3, // 提高至 3 倍图，保证字体和二维码极度清晰
-        backgroundColor: '#F3F2ED',
-        logging: false
+        scale: 3,
+        backgroundColor: '#FFFFFF', 
+        logging: false,
+        // 基于 viewport rect + window scroll，在全局 document 坐标系中精准截取，彻底斩断所有白边与错位
+        x: rect.left + window.scrollX,
+        y: rect.top + window.scrollY,
+        width: rect.width,
+        height: rect.height,
+        scrollX: 0,
+        scrollY: 0,
+        windowWidth: 375, // Lock the capture window width
       });
 
-      const imgDataUrl = canvas.toDataURL('image/png');
+      // 恢复原状
+      posterRef.value.style.position = originalPosition;
+      posterRef.value.style.top = originalTop;
+      posterRef.value.style.left = originalLeft;
+      posterRef.value.style.zIndex = originalZIndex;
 
-      // 3. 将生成的图片存入局部状态，DOM 会自动替换为 <img> 标签
+      const imgDataUrl = canvas.toDataURL('image/png');
       cachedPosterImage.value = imgDataUrl;
 
       return imgDataUrl;
@@ -253,7 +376,6 @@ defineExpose({
 </script>
 
 <style scoped>
-/* 包装器 */
 .poster-wrapper {
   width: 375px;
   background-color: transparent;
@@ -261,195 +383,171 @@ defineExpose({
   justify-content: center;
 }
 
-/* 最终图片展示（供长按保存） */
 .final-poster-image {
   width: 100%;
   height: auto;
-  border-radius: 12px;
-  box-shadow: 0 15px 35px rgba(0,0,0,0.15);
+  border-radius: 16px;
+  box-shadow: 0 20px 40px rgba(0,0,0,0.15);
   display: block;
 }
 
-/* 海报 DOM 结构 */
 .poster-container {
   width: 375px;
-  background: linear-gradient(135deg, #F9F8F5 0%, #EFEEDB 100%);
-  padding: 30px;
+  /* 融合微光点缀直接到背景渐变中，彻底去除任何绝对定位的溢出元素，杜绝画布高度意外膨胀 */
+  background: radial-gradient(circle at 100% 0%, rgba(10,132,255,0.06) 0%, rgba(255,255,255,0) 55%),
+              linear-gradient(135deg, #FFFFFF 0%, #F4F5F7 100%);
+  position: relative;
+  overflow: hidden;
+  padding: 35px 25px 25px 25px;
   box-sizing: border-box;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-  color: #334030;
+  color: #1D1D1F;
+  display: flex;
+  flex-direction: column;
+}
+
+.poster-container > * {
+  position: relative;
+  z-index: 1;
 }
 
 .poster-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 30px;
-  border-bottom: 1px solid rgba(92, 110, 88, 0.15);
-  padding-bottom: 15px;
+  margin-bottom: 20px; 
 }
 
-.brand-badge {
+.brand-badge { display: flex; flex-direction: column; align-items: flex-start; }
+.brand-cn { font-size: 1.1rem; font-weight: 800; color: #1D1D1F;}
+.brand-en { font-size: 0.55rem; font-weight: 700; color: #86868B; letter-spacing: 1px;}
+
+.user-info { display: flex; flex-direction: column; gap: 2px; align-items: flex-end; }
+.username { font-size: 0.95rem; font-weight: 700; color: #1D1D1F; }
+.rider-title { 
+  font-size: 0.65rem; color: var(--primary-color); font-weight: 600; 
+  background: rgba(10,132,255,0.08);
+  padding: 2px 6px; border-radius: 4px;
+}
+
+.poster-body {
   display: flex;
   flex-direction: column;
-}
-.brand-cn { font-size: 1.4rem; font-weight: 800; color: #5C6E58;}
-.brand-en { font-size: 0.65rem; font-weight: 600; color: #D4AF37; letter-spacing: 1px;}
-
-.user-meta {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-.user-info {
-  text-align: right;
-  display: flex;
-  flex-direction: column;
-}
-.username { font-size: 0.9rem; font-weight: 700; color: #334030;}
-.report-date { font-size: 0.65rem; color: #787673;}
-
-.avatar-circle {
-  width: 36px;
-  height: 36px;
-  border-radius: 50%;
-  background-color: #5C6E58;
-  color: #fff;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: bold;
-  font-size: 1.1rem;
-}
-
-/* 分数与图表区 */
-.score-card {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 30px;
-}
-
-.score-info {
   flex: 1;
 }
-.score-label {
-  font-size: 0.7rem;
-  letter-spacing: 2px;
-  color: #787673;
-  margin: 0 0 5px 0;
-  font-weight: 600;
-}
-.fitting-score {
-  font-size: 4.5rem;
-  font-weight: 900;
-  color: #D4AF37;
-  margin: 0;
-  line-height: 1;
-  text-shadow: 2px 2px 0px rgba(212, 175, 55, 0.2);
-}
 
-.radar-chart-mini {
-  width: 140px;
-  height: 140px;
-}
-
-/* 硬核数据矩阵 */
-.metrics-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 15px;
-  margin-bottom: 30px;
-}
-
-.metric-item {
-  background: #FFF;
-  padding: 12px;
-  border-radius: 8px;
-  box-shadow: 0 4px 10px rgba(0,0,0,0.03);
+/* 重新设计的勋章分数 */
+.score-badge-section {
   display: flex;
-  flex-direction: column;
-  border-left: 3px solid #5C6E58;
-}
-
-.m-label {
-  font-size: 0.65rem;
-  color: #787673;
-  margin-bottom: 4px;
-}
-.m-value {
-  font-size: 1.2rem;
-  font-weight: 800;
-  color: #334030;
-}
-.m-value small {
-  font-size: 0.6rem;
-  font-weight: normal;
-  color: #999;
-}
-
-/* 专家诊断 */
-.verdict-section {
-  position: relative;
-  background: rgba(212, 175, 55, 0.08);
-  padding: 20px 20px 20px 40px;
-  border-radius: 8px;
-  margin-bottom: 40px;
-}
-.quote-icon {
-  position: absolute;
-  top: 15px;
-  left: 12px;
-  opacity: 0.5;
-}
-.verdict-text {
-  font-size: 0.85rem;
-  line-height: 1.6;
-  margin: 0;
-  color: #5C6E58;
-  font-weight: 500;
-}
-
-/* 底部 */
-.poster-footer {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-end;
-}
-
-.slogan {
-  font-size: 0.9rem;
-  font-weight: 800;
-  color: #334030;
-  margin: 0 0 6px 0;
-}
-.sub-slogan {
-  font-size: 0.6rem;
-  color: #787673;
-  margin: 0;
-}
-
-.qr-code-section {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 8px;
-}
-
-.qr-mock {
-  width: 55px;
-  height: 55px;
-  background: #fff;
-  border: 1px solid #ddd;
-  display: flex;
-  align-items: center;
   justify-content: center;
-  font-size: 10px;
-  color: #999;
+  margin-bottom: 5px;
+}
+.score-badge {
+  display: inline-flex;
+  align-items: center;
+  background: #FFF;
+  border: 1px solid rgba(0,0,0,0.05);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.03);
+  border-radius: 30px;
+  padding: 4px 16px 4px 6px;
+}
+.badge-label {
+  font-size: 0.65rem;
+  color: #86868B;
+  font-weight: 600;
+  background: #F4F5F7;
+  padding: 4px 10px;
+  border-radius: 20px;
+  margin-right: 10px;
+}
+.badge-value-wrapper {
+  display: flex;
+  align-items: baseline;
+}
+.badge-val {
+  font-size: 1.4rem;
+  font-weight: 900;
+  color: #1D1D1F;
+}
+.badge-unit {
+  font-size: 0.7rem;
+  color: #86868B;
+  margin-left: 2px;
+  font-weight: bold;
 }
 
-.qr-text {
-  font-size: 0.55rem;
-  color: #787673;
+.chart-section {
+  width: 100%;
+  height: 250px;
+  margin-bottom: 5px;
+  position: relative;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+.radar-chart {
+  width: 100%; 
+  height: 100%;
+}
+
+.conclusion-section {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  margin-bottom: 25px;
+}
+
+.aha-moment {
+  display: flex; flex-direction: column; gap: 10px;
+}
+
+.aha-card {
+  padding: 14px 16px;
+  border-radius: 12px;
+  background: #FFF;
+  border: 1px solid rgba(0,0,0,0.04);
+  box-shadow: 0 2px 10px rgba(0,0,0,0.02);
+}
+.aha-card.danger {
+  background: #FFF5F5;
+  border-left: 3px solid #FF3B30;
+}
+.aha-card.info {
+  background: #F0F8FF;
+  border-left: 3px solid var(--primary-color);
+}
+
+.aha-icon {
+  font-size: 0.75rem; font-weight: 800; margin-bottom: 6px; letter-spacing: 0.5px;
+}
+.aha-card.danger .aha-icon { color: #FF3B30; }
+.aha-card.info .aha-icon { color: var(--primary-color); }
+
+.aha-text {
+  font-size: 0.8rem; line-height: 1.6; margin: 0; color: #48484A; font-weight: 500;
+}
+
+/* Footer */
+.poster-footer { 
+  display: flex; justify-content: space-between; align-items: center; 
+  margin-top: auto;
+  padding-top: 20px;
+  border-top: 1px solid rgba(0,0,0,0.05);
+}
+.footer-left {
+  display: flex; flex-direction: column; gap: 6px;
+}
+.slogan { 
+  font-size: 0.85rem; font-weight: 800; color: #1D1D1F; margin: 0; 
+}
+.sub-slogan { 
+  font-size: 0.6rem; color: var(--primary-color); margin: 0; font-weight: 600;
+}
+.qr-code-section {
+  padding: 4px;
+  background: #FFF;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+  display: flex;
 }
 </style>

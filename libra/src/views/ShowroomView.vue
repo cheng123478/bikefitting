@@ -932,6 +932,7 @@ onUnmounted(() => {
   background: rgba(255, 255, 255, 0.2);
   border-radius: 30px;
   backdrop-filter: blur(4px);
+  cursor: pointer;
 }
 
 /* 分页组件样式 */

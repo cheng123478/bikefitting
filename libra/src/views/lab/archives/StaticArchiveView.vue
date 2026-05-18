@@ -64,61 +64,7 @@
 
         <!-- 右侧：详情面板 (Details Panel) -->
         <main class="detail-column fade-up delay-2">
-          <div v-if="selectedRecord" class="detail-card glass-card">
-
-              <div class="dh-right">
-                <h3>历史基准详情</h3>
-                <!-- 痛点标签 -->
-                <div class="pain-tags" v-if="selectedRecord.painLabels && selectedRecord.painLabels.length > 0">
-                  <span class="pain-tag" v-for="label in selectedRecord.painLabels" :key="label">
-                    [{{ label }}]
-                  </span>
-                </div>
-                <!-- 再次强调车辆目标 -->
-                <div class="dh-meta">
-                  <span class="target-bike-label">
-                    Target: <strong class="text-primary">{{ selectedRecord.bikeName || '通用模型' }}</strong>
-                  </span>
-                  <span v-if="selectedRecord.bikeRemark" class="remark-badge">{{ selectedRecord.bikeRemark }}</span>
-                  <button class="btn-share" @click="handleShare">
-                    <i class="fas fa-share-alt"></i> 分享报表
-                  </button>
-                </div>
-              </div>
-              <span class="detail-date">{{ formatDate(selectedRecord.fittingTime) }}</span>
-
-            <!-- 黄金坐标 (针对该车型的理想值) -->
-            <div class="golden-grid">
-              <div class="data-box">
-                <span class="label">理想座高</span>
-                <span class="val">{{ selectedRecord.recSeatHeight || '--' }}<small>mm</small></span>
-              </div>
-              <div class="data-box">
-                <span class="label">有效前伸 (Reach+)</span>
-                <span class="val highlight">{{ selectedRecord.recReachPlus || '--' }}<small>mm</small></span>
-              </div>
-              <div class="data-box">
-                <span class="label">车把落差 (Drop)</span>
-                <span class="val">{{ selectedRecord.recHandlebarDrop || '--' }}<small>mm</small></span>
-              </div>
-              <div class="data-box">
-                <span class="label">把横宽度建议</span>
-                <span class="val">{{ selectedRecord.recHandlebarWidth || '--' }}<small>mm</small></span>
-              </div>
-            </div>
-
-            <!-- 当时的诊断明细 -->
-            <div class="historical-diagnostics" v-if="selectedRecord.details && selectedRecord.details.length">
-              <h4 class="diag-title"><i class="fas fa-file-medical-alt"></i> 当时的生物力学诊断</h4>
-              <div class="diag-list">
-                <div v-for="(detail, idx) in selectedRecord.details" :key="idx" class="diag-item">
-                  <div class="diag-part">【{{ detail.part }}】 {{ detail.bodyFeature }}</div>
-                  <div class="diag-logic">{{ detail.adjustmentLogic }}</div>
-                </div>
-              </div>
-            </div>
-
-          </div>
+          <StaticArchiveDetail v-if="selectedRecord" :record="selectedRecord" @share="handleShare" />
 
           <!-- 无选中状态 -->
           <div v-else class="empty-panel glass-card">
@@ -153,6 +99,20 @@
       </div>
     </Transition>
 
+    
+    <!-- Mobile Bottom Drawer -->
+    <Transition name="drawer-slide">
+      <div v-if="isMobileDrawerOpen && selectedRecord" class="mobile-drawer-overlay" @click.self="closeDrawer">
+        <div class="mobile-drawer-content">
+           <div class="drawer-handle" @click="closeDrawer"></div>
+           <button class="drawer-close-btn" @click="closeDrawer">&times;</button>
+           <div class="drawer-scroll-area">
+             <StaticArchiveDetail :record="selectedRecord" @share="handleShare" />
+           </div>
+        </div>
+      </div>
+    </Transition>
+
     <!-- Hidden Poster for Capture -->
     <div class="hidden-poster">
       <SharingPoster v-if="selectedRecord" ref="posterRef" :result="selectedRecord" />
@@ -163,11 +123,14 @@
 <script setup>
 import { ref, onMounted, nextTick } from 'vue';
 import {getFittingResultHistory} from '@/api/staticFitting.js';
+import StaticArchiveDetail from './components/StaticArchiveDetail.vue';
 import SharingPoster from '@/views/lab/components/SharingPoster.vue';
 
 const loading = ref(true);
 const historyList = ref([]);
 const selectedRecord = ref(null);
+const isMobileDrawerOpen = ref(false);
+const closeDrawer = () => { isMobileDrawerOpen.value = false; };
 
 // Sharing logic
 const posterRef = ref(null);
@@ -191,6 +154,7 @@ const formatDate = (timeStr) => {
 
 const selectRecord = (record) => {
   selectedRecord.value = record;
+  if (window.innerWidth <= 900) { isMobileDrawerOpen.value = true; }
 };
 
 const handleShare = async () => {
@@ -561,5 +525,47 @@ onMounted(() => {
 .modal-fade-enter-from, .modal-fade-leave-to {
   opacity: 0;
   transform: scale(0.95);
+}
+
+/* --- Drawer Mobile Styles --- */
+.mobile-drawer-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.5);
+  z-index: 9999;
+  display: flex;
+  align-items: flex-end;
+}
+.mobile-drawer-content {
+  width: 100%;
+  background: #fff;
+  border-radius: 20px 20px 0 0;
+  padding: 20px;
+  position: relative;
+  max-height: 85vh;
+  display: flex;
+  flex-direction: column;
+}
+.drawer-handle {
+  width: 40px; height: 5px; background: #ddd; border-radius: 3px; margin: 0 auto 15px;
+}
+.drawer-close-btn {
+  position: absolute; right: 20px; top: 15px; background: none; border: none; font-size: 1.5rem; color: #999;
+}
+.drawer-scroll-area {
+  overflow-y: auto;
+  flex: 1;
+}
+
+.drawer-slide-enter-active, .drawer-slide-leave-active {
+  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.3s;
+}
+.drawer-slide-enter-from, .drawer-slide-leave-to {
+  transform: translateY(100%);
+  opacity: 0;
+}
+
+@media (max-width: 900px) {
+  .detail-column { display: none !important; }
 }
 </style>
