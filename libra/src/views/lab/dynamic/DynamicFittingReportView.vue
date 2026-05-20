@@ -45,8 +45,8 @@
             </div>
             
             <!-- Overall Share Button -->
-            <button class="btn btn-outline" style="margin-top:20px" @click="shareReport">
-              <i class="fas fa-share-alt"></i> 分享完整报告
+            <button class="btn btn-outline" style="margin-top:20px" @click="handleShare">
+              <i class="fas fa-share-alt"></i> 生成极客分享海报
             </button>
           </div>
         </section>
@@ -92,8 +92,8 @@
                 </div>
               </div>
 
-              <!-- Snapshots & Evidence (暂时隐藏) -->
-              <!-- 
+              <!-- Snapshots & Evidence -->
+              
               <div class="evidence-block" v-if="snapshotsMap[viewType]?.length">
                 <h4 class="sub-label"><i class="fas fa-camera"></i> 捕捉帧 (Evidence)</h4>
                 <div class="snapshot-grid">
@@ -106,7 +106,7 @@
                   </div>
                 </div>
               </div>
-              -->
+             
 
               <!-- Pro Chart & Skeleton Animation -->
               <div class="pro-analysis-row">
@@ -152,6 +152,36 @@
       </div>
 
     </div>
+
+    <!-- 5. Sharing Preview Modal -->
+    <Transition name="modal-fade">
+      <div v-if="showSharePreview" class="share-preview-overlay" @click.self="showSharePreview = false">
+        <div class="preview-card glass-card">
+          <div class="preview-header">
+            <h4>海报预览</h4>
+            <button @click="showSharePreview = false">&times;</button>
+          </div>
+          <div class="preview-content">
+            <img v-if="posterImage" :src="posterImage" alt="Poster Image" class="generated-poster">
+            <div v-else class="loading-state">
+              <i class="fas fa-spinner fa-spin"></i> 正在生成高阶海报...
+            </div>
+          </div>
+          <div class="preview-footer">
+            <button class="btn btn-outline" @click="downloadPoster" :disabled="!posterImage">
+              <i class="fas fa-download"></i> 保存到相册
+            </button>
+            <p class="share-hint">提示：长按图片可直接保存或发送给朋友</p>
+          </div>
+        </div>
+      </div>
+    </Transition>
+
+    <!-- Hidden Poster for Capture -->
+    <div class="hidden-poster" style="position: absolute; top: 0; left: -9999px; pointer-events: none;">
+      <DynamicSharingPoster v-if="report" ref="posterRef" :report="report" :snapshotsMap="snapshotsMap" />
+    </div>
+
   </div>
 </template>
 
@@ -167,6 +197,7 @@ import { PROJECT_CONFIG } from '@/config/constants';
 
 import DynamicSkeletonPlayer from './components/DynamicSkeletonPlayer.vue';
 import PedalingAnalysisSection from './components/PedalingAnalysisSection.vue';
+import DynamicSharingPoster from '../components/DynamicSharingPoster.vue';
 
 const route = useRoute();
 const sessionId = route.query.sessionId;
@@ -431,26 +462,39 @@ const renderEchart = (viewType) => {
 };
 
 // Handle Overall Share (generating an image of the report)
-const shareReport = async () => {
-  try {
-    const reportDom = document.querySelector('.report-container');
-    if (!reportDom) return;
-    showToast('正在生成报告长图，请稍候...','info');
-    const canvas = await html2canvas(reportDom, {
-      scale: 2,
-      useCORS: true,
-      backgroundColor: '#ffffff'
-    });
-    const url = canvas.toDataURL('image/jpeg', 0.9);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `FittingReport_${new Date().getTime()}.jpg`;
-    a.click();
-    showToast('报告生成成功','success');
-  } catch(e) {
-    console.error(e);
-    showToast('生成分享图片失败','error');
+const showSharePreview = ref(false);
+const posterImage = ref(null);
+const posterRef = ref(null);
+
+const handleShare = async () => {
+  showSharePreview.value = true;
+  posterImage.value = null; // Reset
+
+  await nextTick();
+
+  if (posterRef.value) {
+    try {
+      showToast('正在生成硬核海报，请稍候...', 'info');
+      // Timeout is used to ensure DOM rendering completes safely
+      setTimeout(async () => {
+        const img = await posterRef.value.generateImage();
+        posterImage.value = img;
+        if (img) showToast('海报生成成功', 'success');
+        else showToast('海报生成失败', 'error');
+      }, 500);
+    } catch (e) {
+      console.error(e);
+      showToast('海报生成发生异常', 'error');
+    }
   }
+};
+
+const downloadPoster = () => {
+  if (!posterImage.value) return;
+  const link = document.createElement('a');
+  link.href = posterImage.value;
+  link.download = `RideTrace_Dynamic_Fitting_${new Date().getTime()}.jpg`;
+  link.click();
 };
 
 const handleResize = () => {
@@ -612,5 +656,90 @@ onUnmounted(() => {
   .level-tag { font-size: 1.1rem; }
   .m-vals { flex-direction: row; }
   .v-group { flex: 1; }
+}
+
+/* Sharing Preview Modal Styles */
+.share-preview-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(43, 42, 41, 0.85); /* Dark overlay */
+  backdrop-filter: blur(10px);
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+.preview-card {
+  width: 100%;
+  max-width: 420px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-shadow: 0 40px 100px rgba(0,0,0,0.5);
+  padding: 0;
+}
+
+.preview-header {
+  padding: 15px 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: var(--border-glass);
+}
+
+.preview-header h4 { margin: 0; font-family: var(--font-serif); font-size: 1.2rem; }
+.preview-header button { background: none; border: none; font-size: 1.5rem; cursor: pointer; color: var(--text-muted); }
+.preview-header button:hover { color: var(--text-main); }
+
+.preview-content {
+  padding: 20px;
+  background: #F9F9F7;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 400px;
+}
+
+.generated-poster {
+  width: 100%;
+  max-width: 320px;
+  height: auto;
+  border-radius: 12px;
+  box-shadow: var(--shadow-md);
+  display: block;
+}
+
+.loading-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 15px;
+  color: var(--primary-color);
+  font-family: var(--font-serif);
+  font-size: 1.1rem;
+}
+
+.preview-footer {
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  background: var(--bg-surface);
+}
+
+.share-hint {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  margin: 0;
+}
+
+.modal-fade-enter-active, .modal-fade-leave-active {
+  transition: opacity 0.3s ease;
+}
+.modal-fade-enter-from, .modal-fade-leave-to {
+  opacity: 0;
 }
 </style>

@@ -183,7 +183,7 @@
 <script setup>
 import {computed, ref, nextTick} from 'vue';
 import { PROJECT_CONFIG } from '@/config/constants';
-import SharingPoster from './SharingPoster.vue';
+import SharingPoster from './StaticSharingPoster.vue';
 
 const props = defineProps({
   visible: Boolean,

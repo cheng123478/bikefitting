@@ -124,7 +124,7 @@
 import { ref, onMounted, nextTick } from 'vue';
 import {getFittingResultHistory} from '@/api/staticFitting.js';
 import StaticArchiveDetail from './components/StaticArchiveDetail.vue';
-import SharingPoster from '@/views/lab/components/SharingPoster.vue';
+import SharingPoster from '@/views/lab/components/StaticSharingPoster.vue';
 
 const loading = ref(true);
 const historyList = ref([]);
