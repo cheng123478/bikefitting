@@ -4,6 +4,7 @@ import com.starrysky.aries.entity.User;
 import com.starrysky.aries.entity.UserBody;
 import com.starrysky.aries.exception.BizException;
 import com.starrysky.aries.user.repository.UserRepository;
+import com.starrysky.aries.user.service.UserService;
 import com.starrysky.aries.userbody.repository.UserBodyRepository;
 import com.starrysky.aries.userbody.schema.UserBodyComparisonVO;
 import com.starrysky.aries.userbody.schema.UserBodyDTO;
@@ -37,6 +38,9 @@ public class UserBodyService {
     @Resource
     private UserRepository userRepository;
 
+    @Resource
+    private UserService userService;
+
     /**
      * 保存新的身体档案
      * 采用增量保存策略，不覆盖旧记录，以便追踪用户的身体机能进化（如柔韧性提升）。
@@ -65,6 +69,7 @@ public class UserBodyService {
 
         if (userUpdated) {
             userRepository.save(managedUser);
+            userService.updateRedisCache(managedUser.getId());
             log.info("已静默更新用户生日或性别：User={}", managedUser.getId());
         }
 

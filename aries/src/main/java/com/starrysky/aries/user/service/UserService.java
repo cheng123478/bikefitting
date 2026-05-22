@@ -25,6 +25,9 @@ import org.springframework.web.context.request.RequestAttributes;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
 
+import com.starrysky.aries.redis.RedisConstant;
+import com.starrysky.aries.redis.RedisUtil;
+
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
@@ -43,6 +46,8 @@ import java.time.temporal.ChronoUnit;
 public class UserService {
     @Resource
     private UserRepository userRepository;
+    @Resource
+    private RedisUtil redisUtil;
     @Resource
     private UserMembershipRepository userMembershipRepository;
     @Resource
@@ -316,8 +321,9 @@ public class UserService {
      *
      * @param id            用户id
      * @param profileUpdate 用户信息
+     * @return 修改后的用户对象
      */
-    public void editUser(Long id, UserRequest.ProfileUpdate profileUpdate) {
+    public User editUser(Long id, UserRequest.ProfileUpdate profileUpdate) {
         User user = userRepository.findById(id).orElseThrow(() -> new BizException("未检索到用户"));
         if (StringUtils.hasText(profileUpdate.name())) {
             user.setName(profileUpdate.name());
@@ -334,19 +340,20 @@ public class UserService {
         if (StringUtils.hasText(profileUpdate.introduction())) {
             user.setIntroduction(profileUpdate.introduction());
         }
-        userRepository.save(user);
+        return userRepository.save(user);
     }
 
     /**
      * 修改用户头像
      *
-     * @param phone  手机号
+     * @param id     用户id
      * @param avatar 头像
+     * @return 修改后的用户对象
      */
-    public void editAvatar(String phone, String avatar) {
-        User user = userRepository.findByPhone(phone);
+    public User editAvatar(Long id, String avatar) {
+        User user = userRepository.findById(id).orElseThrow(() -> new BizException("未检索到用户"));
         user.setAvatar(avatar);
-        userRepository.save(user);
+        return userRepository.save(user);
     }
 
     /**
@@ -372,6 +379,27 @@ public class UserService {
         userDb.setIsDeleted(true);
         userDb.setDeleteTime(LocalDateTime.now());
         userRepository.save(userDb);
+    }
+
+    /**
+     * 同步更新 Redis 中的用户缓存 (主要用于修改个人信息/头像后同步 Session)
+     *
+     * @param userId 用户ID
+     */
+    public void updateRedisCache(Long userId) {
+        try {
+            User freshUser = userRepository.findById(userId).orElse(null);
+            if (freshUser != null) {
+                freshUser.setPassword(null); // 安全性：脱敏密码
+                String redisKey = RedisConstant.AUTHENTICATION + freshUser.getId();
+                if (Boolean.TRUE.equals(redisUtil.hasKey(redisKey))) {
+                    redisUtil.getHashOperations().put(redisKey, "principal", freshUser);
+                    log.info("同步 Redis 用户缓存成功 | 用户ID: {}", freshUser.getId());
+                }
+            }
+        } catch (Exception e) {
+            log.error("同步 Redis 用户缓存失败", e);
+        }
     }
 
 }
