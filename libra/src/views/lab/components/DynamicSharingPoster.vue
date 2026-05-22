@@ -452,8 +452,10 @@ defineExpose({
         scale: 3.0, // scale for high density exporting
         backgroundColor: '#FFFFFF',
         logging: false,
-        x: rect.left + window.scrollX,
-        y: rect.top + window.scrollY,
+        // 由于设定了 position: fixed 且 top: 0, left: 0，元素在克隆画布中的绝对坐标为 (0, 0)
+        // 直接从 (0, 0) 截取，避免因页面滚动 scrollY 导致的海报顶部被截断和底部空白问题
+        x: 0,
+        y: 0,
         width: rect.width,
         height: rect.height,
         scrollX: 0,

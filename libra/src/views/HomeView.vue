@@ -360,15 +360,15 @@ onUnmounted(() => {
 .bike-specs-bubble { position: absolute; top: 15px; left: 15px; background: rgba(255,255,255,0.9); padding: 4px 10px; border-radius: 4px; font-size: 0.65rem; font-weight: 800; text-transform: uppercase; color: var(--primary-color); }
 
 .bike-meta { padding: 20px 0 0; }
-.brand { font-size: 0.65rem; font-weight: 800; color: var(--primary-light); text-transform: uppercase; letter-spacing: 1px; }
+.brand { font-size: 0.65rem; font-weight: 800; color: var(--primary-light); text-transform: uppercase; letter-spacing: 2px; }
 .model { font-size: 1rem; color: var(--text-main); margin-top: 4px; font-weight: 700; }
 .price { font-size: 0.85rem; color: var(--text-muted); font-weight: 300; margin-top: 4px; }
 
 /* --- 3. Aries Console (Laboratory) --- */
 .console-layout { display: grid; grid-template-columns: 2fr 1fr; grid-template-rows: auto auto; gap: 24px; }
 
-.glass-panel { background: rgba(255, 255, 255, 0.6); border: 1px solid rgba(0, 0, 0, 0.05); border-radius: 12px; padding: 30px; transition: 0.4s; cursor: pointer; overflow: hidden; position: relative; box-shadow: var(--shadow-sm); }
-.glass-panel:hover { background: rgba(255, 255, 255, 0.95); border-color: var(--primary-light); box-shadow: var(--shadow-md); }
+.glass-panel { background: rgba(255, 255, 255, 0.6); border: 1px solid rgba(92, 110, 88, 0.15); border-radius: 12px; padding: 30px; transition: 0.4s; cursor: pointer; overflow: hidden; position: relative; box-shadow: var(--shadow-sm); }
+.glass-panel:hover { background: rgba(255, 255, 255, 0.95); border-color: rgba(92, 110, 88, 0.3); box-shadow: var(--shadow-md); }
 
 .console-main { grid-row: span 1; display: flex; flex-direction: column; justify-content: space-between; min-height: 320px; }
 .panel-header { display: flex; justify-content: space-between; color: var(--text-muted); font-size: 0.7rem; font-weight: 800; letter-spacing: 2px; }
@@ -382,8 +382,7 @@ onUnmounted(() => {
 .console-side { display: flex; flex-direction: column; gap: 24px; }
 .console-side .glass-panel { flex: 1; display: flex; align-items: center; gap: 20px; padding: 20px 25px; }
 
-.panel-icon { width: 48px; height: 48px; background: rgba(92, 110, 88, 0.05); color: var(--primary-color); border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 1.2rem; transition: 0.3s; }
-.glass-panel:hover .panel-icon { color: white; background: var(--primary-color); }
+.panel-icon { width: 48px; height: 48px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 1.2rem; }
 
 .panel-title-sm { color: var(--text-main); font-size: 1.05rem; margin-bottom: 2px; font-weight: 700; }
 .panel-desc-sm { color: var(--text-muted); font-size: 0.75rem; }

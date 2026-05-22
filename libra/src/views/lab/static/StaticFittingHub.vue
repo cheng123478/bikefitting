@@ -222,8 +222,8 @@ const navigateToReport = () => {
   position: relative;
   padding: 30px;
   border-radius: 16px;
-  background: rgba(255,255,255,0.7);
-  border: 1px solid rgba(255,255,255,0.4);
+  background: rgba(255, 255, 255, 0.85);
+  border: var(--border-glass);
   display: flex;
   gap: 25px;
   text-align: left;
@@ -240,8 +240,6 @@ const navigateToReport = () => {
 
 .card-icon {
   width: 50px; height: 50px;
-  background: rgba(92, 110, 88, 0.1);
-  color: var(--primary-color);
   border-radius: 12px;
   display: flex; align-items: center; justify-content: center;
   font-size: 1.5rem;
@@ -287,7 +285,7 @@ const navigateToReport = () => {
   padding: 12px 16px;
   padding-right: 45px; /* 为绝对定位的打勾留出空间 */
   background: rgba(255,255,255,0.5);
-  border: 1px solid #eee;
+  border: 1px solid rgba(92, 110, 88, 0.12);
   border-radius: 12px;
   cursor: pointer;
   transition: all 0.3s;

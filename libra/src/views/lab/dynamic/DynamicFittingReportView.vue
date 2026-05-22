@@ -562,7 +562,7 @@ onUnmounted(() => {
 .status-dot.adjust { background: #ff4d4f; }
 
 .metric-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 20px; margin-bottom: 30px; }
-.m-card { padding: 20px; border-radius: 12px; border: 1px solid rgba(0,0,0,0.05); background: var(--bg-surface); }
+.m-card { padding: 20px; border-radius: 12px; border: 1px solid rgba(92, 110, 88, 0.15); background: var(--bg-surface); }
 .m-card.ADJUST { background: rgba(212, 175, 55, 0.03); border-left: 4px solid var(--accent-gold); }
 .m-card.WARNING { background: rgba(255, 77, 79, 0.03); border-left: 4px solid #ff4d4f; }
 .m-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
@@ -580,14 +580,14 @@ onUnmounted(() => {
 .evidence-block { margin-bottom: 40px; }
 .sub-label { font-size: 1rem; color: var(--text-main); margin-bottom: 15px; }
 .snapshot-grid { display: flex; gap: 15px; overflow-x: auto; padding-bottom: 10px; }
-.snap-card { width: 200px; flex-shrink: 0; background: var(--bg-surface); padding: 8px; border-radius: 10px; border: 1px solid rgba(0,0,0,0.05); }
+.snap-card { width: 200px; flex-shrink: 0; background: var(--bg-surface); padding: 8px; border-radius: 10px; border: 1px solid rgba(92, 110, 88, 0.12); }
 .snap-card img { width: 100%; aspect-ratio: 4/3; object-fit: cover; border-radius: 6px; margin-bottom: 8px; }
 .snap-info { display: flex; justify-content: space-between; align-items: center; padding: 0 4px; }
 .snap-info .label { font-size: 0.75rem; color: var(--text-muted); font-weight: bold;}
 .snap-info .metric { font-weight: 700; color: var(--accent-gold); font-size: 0.85rem; }
 
 .pro-analysis-row { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; align-items: stretch;}
-.sub-glass-card { background: var(--bg-surface); border: 1px solid rgba(0,0,0,0.05); border-radius: 12px; padding: 20px; display: flex; align-items: center; justify-content: center;}
+.sub-glass-card { background: var(--bg-surface); border: 1px solid rgba(92, 110, 88, 0.15); border-radius: 12px; padding: 20px; display: flex; align-items: center; justify-content: center;}
 .echarts-dom { width: 100%; height: 350px; }
 
 /* Footer */

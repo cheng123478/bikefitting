@@ -395,9 +395,9 @@ const getViewDesc = (v) => {
 
 .view-card {
   position: relative;
-  background: rgba(255,255,255,0.8);
+  background: rgba(255, 255, 255, 0.85);
   backdrop-filter: blur(10px);
-  border: 1px solid rgba(255,255,255,0.6);
+  border: 1px solid rgba(92, 110, 88, 0.15);
   border-radius: 20px;
   box-shadow: 0 10px 40px rgba(0,0,0,0.04);
   transition: all 0.5s var(--ease-out-expo);
@@ -445,7 +445,7 @@ const getViewDesc = (v) => {
   gap: 15px;
   padding: 14px 18px;
   background: rgba(255,255,255,0.5);
-  border: 1px solid rgba(0,0,0,0.05);
+  border: 1px solid rgba(92, 110, 88, 0.12);
   border-radius: 14px;
   cursor: pointer;
   transition: all 0.3s;
@@ -498,8 +498,6 @@ const getViewDesc = (v) => {
 
 .card-icon {
   width: 50px; height: 50px;
-  background: var(--bg-surface);
-  color: var(--primary-color);
   border-radius: 12px;
   display: flex; align-items: center; justify-content: center;
   font-size: 1.4rem;

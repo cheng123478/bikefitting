@@ -229,11 +229,13 @@ onMounted(() => {
 }
 
 .page-subtitle {
-  font-size: 1rem;
+  font-size: 0.75rem;
   color: var(--text-muted);
   margin: 0;
   font-family: var(--font-serif);
   font-style: italic;
+  letter-spacing: 2px;
+  text-transform: uppercase;
 }
 
 .header-actions {
@@ -301,7 +303,7 @@ onMounted(() => {
 .add-card-placeholder {
   height: 100%; min-height: 240px;
   display: flex; flex-direction: column; align-items: center; justify-content: center;
-  border: 2px dashed #DDD; background: transparent; cursor: pointer;
+  border: 2px dashed rgba(92, 110, 88, 0.25); background: transparent; cursor: pointer;
   transition: all 0.4s var(--ease-out-expo); color: var(--text-muted);
 }
 .add-card-placeholder:hover {

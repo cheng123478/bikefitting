@@ -340,11 +340,13 @@ onUnmounted(() => { window.removeEventListener('resize', () => myChart?.resize()
 }
 
 .page-subtitle {
-  font-size: 1rem;
+  font-size: 0.75rem;
   color: var(--text-muted);
   margin: 0;
   font-family: var(--font-serif);
   font-style: italic;
+  letter-spacing: 2px;
+  text-transform: uppercase;
 }
 
 .header-actions { display: flex; gap: 15px; }
@@ -354,7 +356,7 @@ onUnmounted(() => { window.removeEventListener('resize', () => myChart?.resize()
 .count-info strong { color: var(--primary-color); font-size: 1.2rem; margin: 0 4px; }
 .hint-text { font-size: 0.85rem; color: var(--text-muted); opacity: 0.7; }
 
-.chart-section { padding: 30px; margin-bottom: 40px; border: none; background: white; border-radius: var(--radius-md); }
+.chart-section { padding: 30px; margin-bottom: 40px; border: 1px solid rgba(92, 110, 88, 0.15); background: rgba(255, 255, 255, 0.85); backdrop-filter: blur(10px); border-radius: var(--radius-md); }
 .main-line-chart { height: 280px; width: 100%; }
 .chart-inner-header { display: flex; justify-content: space-between; margin-bottom: 20px; }
 .chart-title { font-family: var(--font-serif); color: var(--text-main); font-size: 1.1rem; }
@@ -363,7 +365,7 @@ onUnmounted(() => { window.removeEventListener('resize', () => myChart?.resize()
 .l-item.stable::before { content: ''; width: 8px; height: 8px; background: var(--secondary-color); border-radius: 50%; }
 
 .archives-timeline { display: flex; flex-direction: column; gap: 16px; }
-.archive-card { display: flex; align-items: center; padding: 20px 30px; cursor: pointer; transition: all 0.4s var(--ease-out-expo); border: 1px solid transparent; border-radius: var(--radius-md); background: rgba(255,255,255,0.7); }
+.archive-card { display: flex; align-items: center; padding: 20px 30px; cursor: pointer; transition: all 0.4s var(--ease-out-expo); border: 1px solid rgba(92, 110, 88, 0.12); border-radius: var(--radius-md); background: rgba(255, 255, 255, 0.85); }
 .archive-card:hover { transform: translateX(8px); background: white; box-shadow: var(--shadow-sm); }
 .archive-card.is-selected { border-color: var(--primary-color); background: rgba(92, 110, 88, 0.05); }
 

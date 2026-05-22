@@ -8,7 +8,7 @@ import { showToast } from '@/utils/toast.js';
 import router from '@/router/index.js';
 import { BIZ_CODE, HTTP_STATUS_MSG } from '@/config/constants';
 
-const BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
+const BASE_URL = import.meta.env.VITE_API_BASE_URL || '/aries';
 const TIMEOUT = 15000;
 
 // Token 刷新状态

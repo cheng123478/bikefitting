@@ -69,7 +69,7 @@
   --radius-pill: 50px;
 
   /* 边框：极细的白色高光，模拟玻璃边缘 */
-  --border-glass: 1px solid rgba(255, 255, 255, 0.6);
+  --border-glass: 1px solid rgba(92, 110, 88, 0.15);
   --border-subtle: 1px solid rgba(0, 0, 0, 0.05);
 
   /* 阴影：多层弥散阴影，更真实 */
@@ -605,11 +605,52 @@ h3 {
 }
 
 .card-icon {
-  font-size: 3rem;
+  font-size: 1.5rem;
   color: var(--primary-color);
   margin-bottom: var(--space-md);
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   filter: drop-shadow(0 4px 6px rgba(92, 110, 88, 0.1));
+}
+
+/* Premium Icon & Panel Icon Styling */
+.card-icon,
+.panel-icon {
+  position: relative;
+  background: linear-gradient(135deg, rgba(92, 110, 88, 0.08) 0%, rgba(92, 110, 88, 0.03) 100%) !important;
+  border: 1.5px solid rgba(92, 110, 88, 0.1);
+  box-shadow: 
+    inset 0 1px 1px rgba(255, 255, 255, 0.8),
+    0 2px 8px rgba(92, 110, 88, 0.04);
+  transition: all 0.3s cubic-bezier(0.165, 0.84, 0.44, 1);
+}
+
+.card-icon i,
+.panel-icon i {
+  background: linear-gradient(135deg, var(--primary-color) 20%, var(--primary-light) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  filter: drop-shadow(0 2px 3px rgba(92, 110, 88, 0.2));
+  transition: all 0.3s ease;
+}
+
+/* Hover effects */
+.glass-card:hover .card-icon,
+.glass-panel:hover .panel-icon,
+.asset-card:hover .card-icon {
+  transform: scale(1.06);
+  border-color: rgba(92, 110, 88, 0.25);
+  background: linear-gradient(135deg, rgba(92, 110, 88, 0.14) 0%, rgba(92, 110, 88, 0.06) 100%) !important;
+  box-shadow: 
+    inset 0 1px 1px rgba(255, 255, 255, 0.9),
+    0 4px 12px rgba(92, 110, 88, 0.15);
+}
+
+.glass-card:hover .card-icon i,
+.glass-panel:hover .panel-icon i,
+.asset-card:hover .card-icon i {
+  filter: drop-shadow(0 2px 5px rgba(92, 110, 88, 0.35));
 }
 
 .card-title {
