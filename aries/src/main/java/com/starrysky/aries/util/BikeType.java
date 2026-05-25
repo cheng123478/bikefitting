@@ -38,4 +38,13 @@ public enum BikeType {
         this.seatHeightCoefficient = seatHeightCoefficient;
         this.reachCoefficient = reachCoefficient;
     }
+
+    public static BikeType getByCode(int code) {
+        for (BikeType type : BikeType.values()) {
+            if (type.code == code) {
+                return type;
+            }
+        }
+        return ROAD_BIKE; // fallback
+    }
 }

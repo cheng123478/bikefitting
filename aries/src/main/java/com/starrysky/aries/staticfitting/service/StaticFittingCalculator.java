@@ -23,16 +23,20 @@ public class StaticFittingCalculator {
      * @param armLength  手臂长
      * @return 0: 正常, 1: 跨高比例极高, 2: 跨高比例极低, 3: 猿臂比异常
      */
-    public static int validateHumanProportions(Integer spanHeight, Integer height, Integer armLength) {
-        if (spanHeight == null || height == null || height <= 0) return 0;
+    public static int validateHumanProportions(Integer spanHeight, Integer height, Integer wingspan) {
+        if (spanHeight == null || height == null || height <= 0)
+            return 0;
 
         double spanRatio = (double) spanHeight / height;
-        if (spanRatio > FittingConstants.SPAN_HEIGHT_RATIO_MAX) return 1;
-        if (spanRatio < FittingConstants.SPAN_HEIGHT_RATIO_MIN) return 2;
+        if (spanRatio > FittingConstants.SPAN_HEIGHT_RATIO_MAX)
+            return 1;
+        if (spanRatio < FittingConstants.SPAN_HEIGHT_RATIO_MIN)
+            return 2;
 
-        if (armLength != null) {
-            double apeIndex = (double) (armLength * 2) / height;
-            if (apeIndex > FittingConstants.APE_INDEX_MAX || apeIndex < FittingConstants.APE_INDEX_MIN) return 3;
+        if (wingspan != null) {
+            double apeIndex = (double) wingspan / height;
+            if (apeIndex > FittingConstants.APE_INDEX_MAX || apeIndex < FittingConstants.APE_INDEX_MIN)
+                return 3;
         }
         return 0;
     }
@@ -47,16 +51,7 @@ public class StaticFittingCalculator {
      * @return 基础座垫高度
      */
     public static int calcBaseSeatHeight(int spanHeight, int bikeType) {
-        double k;
-        if (bikeType == BikeType.TT_BIKE.code) {
-            k = FittingConstants.TT_LEMOND_K;
-        } else if (bikeType == BikeType.CITY_BIKE.code) {
-            k = FittingConstants.CITY_LEMOND_K;
-        } else if (bikeType == BikeType.ROAD_BIKE.code) {
-            k = FittingConstants.ROAD_LEMOND_K;
-        } else {
-            k = FittingConstants.MTB_LEMOND_K;
-        }
+        double k = BikeType.getByCode(bikeType).seatHeightCoefficient;
         return (int) Math.round(spanHeight * k);
     }
 
@@ -76,6 +71,8 @@ public class StaticFittingCalculator {
             stackK = FittingConstants.TT_STACK_K;
         } else if (bikeType == BikeType.MOUNTAIN_BIKE.code) {
             stackK = FittingConstants.MTB_STACK_K;
+        } else if (bikeType == BikeType.GRAVEL_BIKE.code) {
+            stackK = 0.71; // Gravel stack coefficient
         } else {
             stackK = FittingConstants.ROAD_STACK_K;
         }
@@ -173,7 +170,8 @@ public class StaticFittingCalculator {
      * @return 座高修正值 (mm)，负值代表需要调低座高
      */
     public static int calcTibiaCorrection(int calf, int spanHeight) {
-        if (calf <= 0 || spanHeight <= 0) return 0;
+        if (calf <= 0 || spanHeight <= 0)
+            return 0;
         double ratio = (double) calf / spanHeight;
         return (ratio > 0.52) ? -5 : 0;
     }
@@ -201,6 +199,8 @@ public class StaticFittingCalculator {
             typeFactor = FittingConstants.REACH_PLUS_CITY_FACTOR;
         } else if (bikeType == BikeType.MOUNTAIN_BIKE.code) {
             typeFactor = FittingConstants.REACH_PLUS_MTB_FACTOR;
+        } else if (bikeType == BikeType.GRAVEL_BIKE.code) {
+            typeFactor = 0.98; // Gravel reach factor
         } else {
             typeFactor = FittingConstants.REACH_PLUS_ROAD_FACTOR;
         }
@@ -235,9 +235,11 @@ public class StaticFittingCalculator {
         }
         double drop = height * dropK;
         if (armRaiseAngle > 0 && armRaiseAngle < 155) {
-            if (bikeType != BikeType.CITY_BIKE.code) drop *= 0.7; // Not CITY_BIKE
+            if (bikeType != BikeType.CITY_BIKE.code)
+                drop *= 0.7; // Not CITY_BIKE
         }
-        if (thoracicScore != null && thoracicScore < 60) drop *= 0.85;
+        if (thoracicScore != null && thoracicScore < 60)
+            drop *= 0.85;
         return Math.round(drop * 10.0) / 10.0;
     }
 
@@ -252,4 +254,3 @@ public class StaticFittingCalculator {
         return stemLength * Math.cos(Math.toRadians(Math.abs(stemAngle)));
     }
 }
-
