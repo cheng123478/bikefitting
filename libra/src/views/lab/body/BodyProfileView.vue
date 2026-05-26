@@ -234,6 +234,10 @@
           <!-- 导航按钮 -->
           <div class="lab-actions">
             <button v-if="currentStep > 1" type="button" class="btn btn-outline" @click="currentStep--">上一步</button>
+            <button v-if="hasRecommendState && currentStep < 4" type="button" class="btn btn-outline" @click="goBackToRecommend">
+              <i class="fas fa-arrow-left"></i>
+              <span>返回智能推荐</span>
+            </button>
             <button v-if="currentStep < 4" type="button" class="btn btn-primary" @click="handleNext">继续</button>
             <button v-else type="button" class="btn btn-primary btn-glow" :disabled="loading" @click.stop="submitProfile">
               {{ loading ? '解析中...' : '生成身体图谱' }}
@@ -250,7 +254,7 @@
 
 <script setup>
 import { ref, reactive, onMounted, nextTick, watch, computed } from 'vue';
-import { useRoute } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
 import CustomInput from '@/views/lab/components/CustomInput.vue';
 import GuideDisplay from '@/views/lab/components/GuideDisplay.vue';
 import ResultModal from '@/views/lab/components/ResultModal.vue';
@@ -260,12 +264,18 @@ import { saveUserBody, getLatestUserBody } from '@/api/userBody.js';
 
 const userStore = useUserStore();
 const route = useRoute();
+const router = useRouter();
 const currentStep = ref(Number(route.query.step) || 1);
 const activeGuide = ref('step1_default');
 const loading = ref(false);
 const initLoading = ref(true); // 初始加载状态
 const showResult = ref(false);
 const profileResult = ref(null);
+
+// 是否有智能推荐的返回状态
+const hasRecommendState = computed(() => {
+  return sessionStorage.getItem('showroomRecommendModal') !== null;
+});
 
 const userHasGender = ref(false);
 const userHasBirthday = ref(false);
@@ -337,6 +347,25 @@ onMounted(async () => {
 
 const setGuide = (key) => {
   activeGuide.value = key;
+};
+
+// 返回智能推荐页面
+const goBackToRecommend = async () => {
+  // 如果用户填写了身高或跨高，先保存数据
+  if (formData.height || formData.spanHeight) {
+    try {
+      await saveUserBody(formData);
+      // 如果身高已填写，更新本地用户信息
+      if (formData.height) {
+        userStore.userInfo.height = formData.height;
+      }
+    } catch (error) {
+      console.error('保存身体信息失败', error);
+      // 保存失败也继续返回，不阻塞用户操作
+    }
+  }
+  // 返回单车展厅页面（状态恢复由 ShowroomView 的 onMounted 处理）
+  router.push('/showroom');
 };
 
 // 步骤默认指引映射

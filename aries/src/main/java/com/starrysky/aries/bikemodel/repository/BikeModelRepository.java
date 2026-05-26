@@ -142,4 +142,12 @@ public interface BikeModelRepository extends JpaRepository<BikeModel, Long>, Jpa
             @Param("minPrice") Integer minPrice,
             @Param("maxPrice") Integer maxPrice,
             Pageable pageable);
+
+    /**
+     * 根据ID列表查询车辆（保持原有顺序）
+     *
+     * @param ids ID列表
+     * @return 车辆列表
+     */
+    List<BikeModel> findByIdIn(List<Long> ids);
 }

@@ -3,8 +3,8 @@
     <div class="container">
       <!-- 头部导航 -->
       <header class="detail-header" v-scroll-reveal>
-        <button class="back-btn" @click="$router.back()">
-          <i class="fas fa-arrow-left"></i> 返回展厅
+        <button class="back-btn" @click="handleBack()">
+          <i class="fas fa-arrow-left"></i> {{ fromRecommend ? '返回推荐列表' : '返回展厅' }}
         </button>
         <div class="header-status">
           <span class="status-dot"></span>
@@ -154,6 +154,9 @@ const bikeVariants = ref([]);
 // 当前选中的尺寸
 const selectedSize = ref('');
 
+// 是否来自推荐列表
+const fromRecommend = ref(false);
+
 // 获取所有尺寸列表（去重排序）
 const allSizes = computed(() => {
   const sizes = new Set();
@@ -181,7 +184,27 @@ const selectSize = (size) => {
   selectedSize.value = size;
 };
 
+// 返回处理
+const handleBack = () => {
+  // 如果来自推荐列表，返回展厅页面后需要保持推荐弹窗打开
+  if (fromRecommend.value) {
+    sessionStorage.setItem('recommendBack', 'true');
+  }
+  window.history.back();
+};
+
 onMounted(async () => {
+  // 读取来源信息
+  try {
+    const filterState = sessionStorage.getItem('showroomFilterState');
+    if (filterState) {
+      const state = JSON.parse(filterState);
+      fromRecommend.value = state.fromRecommend || false;
+    }
+  } catch (e) {
+    console.error('读取来源信息失败', e);
+  }
+
   const id = route.params.id;
   try {
     // 获取单车详情
@@ -191,9 +214,9 @@ onMounted(async () => {
       ...(detailData.data || detailData)
     };
 
-    // 获取同一车型的所有尺寸数据
+    // 获取同一车型的所有尺寸数据（传递品牌以确保精确匹配）
     if (bikeDetail.value.model) {
-      const variantsData = await getBikeByModel(bikeDetail.value.model);
+      const variantsData = await getBikeByModel(bikeDetail.value.model, bikeDetail.value.brand);
       bikeVariants.value = variantsData.data || variantsData || [];
       
       // 默认选中当前尺寸或第一个尺寸

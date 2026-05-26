@@ -48,7 +48,8 @@ public class JwtFilter extends OncePerRequestFilter {
      * 白名单
      */
     private final List<String> whiteList = List.of("/user/login", "/user/login/sms",
-            "/user/login/wechat", "/user/refresh", "/error", "/sms/send", "/resource/**");
+            "/user/login/wechat", "/user/refresh", "/error", "/sms/send", "/resource/**",
+            "/bike-model/showroom", "/bike-model/{id}", "/bike-model/model/**");
 
     @Resource
     private RedisUtil redisUtil;

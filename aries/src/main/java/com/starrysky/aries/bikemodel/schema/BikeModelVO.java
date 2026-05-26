@@ -2,6 +2,8 @@ package com.starrysky.aries.bikemodel.schema;
 
 import lombok.Data;
 
+import java.time.LocalDateTime;
+
 /**
  * 单车模型视图对象
  *
@@ -32,6 +34,10 @@ public class BikeModelVO {
     private String imageUrl;
     private String description;
     private Integer price;
+    private Integer favoriteCount;
+    
+    // 收藏时间
+    private LocalDateTime favoriteTime;
 
     // 前端字段别名（用于兼容前端字段名）
     public String getImg() {
