@@ -1004,7 +1004,7 @@ const handleFavorite = async (bikeId) => {
   align-items: center;
   gap: 12px;
   padding: 8px 18px;
-  background: transparent;
+  background: rgba(92, 110, 88, 0.05);
   border: 1px solid rgba(92, 110, 88, 0.15);
   border-radius: 30px;
   cursor: default;
@@ -1022,16 +1022,16 @@ const handleFavorite = async (bikeId) => {
 .status-text {
   font-family: 'Lato', monospace;
   font-size: 0.75rem;
-  letter-spacing: 1px;
+  letter-spacing: 2px;
   color: #2f80ed;
   font-weight: 700;
   text-transform: uppercase;
 }
 
 @keyframes breathe {
-  0% { opacity: 0.4; transform: scale(0.8); }
-  50% { opacity: 1; transform: scale(1.2); }
-  100% { opacity: 0.4; transform: scale(0.8); }
+  0% { opacity: 0.4; transform: scale(0.8); box-shadow: 0 0 4px #2f80ed; }
+  50% { opacity: 1; transform: scale(1.2); box-shadow: 0 0 12px #2f80ed; }
+  100% { opacity: 0.4; transform: scale(0.8); box-shadow: 0 0 4px #2f80ed; }
 }
 
 .showroom-layout {
@@ -1365,14 +1365,18 @@ const handleFavorite = async (bikeId) => {
 .bike-card {
   overflow: hidden;
   transition: all 0.4s cubic-bezier(0.165, 0.84, 0.44, 1);
+<<<<<<< HEAD
   border: 0.5px solid rgba(0, 0, 0, 0.03);
   border-radius: 8px;
   position: relative;
+=======
+  border: 1px solid rgba(92, 110, 88, 0.12);
+>>>>>>> origin/develop1.0
 }
 
 .bike-card:hover {
   transform: translateY(-10px);
-  border-color: rgba(92, 110, 88, 0.2);
+  border-color: rgba(92, 110, 88, 0.22);
   box-shadow: var(--shadow-lg);
 }
 
@@ -1576,6 +1580,7 @@ const handleFavorite = async (bikeId) => {
   background: rgba(255, 255, 255, 0.2);
   border-radius: 30px;
   backdrop-filter: blur(4px);
+  cursor: pointer;
 }
 
 /* 分页组件样式 */

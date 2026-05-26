@@ -36,7 +36,8 @@ export const PROJECT_CONFIG = {
     TAGLINE: '专业、高效、智能的自行车调适系统',
     DESCRIPTION: '骑迹是一个致力于提供专业、智能的自行车调适建议的开源项目。如果您喜欢它，可以通过打赏支持服务器带宽与算法优化。',
     VERSION: '1.0.0',
-    COPYRIGHT: `© ${new Date().getFullYear()} 骑迹`
+    COPYRIGHT: `© ${new Date().getFullYear()} 骑迹`,
+    SHARE_SLOGAN_DYNAMIC: '你在骑行健身，还是在自我磨损？'
 };
 
 // 奖励与邀请配置

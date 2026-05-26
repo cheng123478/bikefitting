@@ -254,24 +254,110 @@ onUnmounted(() => window.removeEventListener('scroll', handleScroll));
 .logout-item { color: var(--danger-color) !important; }
 
 /* --- 6. 响应式微调 --- */
+.mobile-toggle {
+  display: none;
+  z-index: 1001;
+}
+
+.burger-icon {
+  width: 24px;
+  height: 18px;
+  position: relative;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.burger-icon span {
+  display: block;
+  width: 100%;
+  height: 2px;
+  background-color: var(--primary-color);
+  border-radius: 2px;
+  transition: all 0.3s cubic-bezier(0.645, 0.045, 0.355, 1);
+}
+
+/* 汉堡图标变 X 动画 */
+.burger-icon.is-open span:nth-child(1) {
+  transform: translateY(8px) rotate(45deg);
+}
+.burger-icon.is-open span:nth-child(2) {
+  opacity: 0;
+  transform: translateX(-20px);
+}
+.burger-icon.is-open span:nth-child(3) {
+  transform: translateY(-8px) rotate(-45deg);
+}
+
 @media (max-width: 1024px) {
   .nav-link { font-size: 0.95rem; }
-  .brand-text { display: none; }
+  .logo-text-group { display: none; } /* 仅保留图标以节省空间 */
 }
 
 @media (max-width: 768px) {
-  .mobile-toggle { display: block; font-size: 1.5rem; cursor: pointer; }
+  .mobile-toggle { display: block; }
 
   .nav-menu {
-    position: fixed; top: var(--header-height); left: 0;
-    width: 100%; background: var(--bg-page);
-    flex-direction: column; padding: 30px 0;
-    gap: 1.5rem; box-shadow: var(--shadow-md);
-    transform: translateY(-150%); transition: transform 0.5s var(--ease-out-expo);
+    position: fixed; 
+    top: 0; 
+    left: 0;
+    width: 100%; 
+    height: 100vh;
+    background: rgba(243, 242, 237, 0.98); 
+    backdrop-filter: blur(15px);
+    flex-direction: column; 
+    justify-content: center;
+    padding: 80px 0;
+    gap: 2rem; 
+    z-index: 1000;
+    transform: translateX(100%); /* 从右侧滑入 */
+    transition: transform 0.5s var(--ease-out-expo);
   }
-  .nav-menu.is-active { transform: translateY(0); }
+  
+  .nav-menu.is-active { 
+    transform: translateX(0); 
+  }
 
-  .login-item { margin-top: 20px; }
+  .nav-link {
+    font-size: 1.4rem;
+    font-family: var(--font-serif);
+    font-weight: 600;
+  }
+
+  .login-item { 
+    margin-top: 30px; 
+    width: 80%;
+    display: flex;
+    justify-content: center;
+  }
+  
+  .btn-login {
+    width: 100%;
+    justify-content: center;
+    padding: 14px 0;
+    font-size: 1.1rem;
+  }
+
+  .user-dropdown-wrapper {
+    width: 100%;
+    display: flex;
+    justify-content: center;
+  }
+
+  .user-avatar-btn {
+    padding: 10px 20px;
+    background: #fff;
+  }
+
+  .dropdown-menu {
+    position: static;
+    width: 250px;
+    margin-top: 20px;
+    box-shadow: none;
+    background: rgba(255,255,255,0.5);
+    transform: none !important;
+  }
 }
 
 /* 动画 */

@@ -183,7 +183,7 @@
 <script setup>
 import {computed, ref, nextTick} from 'vue';
 import { PROJECT_CONFIG } from '@/config/constants';
-import SharingPoster from './SharingPoster.vue';
+import SharingPoster from './StaticSharingPoster.vue';
 
 const props = defineProps({
   visible: Boolean,
@@ -860,6 +860,48 @@ small {
   left: -9999px;
   top: 0;
   pointer-events: none;
+}
+
+/* Mobile Responsiveness */
+@media (max-width: 768px) {
+  .fitting-result-overlay {
+    padding: 10px;
+  }
+  .result-header {
+    flex-direction: column;
+    align-items: flex-start;
+    padding: 20px;
+    gap: 15px;
+  }
+  .header-main h3 {
+    font-size: 1.4rem;
+  }
+  .tags-row, .pain-tags {
+    flex-wrap: wrap;
+  }
+  .scroll-body {
+    padding: 20px;
+    max-height: 70vh;
+  }
+  .metrics-grid {
+    grid-template-columns: 1fr;
+  }
+  .result-footer {
+    flex-direction: column;
+    padding: 20px;
+    gap: 15px;
+    text-align: center;
+  }
+  .footer-btns {
+    flex-direction: column;
+    width: 100%;
+    gap: 10px;
+  }
+  .footer-btns button {
+    width: 100%;
+    justify-content: center;
+    padding: 12px;
+  }
 }
 
 /* Modal Transition */

@@ -267,7 +267,7 @@ onMounted(async () => {
 .status-text {
   font-family: 'Lato', monospace;
   font-size: 0.75rem;
-  letter-spacing: 1px;
+  letter-spacing: 2px;
   color: var(--primary-color);
   font-weight: 700;
   text-transform: uppercase;
@@ -310,7 +310,7 @@ onMounted(async () => {
   cursor: pointer;
   transition: 0.3s;
   background: rgba(255, 255, 255, 0.6);
-  border: 1px solid rgba(255, 255, 255, 0.4);
+  border: 1px solid rgba(92, 110, 88, 0.15);
 }
 
 .asset-card:hover {
@@ -323,8 +323,6 @@ onMounted(async () => {
 .card-icon {
   width: 44px;
   height: 44px;
-  background: rgba(92, 110, 88, 0.08);
-  color: var(--primary-color);
   border-radius: 10px;
   display: flex;
   align-items: center;
@@ -382,17 +380,17 @@ onMounted(async () => {
   transition: 0.4s cubic-bezier(0.165, 0.84, 0.44, 1);
   background: white;
   border-radius: 12px;
-  border: 1px solid transparent;
+  border: 1px solid rgba(92, 110, 88, 0.12);
 }
 .engine-card:hover {
   transform: translateY(-5px);
   box-shadow: 0 15px 35px rgba(92, 110, 88, 0.08); /* 稍微柔和的绿色阴影 */
-  border-color: rgba(92, 110, 88, 0.1);
+  border-color: rgba(92, 110, 88, 0.22);
 }
 .static-engine {
   grid-column: 1 / -1; display: flex; gap: 30px; padding: 30px !important; cursor: default;
   background: linear-gradient(135deg, rgba(255,255,255,0.8) 0%, rgba(248,249,247,0.8) 100%);
-  border: 1px solid rgba(92, 110, 88, 0.12);
+  border: 1px solid rgba(92, 110, 88, 0.15);
 }
 
 .engine-info { flex: 1; display: flex; flex-direction: column; }
@@ -469,12 +467,16 @@ onMounted(async () => {
 .btn-gold-sm:hover { background: #b8972f; transform: translateY(-2px); box-shadow: 0 5px 15px rgba(212, 175, 55, 0.3); }
 .empty-state { color: var(--text-muted); font-style: italic; font-size: 0.9rem; padding: 20px 0; }
 
-/* --- 统一视觉图标区 (取消之前的 .small 限制) --- */
+/* --- 统一视觉图标区 --- */
 .engine-visual {
   width: 70px; /* 从之前的 60px 调大，向静态的 80px 靠拢 */
   height: 70px;
   border-radius: 50%;
-  background: rgba(92, 110, 88, 0.05); /* 淡淡的主色背景 */
+  background: linear-gradient(135deg, rgba(92, 110, 88, 0.08) 0%, rgba(92, 110, 88, 0.03) 100%);
+  border: 1.5px solid rgba(92, 110, 88, 0.12);
+  box-shadow: 
+    inset 0 1px 1px rgba(255, 255, 255, 0.8),
+    0 4px 12px rgba(92, 110, 88, 0.04);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -482,9 +484,37 @@ onMounted(async () => {
   color: var(--primary-color);
   position: relative;
   flex-shrink: 0; /* 防止被右侧长文本挤压 */
+  transition: all 0.4s cubic-bezier(0.165, 0.84, 0.44, 1);
 }
 
-.static-engine .engine-visual { background: var(--primary-color); color: white; box-shadow: 0 4px 15px rgba(92, 110, 88, 0.3); }
+.engine-visual i {
+  background: linear-gradient(135deg, var(--primary-color) 20%, var(--primary-light) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  filter: drop-shadow(0 2px 3px rgba(92, 110, 88, 0.2));
+  transition: all 0.3s ease;
+}
+
+.engine-card:hover .engine-visual {
+  transform: scale(1.05);
+  border-color: rgba(92, 110, 88, 0.25);
+  background: linear-gradient(135deg, rgba(92, 110, 88, 0.14) 0%, rgba(92, 110, 88, 0.06) 100%);
+  box-shadow: 
+    inset 0 1px 1px rgba(255, 255, 255, 0.9),
+    0 8px 20px rgba(92, 110, 88, 0.15);
+}
+
+.static-engine .engine-visual { 
+  background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-dark) 100%);
+  border-color: rgba(255, 255, 255, 0.1);
+  box-shadow: 0 6px 20px rgba(92, 110, 88, 0.35); 
+}
+
+.static-engine .engine-visual i {
+  background: none;
+  -webkit-text-fill-color: white;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.15));
+}
 
 /* 扫描动画 */
 .radar-scan {
@@ -499,8 +529,67 @@ onMounted(async () => {
 }
 .quick-link:hover { border-color: var(--primary-color); color: var(--primary-color); background: rgba(255, 255, 255, 0.5); }
 
+/* --- 4. 响应式适配 --- */
 @media (max-width: 1024px) {
-  .lab-workspace { grid-template-columns: 1fr; }
+  .lab-workspace { grid-template-columns: 1fr; gap: 30px; }
   .engines-grid { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 768px) {
+  .lab-dashboard-page { padding: 100px 0 60px; }
+  
+  /* Header 适配 */
+  .lab-intro { 
+    flex-direction: column; 
+    align-items: flex-start; 
+    gap: 15px; 
+    margin-bottom: 35px;
+  }
+  .lab-title { font-size: 1.8rem; }
+  .page-subtitle { font-size: 0.9rem; }
+  .engine-status { padding: 6px 14px; }
+
+  /* 资产卡片适配 */
+  .asset-card { padding: 18px; }
+  .card-icon { width: 38px; height: 38px; font-size: 1rem; }
+  .card-content h4 { font-size: 1rem; }
+  .score-val { font-size: 1.1rem; }
+
+  /* 引擎卡片适配 */
+  .engine-card { 
+    flex-direction: column; 
+    padding: 25px 20px !important; 
+    gap: 15px; 
+  }
+  
+  .static-engine { 
+    background: #fff; /* 手机端改回纯白背景减少视觉负担 */
+    border-color: rgba(0,0,0,0.05);
+  }
+
+  .engine-visual { width: 56px; height: 56px; font-size: 1.2rem; }
+  .engine-title { font-size: 1.3rem; margin-bottom: 10px; }
+  .desc-text { font-size: 0.85rem; }
+
+  .action-footer { 
+    margin-top: 10px; 
+    flex-direction: column; 
+  }
+  
+  .btn-primary-sm, .btn-gold-sm { 
+    width: 100%; 
+    justify-content: center; 
+    padding: 12px;
+  }
+
+  /* 标题组件适配 */
+  .column-title .cn-text { font-size: 0.95rem; }
+  .column-title .en-prefix { font-size: 0.6rem; margin-right: 8px; padding-right: 8px; }
+}
+
+@media (max-width: 480px) {
+  .lab-title { font-size: 1.6rem; }
+  .engine-status-wrapper { width: 100%; }
+  .engine-status { width: 100%; justify-content: center; }
 }
 </style>

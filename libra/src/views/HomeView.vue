@@ -340,7 +340,7 @@ onUnmounted(() => {
 .bg-white-island { background: #fff; }
 .bg-lab-island { background: #fdfdfb; background-image: radial-gradient(circle at top right, #f3f2ed, #fdfdfb); }
 
-.section-header-row { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 50px; }
+.section-header-row { display: flex; justify-content: space-between; align-items: flex-end; }
 .section-tag { display: block; font-size: 0.7rem; font-weight: 900; letter-spacing: 4px; color: var(--primary-color); margin-bottom: 12px; }
 .section-tag.glow { text-shadow: 0 0 10px rgba(143, 160, 139, 0.5); }
 .section-title { font-size: 2.5rem; margin-bottom: 8px; line-height: 1.1; }
@@ -360,15 +360,15 @@ onUnmounted(() => {
 .bike-specs-bubble { position: absolute; top: 15px; left: 15px; background: rgba(255,255,255,0.9); padding: 4px 10px; border-radius: 4px; font-size: 0.65rem; font-weight: 800; text-transform: uppercase; color: var(--primary-color); }
 
 .bike-meta { padding: 20px 0 0; }
-.brand { font-size: 0.65rem; font-weight: 800; color: var(--primary-light); text-transform: uppercase; letter-spacing: 1px; }
+.brand { font-size: 0.65rem; font-weight: 800; color: var(--primary-light); text-transform: uppercase; letter-spacing: 2px; }
 .model { font-size: 1rem; color: var(--text-main); margin-top: 4px; font-weight: 700; }
 .price { font-size: 0.85rem; color: var(--text-muted); font-weight: 300; margin-top: 4px; }
 
 /* --- 3. Aries Console (Laboratory) --- */
 .console-layout { display: grid; grid-template-columns: 2fr 1fr; grid-template-rows: auto auto; gap: 24px; }
 
-.glass-panel { background: rgba(255, 255, 255, 0.6); border: 1px solid rgba(0, 0, 0, 0.05); border-radius: 12px; padding: 30px; transition: 0.4s; cursor: pointer; overflow: hidden; position: relative; box-shadow: var(--shadow-sm); }
-.glass-panel:hover { background: rgba(255, 255, 255, 0.95); border-color: var(--primary-light); box-shadow: var(--shadow-md); }
+.glass-panel { background: rgba(255, 255, 255, 0.6); border: 1px solid rgba(92, 110, 88, 0.15); border-radius: 12px; padding: 30px; transition: 0.4s; cursor: pointer; overflow: hidden; position: relative; box-shadow: var(--shadow-sm); }
+.glass-panel:hover { background: rgba(255, 255, 255, 0.95); border-color: rgba(92, 110, 88, 0.3); box-shadow: var(--shadow-md); }
 
 .console-main { grid-row: span 1; display: flex; flex-direction: column; justify-content: space-between; min-height: 320px; }
 .panel-header { display: flex; justify-content: space-between; color: var(--text-muted); font-size: 0.7rem; font-weight: 800; letter-spacing: 2px; }
@@ -382,8 +382,7 @@ onUnmounted(() => {
 .console-side { display: flex; flex-direction: column; gap: 24px; }
 .console-side .glass-panel { flex: 1; display: flex; align-items: center; gap: 20px; padding: 20px 25px; }
 
-.panel-icon { width: 48px; height: 48px; background: rgba(92, 110, 88, 0.05); color: var(--primary-color); border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 1.2rem; transition: 0.3s; }
-.glass-panel:hover .panel-icon { color: white; background: var(--primary-color); }
+.panel-icon { width: 48px; height: 48px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 1.2rem; }
 
 .panel-title-sm { color: var(--text-main); font-size: 1.05rem; margin-bottom: 2px; font-weight: 700; }
 .panel-desc-sm { color: var(--text-muted); font-size: 0.75rem; }
@@ -396,30 +395,86 @@ onUnmounted(() => {
 .bar-subtitle { color: var(--text-muted); font-size: 0.8rem; font-family: var(--font-serif); font-style: italic; }
 .bar-action { color: var(--primary-dark); font-size: 0.7rem; font-weight: 800; letter-spacing: 2px; display: flex; align-items: center; gap: 10px; }
 
-/* Animations */
+/* --- 4. Animations --- */
 @keyframes spin { from { transform: rotate(0); } to { transform: rotate(360deg); } }
 @keyframes bounce { 0%, 20%, 50%, 80%, 100% { transform: translateY(0); } 40% { transform: translateY(-10px); } 60% { transform: translateY(-5px); } }
 
 .back-to-top-btn { position: fixed; bottom: 40px; right: 30px; width: 50px; height: 50px; border-radius: 50%; background: var(--primary-color); color: white; border: none; box-shadow: var(--shadow-lg); cursor: pointer; z-index: 1000; }
 
+/* --- 5. Responsive Adaptations --- */
 @media (max-width: 900px) {
-  .console-layout { grid-template-columns: 1fr; }
-  .console-bar { grid-column: span 1; padding: 20px; }
-  .showroom-horizontal-grid { grid-template-columns: 1fr 1fr; }
-  .section-island { padding: 40px 20px; }
-  .section-title { font-size: 2rem; }
-}
-
-/* Animations */
-@keyframes spin { from { transform: rotate(0); } to { transform: rotate(360deg); } }
-@keyframes bounce { 0%, 20%, 50%, 80%, 100% { transform: translateY(0); } 40% { transform: translateY(-10px); } 60% { transform: translateY(-5px); } }
-
-.back-to-top-btn { position: fixed; bottom: 40px; right: 30px; width: 50px; height: 50px; border-radius: 50%; background: var(--primary-color); color: white; border: none; box-shadow: var(--shadow-lg); cursor: pointer; z-index: 1000; }
-
-@media (max-width: 900px) {
+  .section-title { font-size: 2.2rem; }
+  .section-island { padding: 40px 30px; }
   .console-layout { grid-template-columns: 1fr; }
   .console-bar { grid-column: span 1; }
-  .showroom-horizontal-grid { grid-template-columns: 1fr 1fr; }
-  .section-title { font-size: 2.2rem; }
+  .showroom-horizontal-grid { grid-template-columns: repeat(2, 1fr); }
+}
+
+@media (max-width: 768px) {
+  /* Global Container */
+  .container { padding: 0 20px; }
+  .section-common { padding: 30px 0; }
+  .section-island { padding: 35px 20px; border-radius: 16px; }
+
+  /* Hero Section */
+  .hero-section { padding-top: var(--header-height); padding-bottom: 30px; }
+  .hero-container-box { height: 65vh; min-height: 450px; }
+  .carousel-wrapper { border-radius: 0; box-shadow: none; }
+  
+  .hero-title { font-size: 2rem; margin-bottom: 10px; }
+  .hero-desc { font-size: 0.95rem; margin-bottom: 20px; padding: 0 10px; }
+  .hero-btns .btn { padding: 12px 24px; font-size: 0.9rem; }
+  
+  .carousel-control { display: none; }
+  .carousel-dots { bottom: 20px; }
+
+  /* Section Header */
+  .section-header-row { flex-direction: column; align-items: flex-start; gap: 15px; }
+  .section-title { font-size: 1.8rem; }
+  .btn-text-link { font-size: 0.9rem; }
+
+  /* Showroom: Horizontal Scroll */
+  .showroom-horizontal-grid {
+    display: flex;
+    overflow-x: auto;
+    padding-bottom: 15px;
+    margin: 0 -20px;
+    padding-left: 20px;
+    padding-right: 20px;
+    scroll-snap-type: x mandatory;
+    -webkit-overflow-scrolling: touch;
+    gap: 16px;
+    grid-template-columns: none;
+  }
+  .showroom-horizontal-grid::-webkit-scrollbar { display: none; }
+  
+  .featured-bike-card {
+    min-width: 240px;
+    flex: 0 0 auto;
+    scroll-snap-align: start;
+  }
+  .bike-visual { height: 160px; }
+
+  /* Console / Laboratory */
+  .console-main { min-height: 280px; padding: 25px; }
+  .panel-title { font-size: 1.5rem; }
+  .hud-display { display: none; }
+  
+  .console-side .glass-panel { padding: 18px 20px; }
+  .panel-icon { width: 40px; height: 40px; font-size: 1rem; }
+  
+  .console-bar { flex-direction: column; align-items: flex-start; gap: 20px; padding: 25px 20px; }
+  .bar-content { gap: 15px; }
+  .bar-title { font-size: 1rem; }
+  .bar-action { width: 100%; justify-content: flex-end; }
+
+  .back-to-top-btn { bottom: 20px; right: 20px; width: 44px; height: 44px; }
+}
+
+@media (max-width: 480px) {
+  .hero-container-box { height: 60vh; }
+  .hero-title { font-size: 1.8rem; }
+  .featured-bike-card { min-width: 200px; }
+  .section-title { font-size: 1.6rem; }
 }
 </style>

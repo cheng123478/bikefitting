@@ -748,7 +748,7 @@ const submitForm = async () => {
   border-bottom: 1px solid rgba(0, 0, 0, 0.03);
 }
 .page-title { font-family: var(--font-serif); font-size: 2.2rem; color: var(--text-main); line-height: 1.1; }
-.page-subtitle { font-size: 1rem; color: var(--text-muted); font-family: var(--font-serif); font-style: italic; }
+.page-subtitle { font-size: 0.75rem; color: var(--text-muted); font-family: var(--font-serif); font-style: italic; letter-spacing: 2px; text-transform: uppercase; }
 .header-actions { display: flex; align-items: center; gap: 20px; }
 
 /* 3. 布局 */

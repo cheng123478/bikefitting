@@ -107,7 +107,7 @@
 
               <!-- 7个字段方框网格 -->
               <div class="deviation-grid">
-                <div v-for="(field, index) in deviationFields" :key="index" class="deviation-card">
+                <div v-for="(field, index) in deviationFields" :key="index" class="deviation-card" :class="field.deltaClass ? field.deltaClass + '-card' : ''">
                   <h4 class="field-name">{{ field.name }}</h4>
                   <div class="field-values">
                     <div class="v-item">
@@ -312,6 +312,11 @@ onMounted(async () => {
   background: transparent;
   min-height: 100vh;
 }
+@media (max-width: 768px) {
+  .report-page {
+    padding: 80px 0 40px;
+  }
+}
 
 /* Loading */
 .loading-state, .error-state {
@@ -366,8 +371,8 @@ onMounted(async () => {
 /* Frame Check Cards */
 .compatibility-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
 .compatibility-grid.two-col { grid-template-columns: repeat(2, 1fr); }
-.compat-card { background: #FFFFFF; border-radius: 12px; padding: 20px; border: 1px solid #E8E8E4; transition: all 0.2s ease; }
-.compat-card:hover { border-color: #D0D0C8; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06); }
+.compat-card { background: #FFFFFF; border-radius: 12px; padding: 20px; border: 1px solid rgba(92, 110, 88, 0.15); transition: all 0.2s ease; }
+.compat-card:hover { border-color: rgba(92, 110, 88, 0.25); box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06); }
 .compat-title { font-size: 0.75rem; color: #999; letter-spacing: 1px; margin: 0 0 15px 0; text-transform: uppercase; }
 .compat-body { display: flex; flex-direction: column; gap: 12px; }
 .compat-status { font-size: 0.7rem; padding: 4px 10px; border-radius: 12px; font-weight: bold; display: inline-block; width: fit-content; }
@@ -407,8 +412,8 @@ onMounted(async () => {
 
 /* Deviation Grid */
 .deviation-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
-.deviation-card { background: #FFFFFF; border-radius: 12px; padding: 16px; border: 1px solid #E8E8E4; transition: all 0.2s ease; }
-.deviation-card:hover { border-color: #D0D0C8; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06); }
+.deviation-card { background: #FFFFFF; border-radius: 12px; padding: 16px; border: 1px solid rgba(92, 110, 88, 0.15); transition: all 0.2s ease; }
+.deviation-card:hover { border-color: rgba(92, 110, 88, 0.25); box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06); }
 .field-name { font-size: 0.75rem; color: #999; letter-spacing: 0.5px; margin: 0 0 12px 0; text-transform: uppercase; }
 .field-values { display: flex; flex-direction: column; gap: 8px; }
 .v-item { display: flex; justify-content: space-between; align-items: center; }
@@ -421,33 +426,17 @@ onMounted(async () => {
 .v-item.danger .v-delta { color: #C62828; }
 .v-item.neutral .v-delta { color: #666; }
 
+.good-card { background: linear-gradient(135deg, #f1f8e9 0%, #ffffff 100%); border-color: #dcedc8; }
+.warning-card { background: linear-gradient(135deg, #fffde7 0%, #ffffff 100%); border-color: #fff9c4; }
+.danger-card { background: linear-gradient(135deg, #ffebee 0%, #ffffff 100%); border-color: #ffcdd2; }
+.neutral-card { background: #ffffff; }
+
 @media (max-width: 1024px) {
   .deviation-grid { grid-template-columns: repeat(3, 1fr); }
 }
 @media (max-width: 768px) {
   .deviation-grid { grid-template-columns: repeat(2, 1fr); }
 }
-
-.item-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
-.item-title { display: flex; align-items: center; gap: 10px; }
-.dot { width: 10px; height: 10px; border-radius: 50%; }
-.dot.PERFECT { background: var(--success-color); }
-.dot.ADJUST { background: var(--warning-color); }
-.dot.WARNING { background: var(--danger-color); }
-.item-title h4 { margin: 0; font-size: 1.2rem; }
-.item-action { font-weight: bold; font-size: 0.95rem; }
-
-.item-compare { display: flex; align-items: center; background: #FAFAFA; padding: 20px; border-radius: 8px; margin-bottom: 20px; }
-.c-box { flex: 1; text-align: center; }
-.c-label { display: block; font-size: 0.75rem; color: var(--text-muted); margin-bottom: 5px; }
-.c-val { font-size: 1.8rem; font-family: var(--font-serif); font-weight: bold; color: var(--text-main); }
-.c-box.ideal .c-val { color: var(--primary-color); }
-.c-arrow { color: #DDD; font-size: 1.2rem; padding: 0 20px; }
-.c-delta { flex: 1; text-align: right; border-left: 1px solid #EEE; padding-left: 20px; }
-.d-label { display: block; font-size: 0.75rem; color: var(--text-muted); margin-bottom: 5px; }
-.d-val { font-size: 1.4rem; font-weight: bold; font-family: var(--font-serif); }
-
-.item-reason { font-size: 0.9rem; color: var(--text-muted); line-height: 1.5; background: rgba(92, 110, 88, 0.05); padding: 12px 15px; border-radius: 6px; }
 
 /* Sidebar: Equipment Suggestions */
 .sticky-card { position: sticky; top: 100px; padding: 30px; }

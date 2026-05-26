@@ -114,6 +114,7 @@ public class UserController {
             throw new BizException("手机号不正确");
         }
         userService.editPhone(user.getPhone(), phoneChange.newPhone(), phoneChange.code(), phoneChange.password());
+        userService.updateRedisCache(user.getId());
         return ResponseResult.success("手机号修改成功");
     }
 
@@ -129,6 +130,7 @@ public class UserController {
     public ResponseResult<Void> editUser(@AuthenticationPrincipal User user,
             @RequestBody @Valid UserRequest.ProfileUpdate profileUpdate) {
         userService.editUser(user.getId(), profileUpdate);
+        userService.updateRedisCache(user.getId());
         return ResponseResult.success("用户信息修改成功", null);
     }
 
@@ -166,7 +168,8 @@ public class UserController {
 
         try {
             String url = cosUtil.upload(file.getInputStream(), file.getSize(), key);
-            userService.editAvatar(user.getPhone(), url);
+            userService.editAvatar(user.getId(), url);
+            userService.updateRedisCache(user.getId());
             return ResponseResult.success(url);
         } catch (IOException e) {
             log.warn("上传头像失败", e);
@@ -181,7 +184,8 @@ public class UserController {
 //            return ResponseResult.failure(500, "上传头像失败");
 //        }
 //        if (fileUploadResult.isResult()) {
-//            userService.editAvatar(user.getPhone(), "/resource" + fileUploadResult.getUrl());
+//            userService.editAvatar(user.getId(), "/resource" + fileUploadResult.getUrl());
+//            userService.updateRedisCache(user.getId());
 //            return ResponseResult.success("/resource" + fileUploadResult.getUrl());
 //        } else {
 //            log.warn("上传头像,修改头像信息失败: {}", fileUploadResult.getMessage());
