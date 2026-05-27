@@ -400,6 +400,8 @@ import { useRouter } from 'vue-router';
 import { useUserStore } from '@/stores/user';
 import { getShowroomBikes, recommendBikes, toggleFavorite, getUserFavorites, getFavoriteBikeDetails } from '@/api/bikeShowroom';
 import { saveUserBody, getLatestUserBody } from '@/api/userBody';
+import { showToast } from '@/utils/toast';
+import { getFavoriteList } from '@/api/favorite';
 
 const router = useRouter();
 const userStore = useUserStore();
@@ -408,6 +410,7 @@ const brands = ref([]);
 const categories = ref([]);
 const bikes = ref([]);
 const loading = ref(true);
+const loadingMore = ref(false);
 const total = ref(0);
 
 const activeCategories = ref([]);
@@ -699,7 +702,7 @@ const toggleScene = (sceneId) => {
 // 下一步（从场景选择到价格填写）
 const goToPriceStep = () => {
   if (selectedScenes.value.length === 0) {
-    alert('请至少选择一个骑行场景');
+    showToast('请至少选择一个骑行场景', 'warning');
     return;
   }
   recommendStep.value = 2;
@@ -715,7 +718,7 @@ const goBackStep = () => {
 // 从身体信息步骤到场景选择步骤
 const goToSceneStep = async () => {
   if (!isBodyInfoValid.value) {
-    alert('请填写有效的身高信息');
+    showToast('请填写有效的身高信息', 'warning');
     return;
   }
 
@@ -765,7 +768,7 @@ const confirmRecommend = async () => {
     recommendStep.value = 3;
   } catch (error) {
     console.error('推荐请求失败', error);
-    alert('推荐请求失败，请稍后重试');
+    showToast('推荐请求失败，请稍后重试', 'error');
   } finally {
     recommendLoading.value = false;
   }
@@ -896,10 +899,17 @@ onUnmounted(() => {
 // 加载用户收藏的单车ID列表
 const loadUserFavorites = async () => {
   try {
-    const ids = await getUserFavorites();
-    favoriteBikeIds.value = ids;
+    // 使用与个人中心相同的接口获取收藏列表
+    const data = await getFavoriteList({
+      page: 1,
+      size: 100
+    });
+    
+    const records = data.records || data.list || [];
+    favoriteBikeIds.value = records.map(item => item.bikeModelId);
   } catch (error) {
     console.error('加载收藏列表失败', error);
+    favoriteBikeIds.value = [];
   }
 };
 
@@ -907,7 +917,7 @@ const loadUserFavorites = async () => {
 const toggleFavoritesView = async () => {
   // 检查登录状态
   if (!userStore.isLoggedIn) {
-    alert('请先登录后查看我的收藏');
+    showToast('请先登录后查看我的收藏', 'warning');
     return;
   }
   
@@ -925,17 +935,49 @@ const toggleFavoritesView = async () => {
 const fetchFavoriteBikes = async () => {
   try {
     loading.value = true;
-    // 直接调用后端接口获取当前用户收藏的车辆列表
-    // request.js 拦截器已处理响应，直接返回 data
-    const data = await getFavoriteBikeDetails();
-    bikes.value = data || [];
-    total.value = bikes.value.length;
+    
+    // 使用与个人中心相同的接口获取收藏列表
+    const data = await getFavoriteList({
+      page: 1,
+      size: 100 // 获取足够的收藏数量
+    });
+    
+    console.log('收藏列表数据:', data);
+    
+    const records = data.records || data.list || [];
+    
+    if (records.length === 0) {
+      // 没有收藏的单车
+      console.log('没有收藏的单车');
+      bikes.value = [];
+      total.value = 0;
+      favoriteBikeIds.value = [];
+      return;
+    }
+    
+    // 将收藏列表转换为展厅格式
+    bikes.value = records.map(item => ({
+      id: item.bikeModelId,
+      brand: item.bikeModelBrand,
+      brandCn: item.bikeModelBrandCn,
+      model: item.bikeModelName,
+      imageUrl: item.bikeModelImg,
+      bikeType: item.bikeModelType,
+      price: item.bikeModelPrice
+    }));
+    
+    total.value = data.total || bikes.value.length;
+    
     // 更新本地收藏ID列表
     favoriteBikeIds.value = bikes.value.map(bike => bike.id);
+    
+    console.log('设置的bikes:', bikes.value);
+    console.log('收藏ID列表:', favoriteBikeIds.value);
   } catch (err) {
     console.error('获取收藏车辆失败', err);
     bikes.value = [];
     total.value = 0;
+    favoriteBikeIds.value = [];
   } finally {
     loading.value = false;
   }
@@ -950,7 +992,7 @@ const isFavorite = (bikeId) => {
 const handleFavorite = async (bikeId) => {
   // 检查登录状态
   if (!userStore.isLoggedIn) {
-    alert('请先登录后再收藏');
+    showToast('请先登录后再收藏', 'warning');
     return;
   }
   
@@ -958,11 +1000,13 @@ const handleFavorite = async (bikeId) => {
     const isFavorited = await toggleFavorite(bikeId);
     if (isFavorited) {
       favoriteBikeIds.value.push(bikeId);
+      showToast('收藏成功', 'success');
     } else {
       const index = favoriteBikeIds.value.indexOf(bikeId);
       if (index > -1) {
         favoriteBikeIds.value.splice(index, 1);
       }
+      showToast('已取消收藏', 'success');
     }
     
     // 如果当前在收藏视图，更新收藏列表
@@ -971,7 +1015,7 @@ const handleFavorite = async (bikeId) => {
     }
   } catch (error) {
     console.error('操作收藏失败', error);
-    alert('操作收藏失败，请稍后重试');
+    showToast('操作失败，请稍后重试', 'error');
   }
 };
 </script>
