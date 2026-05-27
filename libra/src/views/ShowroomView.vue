@@ -905,6 +905,12 @@ const loadUserFavorites = async () => {
 
 // 切换收藏视图
 const toggleFavoritesView = async () => {
+  // 检查登录状态
+  if (!userStore.isLoggedIn) {
+    alert('请先登录后查看我的收藏');
+    return;
+  }
+  
   showFavoritesOnly.value = !showFavoritesOnly.value;
   if (showFavoritesOnly.value) {
     // 如果切换到收藏视图，直接从后端获取收藏的车辆详情
@@ -942,6 +948,12 @@ const isFavorite = (bikeId) => {
 
 // 处理收藏/取消收藏
 const handleFavorite = async (bikeId) => {
+  // 检查登录状态
+  if (!userStore.isLoggedIn) {
+    alert('请先登录后再收藏');
+    return;
+  }
+  
   try {
     const isFavorited = await toggleFavorite(bikeId);
     if (isFavorited) {
@@ -1365,13 +1377,9 @@ const handleFavorite = async (bikeId) => {
 .bike-card {
   overflow: hidden;
   transition: all 0.4s cubic-bezier(0.165, 0.84, 0.44, 1);
-<<<<<<< HEAD
   border: 0.5px solid rgba(0, 0, 0, 0.03);
   border-radius: 8px;
   position: relative;
-=======
-  border: 1px solid rgba(92, 110, 88, 0.12);
->>>>>>> origin/develop1.0
 }
 
 .bike-card:hover {

@@ -34,7 +34,6 @@ public class MembershipEventListener {
 
     @Async
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
-    @Transactional(rollbackFor = Exception.class)
     public void handleUserRegisteredEvent(UserRegisteredEvent event) {
         String inviterCode = event.getInviterCode();
         Long newUserId = event.getNewUserId();
