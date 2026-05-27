@@ -132,6 +132,15 @@
                 <h4 class="bike-model">{{ bike.model }}</h4>
                 <p class="bike-desc">{{ bike.desc }}</p>
               </div>
+              <!-- 收藏按钮 -->
+              <button 
+                class="favorite-btn" 
+                :class="{ 'is-favorited': bike.isFavorited }"
+                @click.stop="handleFavorite(bike)"
+                :title="bike.isFavorited ? '取消收藏' : '收藏'"
+              >
+                <i class="fas fa-star"></i>
+              </button>
             </div>
           </TransitionGroup>
 
@@ -193,6 +202,8 @@
 import { ref, onMounted, onUnmounted, computed } from 'vue';
 import { useRouter } from 'vue-router';
 import { getShowroomBikes } from '@/api/bikeShowroom';
+import { favoriteBikeModel, unfavoriteBikeModel, checkFavoriteStatus } from '@/api/favorite';
+import { showToast } from '@/utils/toast';
 
 const router = useRouter();
 
@@ -302,7 +313,13 @@ const fetchData = async () => {
     total.value = data.total || 0;
     brands.value = data.brands || [];
     categories.value = data.categories || [];
-    bikes.value = data.bikes || [];
+    bikes.value = (data.bikes || []).map(bike => ({
+      ...bike,
+      isFavorited: false
+    }));
+
+    // 加载收藏状态
+    await loadFavoriteStatus();
 
   } catch (err) {
     console.error('获取数据失败', err);
@@ -375,6 +392,38 @@ const goToDetail = (id) => {
   // 保存当前滚动位置
   sessionStorage.setItem('showroomScrollTop', window.scrollY.toString());
   router.push(`/showroom/${id}`);
+};
+
+// 收藏/取消收藏
+const handleFavorite = async (bike) => {
+  try {
+    if (bike.isFavorited) {
+      // 取消收藏
+      await unfavoriteBikeModel(bike.id);
+      bike.isFavorited = false;
+      showToast('已取消收藏', 'info');
+    } else {
+      // 添加收藏
+      await favoriteBikeModel(bike.id);
+      bike.isFavorited = true;
+      showToast('收藏成功！可在个人中心查看', 'success');
+    }
+  } catch (err) {
+    console.error('收藏操作失败', err);
+    showToast('操作失败，请重试', 'error');
+  }
+};
+
+// 加载收藏状态
+const loadFavoriteStatus = async () => {
+  try {
+    for (const bike of bikes.value) {
+      const status = await checkFavoriteStatus(bike.id);
+      bike.isFavorited = status.data || status || false;
+    }
+  } catch (err) {
+    console.error('加载收藏状态失败', err);
+  }
 };
 
 // 保存滚动位置
@@ -753,6 +802,7 @@ onUnmounted(() => {
   overflow: hidden;
   transition: all 0.4s cubic-bezier(0.165, 0.84, 0.44, 1);
   border: 1px solid rgba(92, 110, 88, 0.12);
+  position: relative;
 }
 
 .bike-card:hover {
@@ -933,6 +983,55 @@ onUnmounted(() => {
   border-radius: 30px;
   backdrop-filter: blur(4px);
   cursor: pointer;
+}
+
+/* 收藏按钮样式 */
+.favorite-btn {
+  position: absolute;
+  bottom: 15px;
+  right: 15px;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: none;
+  background: white;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  cursor: pointer;
+  transition: all 0.3s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+}
+
+.favorite-btn i {
+  font-size: 1.1rem;
+  color: #ccc;
+  transition: all 0.3s;
+}
+
+.favorite-btn:hover {
+  transform: scale(1.1);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.favorite-btn:hover i {
+  color: #ffd700;
+}
+
+.favorite-btn.is-favorited {
+  background: #fff8e1;
+}
+
+.favorite-btn.is-favorited i {
+  color: #ffd700;
+  animation: starPulse 0.5s ease-in-out;
+}
+
+@keyframes starPulse {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.3); }
+  100% { transform: scale(1); }
 }
 
 /* 分页组件样式 */

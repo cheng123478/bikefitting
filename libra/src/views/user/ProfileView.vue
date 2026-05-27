@@ -60,6 +60,7 @@
           <BasicInfoTab v-if="currentTab === 'basic'" @switch-tab="currentTab = $event" />
           <SecurityTab v-if="currentTab === 'security'" />
           <MembershipTab v-if="currentTab === 'membership'" />
+          <FavoritesTab v-if="currentTab === 'favorites'" />
         </div>
       </div>
     </div>
@@ -75,6 +76,7 @@ import { useUserStore } from '@/stores/user.js';
 import BasicInfoTab from './components/BasicInfoTab.vue';
 import SecurityTab from './components/SecurityTab.vue';
 import MembershipTab from './components/MembershipTab.vue';
+import FavoritesTab from './components/FavoritesTab.vue';
 //import MembershipTab from './components/MembershipDonationTab.vue';
 
 const route = useRoute();
@@ -85,7 +87,8 @@ const defaultAvatar = '/src/assets/image/default-avatar.png';
 const menuItems = [
   { id: 'basic', name: '个人资料', icon: 'far fa-id-card' },
   { id: 'security', name: '账号安全', icon: 'fas fa-shield-alt' },
-  { id: 'membership', name: '会员特权', icon: 'fas fa-crown' }
+  { id: 'membership', name: '会员特权', icon: 'fas fa-crown' },
+  { id: 'favorites', name: '我的收藏', icon: 'fas fa-star' }
 ];
 
 onMounted(() => {

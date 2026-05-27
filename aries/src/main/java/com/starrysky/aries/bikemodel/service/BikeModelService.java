@@ -1,15 +1,18 @@
 package com.starrysky.aries.bikemodel.service;
 
 import com.starrysky.aries.bikemodel.repository.BikeModelRepository;
+import com.starrysky.aries.bikemodel.repository.BikeModelStatsRepository;
 import com.starrysky.aries.bikemodel.schema.BikeModelDTO;
 import com.starrysky.aries.bikemodel.schema.BikeModelSearchVO;
 import com.starrysky.aries.bikemodel.schema.BikeModelVO;
 import com.starrysky.aries.bikemodel.schema.CategoryVO;
 import com.starrysky.aries.bikemodel.schema.ShowroomResponseDTO;
 import com.starrysky.aries.entity.BikeModel;
+import com.starrysky.aries.entity.BikeModelStats;
 import com.starrysky.aries.exception.BizException;
 import jakarta.persistence.criteria.Predicate;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -31,9 +34,11 @@ import java.util.stream.Collectors;
  */
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class BikeModelService {
 
     private final BikeModelRepository bikeModelRepository;
+    private final BikeModelStatsRepository bikeModelStatsRepository;
 
     /**
      * 模糊搜索品牌和型号名
@@ -172,10 +177,54 @@ public class BikeModelService {
      * @param id 单车ID
      * @return 单车详情
      */
+    /**
+     * 获取单车详情（同时增加浏览量）
+     *
+     * @param id 单车ID
+     * @return 单车详情
+     */
+    @Transactional
     public BikeModelVO getBikeDetail(Long id) {
         BikeModel bikeModel = bikeModelRepository.findById(id)
                 .orElseThrow(() -> new BizException("单车不存在"));
+        
+        // 增加该车型的浏览量
+        incrementViewCount(bikeModel);
+        
         return convertToVO(bikeModel);
+    }
+    
+    /**
+     * 增加车型浏览量
+     * 同一车型的所有尺寸共享浏览量统计
+     * 策略：使用同一型号中最小id的尺寸作为代表
+     *
+     * @param bikeModel 单车模型
+     */
+    private void incrementViewCount(BikeModel bikeModel) {
+        try {
+            // 找到代表尺寸的id（同一型号中最小id）
+            Long representativeId = bikeModelRepository.findRepresentativeByModel(bikeModel.getModel())
+                    .map(BikeModel::getId)
+                    .orElse(bikeModel.getId()); // 如果找不到，使用当前id
+            
+            // 先尝试增加浏览量（如果记录已存在）
+            int updated = bikeModelStatsRepository.incrementViewCount(representativeId);
+            
+            // 如果没有记录被更新，说明记录不存在，需要创建
+            if (updated == 0) {
+                BikeModelStats stats = new BikeModelStats();
+                stats.setBikeModelId(representativeId);
+                stats.setViewCount(1L);
+                stats.setFavoriteCount(0L);
+                stats.setRecommendWeight(0.0);
+                stats.setCreateTime(java.time.LocalDateTime.now());
+                bikeModelStatsRepository.save(stats);
+            }
+        } catch (Exception e) {
+            // 浏览量统计失败不影响主流程，仅记录日志
+            log.error("增加车型浏览量失败: model={}", bikeModel.getModel(), e);
+        }
     }
 
     /**
