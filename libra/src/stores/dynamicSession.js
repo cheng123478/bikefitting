@@ -55,9 +55,10 @@ export const useDynamicSessionStore = defineStore('dynamicSession', () => {
 
             console.log(payload);
             const res = await submitDynamicSession(payload);
-            sessionData.value.id = res.data?.id || res.id;
+            const data = res.data || res;
+            sessionData.value.id = data.id;
             showToast('分析提交成功，云端已同步', 'success');
-            return sessionData.value;
+            return data;
         } catch (error) {
             console.error('Submit dynamic session failed:', error);
             showToast('提交失败，请检查网络', 'error');

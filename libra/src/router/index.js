@@ -2,6 +2,7 @@ import { createRouter, createWebHistory } from 'vue-router';
 import { useUserStore } from '@/stores/user';
 import { showToast } from '@/utils/toast';
 import HomeView from '@/views/HomeView.vue';
+import { STORAGE_KEYS } from '@/config/constants.js';
 
 const router = createRouter({
     history: createWebHistory(import.meta.env.BASE_URL),
@@ -189,6 +190,9 @@ const router = createRouter({
 
 // --- 全局路由守卫 ---
 router.beforeEach((to, from, next) => {
+    if (to.query.inviter) {
+        localStorage.setItem(STORAGE_KEYS.INVITER_CODE, to.query.inviter);
+    }
     const userStore = useUserStore();
 
     // 1. 设置网页标题

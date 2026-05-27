@@ -34,7 +34,7 @@
         </div>
 
         <!-- 状态 2：分析完成（就绪） -->
-        <div v-else :key="2" class="content-card glass-card success-card">
+        <div v-else-if="currentStatus === 2" :key="2" class="content-card glass-card success-card">
           <div class="visual-area">
             <div class="success-pop">
               <i class="fas fa-check"></i>
@@ -57,6 +57,28 @@
           </div>
         </div>
 
+        <!-- 状态 3：分析失败 -->
+        <div v-else-if="currentStatus === 3" :key="3" class="content-card glass-card error-card">
+          <div class="visual-area">
+            <div class="error-pop">
+              <i class="fas fa-times"></i>
+            </div>
+          </div>
+
+          <div class="text-area">
+            <h2 class="state-title">建模分析失败</h2>
+            <p class="state-desc">
+              抱歉，系统在处理您的视频数据时遇到问题。<br>
+              请确保视频光线充足、视角准确，且单车及人物完整出镜。
+            </p>
+          </div>
+
+          <div class="action-area">
+            <button class="btn btn-outline" @click="router.push('/lab/dynamic')">重新采集</button>
+            <button class="btn btn-primary" @click="router.push('/lab/archives/dynamic')">前往存档中心</button>
+          </div>
+        </div>
+
       </transition>
 
     </div>
@@ -64,7 +86,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, onUnmounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { getFittingSessionDetail } from '@/api/dynamicFitting'; // 请确保路径正确
 import { PROJECT_CONFIG } from '@/config/constants';
@@ -76,17 +98,32 @@ const sessionId = route.query.id;
 const bikeName = route.query.bikeName || '您的单车';
 const currentStatus = ref(Number(route.query.status) || 1);
 
+let pollInterval = null;
+let pollCount = 0;
+const MAX_POLLS = 15; // 最多轮询 15 次 (30秒)
+
 onMounted(async () => {
-  if (currentStatus.value === 2) return;
+  if (currentStatus.value !== 1) return;
 
   // 1. 落地瞬间查一次（捕捉极速完成的情况）
   await syncStatus();
 
-  // 2. 如果还没好，4秒后最后尝试“收割”一次结果
+  // 2. 如果还没好，开启轮询
   if (currentStatus.value === 1) {
-    setTimeout(() => {
-      syncStatus();
-    }, 4000);
+    pollInterval = setInterval(async () => {
+      pollCount++;
+      await syncStatus();
+      if (currentStatus.value !== 1 || pollCount >= MAX_POLLS) {
+        clearInterval(pollInterval);
+        pollInterval = null;
+      }
+    }, 2000);
+  }
+});
+
+onUnmounted(() => {
+  if (pollInterval) {
+    clearInterval(pollInterval);
   }
 });
 
@@ -100,6 +137,8 @@ const syncStatus = async () => {
     const statusFromServer = res.data?.status ?? res.status;
     if (statusFromServer === 2) {
       currentStatus.value = 2;
+    } else if (statusFromServer === 3) {
+      currentStatus.value = 3;
     }
   } catch (error) {
     console.warn(`${PROJECT_CONFIG.MASCOT} Status Sync Interrupted`);
@@ -141,6 +180,10 @@ const goToReport = () => {
   border: 1px solid rgba(92, 110, 88, 0.2);
 }
 
+.error-card {
+  border: 1px solid rgba(255, 77, 79, 0.2);
+}
+
 /* 视觉动画区 */
 .visual-area {
   position: relative;
@@ -178,6 +221,16 @@ const goToReport = () => {
   display: flex; align-items: center; justify-content: center;
   color: white; font-size: 2.5rem;
   box-shadow: 0 10px 25px rgba(92, 110, 88, 0.2);
+  animation: zen-pop 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.error-pop {
+  width: 100%; height: 100%;
+  background: #ff4d4f;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  color: white; font-size: 2.5rem;
+  box-shadow: 0 10px 25px rgba(255, 77, 79, 0.2);
   animation: zen-pop 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
 }
 

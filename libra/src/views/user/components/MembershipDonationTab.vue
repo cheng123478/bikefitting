@@ -19,7 +19,7 @@
         </div>
         <div class="banner-stats">
           <div class="b-stat">
-            <span class="b-val">{{ membershipInfo.tokenBalance ?? 0 }}</span>
+            <span class="b-val">{{ membershipInfo.availableTimes ?? 0 }}</span>
             <span class="b-lbl">可用次数</span>
           </div>
         </div>
@@ -95,7 +95,7 @@
             <input type="text" :value="inviteLink" readonly class="zen-input">
             <button class="get-code-btn" @click="copyLink">复制链接</button>
           </div>
-          <p class="helper-text">奖励说明：1人 = +{{ REWARD_CONFIG.INVITE_FOR_TOKEN }}次分析额度 | {{ REWARD_CONFIG.INVITE_THRESHOLD_PRO }}人 = +1个月 PRO</p>
+          <p class="helper-text">奖励说明：1人 = +{{ REWARD_CONFIG.INVITE_FOR_TOKEN }}次分析额度 | {{ REWARD_CONFIG.INVITE_THRESHOLD_PRO }}人 = +{{ REWARD_CONFIG.PRO_DURATION_DAYS }}天 PRO</p>
         </div>
       </div>
     </div>
