@@ -1,6 +1,5 @@
 package com.starrysky.aries.staticfitting.service;
 
-import com.starrysky.aries.entity.UserBike;
 import com.starrysky.aries.entity.UserBikeSetup;
 import com.starrysky.aries.entity.DiagnosticDetail;
 import com.starrysky.aries.entity.StaticFittingResult;
@@ -222,10 +221,9 @@ public class FittorDiagnosticsManager {
      * 依赖：recStemLength, setup
      *
      * @param res      静态分析结果
-     * @param userBike 用户单车信息
      * @param setup    用户实车信息
      */
-    public void addAdjustmentAdvice(StaticFittingResult res, UserBike userBike, UserBikeSetup setup) {
+    public void addAdjustmentAdvice(StaticFittingResult res, UserBikeSetup setup) {
         if (res.getRecStemLength() == null)
             return;
 

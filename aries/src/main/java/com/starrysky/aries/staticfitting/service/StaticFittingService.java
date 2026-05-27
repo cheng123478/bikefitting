@@ -95,14 +95,7 @@ public class StaticFittingService {
 
         try {
             // A. 数据质量校验
-            Integer wingspan = null;
-            if (body.getLongArmLength() != null) {
-                int singleArm = body.getLongArmLength() + (body.getShortArmLength() != null ? body.getShortArmLength() : body.getLongArmLength());
-                int gender = (user.getGender() != null) ? user.getGender() : 1;
-                double shoulderEst = body.getShoulderWidth() != null ? body.getShoulderWidth() : (body.getHeight() * (gender == 2 ? 0.21 : 0.22));
-                wingspan = (int) Math.round(singleArm * 2 + shoulderEst);
-            }
-            int validationCode = StaticFittingCalculator.validateHumanProportions(body.getSpanHeight(), body.getHeight(), wingspan);
+            int validationCode = getValidationCode(body, user);
             if (validationCode > 0) {
                 String templateKey = switch (validationCode) {
                     case 1 -> "span_ratio_high";
@@ -130,7 +123,7 @@ public class StaticFittingService {
 
             // C. 现状对比与器材调教处方
             processBikeAdjustment(bike, setup, result);
-            diagnosticsManager.addAdjustmentAdvice(result, bike, setup);
+            diagnosticsManager.addAdjustmentAdvice(result, setup);
 
             diagnosticsManager.diagnoseSafety(result, body);
             assembleFinalPostureSuggestion(result);
@@ -142,6 +135,17 @@ public class StaticFittingService {
 
         StaticFittingResult savedResult = staticFittingResultRepository.save(result);
         return convertToVO(savedResult, bike.getBikeModel() != null ? bike.getBikeModel().getModel() : "未知车型");
+    }
+
+    private static int getValidationCode(UserBody body, User user) {
+        Integer wingspan = null;
+        if (body.getLongArmLength() != null) {
+            int singleArm = body.getLongArmLength() + (body.getShortArmLength() != null ? body.getShortArmLength() : body.getLongArmLength());
+            int gender = (user.getGender() != null) ? user.getGender() : 1;
+            double shoulderEst = body.getShoulderWidth() != null ? body.getShoulderWidth() : (body.getHeight() * (gender == 2 ? 0.21 : 0.22));
+            wingspan = (int) Math.round(singleArm * 2 + shoulderEst);
+        }
+        return StaticFittingCalculator.validateHumanProportions(body.getSpanHeight(), body.getHeight(), wingspan);
     }
 
     private void validateCoreData(UserBody body) {
@@ -446,7 +450,6 @@ public class StaticFittingService {
         if (ideal.getRecSetback() != null && setup.getSaddleSetback() != null) {
             StaticFittingMetricVO m = buildMetric("Setback (座垫后移)", ideal.getRecSetback(), setup.getSaddleSetback(), 5, "影响发力角度与膝盖健康");
             mechanicalAdjustments.add(m);
-            double delta = Math.abs(m.getDelta().doubleValue());
             totalWeightedScore += calculateItemScore(m.getDelta().doubleValue(), 5) * 0.15;
             totalWeight += 0.15;
         }
@@ -455,7 +458,6 @@ public class StaticFittingService {
         if (ideal.getRecCrankLength() != null && setup.getCrankLength() != null) {
             StaticFittingMetricVO m = buildMetric("Crank Length (曲柄长度)", ideal.getRecCrankLength(), setup.getCrankLength(), 2, "影响踩踏效率与膝盖负荷");
             mechanicalAdjustments.add(m);
-            double delta = Math.abs(m.getDelta().doubleValue());
             totalWeightedScore += calculateItemScore(m.getDelta().doubleValue(), 2) * 0.08;
             totalWeight += 0.08;
         }
@@ -464,7 +466,6 @@ public class StaticFittingService {
         if (ideal.getRecSaddleWidth() != null && setup.getSaddleWidth() != null) {
             StaticFittingMetricVO m = buildMetric("Saddle Width (坐垫推荐宽)", ideal.getRecSaddleWidth(), setup.getSaddleWidth(), 5, "影响坐骨支撑与舒适度");
             mechanicalAdjustments.add(m);
-            double delta = Math.abs(m.getDelta().doubleValue());
             totalWeightedScore += calculateItemScore(m.getDelta().doubleValue(), 5) * 0.06;
             totalWeight += 0.06;
         }
@@ -473,7 +474,6 @@ public class StaticFittingService {
         if (ideal.getRecHandlebarDrop() != null && setup.getHandlebarDrop() != null) {
             StaticFittingMetricVO m = buildMetric("Handlebar Drop (车把落差)", ideal.getRecHandlebarDrop(), setup.getHandlebarDrop(), 10, "影响骑行姿态与风阻");
             mechanicalAdjustments.add(m);
-            double delta = Math.abs(m.getDelta().doubleValue());
             totalWeightedScore += calculateItemScore(m.getDelta().doubleValue(), 10) * 0.10;
             totalWeight += 0.10;
         }
@@ -482,7 +482,6 @@ public class StaticFittingService {
         if (ideal.getRecSpacerHeight() != null && setup.getSpacersHeight() != null) {
             StaticFittingMetricVO m = buildMetric("Spacer Height (垫圈高度)", ideal.getRecSpacerHeight(), setup.getSpacersHeight(), 5, "影响车把高度与舒适度");
             mechanicalAdjustments.add(m);
-            double delta = Math.abs(m.getDelta().doubleValue());
             totalWeightedScore += calculateItemScore(m.getDelta().doubleValue(), 5) * 0.06;
             totalWeight += 0.06;
         }

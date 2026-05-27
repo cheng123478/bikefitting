@@ -43,6 +43,6 @@ public class UserInvitationLog {
 
     @CreatedDate
     @Column(nullable = false, updatable = false)
-    @Comment("记录创建时间(即被邀请人注册时间)")
+    @Comment("记录创建时间")
     private LocalDateTime createTime;
 }

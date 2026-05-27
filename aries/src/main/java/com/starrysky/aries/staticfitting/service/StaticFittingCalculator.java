@@ -20,7 +20,7 @@ public class StaticFittingCalculator {
      *
      * @param spanHeight 跨高
      * @param height     身高
-     * @param armLength  手臂长
+     * @param wingspan  臂展
      * @return 0: 正常, 1: 跨高比例极高, 2: 跨高比例极低, 3: 猿臂比异常
      */
     public static int validateHumanProportions(Integer spanHeight, Integer height, Integer wingspan) {

@@ -3,6 +3,7 @@ package com.starrysky.aries.membership.service;
 import com.starrysky.aries.entity.UserMembership;
 import com.starrysky.aries.membership.enums.MemberTypeEnum;
 import com.starrysky.aries.membership.enums.PrivilegeTypeEnum;
+import com.starrysky.aries.util.Constant;
 import com.starrysky.aries.membership.exception.MembershipException;
 import com.starrysky.aries.membership.repository.UserMembershipRepository;
 import com.starrysky.aries.redis.RedisConstant;
@@ -100,7 +101,7 @@ public class UserMembershipService {
             LocalDate today = LocalDate.now();
             LocalDate lastRefresh = membership.getLastTokenRefreshDate();
 
-            boolean isFreeAvailable = (lastRefresh == null || ChronoUnit.DAYS.between(lastRefresh, today) >= 2);
+            boolean isFreeAvailable = (lastRefresh == null || ChronoUnit.DAYS.between(lastRefresh, today) >= 1);
 
             if (isFreeAvailable) {
                 // 扣除免费额度，更新最后一次发放/消费日期为今天
@@ -162,7 +163,7 @@ public class UserMembershipService {
         UserMembership membership = new UserMembership();
         membership.setUserId(userId);
         membership.setMemberType(MemberTypeEnum.FREE);
-        membership.setTokenBalance(0);
+        membership.setTokenBalance(Constant.DEFAULT_FITTING_TIMES);
         membership.setTotalInvites(0);
         return userMembershipRepository.save(membership);
     }

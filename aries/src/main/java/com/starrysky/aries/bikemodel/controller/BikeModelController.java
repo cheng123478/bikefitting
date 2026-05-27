@@ -7,7 +7,6 @@ import com.starrysky.aries.bikemodel.schema.ShowroomResponseDTO;
 import com.starrysky.aries.bikemodel.service.BikeModelService;
 import com.starrysky.aries.util.ResponseResult;
 import jakarta.annotation.Resource;
-import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
@@ -78,14 +77,14 @@ public class BikeModelController {
     /**
      * 获取单车展厅列表
      *
-     * @param keyword 搜索关键词
+     * @param keyword   搜索关键词
      * @param bikeTypes 单车类型筛选（支持多个，逗号分隔）
-     * @param brands 品牌筛选（支持多个，逗号分隔）
-     * @param minPrice 最低价格
-     * @param maxPrice 最高价格
-     * @param sortBy 排序方式
-     * @param page 页码
-     * @param size 每页数量
+     * @param brands    品牌筛选（支持多个，逗号分隔）
+     * @param minPrice  最低价格
+     * @param maxPrice  最高价格
+     * @param sortBy    排序方式
+     * @param page      页码
+     * @param size      每页数量
      * @return 展厅单车分页数据
      */
     @GetMapping("/showroom")
@@ -99,7 +98,8 @@ public class BikeModelController {
             @RequestParam(value = "page", defaultValue = "1") int page,
             @RequestParam(value = "size", defaultValue = "10") int size) {
         Pageable pageable = PageRequest.of(page - 1, size, Sort.by("id").descending());
-        return ResponseResult.success(bikeModelService.getShowroomBikes(keyword, bikeTypes, brands, minPrice, maxPrice, sortBy, pageable));
+        return ResponseResult.success(
+                bikeModelService.getShowroomBikes(keyword, bikeTypes, brands, minPrice, maxPrice, sortBy, pageable));
     }
 
     /**
@@ -117,7 +117,7 @@ public class BikeModelController {
      * 根据车型名称获取所有尺寸列表
      *
      * @param modelName 车型名称
-     * @param brand 品牌（可选，用于更精确匹配）
+     * @param brand     品牌（可选，用于更精确匹配）
      * @return 该车型的所有尺寸列表
      */
     @GetMapping("/model/{modelName}")
