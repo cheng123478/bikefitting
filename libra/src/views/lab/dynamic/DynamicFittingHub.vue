@@ -317,7 +317,7 @@ const submitAnalysis = async () => {
       sessionStore.clearSession();
       router.push({
         path: '/lab/dynamic/session/submitted',
-        query: { id: vo.id, status: vo.status, bikeName: vo.userBikeInfo?.brandModel }
+        query: { id: vo.id, status: vo.status, bikeName: vo.bikeName || (selectedBike.value ? (selectedBike.value.brand + ' ' + selectedBike.value.model) : '您的单车') }
       });
     }
   } catch (error) {

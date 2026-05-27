@@ -2,7 +2,7 @@
   <div class="panel-section fade-in">
     <div class="panel-header">
       <h3 class="panel-title">会员与特权</h3>
-      <p class="sub">管理您的权益、代币与邀请奖励</p>
+      <p class="sub">管理您的权益与邀请奖励</p>
     </div>
 
     <!-- 资产与额度区 -->
@@ -20,10 +20,10 @@
       <div class="stat-item">
         <span class="lbl">可用动态 Fitting</span>
         <div class="val-group">
-          <span class="val">{{ membershipInfo.tokenBalance ?? 0 }}</span>
+          <span class="val">{{ membershipInfo.availableTimes ?? 0 }}</span>
           <span class="unit">次</span>
         </div>
-        <span class="sub-detail muted">系统每2天补充1次</span>
+        <span class="sub-detail muted">系统每天补充1次</span>
       </div>
       <div class="divider-v"></div>
       <div class="stat-item">
@@ -93,7 +93,7 @@
             <span class="period">/{{ plan.period }}</span>
           </div>
           <ul class="plan-features">
-            <li><i class="fas fa-check"></i> 无限次动态分析</li>
+            <li><i class="fas fa-check"></i> 每日10次动态分析</li>
             <li><i class="fas fa-check"></i> AI 实时姿态纠正</li>
             <li v-if="plan.isBest"><i class="fas fa-check"></i> 专属车辆管家</li>
           </ul>

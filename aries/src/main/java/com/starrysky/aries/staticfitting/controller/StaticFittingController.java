@@ -48,6 +48,18 @@ public class StaticFittingController {
     }
 
     /**
+     * 根据结果ID获取静态Fitting报告
+     *
+     * @param resultId 结果ID
+     * @param user     当前登录用户
+     * @return 静态Fitting报告
+     */
+    @GetMapping("/results/{resultId}")
+    public StaticFittingReportVO getReportByResultId(@PathVariable Long resultId, @AuthenticationPrincipal User user) {
+        return staticFittingService.diagnoseBikeSetupByResultId(user.getId(), resultId);
+    }
+
+    /**
      * 获取静态Fitting历史
      *
      * @param user 当前登录用户

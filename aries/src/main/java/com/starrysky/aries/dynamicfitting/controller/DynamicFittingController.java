@@ -10,6 +10,8 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
+import com.starrysky.aries.membership.annotation.RequirePrivilege;
+import com.starrysky.aries.membership.enums.PrivilegeTypeEnum;
 
 import java.util.List;
 import java.util.Map;
@@ -36,6 +38,7 @@ public class DynamicFittingController {
      * @param request 请求体
      * @return 会话ID
      */
+    @RequirePrivilege(PrivilegeTypeEnum.DYNAMIC_FITTING)
     @PostMapping("/sessions")
     public ResponseResult<DynamicFittingSessionVO> saveSession(@AuthenticationPrincipal User user,
                                                                @RequestBody DynamicFittingRequest request) {
@@ -57,9 +60,10 @@ public class DynamicFittingController {
     @GetMapping("/sessions")
     public ResponseResult<Page<DynamicFittingSessionVO>> getSessions(@AuthenticationPrincipal User user,
                                                                      @RequestParam(value = "bikeId", required = false) Long bikeId,
-                                                                     @RequestParam(value = "page", defaultValue = "0") int page,
+                                                                     @RequestParam(value = "page", defaultValue = "1") int page,
                                                                      @RequestParam(value = "size", defaultValue = "10") int size) {
-        PageRequest pageRequest = PageRequest.of(page - 1, size, Sort.by("createTime").descending());
+        int pageIndex = page > 0 ? page - 1 : 0;
+        PageRequest pageRequest = PageRequest.of(pageIndex, size, Sort.by("createTime").descending());
         return ResponseResult.success(dynamicFittingService.getSessionsByUser(user.getId(), bikeId, pageRequest));
     }
 

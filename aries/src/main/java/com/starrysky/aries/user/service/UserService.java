@@ -58,6 +58,8 @@ public class UserService {
     private Snowflake snowflake;
     @Resource
     private ApplicationEventPublisher eventPublisher;
+    @Resource
+    private HttpServletRequest request;
 
     /**
      * 注册和登录，用户手机短信注册和登录
@@ -102,7 +104,7 @@ public class UserService {
             UserMembership newMem = new UserMembership();
             newMem.setUserId(user.getId());
             newMem.setMemberType(MemberTypeEnum.FREE);
-            newMem.setTokenBalance(0);
+            newMem.setTokenBalance(Constant.DEFAULT_FITTING_TIMES);
             newMem.setTotalInvites(0);
             newMem.setCreateTime(LocalDateTime.now());
             userMembershipRepository.save(newMem);
@@ -150,13 +152,12 @@ public class UserService {
      */
     private void publishRegistrationEvent(User newUser) {
         try {
-            RequestAttributes attributes = RequestContextHolder.getRequestAttributes();
-            if (attributes instanceof ServletRequestAttributes) {
-                HttpServletRequest request = ((ServletRequestAttributes) attributes).getRequest();
-                String inviterCode = request.getHeader("X-Inviter-Code");
-                if (StringUtils.hasText(inviterCode)) {
-                    eventPublisher.publishEvent(new UserRegisteredEvent(newUser.getId(), inviterCode));
-                }
+            String inviterCode = request.getHeader("X-Inviter-Code");
+            if (StringUtils.hasText(inviterCode)) {
+                log.info("Publishing UserRegisteredEvent for newUser={}, inviterCode={}", newUser.getId(), inviterCode);
+                eventPublisher.publishEvent(new UserRegisteredEvent(newUser.getId(), inviterCode));
+            } else {
+                log.info("No X-Inviter-Code found in request header for newUser={}", newUser.getId());
             }
         } catch (Exception e) {
             log.error("抛出注册事件失败", e);

@@ -3,6 +3,7 @@ package com.starrysky.aries.membership.listener;
 import com.starrysky.aries.entity.UserInvitationLog;
 import com.starrysky.aries.entity.UserMembership;
 import com.starrysky.aries.membership.enums.MemberTypeEnum;
+import com.starrysky.aries.util.Constant;
 import com.starrysky.aries.membership.event.UserRegisteredEvent;
 import com.starrysky.aries.membership.repository.UserInvitationLogRepository;
 import com.starrysky.aries.membership.repository.UserMembershipRepository;
@@ -10,6 +11,8 @@ import com.starrysky.aries.util.InviteCodeUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.event.EventListener;
+import org.springframework.transaction.event.TransactionalEventListener;
+import org.springframework.transaction.event.TransactionPhase;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -30,7 +33,7 @@ public class MembershipEventListener {
     private final UserInvitationLogRepository userInvitationLogRepository;
 
     @Async
-    @EventListener
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     @Transactional(rollbackFor = Exception.class)
     public void handleUserRegisteredEvent(UserRegisteredEvent event) {
         String inviterCode = event.getInviterCode();
@@ -63,6 +66,7 @@ public class MembershipEventListener {
         invitationLog.setInviterId(inviterId);
         invitationLog.setInviteeId(newUserId);
         invitationLog.setRewardGranted(false);
+        invitationLog.setCreateTime(LocalDateTime.now());
         userInvitationLogRepository.save(invitationLog);
 
         // 4. 发放奖励 (1个永久令牌)
@@ -92,7 +96,7 @@ public class MembershipEventListener {
         UserMembership membership = new UserMembership();
         membership.setUserId(userId);
         membership.setMemberType(MemberTypeEnum.FREE);
-        membership.setTokenBalance(0);
+        membership.setTokenBalance(Constant.DEFAULT_FITTING_TIMES);
         membership.setTotalInvites(0);
         return membership;
     }

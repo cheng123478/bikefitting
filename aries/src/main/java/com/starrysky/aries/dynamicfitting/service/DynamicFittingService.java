@@ -25,6 +25,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
 import java.io.ByteArrayInputStream;
 import java.math.BigDecimal;
@@ -358,7 +359,7 @@ public class DynamicFittingService {
                 new TypeReference<>() {});
 
         Map<String, String> standardRanges = null;
-        if (org.springframework.util.StringUtils.hasText(result.getStandardJson())) {
+        if (StringUtils.hasText(result.getStandardJson())) {
             try {
                 standardRanges = JSON.parseObject(result.getStandardJson(), new TypeReference<>() {});
             } catch (Exception e) {
@@ -368,13 +369,12 @@ public class DynamicFittingService {
         reportVO.setStandardRanges(standardRanges);
 
         if (overallSummary != null) {
-            Map<String, String> finalSR = standardRanges;
             reportVO.setSideData(
-                    new DynamicFittingReportVO.ViewData(mapToMetricVO(overallSummary.get("side"), advices, finalSR)));
+                    new DynamicFittingReportVO.ViewData(mapToMetricVO(overallSummary.get("side"), advices, standardRanges)));
             reportVO.setFrontData(
-                    new DynamicFittingReportVO.ViewData(mapToMetricVO(overallSummary.get("front"), advices, finalSR)));
+                    new DynamicFittingReportVO.ViewData(mapToMetricVO(overallSummary.get("front"), advices, standardRanges)));
             reportVO.setBackData(
-                    new DynamicFittingReportVO.ViewData(mapToMetricVO(overallSummary.get("back"), advices, finalSR)));
+                    new DynamicFittingReportVO.ViewData(mapToMetricVO(overallSummary.get("back"), advices, standardRanges)));
 
             // 提取被合成好的 PedalingData 数据并装配给前端
             if (overallSummary.containsKey("pedalingData")) {
@@ -557,9 +557,7 @@ public class DynamicFittingService {
         // 3. 建议数量统计
         if (advices != null && !advices.isEmpty()) {
             long adjustCount = advices.size();
-            if (adjustCount > 0) {
-                sb.append(String.format("共包含 %d 项关键调整指导。", adjustCount));
-            }
+            sb.append(String.format("共包含 %d 项关键调整指导。", adjustCount));
         }
 
         return sb.toString();
@@ -653,8 +651,10 @@ public class DynamicFittingService {
             try {
                 // 简单的 key 提取逻辑 (需根据 CosUtil 实际存储路径调整)
                 String url = snapshot.getImageUrl();
-                String key = url.substring(url.indexOf("fitting/"));
-                cosUtil.delete(key);
+                if (org.springframework.util.StringUtils.hasText(url) && url.contains("fitting/")) {
+                    String key = url.substring(url.indexOf("fitting/"));
+                    cosUtil.delete(key);
+                }
             } catch (Exception e) {
                 log.error("删除 OSS 图片失败: {}", snapshot.getImageUrl(), e);
             }

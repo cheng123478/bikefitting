@@ -3,6 +3,7 @@ package com.starrysky.aries.membership.controller;
 import com.starrysky.aries.entity.User;
 import com.starrysky.aries.entity.UserMembership;
 import com.starrysky.aries.membership.enums.MemberTypeEnum;
+import com.starrysky.aries.util.Constant;
 import com.starrysky.aries.util.InviteCodeUtil;
 import com.starrysky.aries.util.ResponseResult;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -56,7 +57,7 @@ public class MembershipController {
                     UserMembership newMem = new UserMembership();
                     newMem.setUserId(user.getId());
                     newMem.setMemberType(MemberTypeEnum.FREE);
-                    newMem.setTokenBalance(0);
+                    newMem.setTokenBalance(Constant.DEFAULT_FITTING_TIMES);
                     newMem.setTotalInvites(0);
                     newMem.setCreateTime(LocalDateTime.now());
                     return userMembershipRepository.save(newMem);

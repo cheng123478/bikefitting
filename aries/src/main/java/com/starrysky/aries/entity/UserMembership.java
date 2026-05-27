@@ -11,6 +11,7 @@ import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import com.starrysky.aries.util.Constant;
 
 /**
  * 用户会员特权与资产账户
@@ -44,9 +45,9 @@ public class UserMembership {
 
     @Comment("当前永久令牌余额 (如邀请获得的令牌)")
     @Column(nullable = false)
-    private Integer tokenBalance = 0;
+    private Integer tokenBalance = Constant.DEFAULT_FITTING_TIMES;
 
-    @Comment("最后一次使用系统免费令牌的日期 (用于判定每2天发放逻辑)")
+    @Comment("最后一次使用系统免费令牌的日期 (用于判定每天发放逻辑)")
     private LocalDate lastTokenRefreshDate;
 
     @CreatedDate
@@ -64,5 +65,15 @@ public class UserMembership {
      */
     public boolean isProActive() {
         return memberType == MemberTypeEnum.PRO && proExpireTime != null && proExpireTime.isAfter(LocalDateTime.now());
+    }
+
+    /**
+     * 获取当前可用的动态 Fitting 次数
+     */
+    @Transient
+    public int getAvailableTimes() {
+        LocalDate today = LocalDate.now();
+        boolean isFreeAvailable = (lastTokenRefreshDate == null || !lastTokenRefreshDate.equals(today));
+        return (tokenBalance != null ? tokenBalance : 0) + (isFreeAvailable ? 1 : 0);
     }
 }

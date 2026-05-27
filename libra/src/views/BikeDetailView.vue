@@ -3,8 +3,8 @@
     <div class="container">
       <!-- 头部导航 -->
       <header class="detail-header" v-scroll-reveal>
-        <button class="back-btn" @click="$router.back()">
-          <i class="fas fa-arrow-left"></i> 返回展厅
+        <button class="back-btn" @click="handleBack()">
+          <i class="fas fa-arrow-left"></i> {{ fromRecommend ? '返回推荐列表' : '返回展厅' }}
         </button>
         <div class="header-status">
           <span class="status-dot"></span>
@@ -55,15 +55,6 @@
                 {{ size }}
               </button>
             </div>
-            <!-- 收藏按钮 -->
-            <button 
-              class="favorite-btn" 
-              :class="{ 'is-favorited': isFavorited }"
-              @click.stop="handleFavorite"
-              :title="isFavorited ? '取消收藏' : '收藏车型及尺码'"
-            >
-              <i class="fas fa-star"></i>
-            </button>
           </div>
 
           <!-- 车架几何数据 -->
@@ -115,8 +106,6 @@
 import { ref, onMounted, computed } from 'vue';
 import { useRoute } from 'vue-router';
 import { getBikeDetail, getBikeByModel } from '@/api/bikeShowroom';
-import { favoriteBikeModelWithSize, unfavoriteBikeModel, checkFavoriteStatus } from '@/api/favorite';
-import { showToast } from '@/utils/toast';
 
 const route = useRoute();
 
@@ -165,8 +154,8 @@ const bikeVariants = ref([]);
 // 当前选中的尺寸
 const selectedSize = ref('');
 
-// 收藏状态
-const isFavorited = ref(false);
+// 是否来自推荐列表
+const fromRecommend = ref(false);
 
 // 获取所有尺寸列表（去重排序）
 const allSizes = computed(() => {
@@ -195,50 +184,27 @@ const selectSize = (size) => {
   selectedSize.value = size;
 };
 
-// 收藏/取消收藏
-const handleFavorite = async () => {
-  try {
-    if (!bikeDetail.value.id) {
-      showToast('数据加载中，请稍后', 'info');
-      return;
-    }
-
-    console.log('开始收藏操作，车型ID:', bikeDetail.value.id);
-
-    if (isFavorited.value) {
-      // 取消收藏
-      console.log('取消收藏:', bikeDetail.value.id);
-      await unfavoriteBikeModel(bikeDetail.value.id);
-      isFavorited.value = false;
-      showToast('已取消收藏', 'info');
-    } else {
-      // 添加收藏
-      console.log('添加收藏:', bikeDetail.value.id);
-      await favoriteBikeModelWithSize(bikeDetail.value.id);
-      isFavorited.value = true;
-      showToast('收藏成功！可在个人中心查看', 'success');
-    }
-  } catch (err) {
-    console.error('收藏操作失败', err);
-    console.error('错误详情:', err.response?.data);
-    const errorMsg = err.response?.data?.message || err.message || '操作失败，请重试';
-    showToast(errorMsg, 'error');
+// 返回处理
+const handleBack = () => {
+  // 如果来自推荐列表，返回展厅页面后需要保持推荐弹窗打开
+  if (fromRecommend.value) {
+    sessionStorage.setItem('recommendBack', 'true');
   }
-};
-
-// 加载收藏状态
-const loadFavoriteStatus = async () => {
-  try {
-    if (bikeDetail.value.id) {
-      const status = await checkFavoriteStatus(bikeDetail.value.id);
-      isFavorited.value = status.data || status || false;
-    }
-  } catch (err) {
-    console.error('加载收藏状态失败', err);
-  }
+  window.history.back();
 };
 
 onMounted(async () => {
+  // 读取来源信息
+  try {
+    const filterState = sessionStorage.getItem('showroomFilterState');
+    if (filterState) {
+      const state = JSON.parse(filterState);
+      fromRecommend.value = state.fromRecommend || false;
+    }
+  } catch (e) {
+    console.error('读取来源信息失败', e);
+  }
+
   const id = route.params.id;
   try {
     // 获取单车详情
@@ -248,9 +214,9 @@ onMounted(async () => {
       ...(detailData.data || detailData)
     };
 
-    // 获取同一车型的所有尺寸数据
+    // 获取同一车型的所有尺寸数据（传递品牌以确保精确匹配）
     if (bikeDetail.value.model) {
-      const variantsData = await getBikeByModel(bikeDetail.value.model);
+      const variantsData = await getBikeByModel(bikeDetail.value.model, bikeDetail.value.brand);
       bikeVariants.value = variantsData.data || variantsData || [];
       
       // 默认选中当前尺寸或第一个尺寸
@@ -260,9 +226,6 @@ onMounted(async () => {
         selectedSize.value = allSizes.value[0];
       }
     }
-
-    // 加载收藏状态
-    await loadFavoriteStatus();
   } catch (err) {
     console.error('获取单车详情失败', err);
   }
@@ -490,7 +453,6 @@ onMounted(async () => {
 
 .size-select-card {
   background: #fafafa;
-  position: relative;
 }
 
 .size-buttons {
@@ -536,55 +498,6 @@ onMounted(async () => {
   display: flex;
   align-items: center;
   gap: 8px;
-}
-
-/* 收藏按钮样式 */
-.favorite-btn {
-  position: absolute;
-  bottom: 20px;
-  right: 20px;
-  width: 45px;
-  height: 45px;
-  border-radius: 50%;
-  border: none;
-  background: white;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.15);
-  cursor: pointer;
-  transition: all 0.3s;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 10;
-}
-
-.favorite-btn i {
-  font-size: 1.2rem;
-  color: #ccc;
-  transition: all 0.3s;
-}
-
-.favorite-btn:hover {
-  transform: scale(1.15);
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.25);
-}
-
-.favorite-btn:hover i {
-  color: #ffd700;
-}
-
-.favorite-btn.is-favorited {
-  background: #fff8e1;
-}
-
-.favorite-btn.is-favorited i {
-  color: #ffd700;
-  animation: starPulse 0.5s ease-in-out;
-}
-
-@keyframes starPulse {
-  0% { transform: scale(1); }
-  50% { transform: scale(1.3); }
-  100% { transform: scale(1); }
 }
 
 

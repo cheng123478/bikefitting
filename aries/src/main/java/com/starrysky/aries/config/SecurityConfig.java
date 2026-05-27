@@ -102,7 +102,8 @@ public class SecurityConfig {
                 .authenticationProvider(smsCodeAuthenticationProvider)
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/user/login", "/user/login/sms", "/user/login/wechat", "/user/refresh",
-                                "/error", "/sms/send", "/resource/**").permitAll()
+                                "/error", "/sms/send", "/resource/**", 
+                                "/bike-model/showroom", "/bike-model/{id}", "/bike-model/model/**").permitAll()
                         .requestMatchers("/user/logout").authenticated()
                         .anyRequest().authenticated()
                 )

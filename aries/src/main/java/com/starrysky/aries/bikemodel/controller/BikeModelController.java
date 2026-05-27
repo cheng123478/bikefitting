@@ -5,12 +5,12 @@ import com.starrysky.aries.bikemodel.schema.BikeModelSearchVO;
 import com.starrysky.aries.bikemodel.schema.BikeModelVO;
 import com.starrysky.aries.bikemodel.schema.ShowroomResponseDTO;
 import com.starrysky.aries.bikemodel.service.BikeModelService;
+import com.starrysky.aries.entity.User;
 import com.starrysky.aries.util.ResponseResult;
 import jakarta.annotation.Resource;
-import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Sort;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -96,9 +96,10 @@ public class BikeModelController {
             @RequestParam(value = "minPrice", required = false) Integer minPrice,
             @RequestParam(value = "maxPrice", required = false) Integer maxPrice,
             @RequestParam(value = "sortBy", required = false, defaultValue = "default") String sortBy,
+            //sortBy 是一个未完成的功能 ：- ✅ 接口已预留参数- ❌ 后端未实现动态排序逻辑- ❌ 前端未提供排序选择UI
             @RequestParam(value = "page", defaultValue = "1") int page,
             @RequestParam(value = "size", defaultValue = "10") int size) {
-        Pageable pageable = PageRequest.of(page - 1, size, Sort.by("id").descending());
+        Pageable pageable = PageRequest.of(page - 1, size);
         return ResponseResult.success(bikeModelService.getShowroomBikes(keyword, bikeTypes, brands, minPrice, maxPrice, sortBy, pageable));
     }
 
@@ -117,7 +118,7 @@ public class BikeModelController {
      * 根据车型名称获取所有尺寸列表
      *
      * @param modelName 车型名称
-     * @param brand 品牌（可选，用于更精确匹配）
+     * @param brand     品牌（可选，用于更精确匹配）
      * @return 该车型的所有尺寸列表
      */
     @GetMapping("/model/{modelName}")
@@ -125,5 +126,42 @@ public class BikeModelController {
             @PathVariable String modelName,
             @RequestParam(value = "brand", required = false) String brand) {
         return ResponseResult.success(bikeModelService.getModelSizes(modelName, brand));
+    }
+
+    /**
+     * 切换单车收藏状态
+     *
+     * @param bikeId 单车ID
+     * @param user 当前登录用户
+     * @return 收藏状态
+     */
+    @PostMapping("/{bikeId}/favorite")
+    public ResponseResult<Boolean> toggleFavorite(@PathVariable Long bikeId, @AuthenticationPrincipal User user) {
+        boolean isFavorite = bikeModelService.toggleFavorite(user.getId(), bikeId);
+        return ResponseResult.success(isFavorite);
+    }
+
+    /**
+     * 获取用户收藏的单车ID列表
+     *
+     * @param user 当前登录用户
+     * @return 收藏的单车ID列表
+     */
+    @GetMapping("/favorites")
+    public ResponseResult<List<Long>> getUserFavorites(@AuthenticationPrincipal User user) {
+        List<Long> favoriteIds = bikeModelService.getUserFavoriteBikeIds(user.getId());
+        return ResponseResult.success(favoriteIds);
+    }
+
+    /**
+     * 获取用户收藏的车辆详情列表
+     *
+     * @param user 当前登录用户
+     * @return 收藏的车辆详情列表
+     */
+    @GetMapping("/showroom/favorites")
+    public ResponseResult<List<BikeModelVO>> getFavoriteBikes(@AuthenticationPrincipal User user) {
+        List<BikeModelVO> favoriteBikes = bikeModelService.getFavoriteBikes(user.getId());
+        return ResponseResult.success(favoriteBikes);
     }
 }

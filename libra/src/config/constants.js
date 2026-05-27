@@ -44,7 +44,7 @@ export const PROJECT_CONFIG = {
 export const REWARD_CONFIG = {
     INVITE_FOR_TOKEN: 1,         // 每邀请 1 人奖励的分析额度
     INVITE_THRESHOLD_PRO: 7,     // 升级 PRO 所需的邀请人数
-    PRO_DURATION_DAYS: 30        // 达到门槛后赠送的 PRO 天数
+    PRO_DURATION_DAYS: 7        // 达到门槛后赠送的 PRO 天数
 };
 
 // 联系与社交配置

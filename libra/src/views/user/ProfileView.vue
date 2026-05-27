@@ -14,7 +14,6 @@
               <i v-if="userStore.userInfo?.gender == 1" class="fas fa-mars gender-icon male"></i>
               <i v-if="userStore.userInfo?.gender == 2" class="fas fa-venus gender-icon female"></i>
               <span class="role-badge">{{ userStore.userInfo?.memberType === 'PRO' ? 'PRO 会员' : '普通会员' }}</span>
-              <span class="id-badge">ID: {{ userStore.userInfo?.id?.toString().slice(-6) || '888888' }}</span>
             </div>
             <p class="introduction">
               {{ userStore.userInfo?.introduction || '这家伙很懒，什么也没写' }}

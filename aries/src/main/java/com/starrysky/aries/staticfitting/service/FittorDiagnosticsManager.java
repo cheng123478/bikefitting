@@ -1,6 +1,5 @@
 package com.starrysky.aries.staticfitting.service;
 
-import com.starrysky.aries.entity.UserBike;
 import com.starrysky.aries.entity.UserBikeSetup;
 import com.starrysky.aries.entity.DiagnosticDetail;
 import com.starrysky.aries.entity.StaticFittingResult;
@@ -38,9 +37,11 @@ public class FittorDiagnosticsManager {
 
         // 猿臂比诊断：依赖手臂长度和身高
         if (userBody.getLongArmLength() != null && userBody.getHeight() != null) {
-            v.put("armTotal",
-                    userBody.getLongArmLength() + (userBody.getShortArmLength() != null ? userBody.getShortArmLength()
-                            : userBody.getLongArmLength()));
+            int singleArm = userBody.getLongArmLength() + (userBody.getShortArmLength() != null ? userBody.getShortArmLength() : userBody.getLongArmLength());
+            int gender = (userBody.getUser() != null && userBody.getUser().getGender() != null) ? userBody.getUser().getGender() : 1;
+            double shoulderEst = userBody.getShoulderWidth() != null ? userBody.getShoulderWidth() : (userBody.getHeight() * (gender == 2 ? 0.21 : 0.22));
+            int wingspan = (int) Math.round(singleArm * 2 + shoulderEst);
+            v.put("armTotal", wingspan);
             v.put("height", userBody.getHeight());
             String apeKey = apeIndex > 1.04 ? "ape_index_high"
                     : (apeIndex < 0.97 ? "ape_index_low" : "ape_index_standard");
@@ -220,10 +221,9 @@ public class FittorDiagnosticsManager {
      * 依赖：recStemLength, setup
      *
      * @param res      静态分析结果
-     * @param userBike 用户单车信息
      * @param setup    用户实车信息
      */
-    public void addAdjustmentAdvice(StaticFittingResult res, UserBike userBike, UserBikeSetup setup) {
+    public void addAdjustmentAdvice(StaticFittingResult res, UserBikeSetup setup) {
         if (res.getRecStemLength() == null)
             return;
 
@@ -251,14 +251,6 @@ public class FittorDiagnosticsManager {
     }
 
 
-    /**
-     * 安全稳定性诊断
-     * 依赖：squatStabilityScore, plankScore
-     * 计算公式：coreScore = squatScore * 0.6 + plankScore * 0.4
-     *
-     * @param res      静态分析结果
-     * @param userBody 用户身体信息
-     */
     public void diagnoseSafety(StaticFittingResult res, UserBody userBody) {
         Integer squatScore = userBody.getSquatStabilityScore();
         Integer plankScore = userBody.getPlankScore();
@@ -267,10 +259,12 @@ public class FittorDiagnosticsManager {
             return;
         }
         
-        // 计算核心稳定性得分
-        double coreScore = squatScore * 0.6;
+        // 计算核心稳定性得分：若平板支撑得分缺失，则直接使用深蹲稳定性评分
+        double coreScore;
         if (plankScore != null && plankScore > 0) {
-            coreScore += plankScore * 0.4;
+            coreScore = squatScore * 0.6 + plankScore * 0.4;
+        } else {
+            coreScore = squatScore;
         }
         
         // 核心预警：coreScore < 3

@@ -272,23 +272,28 @@ public class UserBodyService {
      */
     private void validateBiometrics(UserBodyDTO dto) {
         // --- 1. 核心必填项 ---
-        if (dto.getHeight() == null || dto.getSpanHeight() == null) {
-            throw new BizException(500, "基础身体数据缺失：[身高] 和 [跨高] 是 Fitting 的核心基准。");
+        // 身高是必填项，跨高可选（用于智能推荐场景）
+        if (dto.getHeight() == null) {
+            throw new BizException(500, "基础身体数据缺失：[身高] 是必需的。");
         }
 
         // --- 2. 基础逻辑与单位校验 ---
         if (dto.getHeight() < 500) {
             throw new BizException(500, "数值异常：身高数据过小，请确保单位为[毫米(mm)]。");
         }
-        if (dto.getHeight() <= dto.getSpanHeight()) {
-            throw new BizException(500, "逻辑错误：[身高] 必须大于 [跨高]。");
-        }
+        
+        // 只有当跨高存在时才进行跨高相关校验
+        if (dto.getSpanHeight() != null) {
+            if (dto.getHeight() <= dto.getSpanHeight()) {
+                throw new BizException(500, "逻辑错误：[身高] 必须大于 [跨高]。");
+            }
 
-        // --- 3. 肢体比例画像校验（防呆逻辑） ---
-        // 跨高占比校验 (正常范围 0.35 - 0.6)
-        double inseamRatio = (double) dto.getSpanHeight() / dto.getHeight();
-        if (inseamRatio < 0.35 || inseamRatio > 0.6) {
-            throw new BizException(500, "比例异常：[跨高] 与 [身高] 比例不符合常人，请重新测量。");
+            // --- 3. 肢体比例画像校验（防呆逻辑） ---
+            // 跨高占比校验 (正常范围 0.35 - 0.6)
+            double inseamRatio = (double) dto.getSpanHeight() / dto.getHeight();
+            if (inseamRatio < 0.35 || inseamRatio > 0.6) {
+                throw new BizException(500, "比例异常：[跨高] 与 [身高] 比例不符合常人，请重新测量。");
+            }
         }
 
         // 躯干长度校验
