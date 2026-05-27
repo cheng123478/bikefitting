@@ -19,14 +19,14 @@ const router = createRouter({
             path: '/showroom',
             name: 'show-room',
             component: () => import('@/views/ShowroomView.vue'),
-            meta: { title: '单车展厅', requiresAuth: true }
+            meta: { title: '单车展厅', requiresAuth: false }
         },
         // 单车详情
         {
             path: '/showroom/:id',
             name: 'bike-detail',
             component: () => import('@/views/BikeDetailView.vue'),
-            meta: { title: '单车详情', requiresAuth: true }
+            meta: { title: '单车详情', requiresAuth: false }
         },
         // --- 实验室 模块 ---
         {
