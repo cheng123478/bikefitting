@@ -881,9 +881,6 @@ onMounted(() => {
     setTimeout(restoreScrollPosition, 100);
   });
 
-  // 加载用户收藏列表
-  loadUserFavorites();
-
   // 监听页面切换时的滚动事件
   window.addEventListener('beforeunload', saveScrollPosition);
 });
