@@ -8,7 +8,7 @@ import org.hibernate.annotations.Comment;
 import java.time.LocalDateTime;
 
 /**
- * 用户单车收藏关联表
+ * 用户单车收藏实体类
  *
  * @author adi
  * @version 1.0
@@ -27,15 +27,12 @@ public class UserBikeFavorite {
     private Long id;
 
     @Comment("用户ID")
-    @Column(name = "user_id", nullable = false)
     private Long userId;
 
     @Comment("单车ID")
-    @Column(name = "bike_id", nullable = false)
     private Long bikeId;
 
     @Comment("创建时间")
-    @Column(name = "create_time", nullable = false)
     private LocalDateTime createTime;
 
     @PrePersist

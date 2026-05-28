@@ -39,7 +39,7 @@ public class AriesLogoutSuccessHandler implements LogoutSuccessHandler {
         response.setCharacterEncoding("UTF-8");
         try {
             User user = (User) authentication.getPrincipal();
-            redisUtil.getHashOperations().delete(RedisConstant.AUTHENTICATION + user.getId());
+            redisUtil.del(RedisConstant.AUTHENTICATION + user.getId());
 
             SecurityContextHolder.clearContext();
             response.getWriter().print(objectMapper.writeValueAsString(ResponseResult.success("注销登录成功！")));

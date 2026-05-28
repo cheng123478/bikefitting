@@ -62,7 +62,7 @@ public class MembershipEventListener {
             return;
         }
 
-        // 3. 落库邀请记录
+        // 3. 准备落库邀请记录
         UserInvitationLog invitationLog = new UserInvitationLog();
         invitationLog.setInviterId(inviterId);
         invitationLog.setInviteeId(newUserId);
@@ -85,7 +85,7 @@ public class MembershipEventListener {
 
         userMembershipRepository.save(inviterMembership);
 
-        // 标记记录为已发放
+        // 标记记录为已发放并保存
         invitationLog.setRewardGranted(true);
         userInvitationLogRepository.save(invitationLog);
         
