@@ -32,9 +32,9 @@
 
     <!-- 内容区域 -->
     <main class="archives-content">
-      <router-view v-slot="{ Component }">
+      <router-view v-slot="{ Component, route }">
         <transition name="fade-quick" mode="out-in">
-          <component :is="Component" />
+          <component :is="Component" :key="route.path" />
         </transition>
       </router-view>
     </main>
