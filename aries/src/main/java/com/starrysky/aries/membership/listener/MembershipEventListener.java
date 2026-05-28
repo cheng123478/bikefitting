@@ -16,6 +16,7 @@ import org.springframework.transaction.event.TransactionPhase;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.annotation.Propagation;
 
 import java.time.LocalDateTime;
 
@@ -34,7 +35,7 @@ public class MembershipEventListener {
 
     @Async
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
-    @Transactional(rollbackFor = Exception.class)
+    @Transactional(rollbackFor = Exception.class, propagation = Propagation.REQUIRES_NEW)
     public void handleUserRegisteredEvent(UserRegisteredEvent event) {
         String inviterCode = event.getInviterCode();
         Long newUserId = event.getNewUserId();

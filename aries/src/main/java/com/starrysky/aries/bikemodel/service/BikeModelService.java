@@ -1,11 +1,9 @@
 package com.starrysky.aries.bikemodel.service;
 
 import com.starrysky.aries.bikemodel.repository.BikeModelRepository;
-import com.starrysky.aries.bikemodel.repository.BikeModelStatsRepository;
 import com.starrysky.aries.bikemodel.repository.UserBikeFavoriteRepository;
 import com.starrysky.aries.bikemodel.schema.*;
 import com.starrysky.aries.entity.BikeModel;
-import com.starrysky.aries.entity.BikeModelStats;
 import com.starrysky.aries.entity.UserBikeFavorite;
 import com.starrysky.aries.exception.BizException;
 import lombok.RequiredArgsConstructor;
@@ -34,7 +32,6 @@ import java.util.stream.Collectors;
 public class BikeModelService {
 
     private final BikeModelRepository bikeModelRepository;
-    private final BikeModelStatsRepository bikeModelStatsRepository;
     private final UserBikeFavoriteRepository userBikeFavoriteRepository;
 
     /**
@@ -249,9 +246,6 @@ public class BikeModelService {
         BeanUtils.copyProperties(entity, vo);
         // 显式赋值 price 字段，确保正确转换
         vo.setPrice(entity.getPrice());
-        // 从车型统计表获取收藏量
-        bikeModelStatsRepository.findByModel(entity.getModel())
-                .ifPresent(stats -> vo.setFavoriteCount(stats.getFavoriteCount().intValue()));
         return vo;
     }
 
@@ -266,16 +260,9 @@ public class BikeModelService {
     public boolean toggleFavorite(Long userId, Long bikeId) {
         boolean isFavorite = userBikeFavoriteRepository.existsByUserIdAndBikeId(userId, bikeId);
         
-        // 获取该单车所属的车型（model）
-        BikeModel bikeModel = bikeModelRepository.findById(bikeId)
-                .orElseThrow(() -> new BizException("单车不存在"));
-        String modelName = bikeModel.getModel();
-        
         if (isFavorite) {
             // 取消收藏
             userBikeFavoriteRepository.deleteByUserIdAndBikeId(userId, bikeId);
-            // 车型统计表收藏量减1
-            bikeModelStatsRepository.decrementFavoriteCountByModel(modelName);
             return false;
         } else {
             // 添加收藏
@@ -283,8 +270,6 @@ public class BikeModelService {
             favorite.setUserId(userId);
             favorite.setBikeId(bikeId);
             userBikeFavoriteRepository.save(favorite);
-            // 车型统计表收藏量加1
-            bikeModelStatsRepository.incrementFavoriteCountByModel(modelName);
             return true;
         }
     }
