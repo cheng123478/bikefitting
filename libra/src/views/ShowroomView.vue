@@ -1365,13 +1365,7 @@ const handleFavorite = async (bikeId) => {
 .bike-card {
   overflow: hidden;
   transition: all 0.4s cubic-bezier(0.165, 0.84, 0.44, 1);
-<<<<<<< HEAD
-  border: 0.5px solid rgba(0, 0, 0, 0.03);
-  border-radius: 8px;
-  position: relative;
-=======
   border: 1px solid rgba(92, 110, 88, 0.12);
->>>>>>> origin/develop1.0
 }
 
 .bike-card:hover {
