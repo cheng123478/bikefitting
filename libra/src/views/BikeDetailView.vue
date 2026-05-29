@@ -49,11 +49,18 @@
                 v-for="size in allSizes"
                 :key="size"
                 class="size-btn"
-                :class="{ active: selectedSize === size }"
+                :class="{ 
+                  active: selectedSize === size,
+                  'recommended-size': isRecommendedSize(size)
+                }"
                 @click="selectSize(size)"
               >
                 {{ size }}
               </button>
+            </div>
+            <div v-if="recommendedSize" class="recommended-size-hint">
+              <i class="fas fa-star"></i>
+              <span>推荐尺寸: {{ recommendedSize }}</span>
             </div>
           </div>
 
@@ -157,6 +164,9 @@ const selectedSize = ref('');
 // 是否来自推荐列表
 const fromRecommend = ref(false);
 
+// 推荐尺寸
+const recommendedSize = ref('');
+
 // 获取所有尺寸列表（去重排序）
 const allSizes = computed(() => {
   const sizes = new Set();
@@ -184,6 +194,11 @@ const selectSize = (size) => {
   selectedSize.value = size;
 };
 
+// 判断是否为推荐尺寸
+const isRecommendedSize = (size) => {
+  return recommendedSize.value && size === recommendedSize.value;
+};
+
 // 返回处理
 const handleBack = () => {
   // 如果来自推荐列表，返回展厅页面后需要保持推荐弹窗打开
@@ -200,6 +215,15 @@ onMounted(async () => {
     if (filterState) {
       const state = JSON.parse(filterState);
       fromRecommend.value = state.fromRecommend || false;
+    }
+    
+    // 读取推荐尺寸信息
+    const recommendData = sessionStorage.getItem('recommendSizeData');
+    if (recommendData) {
+      const data = JSON.parse(recommendData);
+      recommendedSize.value = data.recommendedSize || '';
+      // 清除已读取的数据
+      sessionStorage.removeItem('recommendSizeData');
     }
   } catch (e) {
     console.error('读取来源信息失败', e);
@@ -486,6 +510,84 @@ onMounted(async () => {
   border-color: var(--primary-color);
   color: white;
   box-shadow: var(--shadow-sm);
+}
+
+/* 推荐尺寸高亮闪烁样式 */
+.size-btn.recommended-size {
+  position: relative;
+  background: white;
+  border-color: var(--primary-color);
+  color: var(--primary-color);
+  font-weight: 700;
+  animation: recommendedBlink 1.5s ease-in-out infinite;
+  box-shadow: 0 0 0 0 rgba(92, 110, 88, 0.4);
+}
+
+.size-btn.recommended-size::before {
+  content: '★';
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  font-size: 0.7rem;
+  color: var(--primary-color);
+  animation: starPulse 1.5s ease-in-out infinite;
+}
+
+.size-btn.recommended-size.active {
+  background: var(--primary-color);
+  border-color: var(--primary-color);
+  color: white;
+  animation: none;
+  box-shadow: 0 4px 12px rgba(92, 110, 88, 0.3);
+}
+
+.size-btn.recommended-size.active::before {
+  animation: none;
+  opacity: 1;
+}
+
+@keyframes recommendedBlink {
+  0%, 100% {
+    border-color: var(--primary-color);
+    color: var(--primary-color);
+    box-shadow: 0 0 0 0 rgba(92, 110, 88, 0.4);
+    transform: scale(1);
+  }
+  50% {
+    border-color: var(--primary-dark);
+    color: var(--primary-dark);
+    box-shadow: 0 0 20px 5px rgba(92, 110, 88, 0.6);
+    transform: scale(1.08);
+  }
+}
+
+@keyframes starPulse {
+  0%, 100% {
+    transform: scale(1) rotate(0deg);
+    opacity: 0.7;
+  }
+  50% {
+    transform: scale(1.3) rotate(180deg);
+    opacity: 1;
+  }
+}
+
+.recommended-size-hint {
+  margin-top: 15px;
+  padding: 10px 15px;
+  background: rgba(92, 110, 88, 0.08);
+  border-radius: 6px;
+  font-size: 0.85rem;
+  color: var(--primary-color);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid rgba(92, 110, 88, 0.2);
+}
+
+.recommended-size-hint i {
+  color: var(--primary-color);
+  animation: starPulse 2s ease-in-out infinite;
 }
 
 .selected-size-hint {

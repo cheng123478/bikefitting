@@ -97,21 +97,21 @@
               <p>为您推荐以下 {{ recommendResults.length }} 款单车：</p>
               <div class="recommend-results">
                 <div 
-                  v-for="(item, index) in recommendResults" 
-                  :key="item.bike.id"
+                  v-for="(bike, index) in recommendResults" 
+                  :key="bike.id"
                   class="recommend-item"
-                  @click="goToDetail(item.bike.id, true)"
+                  @click="goToDetail(bike.id, true)"
                 >
                   <div class="result-rank">{{ index + 1 }}</div>
-                  <img :src="item.bike.img" :alt="item.bike.model" class="result-img">
+                  <img :src="bike.imageUrl || bike.img" :alt="bike.model" class="result-img">
                   <div class="result-info">
-                    <div class="result-brand">{{ item.bike.brandCn }} {{ item.bike.brand }}</div>
-                    <div class="result-model">{{ item.bike.model }}</div>
-                    <div class="result-price">¥{{ item.bike.price }}</div>
+                    <div class="result-brand">{{ bike.brandCn }} {{ bike.brand }}</div>
+                    <div class="result-model">{{ bike.model }} ({{ bike.size }})</div>
+                    <div class="result-price">¥{{ bike.price }}</div>
                   </div>
                   <div class="result-score">
                     <div class="score-label">推荐分</div>
-                    <div class="score-value">{{ item.score.toFixed(1) }}</div>
+                    <div class="score-value">{{ bike.totalScore.toFixed(1) }}</div>
                   </div>
                 </div>
               </div>
@@ -438,11 +438,11 @@ const userInseam = ref('');
 const userBodyInfo = ref(null); // 存储从后端获取的用户身体信息
 const needsBodyInfoStep = ref(true); // 是否需要身体信息步骤
 const ridingScenes = [
-  { id: 'commute', name: '日常通勤代步', icon: 'fas fa-building' },
-  { id: 'fitness', name: '运动健身骑行', icon: 'fas fa-heartbeat' },
-  { id: 'mountain', name: '山地越野骑行', icon: 'fas fa-tree' },
-  { id: 'touring', name: '长途户外旅行', icon: 'fas fa-map-pin' },
-  { id: 'racing', name: '速度竞技竞速', icon: 'fas fa-trophy' }
+  { id: 1, name: '日常通勤代步', icon: 'fas fa-building' },
+  { id: 2, name: '运动健身骑行', icon: 'fas fa-heartbeat' },
+  { id: 3, name: '山地越野骑行', icon: 'fas fa-tree' },
+  { id: 4, name: '长途户外旅行', icon: 'fas fa-map-pin' },
+  { id: 5, name: '速度竞技竞速', icon: 'fas fa-trophy' }
 ];
 
 // 收藏相关
@@ -759,11 +759,30 @@ const goToBodyProfile = () => {
 const confirmRecommend = async () => {
   recommendLoading.value = true;
   try {
-    const response = await recommendBikes({
+    // 准备请求参数
+    const requestData = {
       scenes: selectedScenes.value,
       minPrice: recommendMinPrice.value || undefined,
       maxPrice: recommendMaxPrice.value || undefined
-    });
+    };
+    
+    // 添加身高信息（优先使用用户填写的，其次使用从后端获取的）
+    if (userHeight.value) {
+      requestData.height = parseInt(userHeight.value);
+    } else if (userBodyInfo.value && userBodyInfo.value.height) {
+      requestData.height = userBodyInfo.value.height;
+    }
+    
+    // 添加跨高信息（如果用户填写了）
+    if (userInseam.value) {
+      requestData.inseam = parseInt(userInseam.value);
+    } else if (userBodyInfo.value && userBodyInfo.value.spanHeight) {
+      requestData.inseam = userBodyInfo.value.spanHeight;
+    }
+    
+    console.log('推荐请求参数:', requestData);
+    
+    const response = await recommendBikes(requestData);
     recommendResults.value = response; // 响应拦截器已直接返回 data
     recommendStep.value = 3;
   } catch (error) {
@@ -802,6 +821,15 @@ const goToDetail = (id, fromRecommend = false) => {
   // 如果从推荐列表跳转，保存推荐结果
   if (fromRecommend && recommendResults.value.length > 0) {
     sessionStorage.setItem('recommendResults', JSON.stringify(recommendResults.value));
+    
+    // 查找点击的车型数据，获取推荐尺寸
+    const clickedBike = recommendResults.value.find(bike => bike.id === id);
+    if (clickedBike && clickedBike.recommendedSize) {
+      // 保存推荐尺寸信息到sessionStorage
+      sessionStorage.setItem('recommendSizeData', JSON.stringify({
+        recommendedSize: clickedBike.recommendedSize
+      }));
+    }
   }
   
   router.push(`/showroom/${id}`);
