@@ -115,6 +115,57 @@ public class BikeModelController {
     }
 
     /**
+     * 获取用户收藏的单车ID列表
+     * 未登录时返回空列表
+     *
+     * @param currentUser 当前登录用户（可选）
+     * @return 收藏的单车ID列表
+     */
+    @GetMapping("/favorites")
+    public ResponseResult<List<Long>> getUserFavorites(@AuthenticationPrincipal User currentUser) {
+        if (currentUser == null) {
+            // 未登录时返回空列表
+            return ResponseResult.success(List.of());
+        }
+        return ResponseResult.success(bikeModelService.getUserFavoriteIds(currentUser.getId()));
+    }
+
+    /**
+     * 获取用户收藏的车辆详情列表
+     *
+     * @param ids 车辆ID列表（逗号分隔）
+     * @param currentUser 当前登录用户
+     * @return 收藏的车辆详情列表
+     */
+    @GetMapping("/showroom/favorites")
+    public ResponseResult<ShowroomResponseDTO> getFavoriteBikeDetails(
+            @RequestParam String ids,
+            @AuthenticationPrincipal User currentUser) {
+        if (currentUser == null) {
+            return ResponseResult.failure(401, "请先登录");
+        }
+        return ResponseResult.success(bikeModelService.getFavoriteBikeDetails(ids));
+    }
+
+    /**
+     * 切换单车收藏状态
+     * 必须登录才能操作
+     *
+     * @param bikeId 单车ID
+     * @param currentUser 当前登录用户
+     * @return 是否已收藏
+     */
+    @PostMapping("/{bikeId}/favorite")
+    public ResponseResult<Boolean> toggleFavorite(
+            @PathVariable Long bikeId,
+            @AuthenticationPrincipal User currentUser) {
+        if (currentUser == null) {
+            return ResponseResult.failure(401, "请先登录");
+        }
+        return ResponseResult.success(bikeModelService.toggleFavorite(currentUser.getId(), bikeId));
+    }
+
+    /**
      * 根据车型名称获取所有尺寸列表
      *
      * @param modelName 车型名称
@@ -128,40 +179,5 @@ public class BikeModelController {
         return ResponseResult.success(bikeModelService.getModelSizes(modelName, brand));
     }
 
-    /**
-     * 切换单车收藏状态
-     *
-     * @param bikeId 单车ID
-     * @param user 当前登录用户
-     * @return 收藏状态
-     */
-    @PostMapping("/{bikeId}/favorite")
-    public ResponseResult<Boolean> toggleFavorite(@PathVariable Long bikeId, @AuthenticationPrincipal User user) {
-        boolean isFavorite = bikeModelService.toggleFavorite(user.getId(), bikeId);
-        return ResponseResult.success(isFavorite);
-    }
 
-    /**
-     * 获取用户收藏的单车ID列表
-     *
-     * @param user 当前登录用户
-     * @return 收藏的单车ID列表
-     */
-    @GetMapping("/favorites")
-    public ResponseResult<List<Long>> getUserFavorites(@AuthenticationPrincipal User user) {
-        List<Long> favoriteIds = bikeModelService.getUserFavoriteBikeIds(user.getId());
-        return ResponseResult.success(favoriteIds);
-    }
-
-    /**
-     * 获取用户收藏的车辆详情列表
-     *
-     * @param user 当前登录用户
-     * @return 收藏的车辆详情列表
-     */
-    @GetMapping("/showroom/favorites")
-    public ResponseResult<List<BikeModelVO>> getFavoriteBikes(@AuthenticationPrincipal User user) {
-        List<BikeModelVO> favoriteBikes = bikeModelService.getFavoriteBikes(user.getId());
-        return ResponseResult.success(favoriteBikes);
-    }
 }

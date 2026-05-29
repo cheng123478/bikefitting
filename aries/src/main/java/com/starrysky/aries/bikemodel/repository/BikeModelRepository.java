@@ -70,6 +70,16 @@ public interface BikeModelRepository extends JpaRepository<BikeModel, Long>, Jpa
      * @return 该车型的所有尺寸列表
      */
     List<BikeModel> findByModelAndBrandOrderBySize(String model, String brand);
+    
+    /**
+     * 根据车型名称获取代表尺寸（最小id的记录）
+     * 用于车型统计时的唯一标识
+     *
+     * @param model 车型名称
+     * @return 代表尺寸的车型记录
+     */
+    @Query("SELECT b FROM BikeModel b WHERE b.model = :model ORDER BY b.id ASC LIMIT 1")
+    Optional<BikeModel> findRepresentativeByModel(@Param("model") String model);
 
     /**
      * 获取所有不重复的品牌列表
