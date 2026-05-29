@@ -54,7 +54,7 @@ public class LogAuditAspect {
         try {
             // 1. 获取请求上下文
             ServletRequestAttributes attributes = (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();
-            HttpServletRequest request = attributes.getRequest();
+            HttpServletRequest request = attributes != null ? attributes.getRequest() : null;
 
             // 2. 获取当前用户
             String id = "Anonymous";

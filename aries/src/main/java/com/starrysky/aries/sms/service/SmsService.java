@@ -74,7 +74,7 @@ public class SmsService {
 
             SmsResponse response = restTemplate.postForObject(url, new HttpEntity<>(params, headers), SmsResponse.class);
             if (!ObjectUtils.isEmpty(response) && response.isSuccess()) {
-                log.info("短信发送成功 | 手机号: {} | 验证码: {}", phone, code);
+                log.info("短信发送成功 | 手机号: {}", phone);
                 cacheSmsCode(phone, code);
                 return new SmsResult(true, code, "发送成功");
             }else {

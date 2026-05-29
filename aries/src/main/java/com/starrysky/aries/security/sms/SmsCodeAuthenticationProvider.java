@@ -34,7 +34,7 @@ public class SmsCodeAuthenticationProvider implements AuthenticationProvider {
         String code = (String) authenticationToken.getCredentials();
         // 验证短信验证码
         if (!smsService.validateSmsCode(phone, code)) {
-            log.warn("短信验证码错误 | 手机号: {} | 输入码: {}", phone, code);
+            log.warn("短信验证码错误 | 手机号: {}", phone);
             throw new BadCredentialsException("短信验证码不正确");
         }
         // 根据手机号加载用户信息
