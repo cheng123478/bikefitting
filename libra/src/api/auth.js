@@ -26,9 +26,7 @@ export function registerUser(data) {
     }
     return request.post('/user/login/sms', data, { headers }).then(res => {
         // 注册/登录成功后，清除本地邀请码（阅后即焚）
-        if (res.code === 200) {
-            localStorage.removeItem(STORAGE_KEYS.INVITER_CODE);
-        }
+        localStorage.removeItem(STORAGE_KEYS.INVITER_CODE);
         return res;
     });
 }
@@ -44,9 +42,8 @@ export function loginByWeChat(data) {
         headers['X-Inviter-Code'] = inviterCode;
     }
     return request.post('/user/login/wechat', data, { headers }).then(res => {
-        if (res.code === 200) {
-            localStorage.removeItem(STORAGE_KEYS.INVITER_CODE);
-        }
+        // 注册/登录成功后，清除本地邀请码（阅后即焚）
+        localStorage.removeItem(STORAGE_KEYS.INVITER_CODE);
         return res;
     });
 }

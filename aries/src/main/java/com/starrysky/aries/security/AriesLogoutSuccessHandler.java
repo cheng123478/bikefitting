@@ -38,23 +38,12 @@ public class AriesLogoutSuccessHandler implements LogoutSuccessHandler {
         response.setContentType(MediaType.APPLICATION_JSON_VALUE);
         response.setCharacterEncoding("UTF-8");
         try {
-            if (authentication != null && authentication.getPrincipal() instanceof User user) {
-                if (user.getId() != null) {
-                    // 删除 Redis 中的认证信息
-                    String redisKey = RedisConstant.AUTHENTICATION + user.getId();
-                    redisUtil.del(redisKey);
-                    log.info("用户退出登录成功 | 用户ID: {} | Redis Key: {}", user.getId(), redisKey);
-                } else {
-                    log.warn("用户退出登录，但用户ID为null");
-                }
-            } else {
-                log.warn("用户退出登录，但未获取到用户信息");
-            }
-            
+            User user = (User) authentication.getPrincipal();
+            redisUtil.del(RedisConstant.AUTHENTICATION + user.getId());
+
             SecurityContextHolder.clearContext();
             response.getWriter().print(objectMapper.writeValueAsString(ResponseResult.success("注销登录成功！")));
         } catch (Exception e) {
-            log.error("用户退出登录失败", e);
             response.getWriter().print(objectMapper.writeValueAsString(ResponseResult.failure(500, "注销失败！")));
         }
     }

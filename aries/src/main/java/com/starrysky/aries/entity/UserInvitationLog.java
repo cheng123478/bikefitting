@@ -41,7 +41,6 @@ public class UserInvitationLog {
     @Column(nullable = false)
     private Boolean rewardGranted = false;
 
-    @CreatedDate
     @Column(nullable = false, updatable = false)
     @Comment("记录创建时间")
     private LocalDateTime createTime;

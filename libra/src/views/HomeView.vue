@@ -34,7 +34,7 @@
                   {{ slide.btnText }} <i :class="slide.btnIcon"></i>
                 </a>
               </div>
-              
+
               <div v-if="slide.isPreview" class="preview-tag fade-up delay-3">
                 <span class="pulse-dot"></span> 1.5 EVOLUTION PREVIEW
               </div>
@@ -80,9 +80,9 @@
           </div>
 
           <div class="showroom-horizontal-grid">
-            <div 
-              v-for="(bike, index) in featuredBikes" 
-              :key="bike.id" 
+            <div
+              v-for="(bike, index) in featuredBikes"
+              :key="bike.id"
               class="featured-bike-card"
               @click="router.push('/showroom')"
             >
@@ -126,7 +126,7 @@
               <div class="panel-body">
                 <h3 class="panel-title">静态诊断引擎</h3>
                 <p class="panel-desc">高精度人体几何建模，为您生成基于 Baseline 的个性化调教建议。</p>
-                
+
                 <!-- Decorative HUD elements -->
                 <div class="hud-display">
                   <div class="hud-circle"></div>
@@ -420,11 +420,11 @@ onUnmounted(() => {
   .hero-section { padding-top: var(--header-height); padding-bottom: 30px; }
   .hero-container-box { height: 65vh; min-height: 450px; }
   .carousel-wrapper { border-radius: 0; box-shadow: none; }
-  
+
   .hero-title { font-size: 2rem; margin-bottom: 10px; }
   .hero-desc { font-size: 0.95rem; margin-bottom: 20px; padding: 0 10px; }
   .hero-btns .btn { padding: 12px 24px; font-size: 0.9rem; }
-  
+
   .carousel-control { display: none; }
   .carousel-dots { bottom: 20px; }
 
@@ -447,7 +447,7 @@ onUnmounted(() => {
     grid-template-columns: none;
   }
   .showroom-horizontal-grid::-webkit-scrollbar { display: none; }
-  
+
   .featured-bike-card {
     min-width: 240px;
     flex: 0 0 auto;
@@ -459,10 +459,10 @@ onUnmounted(() => {
   .console-main { min-height: 280px; padding: 25px; }
   .panel-title { font-size: 1.5rem; }
   .hud-display { display: none; }
-  
+
   .console-side .glass-panel { padding: 18px 20px; }
   .panel-icon { width: 40px; height: 40px; font-size: 1rem; }
-  
+
   .console-bar { flex-direction: column; align-items: flex-start; gap: 20px; padding: 25px 20px; }
   .bar-content { gap: 15px; }
   .bar-title { font-size: 1rem; }

@@ -76,7 +76,6 @@
         </main>
       </div>
     </div>
-  </div>
 
     <!-- Mobile Bottom Drawer -->
     <Transition name="drawer-slide">
@@ -95,6 +94,7 @@
         </div>
       </div>
     </Transition>
+  </div>
 </template>
 
 <script setup>

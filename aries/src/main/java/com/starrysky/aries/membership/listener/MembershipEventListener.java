@@ -16,6 +16,7 @@ import org.springframework.transaction.event.TransactionPhase;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.annotation.Propagation;
 
 import java.time.LocalDateTime;
 
@@ -34,6 +35,7 @@ public class MembershipEventListener {
 
     @Async
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    @Transactional(rollbackFor = Exception.class, propagation = Propagation.REQUIRES_NEW)
     public void handleUserRegisteredEvent(UserRegisteredEvent event) {
         String inviterCode = event.getInviterCode();
         Long newUserId = event.getNewUserId();
@@ -60,7 +62,7 @@ public class MembershipEventListener {
             return;
         }
 
-        // 3. 落库邀请记录
+        // 3. 准备落库邀请记录
         UserInvitationLog invitationLog = new UserInvitationLog();
         invitationLog.setInviterId(inviterId);
         invitationLog.setInviteeId(newUserId);
@@ -83,7 +85,7 @@ public class MembershipEventListener {
 
         userMembershipRepository.save(inviterMembership);
 
-        // 标记记录为已发放
+        // 标记记录为已发放并保存
         invitationLog.setRewardGranted(true);
         userInvitationLogRepository.save(invitationLog);
         
