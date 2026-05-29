@@ -32,7 +32,7 @@ import java.util.Optional;
 @Slf4j
 public class UserBikeFavoriteService {
     
-    @Resource
+    @Resource(name = "userBikeUserBikeFavoriteRepository")
     private UserBikeFavoriteRepository favoriteRepository;
     
     @Resource

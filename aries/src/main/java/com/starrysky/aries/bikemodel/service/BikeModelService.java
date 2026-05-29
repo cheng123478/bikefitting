@@ -18,6 +18,7 @@ import jakarta.persistence.criteria.Predicate;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -43,6 +44,7 @@ public class BikeModelService {
 
     private final BikeModelRepository bikeModelRepository;
     private final BikeModelStatsRepository bikeModelStatsRepository;
+    @Qualifier("userBikeUserBikeFavoriteRepository")
     private final UserBikeFavoriteRepository userBikeFavoriteRepository;
     private final UserRepository userRepository;
 
