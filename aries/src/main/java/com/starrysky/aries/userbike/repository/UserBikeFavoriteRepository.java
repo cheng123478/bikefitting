@@ -17,7 +17,7 @@ import java.util.Optional;
  * @version 1.0
  * @since 2026/05/25
  */
-@Repository
+@Repository("userBikeUserBikeFavoriteRepository")
 public interface UserBikeFavoriteRepository extends JpaRepository<UserBikeFavorite, Long> {
     
     /**
