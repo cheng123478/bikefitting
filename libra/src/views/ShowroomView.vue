@@ -398,7 +398,7 @@
 import { ref, onMounted, onUnmounted, computed } from 'vue';
 import { useRouter } from 'vue-router';
 import { useUserStore } from '@/stores/user';
-import { getShowroomBikes, recommendBikes, toggleFavorite, getUserFavorites, getFavoriteBikeDetails } from '@/api/bikeShowroom';
+import { getShowroomBikes, recommendBikes, toggleFavorite } from '@/api/bikeShowroom';
 import { saveUserBody, getLatestUserBody } from '@/api/userBody';
 import { showToast } from '@/utils/toast';
 import { getFavoriteList } from '@/api/favorite';
@@ -989,7 +989,8 @@ const fetchFavoriteBikes = async () => {
       brand: item.bikeModelBrand,
       brandCn: item.bikeModelBrandCn,
       model: item.bikeModelName,
-      imageUrl: item.bikeModelImg,
+      img: item.bikeModelImg,
+      desc: item.bikeModelDesc || '',
       bikeType: item.bikeModelType,
       price: item.bikeModelPrice
     }));

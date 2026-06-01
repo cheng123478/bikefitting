@@ -160,4 +160,56 @@ public interface BikeModelRepository extends JpaRepository<BikeModel, Long>, Jpa
      * @return 车辆列表
      */
     List<BikeModel> findByIdIn(List<Long> ids);
+
+    /**
+     * 获取所有去重后的车型（每个model只取最小id的记录）
+     * 用于推荐算法全量加载，避免内存分组
+     *
+     * @return 去重后的车型列表
+     */
+    @Query("SELECT b FROM BikeModel b WHERE b.id IN (SELECT MIN(b2.id) FROM BikeModel b2 GROUP BY b2.model)")
+    List<BikeModel> findAllDistinctModels();
+
+    /**
+     * 在数据库层批量计算所有车型的几何匹配评分和推荐尺码
+     * 用一次SQL查询替代Java侧的遍历计算，消除JVM内存开销。
+     * LEFT JOIN确保没有stand_over_height的车型也能返回（默认50分）。
+     * GROUP_CONCAT + SUBSTRING_INDEX 高效获取最佳评分对应的尺码。
+     *
+     * @param inseam 用户跨高
+     * @return [modelName(String), bestScore(Integer), recommendedSize(String)]
+     */
+    @Query(value = "SELECT " +
+            "bm.model, " +
+            "COALESCE(MAX(CASE " +
+            "    WHEN :inseam - s.stand_over_height < 0 THEN 0 " +
+            "    WHEN :inseam - s.stand_over_height < 10 THEN 30 " +
+            "    WHEN :inseam - s.stand_over_height < 20 THEN 60 " +
+            "    WHEN :inseam - s.stand_over_height < 40 THEN 85 " +
+            "    WHEN :inseam - s.stand_over_height < 60 THEN 100 " +
+            "    ELSE 90 END), 50), " +
+            "COALESCE(SUBSTRING_INDEX(GROUP_CONCAT(s.size ORDER BY " +
+            "    CASE WHEN :inseam - s.stand_over_height < 0 THEN 0 " +
+            "         WHEN :inseam - s.stand_over_height < 10 THEN 30 " +
+            "         WHEN :inseam - s.stand_over_height < 20 THEN 60 " +
+            "         WHEN :inseam - s.stand_over_height < 40 THEN 85 " +
+            "         WHEN :inseam - s.stand_over_height < 60 THEN 100 " +
+            "         ELSE 90 END DESC, s.id ASC " +
+            "SEPARATOR ','), ',', 1), '') " +
+            "FROM bike_model bm " +
+            "LEFT JOIN bike_model s ON s.model = bm.model AND s.stand_over_height IS NOT NULL " +
+            "WHERE bm.id IN (SELECT MIN(id) FROM bike_model GROUP BY model) " +
+            "GROUP BY bm.model",
+            nativeQuery = true)
+    List<Object[]> computeGeometryScores(@Param("inseam") int inseam);
+
+    /**
+     * 批量查询同型号所有尺码（按model名称分组）
+     * 用于推荐算法预加载几何数据
+     *
+     * @param modelNames 型号名称列表
+     * @return 所有匹配的车型记录
+     */
+    @Query("SELECT b FROM BikeModel b WHERE b.model IN :modelNames ORDER BY b.model, b.size")
+    List<BikeModel> findByModelIn(@Param("modelNames") List<String> modelNames);
 }

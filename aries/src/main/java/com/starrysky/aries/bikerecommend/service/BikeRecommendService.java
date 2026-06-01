@@ -52,7 +52,7 @@ public class BikeRecommendService {
      * 执行智能推荐算法
      *
      * @param request 推荐请求参数
-     * @return 按综合评分降序排列的推荐单车列表
+     * @return 按综合评分降序排列的推荐单车列表(最多15辆)
      */
     public List<BikeRecommendVO> recommend(BikeRecommendRequest request) {
         // 1. 计算跨高(如未填写则使用身高*0.45)
@@ -60,18 +60,22 @@ public class BikeRecommendService {
         log.info("推荐参数: height={}, inseam={}, scenes={}, priceRange=[{}, {}]",
                 request.getHeight(), inseam, request.getScenes(), request.getMinPrice(), request.getMaxPrice());
 
-        // 2. 查询所有单车模型(按型号去重,每个型号取最小id的记录)
+        // 2. 查询所有单车模型（DB层去重，避免内存分组）
         List<BikeModel> allModels = getAllDistinctModels();
         log.info("共查询到 {} 个不同型号的单车", allModels.size());
 
-        // 3. 批量加载统计数据,避免N+1查询
+        // 3. 批量加载统计数据，避免N+1查询
         Map<Long, BikeModelStats> statsMap = loadStatsBatch(allModels);
+
+        // 3.5 在数据库层批量计算所有车型的几何评分，消除JVM侧遍历和内存开销
+        Map<String, GeometryResult> geometryScoreMap = computeGeometryScoresBatch(inseam);
+        log.info("预计算了 {} 个型号的几何评分", geometryScoreMap.size());
 
         // 4. 对每款车计算评分
         List<BikeRecommendVO> results = new ArrayList<>();
         for (BikeModel model : allModels) {
             try {
-                BikeRecommendVO vo = calculateScores(model, inseam, request, statsMap);
+                BikeRecommendVO vo = calculateScores(model, inseam, request, statsMap, geometryScoreMap);
                 results.add(vo);
             } catch (Exception e) {
                 log.error("计算单车评分失败: model={}, error={}", model.getModel(), e.getMessage(), e);
@@ -81,43 +85,53 @@ public class BikeRecommendService {
         // 5. 按totalScore降序排序
         results.sort((a, b) -> Double.compare(b.getTotalScore(), a.getTotalScore()));
 
+        // 6. 限制返回数量为前15辆
+        int maxResults = 15;
+        if (results.size() > maxResults) {
+            results = results.subList(0, maxResults);
+        }
+
         log.info("推荐计算完成,返回 {} 个结果", results.size());
         return results;
     }
 
     /**
-     * 获取所有去重后的单车模型(每个型号取最小id)
+     * 获取所有去重后的单车模型（DB层去重，避免内存分组和全表扫描）
      */
     private List<BikeModel> getAllDistinctModels() {
-        // 查询所有车型
-        List<BikeModel> allBikes = bikeModelRepository.findAll();
-        
-        // 按型号分组,每个型号取最小id的记录
-        return allBikes.stream()
-                .collect(Collectors.groupingBy(BikeModel::getModel))
-                .values()
-                .stream()
-                .map(list -> list.stream()
-                        .min((a, b) -> a.getId().compareTo(b.getId()))
-                        .orElse(null))
-                .filter(m -> m != null)
-                .collect(Collectors.toList());
+        return bikeModelRepository.findAllDistinctModels();
     }
 
     /**
-     * 批量加载统计数据
+     * 批量加载统计数据（单次查询替代N次查询）
      */
     private Map<Long, BikeModelStats> loadStatsBatch(List<BikeModel> models) {
-        Map<Long, BikeModelStats> statsMap = new HashMap<>();
-        for (BikeModel model : models) {
-            try {
-                statsRepository.findByBikeModelId(model.getId())
-                        .ifPresent(stats -> statsMap.put(model.getId(), stats));
-            } catch (Exception e) {
-                log.warn("加载统计数据失败: modelId={}", model.getId(), e);
-            }
+        List<Long> modelIds = models.stream().map(BikeModel::getId).collect(Collectors.toList());
+        if (modelIds.isEmpty()) {
+            return new HashMap<>();
         }
-        return statsMap;
+        return statsRepository.findByBikeModelIdIn(modelIds).stream()
+                .collect(Collectors.toMap(BikeModelStats::getBikeModelId, s -> s));
+    }
+
+    /**
+     * 在数据库层批量计算几何评分，返回 modelName -> GeometryResult 映射
+     * SQL层完成clearance计算 + sizeScore打分 + 最优尺码选取
+     */
+    private Map<String, GeometryResult> computeGeometryScoresBatch(int inseam) {
+        List<Object[]> rows = bikeModelRepository.computeGeometryScores(inseam);
+        Map<String, GeometryResult> map = new HashMap<>();
+        for (Object[] row : rows) {
+            String modelName = (String) row[0];
+            int bestScore = ((Number) row[1]).intValue();
+            String recommendedSize = (String) row[2];
+            // 空字符串转为null，保持与原逻辑一致
+            if (recommendedSize != null && recommendedSize.isEmpty()) {
+                recommendedSize = null;
+            }
+            map.put(modelName, new GeometryResult(bestScore, bestScore, recommendedSize));
+        }
+        return map;
     }
 
     /**
@@ -125,12 +139,17 @@ public class BikeRecommendService {
      */
     private BikeRecommendVO calculateScores(BikeModel model, int inseam,
                                             BikeRecommendRequest request,
-                                            Map<Long, BikeModelStats> statsMap) {
+                                            Map<Long, BikeModelStats> statsMap,
+                                            Map<String, GeometryResult> geometryScoreMap) {
         BikeRecommendVO vo = convertToRecommendVO(model);
 
         // 计算各维度评分
         double sceneScore = calculateSceneScore(model.getBikeType(), request.getScenes());
-        GeometryResult geometryResult = calculateGeometryScore(model, inseam);
+        GeometryResult geometryResult = geometryScoreMap.get(model.getModel());
+        if (geometryResult == null) {
+            // 兜底：SQL未返回的型号默认给中间分
+            geometryResult = new GeometryResult(50, 50, null);
+        }
         double hotScore = calculateHotScore(model, statsMap.get(model.getId()));
         double priceScore = calculatePriceScore(model.getPrice(), request.getMinPrice(), request.getMaxPrice());
 
@@ -195,47 +214,6 @@ public class BikeRecommendService {
     }
 
     /**
-     * 计算几何匹配评分(查询同型号所有尺码,取最大sizeScore)
-     */
-    private GeometryResult calculateGeometryScore(BikeModel model, int inseam) {
-        // 查询同型号所有尺码
-        List<BikeModel> sameModelSizes = bikeModelRepository.findByModelOrderBySize(model.getModel());
-
-        int maxScore = 0;
-        String bestSize = null;
-
-        for (BikeModel size : sameModelSizes) {
-            if (size.getStandOverHeight() != null) {
-                int clearance = inseam - size.getStandOverHeight();
-                int score = calculateSizeScore(clearance);
-                if (score > maxScore) {
-                    maxScore = score;
-                    bestSize = size.getSize();
-                }
-            }
-        }
-
-        // 如果没有standOverHeight数据,给中间分
-        if (bestSize == null) {
-            maxScore = 50;
-        }
-
-        return new GeometryResult(maxScore, maxScore, bestSize);
-    }
-
-    /**
-     * 计算sizeScore(基于clearance跨高间隙)
-     */
-    private int calculateSizeScore(double clearance) {
-        if (clearance < 0) return 0;
-        if (clearance < 10) return 30;
-        if (clearance < 20) return 60;
-        if (clearance < 40) return 85;
-        if (clearance < 60) return 100;
-        return 90; // clearance >= 60
-    }
-
-    /**
      * 计算热度评分
      */
     private double calculateHotScore(BikeModel model, BikeModelStats stats) {
@@ -252,7 +230,8 @@ public class BikeRecommendService {
         int yearDiff = currentYear - bikeYear;
         double newScore = Math.max(100 - yearDiff * 15, 20);
 
-        return viewScore * 0.2 + favoriteScore * 0.5 + recommendWeight * 1.0 + newScore;
+        // 归一化热度评分到0-100，确保不会过度稀释几何匹配分
+        return viewScore * 0.25 + favoriteScore * 0.35 + newScore * 0.35 + Math.min(recommendWeight * 0.05, 5);
     }
 
     /**

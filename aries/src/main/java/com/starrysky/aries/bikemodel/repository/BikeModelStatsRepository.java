@@ -6,6 +6,7 @@ import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.util.List;
 import java.util.Optional;
 
 /**
@@ -15,6 +16,14 @@ import java.util.Optional;
  * @since 2026/05/25
  */
 public interface BikeModelStatsRepository extends JpaRepository<BikeModelStats, Long> {
+    
+    /**
+     * 批量查询统计数据
+     *
+     * @param bikeModelIds 车型ID列表
+     * @return 统计数据列表
+     */
+    List<BikeModelStats> findByBikeModelIdIn(List<Long> bikeModelIds);
     
     /**
      * 根据车型ID查找统计数据

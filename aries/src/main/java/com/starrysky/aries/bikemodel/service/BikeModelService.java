@@ -9,16 +9,10 @@ import com.starrysky.aries.bikemodel.schema.CategoryVO;
 import com.starrysky.aries.bikemodel.schema.ShowroomResponseDTO;
 import com.starrysky.aries.entity.BikeModel;
 import com.starrysky.aries.entity.BikeModelStats;
-import com.starrysky.aries.entity.User;
-import com.starrysky.aries.entity.UserBikeFavorite;
 import com.starrysky.aries.exception.BizException;
-import com.starrysky.aries.userbike.repository.UserBikeFavoriteRepository;
-import com.starrysky.aries.user.repository.UserRepository;
-import jakarta.persistence.criteria.Predicate;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
-import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -44,9 +38,6 @@ public class BikeModelService {
 
     private final BikeModelRepository bikeModelRepository;
     private final BikeModelStatsRepository bikeModelStatsRepository;
-    @Qualifier("userBikeUserBikeFavoriteRepository")
-    private final UserBikeFavoriteRepository userBikeFavoriteRepository;
-    private final UserRepository userRepository;
 
     /**
      * 模糊搜索品牌和型号名
@@ -264,103 +255,5 @@ public class BikeModelService {
         // 显式赋值 price 字段，确保正确转换
         vo.setPrice(entity.getPrice());
         return vo;
-    }
-
-    /**
-     * 获取用户收藏的单车ID列表
-     *
-     * @param userId 用户ID
-     * @return 收藏的单车ID列表
-     */
-    public List<Long> getUserFavoriteIds(Long userId) {
-        List<UserBikeFavorite> favorites = userBikeFavoriteRepository.findByUserId(userId, Pageable.unpaged()).getContent();
-        return favorites.stream()
-                .map(favorite -> favorite.getBikeModel().getId())
-                .collect(Collectors.toList());
-    }
-
-    /**
-     * 获取用户收藏的车辆详情列表
-     *
-     * @param ids 车辆ID列表（逗号分隔）
-     * @return 收藏的车辆详情列表
-     */
-    public ShowroomResponseDTO getFavoriteBikeDetails(String ids) {
-        List<Long> idList = Arrays.stream(ids.split(","))
-                .map(String::trim)
-                .filter(StringUtils::hasText)
-                .map(Long::parseLong)
-                .collect(Collectors.toList());
-
-        List<BikeModel> bikes = bikeModelRepository.findAllById(idList);
-        List<BikeModelVO> voList = bikes.stream()
-                .map(this::convertToVO)
-                .collect(Collectors.toList());
-
-        ShowroomResponseDTO response = ShowroomResponseDTO.builder()
-                .bikes(voList)
-                .total((long) voList.size())
-                .build();
-        return response;
-    }
-
-    /**
-     * 切换单车收藏状态
-     *
-     * @param userId 用户ID
-     * @param bikeId 单车ID
-     * @return 是否已收藏
-     */
-    @Transactional
-    public Boolean toggleFavorite(Long userId, Long bikeId) {
-        var existing = userBikeFavoriteRepository.findByUserIdAndBikeModelId(userId, bikeId);
-        
-        if (existing.isPresent()) {
-            // 已收藏，取消收藏
-            userBikeFavoriteRepository.delete(existing.get());
-            
-            // 更新收藏统计
-            BikeModel bikeModel = bikeModelRepository.findById(bikeId).orElse(null);
-            if (bikeModel != null) {
-                Long representativeId = bikeModelRepository.findRepresentativeByModel(bikeModel.getModel())
-                        .map(BikeModel::getId)
-                        .orElse(bikeId);
-                bikeModelStatsRepository.decrementFavoriteCount(representativeId);
-            }
-            
-            log.info("用户 {} 取消收藏单车 {}", userId, bikeId);
-            return false;
-        } else {
-            // 未收藏，添加收藏
-            BikeModel bikeModel = bikeModelRepository.findById(bikeId)
-                    .orElseThrow(() -> new BizException("单车不存在"));
-            
-            User user = userRepository.findById(userId)
-                    .orElseThrow(() -> new BizException("用户不存在"));
-            
-            UserBikeFavorite favorite = new UserBikeFavorite();
-            favorite.setUser(user);
-            favorite.setBikeModel(bikeModel);
-            userBikeFavoriteRepository.save(favorite);
-            
-            // 更新收藏统计
-            Long representativeId = bikeModelRepository.findRepresentativeByModel(bikeModel.getModel())
-                    .map(BikeModel::getId)
-                    .orElse(bikeId);
-            
-            int updated = bikeModelStatsRepository.incrementFavoriteCount(representativeId);
-            if (updated == 0) {
-                BikeModelStats stats = new BikeModelStats();
-                stats.setBikeModelId(representativeId);
-                stats.setViewCount(0L);
-                stats.setFavoriteCount(1L);
-                stats.setRecommendWeight(0.0);
-                stats.setCreateTime(java.time.LocalDateTime.now());
-                bikeModelStatsRepository.save(stats);
-            }
-            
-            log.info("用户 {} 收藏单车 {}", userId, bikeId);
-            return true;
-        }
     }
 }
