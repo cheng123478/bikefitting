@@ -143,7 +143,7 @@
                 <div class="panel-icon"><i class="fas fa-fingerprint"></i></div>
                 <div class="panel-info">
                   <h4 class="panel-title-sm">身体档案</h4>
-                  <p class="panel-desc-sm">管理生理参数与柔韧性评分</p>
+                  <p class="panel-desc-sm">记录体征参数，量化肢体水平</p>
                 </div>
               </div>
 
@@ -151,13 +151,13 @@
                 <div class="panel-icon"><i class="fas fa-bicycle"></i></div>
                 <div class="panel-info">
                   <h4 class="panel-title-sm">我的车库</h4>
-                  <p class="panel-desc-sm">维护名下战车的硬件设定参数</p>
+                  <p class="panel-desc-sm">调校专属座驾，掌控每一个硬件细节</p>
                 </div>
               </div>
             </div>
 
             <!-- Full Width Bar: Bike Recommendation -->
-            <div class="console-bar glass-panel" @click="router.push('/showroom')">
+            <div class="console-bar glass-panel" @click="router.push('/showroom?recommend=1')">
               <div class="bar-content">
                 <i class="fas fa-magic spark-effect"></i>
                 <div class="bar-text">
@@ -199,7 +199,7 @@ const slides = ref([
     bg: 'https://images.unsplash.com/photo-1541625602330-2277a4c46182?q=80&w=2070&auto=format&fit=crop',
     slogan: `Fitting Is Science<br><span class="hero-highlight">${PROJECT_CONFIG.MASCOT} 1.0 Performance</span>`,
     desc: `从 Baseline 诊断到展厅探索，由 ${PROJECT_CONFIG.MASCOT} 定义您的骑行几何。`,
-    link: '#lab',
+    link: '/lab',
     btnText: '进入中枢',
     btnIcon: 'fas fa-rocket',
     overlayClass: 'overlay-soft'
@@ -208,7 +208,7 @@ const slides = ref([
     bg: '/image/index/fit.jpg',
     icon: 'fas fa-ruler-combined',
     slogan: '精密静态设定<br><span class="hero-highlight">Baseline Diagnosis</span>',
-    desc: '基于骑行科学的身体建模，快速锁定您的理想座垫与 Reach 基准。',
+    desc: '基于骑行科学的身体建模，快速锁定您的适配几何数据',
     btnText: '启动引擎',
     btnIcon: 'fas fa-magic',
     link: '/lab/static',
@@ -218,11 +218,10 @@ const slides = ref([
     bg: 'https://images.unsplash.com/photo-1511994298241-608e28f14fde?q=80&w=2070&auto=format&fit=crop',
     icon: 'fas fa-video',
     slogan: `动态视觉追踪<br><span class="hero-highlight">Vision Intelligence</span>`,
-    desc: `实时关节角度捕捉与踩踏轨迹分析，进阶版 ${PROJECT_CONFIG.MASCOT} 1.5 即将开启公测。`,
-    btnText: '了解未来',
+    desc: `动态实现关节角度捕捉与踩踏轨迹分析，实时量化运动姿态，精准提升发力效率。`,
+    btnText: '开启捕捉',
     btnIcon: 'fas fa-atom',
-    link: '#lab',
-    isPreview: true,
+    link: '/lab/dynamic',
     overlayClass: 'overlay-dark'
   }
 ]);

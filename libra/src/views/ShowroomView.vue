@@ -396,7 +396,7 @@
 
 <script setup>
 import { ref, onMounted, onUnmounted, computed } from 'vue';
-import { useRouter } from 'vue-router';
+import { useRouter, useRoute } from 'vue-router';
 import { useUserStore } from '@/stores/user';
 import { getShowroomBikes, recommendBikes, toggleFavorite } from '@/api/bikeShowroom';
 import { saveUserBody, getLatestUserBody } from '@/api/userBody';
@@ -404,6 +404,7 @@ import { showToast } from '@/utils/toast';
 import { getFavoriteList } from '@/api/favorite';
 
 const router = useRouter();
+const route = useRoute();
 const userStore = useUserStore();
 
 const brands = ref([]);
@@ -914,6 +915,11 @@ onMounted(() => {
 
   // 加载用户收藏列表
   loadUserFavorites();
+
+  // 检查是否从首页点击单车推荐跳转，如果是则自动打开智能推荐弹窗
+  if (route.query.recommend === '1') {
+    handleSmartRecommend();
+  }
 
   // 监听页面切换时的滚动事件
   window.addEventListener('beforeunload', saveScrollPosition);
