@@ -174,6 +174,14 @@ public class UserBikeFavoriteService {
     private FavoriteVO convertToVO(UserBikeFavorite favorite) {
         BikeModel bikeModel = favorite.getBikeModel();
         
+        if (bikeModel == null) {
+            return FavoriteVO.builder()
+                    .id(favorite.getId())
+                    .bikeModelName("未知车型")
+                    .createTime(favorite.getCreateTime())
+                    .build();
+        }
+        
         return FavoriteVO.builder()
                 .id(favorite.getId())
                 .bikeModelId(bikeModel.getId())

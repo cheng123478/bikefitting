@@ -275,9 +275,14 @@ public class DynamicFittingService {
             vo.setBikeId(session.getUserBike().getId());
             vo.setRemark(session.getUserBike().getRemark());
             // 重要：直接把名字带出去，这样前端历史记录列表就不用再查单车接口了
-            vo.setBikeName(
-                    session.getUserBike().getBikeModel() != null ? session.getUserBike().getBikeModel().getModel()
-                            : "未知车型");
+            try {
+                vo.setBikeName(
+                        session.getUserBike().getBikeModel() != null ? session.getUserBike().getBikeModel().getModel()
+                                : "未知车型");
+            } catch (Exception e) {
+                log.warn("获取会话 {} 关联的BikeModel失败, userBikeId={}", session.getId(), session.getUserBike().getId());
+                vo.setBikeName("未知车型");
+            }
         }
 
         // 处理关联的身体信息
