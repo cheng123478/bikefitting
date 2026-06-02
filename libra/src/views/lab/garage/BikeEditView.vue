@@ -275,7 +275,7 @@
             <div class="divider"></div>
             <div class="form-group">
               <h4 class="group-title">03 实车设定 (Current Setup)</h4>
-              <p class="group-desc">使用卷尺测量目前车辆的真实调整值。输入框中的示例仅用于提示单位和量级，请以实车测量为准。</p>
+              <p class="group-desc">可选填写目前车辆的真实调整值；不填写也能生成理想推荐，填写后用于当前车辆对比。输入框中的示例仅提示单位和量级。</p>
               <div class="input-grid">
                 <div class="grid-3">
                   <div class="zen-form-item">
@@ -302,7 +302,7 @@
                 </div>
                 <div class="grid-3">
                   <div class="zen-form-item">
-                    <label class="input-label">把立长度 *</label>
+                    <label class="input-label">把立长度</label>
                     <div class="input-with-unit">
                       <input type="number" v-model.number="formData.stemLength" class="zen-input" :class="{ 'has-warning': fieldWarnings.stemLength }" placeholder="例如：90" @focus="activeField = 'stemLength'">
                       <span class="unit">mm</span>
@@ -310,7 +310,7 @@
                     <p v-if="fieldWarnings.stemLength" class="field-warning">{{ fieldWarnings.stemLength }}</p>
                   </div>
                   <div class="zen-form-item">
-                    <label class="input-label">把立角度 *</label>
+                    <label class="input-label">把立角度</label>
                     <div class="input-with-unit">
                       <input type="number" step="1" v-model.number="formData.stemAngle" class="zen-input" :class="{ 'has-warning': fieldWarnings.stemAngle }" placeholder="例如：-6" @focus="activeField = 'stemAngle'">
                       <span class="unit">°</span>
@@ -318,7 +318,7 @@
                     <p v-if="fieldWarnings.stemAngle" class="field-warning">{{ fieldWarnings.stemAngle }}</p>
                   </div>
                   <div class="zen-form-item">
-                    <label class="input-label">垫圈高度 *</label>
+                    <label class="input-label">垫圈高度</label>
                     <div class="input-with-unit">
                       <input type="number" v-model.number="formData.spacersHeight" class="zen-input" :class="{ 'has-warning': fieldWarnings.spacersHeight }" placeholder="例如：20" @focus="activeField = 'spacersHeight'">
                       <span class="unit">mm</span>
@@ -530,20 +530,20 @@ const fieldGuides = {
 
 const activeFieldInfo = computed(() => fieldGuides[activeField.value] || fieldGuides['brand']);
 
-const submitAttempted = ref(false);
-const hasInputValue = (value) => value !== null && value !== undefined && value !== '';
-const cockpitRequiredRules = {
+const hasInputValue = (value) => value !== null && value !== undefined && value !== '' && !Number.isNaN(value);
+const optionalCockpitFields = ['stemLength', 'stemAngle', 'spacersHeight'];
+const cockpitRangeRules = {
   stemLength: { label: '把立长度', min: 40, max: 160, unit: 'mm' },
   stemAngle: { label: '把立角度', min: -30, max: 30, unit: '°' },
   spacersHeight: { label: '垫圈高度', min: 0, max: 80, unit: 'mm' }
 };
 
 const validateCockpitField = (field) => {
-  const rule = cockpitRequiredRules[field];
+  const rule = cockpitRangeRules[field];
   const value = formData[field];
   if (!rule) return '';
   if (!hasInputValue(value)) {
-    return submitAttempted.value ? `${rule.label}为必填项，用于换算静态 fitting 的车头落地方案。` : '';
+    return '';
   }
   const numericValue = Number(value);
   if (!Number.isFinite(numericValue)) {
@@ -565,6 +565,18 @@ const getFirstCockpitWarning = () => {
   return ['stemLength', 'stemAngle', 'spacersHeight']
       .map(field => fieldWarnings.value[field])
       .find(Boolean) || '';
+};
+
+const normalizeOptionalNumber = (value) => {
+  return hasInputValue(value) ? value : null;
+};
+
+const buildBikePayload = () => {
+  const payload = { ...formData };
+  optionalCockpitFields.forEach(field => {
+    payload[field] = normalizeOptionalNumber(payload[field]);
+  });
+  return payload;
 };
 
 onMounted(async () => {
@@ -759,7 +771,6 @@ const handleRetire = async () => {
 };
 
 const submitForm = async () => {
-  submitAttempted.value = true;
   if (!formData.stack || !formData.reach) {
     showToast('Stack 和 Reach 为核心基准，不可为空', 'warning');
     return;
@@ -771,11 +782,11 @@ const submitForm = async () => {
   }
   submitting.value = true;
   try {
-    await saveUserBike(formData);
+    await saveUserBike(buildBikePayload());
     showToast('档案同步成功', 'success');
     router.push('/lab/garage');
   } catch (error) {
-    showToast(error.message || '保存异常，请检查必填设定', 'error');
+    showToast(error.message || '保存异常，请检查车辆信息', 'error');
   } finally {
     submitting.value = false;
   }

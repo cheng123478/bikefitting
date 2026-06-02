@@ -195,9 +195,10 @@ public class FittorDiagnosticsManager {
 
         // 曲柄规格对比
         if (res.getRecCrankLength() != null) {
-            v.put("recValue", res.getRecCrankLength());
+            v.put("recValue", formatNumber(res.getRecCrankLength()));
             logic.append(diagLib.getTemplate("module_2_lower_body", "crank_logic", v));
-            if (setup != null && setup.getCrankLength() != null && !res.getRecCrankLength().equals(setup.getCrankLength())) {
+            if (setup != null && setup.getCrankLength() != null
+                    && Math.abs(res.getRecCrankLength() - setup.getCrankLength()) >= 1.0) {
                 logic.append("【注意】：您当前实车使用的是 ").append(setup.getCrankLength())
                         .append("mm 曲柄，建议在下次升级时考虑更换。");
             }
@@ -224,8 +225,8 @@ public class FittorDiagnosticsManager {
     }
 
     /**
-     * 实车调教方案 (现状对比)
-     * 依赖：recStemLength, setup
+     * 实车调教方案 (推荐处方，可附加现状对比)
+     * 依赖：recStemLength
      *
      * @param res      静态分析结果
      * @param setup    用户实车信息
@@ -235,7 +236,8 @@ public class FittorDiagnosticsManager {
             return;
 
         Map<String, Object> v = new HashMap<>();
-        v.put("recValue", res.getRecStemLength());
+        v.put("stemLengthText", res.getRecStemLength() + "mm");
+        v.put("spacerText", formatMillimeter(res.getRecSpacerHeight()));
 
         StringBuilder logic = new StringBuilder();
         logic.append(diagLib.getTemplate("module_6_equipment", "stem_logic", v));
@@ -254,7 +256,28 @@ public class FittorDiagnosticsManager {
 
         logic.append("\n").append(diagLib.getTemplate("module_7_summary", "adjusting_mode", v));
 
-        addDetail(res, "调教方案", "现状对比诊断", logic.toString());
+        addDetail(res, "调教方案", "推荐处方与现状对比", logic.toString());
+    }
+
+    private String formatMillimeter(Integer value) {
+        return value == null ? "暂无推荐" : value + "mm";
+    }
+
+    private String formatMillimeter(Double value) {
+        if (value == null) {
+            return "暂无推荐";
+        }
+        return formatNumber(value) + "mm";
+    }
+
+    private String formatNumber(Double value) {
+        if (value == null) {
+            return "暂无推荐";
+        }
+        if (Math.abs(value - Math.rint(value)) < 0.001) {
+            return String.valueOf((int) Math.rint(value));
+        }
+        return String.format(java.util.Locale.US, "%.1f", value);
     }
 
 

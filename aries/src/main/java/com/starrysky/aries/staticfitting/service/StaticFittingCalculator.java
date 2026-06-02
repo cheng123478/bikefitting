@@ -90,12 +90,12 @@ public class StaticFittingCalculator {
      * @param bikeType   单车类型
      * @return 建议曲柄长度 (mm)，取整至最近的 2.5mm (如 170, 172.5)
      */
-    public static int calcCrankLength(int spanHeight, int bikeType) {
+    public static double calcCrankLength(int spanHeight, int bikeType) {
         double raw = spanHeight * FittingConstants.CRANK_RATIO;
         if (bikeType == BikeType.TT_BIKE.code) {
             raw -= 2.5;
         }
-        return (int) (Math.round(raw / 2.5) * 2.5);
+        return Math.round(raw / 2.5) * 2.5;
     }
 
     /**
@@ -238,8 +238,9 @@ public class StaticFittingCalculator {
             if (bikeType != BikeType.CITY_BIKE.code)
                 drop *= 0.7; // Not CITY_BIKE
         }
-        if (thoracicScore != null && thoracicScore < 60)
-            drop *= 0.85;
+        if (thoracicScore != null && thoracicScore < 60) {
+            drop = drop >= 0 ? drop * 0.85 : drop * 1.10;
+        }
         return Math.round(drop * 10.0) / 10.0;
     }
 
@@ -272,9 +273,7 @@ public class StaticFittingCalculator {
     }
 
     public static boolean hasAbdominalClearanceNeed(Double bmi, Double waistToHeightRatio) {
-        return bmi != null
-                && waistToHeightRatio != null
-                && bmi >= FittingConstants.BMI_OBESITY_THRESHOLD
+        return waistToHeightRatio != null
                 && waistToHeightRatio >= FittingConstants.WAIST_HEIGHT_RATIO_RISK_THRESHOLD;
     }
 

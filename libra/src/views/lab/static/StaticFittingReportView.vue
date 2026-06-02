@@ -30,11 +30,11 @@
                 <circle class="ring-fill" cx="50" cy="50" r="45" :style="scoreStyle"></circle>
               </svg>
               <div class="score-center">
-                <span class="score-num" :class="statusClass(report.matchScore)">{{ report.matchScore }}</span>
+                <span class="score-num" :class="statusClass(report.overallStatus || report.matchScore)">{{ displayScore }}</span>
                 <span class="score-label">MATCH SCORE</span>
               </div>
             </div>
-            <div class="match-level" :class="statusClass(report.matchScore)">
+            <div class="match-level" :class="statusClass(report.overallStatus || report.matchScore)">
               {{ report.matchLevel }}
             </div>
           </div>
@@ -47,7 +47,7 @@
             <!-- 2. 车架几何适用性 (不可变基础) -->
             <section class="section-block">
               <h3 class="section-title"><i class="fas fa-vector-square"></i> 车架骨架匹配 (Frame Compatibility)</h3>
-              <p class="section-desc">验证当前车架尺码是否符合您的身体比例。若此处存在严重偏差，后期调教效果将受限。</p>
+              <p class="section-desc">检查车架 Stack 与推荐座舱坐标的可落地性；Reach+ 会结合推荐把立长度判断，不直接拿车架 Reach 代替。</p>
 
               <div class="compatibility-grid two-col">
                 <!-- Stack 匹配 -->
@@ -55,9 +55,7 @@
                   <h4 class="compat-title">Stack 匹配</h4>
                   <div class="compat-body">
                     <div class="compat-status">
-                      <span v-if="report.frameStackCheck.status === 'PERFECT'" class="status-tag tag-yellow">完美契合</span>
-                      <span v-else-if="report.frameStackCheck.status === 'ADJUST'" class="status-tag tag-green">建议微调</span>
-                      <span v-else-if="report.frameStackCheck.status === 'WARNING'" class="status-tag tag-red">严重偏差</span>
+                      <span class="status-tag" :class="statusTagClass(report.frameStackCheck.status)">{{ getStatusText(report.frameStackCheck.status, 'stack') }}</span>
                     </div>
                     <div class="compat-values">
                       <div class="value-item">
@@ -79,19 +77,17 @@
                   <h4 class="compat-title">Reach 匹配</h4>
                   <div class="compat-body">
                     <div class="compat-status">
-                      <span v-if="report.frameReachCheck.status === 'PERFECT'" class="status-tag tag-yellow">完美契合</span>
-                      <span v-else-if="report.frameReachCheck.status === 'ADJUST'" class="status-tag tag-green">建议微调</span>
-                      <span v-else-if="report.frameReachCheck.status === 'WARNING'" class="status-tag tag-red">严重偏差</span>
+                      <span class="status-tag" :class="statusTagClass(report.frameReachCheck.status)">{{ getStatusText(report.frameReachCheck.status, 'reach') }}</span>
                     </div>
                     <div class="compat-values">
                       <div class="value-item">
                         <span class="current">{{ report.frameReachCheck.currentValue || '--' }}</span>
-                        <span class="value-label">当前</span>
+                        <span class="value-label">可实现</span>
                       </div>
                       <span class="sep">/</span>
                       <div class="value-item">
                         <span class="ideal">{{ report.frameReachCheck.idealValue }}{{ report.frameReachCheck.unit }}</span>
-                        <span class="value-label">推荐</span>
+                        <span class="value-label">目标</span>
                       </div>
                     </div>
                     <p class="compat-reason">{{ report.frameReachCheck.reason }}</p>
@@ -103,7 +99,7 @@
             <!-- 3. 调教设定明细 (可调项目) -->
             <section class="section-block">
               <h3 class="section-title"><i class="fas fa-sliders-h"></i> 设定偏差分析 (Setup Deviations)</h3>
-              <p class="section-desc">对比您当前的单车设定与 {{ PROJECT_CONFIG.MASCOT }} 计算出的黄金生物力学坐标。</p>
+              <p class="section-desc">已填写的当前设定用于偏差对比；未填写的项目只展示推荐值，不参与匹配分。</p>
 
               <!-- 7个字段方框网格 -->
               <div class="deviation-grid">
@@ -136,15 +132,15 @@
             <div class="equip-card glass-card sticky-card">
               <h3 class="side-title"><i class="fas fa-shopping-bag"></i> 器材更换建议</h3>
 
-              <ul v-if="report.equipmentSuggestions && report.equipmentSuggestions.length > 0" class="equip-list">
-                <li v-for="(suggest, idx) in report.equipmentSuggestions" :key="idx">
+              <ul v-if="report.hardwareUpgrades && report.hardwareUpgrades.length > 0" class="equip-list">
+                <li v-for="(suggest, idx) in report.hardwareUpgrades" :key="idx">
                   <i class="fas fa-wrench icon-gold"></i>
-                  <span>{{ suggest }}</span>
+                  <span>{{ suggest.part }}：{{ suggest.currentValue }} → {{ suggest.targetSpec }}。{{ suggest.reason }}</span>
                 </li>
               </ul>
               <div v-else class="equip-empty">
                 <i class="fas fa-check-circle"></i>
-                <p>当前硬件配置合理，无需更换核心零件，请专注于细微刻度调整。</p>
+                <p>{{ report.matchScore == null ? '暂未发现必须更换的硬件；先按推荐值完成基础设定。' : '当前未发现必须更换的核心零件，请优先做基础刻度调整。' }}</p>
               </div>
 
               <div class="action-group">
@@ -201,13 +197,17 @@ const resultId = ref(route.query.resultId || route.query.fittingResultId); // �
 // 动画属性：环形进度条的填充计算
 const scoreStyle = computed(() => {
   if (!report.value) return {};
-  const score = report.value.matchScore || 0;
+  const score = Number.isFinite(report.value.matchScore) ? report.value.matchScore : 0;
   const circumference = 2 * Math.PI * 45; // r=45
   const offset = circumference - (score / 100) * circumference;
   return {
     strokeDasharray: circumference,
     strokeDashoffset: offset
   };
+});
+
+const displayScore = computed(() => {
+  return Number.isFinite(report.value?.matchScore) ? report.value.matchScore : '--';
 });
 
 // 根据状态返回颜色类名
@@ -218,21 +218,45 @@ const statusClass = (scoreOrStatus) => {
     return 'text-danger';
   } else {
     // 对应 'PERFECT', 'ADJUST', 'WARNING'
-    if (scoreOrStatus === 'PERFECT') return 'text-success';
+    if (scoreOrStatus === 'PERFECT' || scoreOrStatus === 'PASS') return 'text-success';
+    if (scoreOrStatus === 'PARTIAL' || scoreOrStatus === 'REFERENCE') return 'text-muted';
     if (scoreOrStatus === 'ADJUST') return 'text-warning';
-    if (scoreOrStatus === 'WARNING') return 'text-danger';
+    if (scoreOrStatus === 'WARNING' || scoreOrStatus === 'DANGER') return 'text-danger';
     return 'text-muted';
   }
 };
 
+const statusTagClass = (status) => {
+  if (status === 'PERFECT') return 'tag-green';
+  if (status === 'ADJUST') return 'tag-yellow';
+  if (status === 'REFERENCE') return 'tag-muted';
+  return 'tag-red';
+};
+
 // 状态中文翻译
-const getStatusText = (status) => {
-  const map = {
-    'PERFECT': '完美契合',
-    'ADJUST': '建议微调',
-    'WARNING': '严重偏差'
-  };
-  return map || '未知';
+const getStatusText = (status, type = 'default') => {
+  if (type === 'reach') {
+    return {
+      PERFECT: '可落地',
+      ADJUST: '需微调',
+      WARNING: '余量受限',
+      REFERENCE: '仅推荐'
+    }[status] || '未知';
+  }
+  return {
+    PERFECT: '匹配良好',
+    ADJUST: '建议微调',
+    WARNING: '余量受限',
+    REFERENCE: '仅推荐'
+  }[status] || '未知';
+};
+
+const statusToDeltaClass = (status, delta) => {
+  if (status === 'REFERENCE' || delta == null) return 'neutral';
+  if (status === 'PERFECT') return 'good';
+  if (status === 'ADJUST') return 'warning';
+  if (status === 'WARNING') return 'danger';
+  return 'neutral';
 };
 
 // 计算偏差字段数据
@@ -259,14 +283,8 @@ const deviationFields = computed(() => {
     const hasData = !!item;
     const currentVal = hasData ? item.currentValue : null;
     const idealVal = hasData ? item.idealValue : null;
-    const delta = (currentVal != null && idealVal != null) ? idealVal - currentVal : null;
-
-    let deltaClass = 'neutral';
-    if (delta != null) {
-      if (Math.abs(delta) <= 5) deltaClass = 'good';
-      else if (Math.abs(delta) <= 15) deltaClass = 'warning';
-      else deltaClass = 'danger';
-    }
+    const delta = hasData && item.delta != null ? item.delta : null;
+    const deltaClass = hasData ? statusToDeltaClass(item.status, delta) : 'neutral';
 
     fields.push({
       name: config.name,
@@ -389,6 +407,7 @@ onMounted(async () => {
 .tag-yellow { background: #FFF8E1; color: #F57F17; border: 1px solid #FFECB3; }
 .tag-green { background: #E8F5E9; color: #2E7D32; border: 1px solid #C8E6C9; }
 .tag-red { background: #FFEBEE; color: #C62828; border: 1px solid #FFCDD2; }
+.tag-muted { background: #F4F4F2; color: #777; border: 1px solid #E3E3DD; }
 .compat-values { display: flex; align-items: center; gap: 6px; font-size: 1.4rem; font-family: var(--font-serif); }
 .value-item { display: flex; flex-direction: column; align-items: center; gap: 2px; }
 .value-item .current { color: #333; font-weight: bold; }
@@ -469,6 +488,7 @@ onMounted(async () => {
 .text-success { color: var(--success-color); }
 .text-warning { color: var(--warning-color); }
 .text-danger { color: var(--danger-color); }
+.text-muted { color: var(--text-muted); }
 
 @media (max-width: 1024px) {
   .report-layout { grid-template-columns: 1fr; }

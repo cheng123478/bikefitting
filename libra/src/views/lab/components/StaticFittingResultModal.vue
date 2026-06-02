@@ -9,21 +9,21 @@
           <div class="score-radial">
             <svg viewBox="0 0 36 36" class="circular-chart" :class="scoreLevelClass">
               <path class="circle-bg" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
-              <path class="circle" :stroke-dasharray="`${result.thoracicScore || 0}, 100`" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+              <path class="circle" :stroke-dasharray="`${hasThoracicScore ? result.thoracicScore : 0}, 100`" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
             </svg>
             <div class="score-content">
-              <span class="score-val">{{ result.thoracicScore || 0 }}</span>
+              <span class="score-val">{{ displayThoracicScore }}</span>
               <span class="score-unit">柔韧分</span>
             </div>
           </div>
 
           <div class="header-main">
-            <h3>黄金几何基准 <span class="badge-date">{{ formatDate(result.fittingTime) }}</span></h3>
+            <h3>静态 fitting 基准 <span class="badge-date">{{ formatDate(result.fittingTime) }}</span></h3>
             <div class="tags-row">
               <span v-for="tag in result.riderTags" :key="tag" class="status-tag">
                 <i class="fas fa-check-double"></i> {{ tag }}
               </span>
-              <span class="type-tag" v-if="result.thoracicScore < 30">
+              <span class="type-tag" v-if="hasThoracicScore && result.thoracicScore < 30">
                 <i class="fas fa-shield-alt"></i> 康复防护模式已开启
               </span>
             </div>
@@ -68,7 +68,7 @@
                     推荐车架Stack
                     <span class="info-tooltip-wrapper">
                       <i class="info-icon fas fa-exclamation-circle"></i>
-                      <span class="tooltip-text">该高度可通过调整垫圈高度与把立角度实现</span>
+                      <span class="tooltip-text">这是车架几何参考，不是日常调车刻度；实际把高请看车把高度与垫圈高度</span>
                     </span>
                   </span>
                   <span class="v">{{ result.recFrameStack }}<small>mm</small></span>
@@ -90,13 +90,11 @@
                 </div>
                 <div class="data-card">
                   <span class="l">垫圈高度</span>
-                  <span class="v warning" v-if="result.recSpacerHeight == null">需补全车头设定</span>
-                  <span class="v" v-else>{{ result.recSpacerHeight }}<small>mm</small></span>
+                  <span class="v">{{ formatRecommendedValue(result.recSpacerHeight) }}<small v-if="result.recSpacerHeight != null">mm</small></span>
                 </div>
                 <div class="data-card">
                   <span class="l">把立长度</span>
-                  <span class="v warning" v-if="!result.recStemLength">需补全车头设定</span>
-                  <span class="v" v-else>{{ result.recStemLength }}<small>mm</small></span>
+                  <span class="v">{{ formatRecommendedValue(result.recStemLength) }}<small v-if="result.recStemLength != null">mm</small></span>
                 </div>
                 <div class="data-card wide">
                   <span class="l">
@@ -117,7 +115,7 @@
           <div class="diagnosis-section">
             <h4 class="section-title">Fitter 深度诊断报告</h4>
             <div class="diag-list">
-              <div v-for="item in result.details" :key="item.id" class="diag-card">
+              <div v-for="item in diagnosisCards" :key="item.key" class="diag-card">
                 <div class="diag-header">
                   <span class="diag-part">{{ item.part }}</span>
                   <span class="diag-feature" v-if="item.bodyFeature">{{ item.bodyFeature }}</span>
@@ -229,7 +227,16 @@ const downloadPoster = () => {
   link.click();
 };
 
+const hasThoracicScore = computed(() => {
+  return props.result.thoracicScore !== null && props.result.thoracicScore !== undefined;
+});
+
+const displayThoracicScore = computed(() => {
+  return hasThoracicScore.value ? props.result.thoracicScore : '--';
+});
+
 const scoreLevelClass = computed(() => {
+  if (!hasThoracicScore.value) return 'level-neutral';
   const score = props.result.thoracicScore || 0;
   if (score < 30) return 'level-danger';
   if (score < 70) return 'level-warning';
@@ -240,6 +247,127 @@ const formatDate = (dateStr) => {
   if (!dateStr) return '';
   return dateStr.split(' ')[0]; // 仅显示日期
 };
+
+const formatRecommendedValue = (value) => {
+  return value === null || value === undefined || value === '' ? '暂无推荐' : value;
+};
+
+const asArray = (value) => Array.isArray(value) ? value : [];
+
+const hasTag = (tags, keyword) => {
+  return tags.some(tag => String(tag).includes(keyword));
+};
+
+const detailText = (details) => {
+  return details
+      .map(item => `${item.part || ''}${item.bodyFeature || ''}${item.adjustmentLogic || ''}`)
+      .join(' ');
+};
+
+const formatMm = (value) => {
+  return value === null || value === undefined || value === '' ? '暂无推荐' : `${value}mm`;
+};
+
+const diagnosisCards = computed(() => {
+  const res = props.result || {};
+  const tags = asArray(res.riderTags);
+  const details = asArray(res.details);
+  const rawText = detailText(details);
+  const painLabels = asArray(res.painLabels);
+  const cards = [];
+
+  if (painLabels.length > 0) {
+    const painText = painLabels.slice(0, 3).join('、');
+    cards.push({
+      key: 'pain',
+      part: '疼痛保护',
+      bodyFeature: painText,
+      adjustmentLogic: `你这次反馈了 ${painText}，推荐值会优先降低相关区域的压力。先按建议座高、前伸和落差小幅调整，骑 2-3 次后观察疼痛是否下降；如果疼痛持续或加重，先暂停强度训练。`
+    });
+  }
+
+  const dataWarnings = details.filter(item => item.bodyFeature === '数据缺失' || item.part === '数据质量');
+  if (dataWarnings.length > 0) {
+    const warningText = dataWarnings
+        .map(item => item.adjustmentLogic)
+        .filter(Boolean)
+        .slice(0, 2)
+        .join(' ');
+    cards.push({
+      key: 'data',
+      part: '数据确认',
+      bodyFeature: '影响精度',
+      adjustmentLogic: warningText || '部分测量数据缺失，本次结果可以作为初始参考；补齐后重新生成会更贴近你的身体情况。'
+    });
+  }
+
+  let cockpitReason = '这次座舱目标会按你的上肢长度、躯干比例和柔韧性来定，不需要先填写当前把立数据。';
+  let cockpitFeature = '座舱落点';
+  if (hasTag(tags, '腹部空间优化-增强')) {
+    cockpitFeature = '腹部空间优先';
+    cockpitReason = '你的腹前空间需求较高，本次推荐会进一步缩短前伸并抬高把位，让髋腹夹角和呼吸空间更安全。';
+  } else if (hasTag(tags, '腹部空间优化')) {
+    cockpitFeature = '降低压迫';
+    cockpitReason = '你的腰高比提示需要更多髋腹空间，本次推荐会适度减少前伸和落差，降低大腿顶腹、腹部压迫和深把位呼吸受限。';
+  } else if (res.thoracicScore !== null && res.thoracicScore !== undefined && res.thoracicScore < 60) {
+    cockpitFeature = '保护腰背肩颈';
+    cockpitReason = '你的胸椎和肩部灵活性不适合过激进的低趴姿态，本次车头目标会更保守，减少腰背和肩颈代偿。';
+  }
+  cards.push({
+    key: 'cockpit',
+    part: '上肢座舱',
+    bodyFeature: cockpitFeature,
+    adjustmentLogic: `${cockpitReason} 建议优先按两个最容易落地的车头项调整：把立 ${formatMm(res.recStemLength)}，垫圈 ${formatMm(res.recSpacerHeight)}；车把落差目标 ${formatMm(res.recHandlebarDrop)}。如果实车把立角度与常见安装差异较大，请以车把高度和落差目标为准。`
+  });
+
+  const lowerActions = [
+    `座高 ${formatMm(res.recSeatHeight)}`,
+    `座垫后移 ${formatMm(res.recSetback)}`,
+    `曲柄 ${formatMm(res.recCrankLength)}`
+  ];
+  cards.push({
+    key: 'lower-body',
+    part: '下肢发力',
+    bodyFeature: '先调座垫',
+    adjustmentLogic: `你最先应该确认座垫位置：${lowerActions.join('，')}。座高负责膝关节伸展，后移量负责发力重心；先从这些基础值开始，再根据骑行中的膝盖和骨盆稳定反馈微调。`
+  });
+
+  if (rawText.includes('核心') || rawText.includes('稳定') || rawText.includes('塌腰')) {
+    cards.push({
+      key: 'body-core',
+      part: '身体短板',
+      bodyFeature: '核心稳定',
+      adjustmentLogic: '你需要把核心稳定性一起纳入调整：如果长时间骑行容易塌腰、骨盆晃动，先用短组平板支撑、死虫、鸟狗和侧桥建立耐力，每周 2-3 次即可。'
+    });
+  } else if (res.thoracicScore !== null && res.thoracicScore !== undefined && res.thoracicScore < 70) {
+    cards.push({
+      key: 'body-flex',
+      part: '身体短板',
+      bodyFeature: '柔韧性',
+      adjustmentLogic: '你的柔韧性还不适合直接追求大落差。建议把胸椎伸展、髋屈肌和腘绳肌拉伸作为日常补弱，每次 8-12 分钟，车上姿态会更容易稳定。'
+    });
+  }
+
+  if (res.recHandlebarWidth || res.recSaddleWidth) {
+    cards.push({
+      key: 'equipment',
+      part: '器材规格',
+      bodyFeature: '按身体宽度选',
+      adjustmentLogic: `把宽建议 ${formatMm(res.recHandlebarWidth)}，座垫宽度建议 ${formatMm(res.recSaddleWidth)}。这些不是越激进越好，核心目标是让肩部不过度外展、坐骨有稳定支撑。`
+    });
+  }
+
+  if (cards.length === 0) {
+    cards.push({
+      key: 'fallback',
+      part: '本次结论',
+      bodyFeature: '初始基准',
+      adjustmentLogic: '本次已生成静态 fitting 初始基准。建议先按上方推荐值调整，再用 2-3 次短距离骑行观察膝盖、腰背、肩颈和手部压力。'
+    });
+  }
+
+  return cards.slice(0, 4);
+});
 </script>
 
 <style scoped>
@@ -302,6 +430,10 @@ const formatDate = (dateStr) => {
 }
 
 /* 分数颜色定义 */
+.level-neutral .circle {
+  stroke: #B8B8B0;
+}
+
 .level-danger .circle {
   stroke: #C18C7E;
 }
