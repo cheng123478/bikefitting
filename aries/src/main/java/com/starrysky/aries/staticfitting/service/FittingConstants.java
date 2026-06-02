@@ -47,4 +47,11 @@ public class FittingConstants {
     public static final double SPAN_HEIGHT_RATIO_MAX = 0.52;
     public static final double APE_INDEX_MAX = 1.10;
     public static final double APE_INDEX_MIN = 0.90;
+    public static final double BMI_OBESITY_THRESHOLD = 30.0;
+    public static final double WAIST_HEIGHT_RATIO_RISK_THRESHOLD = 0.50;
+    public static final double ABDOMINAL_SEVERE_WAIST_HEIGHT_RATIO = 0.60;
+    public static final int ABDOMINAL_REACH_REDUCTION_MILD = 10;
+    public static final int ABDOMINAL_REACH_REDUCTION_SEVERE = 20;
+    public static final int ABDOMINAL_DROP_REDUCTION_MILD = 8;
+    public static final int ABDOMINAL_DROP_REDUCTION_SEVERE = 15;
 }

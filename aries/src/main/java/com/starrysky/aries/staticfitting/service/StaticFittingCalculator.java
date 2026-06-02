@@ -253,4 +253,51 @@ public class StaticFittingCalculator {
     public static double calculateReachOffset(int stemLength, double stemAngle) {
         return stemLength * Math.cos(Math.toRadians(Math.abs(stemAngle)));
     }
+
+    public static Double calculateBmi(Integer heightMm, Double weightKg) {
+        if (heightMm == null || heightMm <= 0 || weightKg == null || weightKg <= 0) {
+            return null;
+        }
+        double heightM = heightMm / 1000.0;
+        double bmi = weightKg / (heightM * heightM);
+        return Math.round(bmi * 10.0) / 10.0;
+    }
+
+    public static Double calculateWaistToHeightRatio(Integer heightMm, Integer waistMm) {
+        if (heightMm == null || heightMm <= 0 || waistMm == null || waistMm <= 0) {
+            return null;
+        }
+        double ratio = (double) waistMm / heightMm;
+        return Math.round(ratio * 1000.0) / 1000.0;
+    }
+
+    public static boolean hasAbdominalClearanceNeed(Double bmi, Double waistToHeightRatio) {
+        return bmi != null
+                && waistToHeightRatio != null
+                && bmi >= FittingConstants.BMI_OBESITY_THRESHOLD
+                && waistToHeightRatio >= FittingConstants.WAIST_HEIGHT_RATIO_RISK_THRESHOLD;
+    }
+
+    public static boolean isSevereAbdominalClearanceNeed(Double waistToHeightRatio) {
+        return waistToHeightRatio != null
+                && waistToHeightRatio >= FittingConstants.ABDOMINAL_SEVERE_WAIST_HEIGHT_RATIO;
+    }
+
+    public static int calcAbdominalReachReduction(Double bmi, Double waistToHeightRatio) {
+        if (!hasAbdominalClearanceNeed(bmi, waistToHeightRatio)) {
+            return 0;
+        }
+        return isSevereAbdominalClearanceNeed(waistToHeightRatio)
+                ? FittingConstants.ABDOMINAL_REACH_REDUCTION_SEVERE
+                : FittingConstants.ABDOMINAL_REACH_REDUCTION_MILD;
+    }
+
+    public static int calcAbdominalDropReduction(Double bmi, Double waistToHeightRatio) {
+        if (!hasAbdominalClearanceNeed(bmi, waistToHeightRatio)) {
+            return 0;
+        }
+        return isSevereAbdominalClearanceNeed(waistToHeightRatio)
+                ? FittingConstants.ABDOMINAL_DROP_REDUCTION_SEVERE
+                : FittingConstants.ABDOMINAL_DROP_REDUCTION_MILD;
+    }
 }

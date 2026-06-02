@@ -30,6 +30,10 @@ const props = defineProps({
   modelValue: [String, Number],
   unit: String,
   placeholder: String,
+  warning: {
+    type: String,
+    default: ''
+  },
   warningThreshold: {
     type: Number,
     default: 300
@@ -46,6 +50,7 @@ const handleFocus = () => {
 };
 
 const showWarning = computed(() => {
+  if (props.warning) return props.warning;
   if (!props.modelValue || props.modelValue <= 0) return false;
   
   const val = Number(props.modelValue);
@@ -84,7 +89,16 @@ const showWarning = computed(() => {
 }
 
 .input-container.has-warning {
-  border-color: var(--danger-color);
+  border-color: #E2A84D;
+  background: linear-gradient(135deg, rgba(226, 168, 77, 0.14), rgba(255, 248, 235, 0.92));
+  box-shadow: 0 8px 22px rgba(226, 168, 77, 0.12);
+}
+
+.input-container.has-warning:hover {
+  border-color: #D49335;
+  background: linear-gradient(135deg, rgba(226, 168, 77, 0.2), rgba(255, 250, 240, 1));
+  box-shadow: 0 12px 28px rgba(226, 168, 77, 0.18);
+  transform: translateY(-1px);
 }
 
 .zen-field {
@@ -94,7 +108,24 @@ const showWarning = computed(() => {
 
 .unit-tag { font-size: 0.85rem; color: var(--text-muted); font-weight: 600; opacity: 0.6; }
 
-.input-hint { font-size: 0.75rem; color: var(--danger-color); margin-top: 6px; display: flex; align-items: center; gap: 4px; }
+.input-hint {
+  font-size: 0.75rem;
+  color: #9A641C;
+  margin-top: 6px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  border-left: 3px solid #E2A84D;
+  border-radius: 8px;
+  background: linear-gradient(90deg, rgba(226, 168, 77, 0.16), rgba(226, 168, 77, 0.04));
+  padding: 7px 10px;
+  transition: all 0.25s ease;
+}
+
+.input-hint:hover {
+  background: linear-gradient(90deg, rgba(226, 168, 77, 0.22), rgba(226, 168, 77, 0.07));
+  transform: translateX(2px);
+}
 
 input::-webkit-outer-spin-button, input::-webkit-inner-spin-button { -webkit-appearance: none; }
 </style>

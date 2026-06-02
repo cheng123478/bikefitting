@@ -113,6 +113,11 @@ public class StaticFittingService {
             processLevel2Ergonomics(user, body, bike.getBikeModel().getBikeType(), result);
             diagnosticsManager.diagnoseComponents(result, body, setup);
             processLevel3Biomechanical(body, bike, setup, result);
+            applyAbdominalClearanceProtocol(body, result);
+            if (result.getRiderTags().contains("腹部空间优化") || result.getRiderTags().contains("腹部空间优化-增强")) {
+                result.getDetails().removeIf(d -> "上肢座舱".equals(d.getPart()));
+                diagnosticsManager.diagnoseUpperBody(result, body, setup);
+            }
 
             // B-2. 痛点修正 (在计算把立和垫圈的机械调校处方之前执行，确保调教推荐直接响应痛点保护)
             List<RidingPainType> painLevels = request.getPainLevels();
@@ -152,6 +157,9 @@ public class StaticFittingService {
         if (body.getHeight() == null || body.getHeight() < 1200 || body.getHeight() > 2200 ||
                 body.getSpanHeight() == null || body.getSpanHeight() < 600 || body.getSpanHeight() > 1100) {
             throw new BizException("基础数据(身高/跨高)疑似异常或缺失，请确认测量单位(mm)及数值准确性。");
+        }
+        if (body.getWeightKg() == null || body.getWeightKg() < 30 || body.getWeightKg() > 250) {
+            throw new BizException("体重为必填项，请确认单位为 kg，且数值在 30-250kg 的合理范围内。");
         }
     }
 
@@ -318,6 +326,44 @@ public class StaticFittingService {
      * @param setup 用户单车设定数据
      * @param res   调教结果对象
      */
+    private void applyAbdominalClearanceProtocol(UserBody body, StaticFittingResult res) {
+        Double bmi = StaticFittingCalculator.calculateBmi(body.getHeight(), body.getWeightKg());
+        Double waistToHeightRatio = StaticFittingCalculator.calculateWaistToHeightRatio(body.getHeight(), body.getWaistCircumference());
+        if (bmi == null) {
+            return;
+        }
+        if (waistToHeightRatio == null) {
+            if (bmi >= FittingConstants.BMI_OBESITY_THRESHOLD) {
+                res.getRiderTags().add("腹部空间待确认");
+                diagnosticsManager.addDetail(
+                        res,
+                        "上肢座舱",
+                        "腹部空间待确认",
+                        "体重与身高提示可能存在腹部空间需求，但本次未填写腰围，无法判断腰高比。系统保留常规静态 fitting 结果，未自动启用腹部空间优化；如骑行时有大腿顶腹、腹部压迫或深把位呼吸受限，建议补录腰围后重新生成方案。"
+                );
+            }
+            return;
+        }
+        if (!StaticFittingCalculator.hasAbdominalClearanceNeed(bmi, waistToHeightRatio)) {
+            return;
+        }
+        if (res.getRecReachPlus() == null || res.getRecHandlebarDrop() == null || res.getRecSeatHeight() == null) {
+            return;
+        }
+
+        int reachReduction = StaticFittingCalculator.calcAbdominalReachReduction(bmi, waistToHeightRatio);
+        int dropReduction = StaticFittingCalculator.calcAbdominalDropReduction(bmi, waistToHeightRatio);
+        res.setRecReachPlus(Math.max(res.getRecReachPlus() - reachReduction, 350));
+        res.setRecHandlebarDrop(Math.max(res.getRecHandlebarDrop() - dropReduction, 0));
+        res.setTargetBarHeight(res.getRecSeatHeight() - res.getRecHandlebarDrop());
+
+        if (StaticFittingCalculator.isSevereAbdominalClearanceNeed(waistToHeightRatio)) {
+            res.getRiderTags().add("腹部空间优化-增强");
+        } else {
+            res.getRiderTags().add("腹部空间优化");
+        }
+    }
+
     private void processBikeAdjustment(UserBike bike, UserBikeSetup setup, StaticFittingResult res) {
         if (res.getRecReachPlus() == null || bike.getBikeModel() == null || bike.getBikeModel().getReach() == null)
             return;
@@ -499,6 +545,16 @@ public class StaticFittingService {
             h.setTargetSpec(ideal.getRecCrankLength() + "mm");
             h.setReason("您的跨高对应的最佳曲柄杠杆比为" + ideal.getRecCrankLength() + "mm。");
             hardwareUpgrades.add(h);
+        }
+
+        if (ideal.getRiderTags() != null) {
+            if (ideal.getRiderTags().contains("腹部空间优化-增强")) {
+                expertDiagnoses.add("系统已启用增强版腹部空间优化：缩短前伸并抬高把位，优先保留髋腹夹角与呼吸空间。");
+            } else if (ideal.getRiderTags().contains("腹部空间优化")) {
+                expertDiagnoses.add("系统已启用腹部空间优化：适度缩短前伸并降低落差，减少大腿顶腹、腹部压迫或深把位呼吸受限。");
+            } else if (ideal.getRiderTags().contains("腹部空间待确认")) {
+                expertDiagnoses.add("体重与身高提示可能存在腹部空间需求，但腰围未填写；本次未自动启用腹部空间优化，建议补录腰围后重新生成方案。");
+            }
         }
 
         report.setMechanicalAdjustments(mechanicalAdjustments);

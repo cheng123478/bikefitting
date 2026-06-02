@@ -90,12 +90,12 @@
                 </div>
                 <div class="data-card">
                   <span class="l">垫圈高度</span>
-                  <span class="v warning" v-if="result.recSpacerHeight == null">需补全角度</span>
+                  <span class="v warning" v-if="result.recSpacerHeight == null">需补全车头设定</span>
                   <span class="v" v-else>{{ result.recSpacerHeight }}<small>mm</small></span>
                 </div>
                 <div class="data-card">
                   <span class="l">把立长度</span>
-                  <span class="v warning" v-if="!result.recStemLength">需补全角度</span>
+                  <span class="v warning" v-if="!result.recStemLength">需补全车头设定</span>
                   <span class="v" v-else>{{ result.recStemLength }}<small>mm</small></span>
                 </div>
                 <div class="data-card wide">

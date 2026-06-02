@@ -169,6 +169,13 @@ public class FittorDiagnosticsManager {
 
         // C. 手变头通用建议
         logic.append("\n").append(diagLib.getTemplate("module_3_upper_body", "hoods_angle", v));
+        if (res.getRiderTags() != null) {
+            if (res.getRiderTags().contains("腹部空间优化-增强")) {
+                logic.append("\n系统检测到较高腹部空间需求，已启用增强版腹部空间优化：在不重复叠加柔韧性补偿的前提下，进一步缩短前伸并抬高把位目标，优先保留髋腹夹角与呼吸空间。");
+            } else if (res.getRiderTags().contains("腹部空间优化")) {
+                logic.append("\n系统检测到腹部空间需求，已启用腹部空间优化：在保留原有柔韧性模型的基础上，适度缩短前伸并降低把位落差，减少大腿顶腹、腹部压迫或深把位呼吸受限。");
+            }
+        }
 
         if (!logic.isEmpty()) {
             addDetail(res, "上肢座舱", "舒适度/落差", logic.toString());

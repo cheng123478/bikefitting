@@ -158,6 +158,15 @@
               </div>
             </div>
 
+            <div v-if="report.expertDiagnoses && report.expertDiagnoses.length" class="diagnosis-card glass-card">
+              <h3 class="side-title"><i class="fas fa-notes-medical"></i> 深度诊断建议</h3>
+              <ul class="diagnosis-list">
+                <li v-for="(item, idx) in report.expertDiagnoses" :key="idx">
+                  {{ item }}
+                </li>
+              </ul>
+            </div>
+
           </aside>
         </div>
 
@@ -448,6 +457,10 @@ onMounted(async () => {
 .equip-empty { text-align: center; color: var(--success-color); margin-bottom: 30px; padding: 20px 0; }
 .equip-empty i { font-size: 2rem; margin-bottom: 10px; }
 .equip-empty p { font-size: 0.9rem; color: var(--text-muted); }
+
+.diagnosis-card { padding: 24px; margin-top: 18px; }
+.diagnosis-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 12px; }
+.diagnosis-list li { font-size: 0.9rem; line-height: 1.6; color: var(--text-main); padding: 12px 14px; background: rgba(92, 110, 88, 0.06); border-left: 3px solid var(--primary-color); border-radius: 6px; }
 
 .action-group { display: flex; flex-direction: column; gap: 15px; }
 .full-width { width: 100%; justify-content: center; }

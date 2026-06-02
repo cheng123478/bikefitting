@@ -275,73 +275,76 @@
             <div class="divider"></div>
             <div class="form-group">
               <h4 class="group-title">03 实车设定 (Current Setup)</h4>
-              <p class="group-desc">使用卷尺测量目前车辆的真实调整值。</p>
+              <p class="group-desc">使用卷尺测量目前车辆的真实调整值。输入框中的示例仅用于提示单位和量级，请以实车测量为准。</p>
               <div class="input-grid">
                 <div class="grid-3">
                   <div class="zen-form-item">
                     <label class="input-label">当前座高</label>
                     <div class="input-with-unit">
-                      <input type="number" v-model.number="formData.saddleHeight" class="zen-input" @focus="activeField = 'saddleHeight'">
+                      <input type="number" v-model.number="formData.saddleHeight" class="zen-input" placeholder="例如：720" @focus="activeField = 'saddleHeight'">
                       <span class="unit">mm</span>
                     </div>
                   </div>
                   <div class="zen-form-item">
                     <label class="input-label">座垫后移</label>
                     <div class="input-with-unit">
-                      <input type="number" v-model.number="formData.saddleSetback" class="zen-input" @focus="activeField = 'saddleSetback'">
+                      <input type="number" v-model.number="formData.saddleSetback" class="zen-input" placeholder="例如：55" @focus="activeField = 'saddleSetback'">
                       <span class="unit">mm</span>
                     </div>
                   </div>
                   <div class="zen-form-item">
                     <label class="input-label">座垫角度</label>
                     <div class="input-with-unit">
-                      <input type="number" v-model.number="formData.saddleTilt" class="zen-input" @focus="activeField = 'saddleTilt'">
+                      <input type="number" v-model.number="formData.saddleTilt" class="zen-input" placeholder="例如：-2" @focus="activeField = 'saddleTilt'">
                       <span class="unit">°</span>
                     </div>
                   </div>
                 </div>
                 <div class="grid-3">
                   <div class="zen-form-item">
-                    <label class="input-label">把立长度</label>
+                    <label class="input-label">把立长度 *</label>
                     <div class="input-with-unit">
-                      <input type="number" v-model.number="formData.stemLength" class="zen-input" @focus="activeField = 'stemLength'">
+                      <input type="number" v-model.number="formData.stemLength" class="zen-input" :class="{ 'has-warning': fieldWarnings.stemLength }" placeholder="例如：90" @focus="activeField = 'stemLength'">
                       <span class="unit">mm</span>
                     </div>
+                    <p v-if="fieldWarnings.stemLength" class="field-warning">{{ fieldWarnings.stemLength }}</p>
                   </div>
                   <div class="zen-form-item">
-                    <label class="input-label">把立角度</label>
+                    <label class="input-label">把立角度 *</label>
                     <div class="input-with-unit">
-                      <input type="number" step="1" v-model.number="formData.stemAngle" class="zen-input" @focus="activeField = 'stemAngle'">
+                      <input type="number" step="1" v-model.number="formData.stemAngle" class="zen-input" :class="{ 'has-warning': fieldWarnings.stemAngle }" placeholder="例如：-6" @focus="activeField = 'stemAngle'">
                       <span class="unit">°</span>
                     </div>
+                    <p v-if="fieldWarnings.stemAngle" class="field-warning">{{ fieldWarnings.stemAngle }}</p>
                   </div>
                   <div class="zen-form-item">
-                    <label class="input-label">垫圈高度</label>
+                    <label class="input-label">垫圈高度 *</label>
                     <div class="input-with-unit">
-                      <input type="number" v-model.number="formData.spacersHeight" class="zen-input" @focus="activeField = 'spacersHeight'">
+                      <input type="number" v-model.number="formData.spacersHeight" class="zen-input" :class="{ 'has-warning': fieldWarnings.spacersHeight }" placeholder="例如：20" @focus="activeField = 'spacersHeight'">
                       <span class="unit">mm</span>
                     </div>
+                    <p v-if="fieldWarnings.spacersHeight" class="field-warning">{{ fieldWarnings.spacersHeight }}</p>
                   </div>
                 </div>
                 <div class="grid-3">
                   <div class="zen-form-item">
                     <label class="input-label">把横宽度</label>
                     <div class="input-with-unit">
-                      <input type="number" v-model.number="formData.handlebarWidth" class="zen-input" @focus="activeField = 'handlebarWidth'">
+                      <input type="number" v-model.number="formData.handlebarWidth" class="zen-input" placeholder="例如：400" @focus="activeField = 'handlebarWidth'">
                       <span class="unit">mm</span>
                     </div>
                   </div>
                   <div class="zen-form-item">
                     <label class="input-label">曲柄长度</label>
                     <div class="input-with-unit">
-                      <input type="number" v-model.number="formData.crankLength" class="zen-input" @focus="activeField = 'crankLength'">
+                      <input type="number" v-model.number="formData.crankLength" class="zen-input" placeholder="例如：170" @focus="activeField = 'crankLength'">
                       <span class="unit">mm</span>
                     </div>
                   </div>
                   <div class="zen-form-item">
                     <label class="input-label">车把落差</label>
                     <div class="input-with-unit">
-                      <input type="number" v-model.number="formData.handlebarDrop" class="zen-input" @focus="activeField = 'handlebarDrop'">
+                      <input type="number" v-model.number="formData.handlebarDrop" class="zen-input" placeholder="例如：70" @focus="activeField = 'handlebarDrop'">
                       <span class="unit">mm</span>
                     </div>
                   </div>
@@ -350,7 +353,7 @@
                   <div class="zen-form-item">
                     <label class="input-label">座垫宽度</label>
                     <div class="input-with-unit">
-                      <input type="number" v-model.number="formData.saddleWidth" class="zen-input" @focus="activeField = 'saddleWidth'">
+                      <input type="number" v-model.number="formData.saddleWidth" class="zen-input" placeholder="例如：143" @focus="activeField = 'saddleWidth'">
                       <span class="unit">mm</span>
                     </div>
                   </div>
@@ -516,7 +519,7 @@ const fieldGuides = {
   'saddleSetback': { title: '座垫后移量 (Saddle Setback)', desc: '座垫鼻尖相对于五通中心垂直线的水平位移。', tip: '建议使用铅垂线从坐垫鼻头垂直向下对准五通轴心，测量其水平距离。' },
   'saddleTilt': { title: '座垫倾角 (Saddle Tilt)', desc: '座垫中心线与水平线的夹角。', tip: '决定了会阴压力。' },
   'stemLength': { title: '把立长度 (Stem Length)', desc: '把立中心盖到车把夹持位中心点的距离。', tip: '调整上肢拉伸感（Reach）最直接的零件。' },
-  'stemAngle': { title: '把立角度 (Stem Angle)', desc: '把立中心线与垂直方向的夹角。', tip: '通过翻转把立可显著改变车头高度。' },
+  'stemAngle': { title: '把立角度 (Stem Angle)', desc: '把立相对水平线的安装角度。', tip: '下倾填负数，如 -6；上扬填正数，如 +6。' },
   'spacersHeight': { title: '垫圈高度 (Spacers Height)', desc: '把立下方所有垫圈的总高度。', tip: '在不更换把立的情况下调节车头高低的唯一手段。' },
   'handlebarWidth': { title: '把横宽度 (Handlebar Width)', desc: '左右手变头/握把中心点之间的距离。', tip: '通常与肩宽对齐，更窄利于气动，更宽利于呼吸与操控。' },
   'crankLength': { title: '曲柄长度 (Crank Length)', desc: '五通中心到脚踏轴心的中心距离。', tip: '影响踩踏杠杆比及深蹲压力，小个子或高转频选手建议缩短。' },
@@ -526,6 +529,43 @@ const fieldGuides = {
 };
 
 const activeFieldInfo = computed(() => fieldGuides[activeField.value] || fieldGuides['brand']);
+
+const submitAttempted = ref(false);
+const hasInputValue = (value) => value !== null && value !== undefined && value !== '';
+const cockpitRequiredRules = {
+  stemLength: { label: '把立长度', min: 40, max: 160, unit: 'mm' },
+  stemAngle: { label: '把立角度', min: -30, max: 30, unit: '°' },
+  spacersHeight: { label: '垫圈高度', min: 0, max: 80, unit: 'mm' }
+};
+
+const validateCockpitField = (field) => {
+  const rule = cockpitRequiredRules[field];
+  const value = formData[field];
+  if (!rule) return '';
+  if (!hasInputValue(value)) {
+    return submitAttempted.value ? `${rule.label}为必填项，用于换算静态 fitting 的车头落地方案。` : '';
+  }
+  const numericValue = Number(value);
+  if (!Number.isFinite(numericValue)) {
+    return `${rule.label}必须为有效数字。`;
+  }
+  if (numericValue < rule.min || numericValue > rule.max) {
+    return `${rule.label}超出正常范围，请确认单位为 ${rule.unit}，正常范围 ${rule.min}-${rule.max}${rule.unit}。`;
+  }
+  return '';
+};
+
+const fieldWarnings = computed(() => ({
+  stemLength: validateCockpitField('stemLength'),
+  stemAngle: validateCockpitField('stemAngle'),
+  spacersHeight: validateCockpitField('spacersHeight')
+}));
+
+const getFirstCockpitWarning = () => {
+  return ['stemLength', 'stemAngle', 'spacersHeight']
+      .map(field => fieldWarnings.value[field])
+      .find(Boolean) || '';
+};
 
 onMounted(async () => {
   if (isEdit.value) {
@@ -719,8 +759,14 @@ const handleRetire = async () => {
 };
 
 const submitForm = async () => {
+  submitAttempted.value = true;
   if (!formData.stack || !formData.reach) {
     showToast('Stack 和 Reach 为核心基准，不可为空', 'warning');
+    return;
+  }
+  const cockpitWarning = getFirstCockpitWarning();
+  if (cockpitWarning) {
+    showToast(cockpitWarning, 'warning');
     return;
   }
   submitting.value = true;
@@ -729,7 +775,7 @@ const submitForm = async () => {
     showToast('档案同步成功', 'success');
     router.push('/lab/garage');
   } catch (error) {
-    showToast('保存异常', 'error');
+    showToast(error.message || '保存异常，请检查必填设定', 'error');
   } finally {
     submitting.value = false;
   }
@@ -786,11 +832,26 @@ const submitForm = async () => {
   border-radius: var(--radius-sm); outline: none; transition: 0.3s;
 }
 .zen-input:focus { border-color: var(--primary-color); background: white; box-shadow: 0 0 0 4px rgba(92, 110, 88, 0.05); }
+.zen-input.has-warning {
+  border-color: #E2A84D;
+  background: linear-gradient(135deg, rgba(226, 168, 77, 0.14), rgba(255, 248, 235, 0.92));
+  box-shadow: 0 8px 22px rgba(226, 168, 77, 0.12);
+}
 .zen-input::-webkit-outer-spin-button, .zen-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
 .zen-input[type=number] { -moz-appearance: textfield; }
 
 .input-with-unit { position: relative; }
 .unit { position: absolute; right: 15px; top: 50%; transform: translateY(-50%); font-size: 0.75rem; color: #AAA; font-weight: 700; }
+.field-warning {
+  margin: -2px 0 0;
+  padding: 7px 10px;
+  border-left: 3px solid #E2A84D;
+  border-radius: 8px;
+  background: linear-gradient(90deg, rgba(226, 168, 77, 0.16), rgba(226, 168, 77, 0.04));
+  color: #9A641C;
+  font-size: 0.74rem;
+  line-height: 1.5;
+}
 
 .type-selector { display: flex; gap: 8px; flex-wrap: wrap; }
 .type-selector button { padding: 8px 14px; border-radius: 4px; border: 1px solid #EEE; background: white; font-size: 0.8rem; cursor: pointer; transition: 0.3s; color: var(--text-muted); }

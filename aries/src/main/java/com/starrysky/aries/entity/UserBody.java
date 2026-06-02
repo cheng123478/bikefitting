@@ -47,6 +47,10 @@ public class UserBody {
     private Integer ischialDistance;
     @Comment("脚长")
     private Integer footLength;
+    @Comment("体重(kg)")
+    private Double weightKg;
+    @Comment("腰围(mm)")
+    private Integer waistCircumference;
 
     // 灵活性与稳定性测试
     @Comment("举臂角度(0-180)")

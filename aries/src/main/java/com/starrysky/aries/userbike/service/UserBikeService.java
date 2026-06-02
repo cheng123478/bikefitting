@@ -305,9 +305,28 @@ public class UserBikeService {
      * @param setup 单车设置实体
      */
     private void validateBikeSetup(UserBikeSetup setup) {
+        validateRequiredNumber("把立长度", setup.getStemLength());
+        validateRequiredNumber("把立角度", setup.getStemAngle());
+        validateRequiredNumber("垫圈高度", setup.getSpacersHeight());
+        validateRange("把立长度", setup.getStemLength(), 40, 160, "mm");
+        validateRange("把立角度", setup.getStemAngle(), -30, 30, "°");
+        validateRange("垫圈高度", setup.getSpacersHeight(), 0, 80, "mm");
+
         // 如果填了座高，基本判定不能小于 400mm (成人车)
         if (isPositive(setup.getSaddleHeight()) && setup.getSaddleHeight() < 400) {
             throw new IllegalArgumentException("单车设定异常：座垫高度数值过小，请核实是否以毫米(mm)为单位。");
+        }
+    }
+
+    private void validateRequiredNumber(String label, Number value) {
+        if (value == null) {
+            throw new BizException(500, String.format("[%s] 为必填项，用于换算静态 fitting 的车头落地方案。", label));
+        }
+    }
+
+    private void validateRange(String label, Number value, double min, double max, String unit) {
+        if (value != null && (value.doubleValue() < min || value.doubleValue() > max)) {
+            throw new BizException(500, String.format("[%s] 超出正常范围，请确认单位为 %s，正常范围 %.0f-%.0f%s。", label, unit, min, max, unit));
         }
     }
 
