@@ -128,39 +128,45 @@
           <!-- 右侧：器材与操作区 -->
           <aside class="side-column">
 
-            <!-- 4. 器材建议 (购物车) -->
-            <div class="equip-card glass-card sticky-card">
-              <h3 class="side-title"><i class="fas fa-shopping-bag"></i> 器材更换建议</h3>
+            <!-- 器材与诊断固定容器 -->
+            <div class="side-sticky-container">
 
-              <ul v-if="report.hardwareUpgrades && report.hardwareUpgrades.length > 0" class="equip-list">
-                <li v-for="(suggest, idx) in report.hardwareUpgrades" :key="idx">
-                  <i class="fas fa-wrench icon-gold"></i>
-                  <span>{{ suggest.part }}：{{ suggest.currentValue }} → {{ suggest.targetSpec }}。{{ suggest.reason }}</span>
-                </li>
-              </ul>
-              <div v-else class="equip-empty">
-                <i class="fas fa-check-circle"></i>
-                <p>{{ report.matchScore == null ? '暂未发现必须更换的硬件；先按推荐值完成基础设定。' : '当前未发现必须更换的核心零件，请优先做基础刻度调整。' }}</p>
+              <!-- 4. 器材建议 (购物车) -->
+              <div class="equip-card glass-card">
+                <h3 class="side-title"><i class="fas fa-shopping-bag"></i> 器材更换建议</h3>
+
+                <ul v-if="report.hardwareUpgrades && report.hardwareUpgrades.length > 0" class="equip-list">
+                  <li v-for="(suggest, idx) in report.hardwareUpgrades" :key="idx">
+                    <i class="fas fa-wrench icon-gold"></i>
+                    <span>{{ suggest.part }}：{{ suggest.currentValue }} → {{ suggest.targetSpec }}。{{ suggest.reason }}</span>
+                  </li>
+                </ul>
+                <div v-else class="equip-empty">
+                  <i class="fas fa-check-circle"></i>
+                  <p>{{ report.matchScore == null ? '暂未发现必须更换的硬件；先按推荐值完成基础设定。' : '当前未发现必须更换的核心零件，请优先做基础刻度调整。' }}</p>
+                </div>
+
+                <div class="action-group">
+                  <!-- 引导用户去车库修改数据 -->
+                  <button class="btn btn-primary full-width" @click="goToGarage">
+                    去车库调整数据 <i class="fas fa-tools"></i>
+                  </button>
+                  <button class="btn btn-outline full-width" @click="router.push('/lab')">
+                    返回实验室
+                  </button>
+                </div>
               </div>
 
-              <div class="action-group">
-                <!-- 引导用户去车库修改数据 -->
-                <button class="btn btn-primary full-width" @click="goToGarage">
-                  去车库调整数据 <i class="fas fa-tools"></i>
-                </button>
-                <button class="btn btn-outline full-width" @click="router.push('/lab')">
-                  返回实验室
-                </button>
+              <!-- 5. 深度诊断建议 -->
+              <div v-if="report.expertDiagnoses && report.expertDiagnoses.length" class="diagnosis-card glass-card">
+                <h3 class="side-title"><i class="fas fa-notes-medical"></i> 深度诊断建议</h3>
+                <ul class="diagnosis-list">
+                  <li v-for="(item, idx) in report.expertDiagnoses" :key="idx">
+                    {{ item }}
+                  </li>
+                </ul>
               </div>
-            </div>
 
-            <div v-if="report.expertDiagnoses && report.expertDiagnoses.length" class="diagnosis-card glass-card">
-              <h3 class="side-title"><i class="fas fa-notes-medical"></i> 深度诊断建议</h3>
-              <ul class="diagnosis-list">
-                <li v-for="(item, idx) in report.expertDiagnoses" :key="idx">
-                  {{ item }}
-                </li>
-              </ul>
             </div>
 
           </aside>
@@ -272,6 +278,7 @@ const deviationFields = computed(() => {
     { key: 'setback', name: '坐垫后移', unit: 'mm', label: 'Setback (座垫后移)' },
     { key: 'crankLength', name: '曲柄长度', unit: 'mm', label: 'Crank Length (曲柄长度)' },
     { key: 'saddleWidth', name: '坐垫推荐宽', unit: 'mm', label: 'Saddle Width (坐垫推荐宽)' },
+    { key: 'barHeight', name: '车把高度', unit: 'mm', label: 'Bar Height (车把高度)' },
     { key: 'handlebarDrop', name: '车把落差', unit: 'mm', label: 'Handlebar Drop (车把落差)' },
     { key: 'spacerHeight', name: '垫圈高度', unit: 'mm', label: 'Spacer Height (垫圈高度)' },
     { key: 'stemLength', name: '把立长度', unit: 'mm', label: 'Stem Length (把立长度)' }
@@ -467,9 +474,16 @@ onMounted(async () => {
 }
 
 /* Sidebar: Equipment Suggestions */
-.sticky-card { position: sticky; top: 100px; padding: 30px; }
+.side-sticky-container {
+  position: sticky;
+  top: 100px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
 .side-title { font-size: 1.2rem; color: var(--text-main); margin-bottom: 20px; padding-bottom: 10px; border-bottom: 1px solid #EEE; }
 .equip-list { list-style: none; padding: 0; margin-bottom: 30px; }
+.equip-card { padding: 30px; }
 .equip-list li { display: flex; gap: 12px; align-items: flex-start; margin-bottom: 15px; font-size: 0.95rem; color: var(--text-main); line-height: 1.5; }
 .icon-gold { color: var(--accent-gold); margin-top: 3px; }
 
@@ -477,7 +491,7 @@ onMounted(async () => {
 .equip-empty i { font-size: 2rem; margin-bottom: 10px; }
 .equip-empty p { font-size: 0.9rem; color: var(--text-muted); }
 
-.diagnosis-card { padding: 24px; margin-top: 18px; }
+.diagnosis-card { padding: 24px; }
 .diagnosis-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 12px; }
 .diagnosis-list li { font-size: 0.9rem; line-height: 1.6; color: var(--text-main); padding: 12px 14px; background: rgba(92, 110, 88, 0.06); border-left: 3px solid var(--primary-color); border-radius: 6px; }
 
@@ -492,7 +506,7 @@ onMounted(async () => {
 
 @media (max-width: 1024px) {
   .report-layout { grid-template-columns: 1fr; }
-  .sticky-card { position: static; }
+  .side-sticky-container { position: static; }
   .report-hero { flex-direction: column; text-align: center; gap: 30px; }
   .summary-box { justify-content: center; }
 }

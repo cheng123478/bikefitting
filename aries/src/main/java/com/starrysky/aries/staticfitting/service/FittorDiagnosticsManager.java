@@ -198,7 +198,7 @@ public class FittorDiagnosticsManager {
             v.put("recValue", formatNumber(res.getRecCrankLength()));
             logic.append(diagLib.getTemplate("module_2_lower_body", "crank_logic", v));
             if (setup != null && setup.getCrankLength() != null
-                    && Math.abs(res.getRecCrankLength() - setup.getCrankLength()) >= 1.0) {
+                    && Math.abs(res.getRecCrankLength().doubleValue() - setup.getCrankLength()) >= 1.0) {
                 logic.append("【注意】：您当前实车使用的是 ").append(setup.getCrankLength())
                         .append("mm 曲柄，建议在下次升级时考虑更换。");
             }
@@ -270,14 +270,15 @@ public class FittorDiagnosticsManager {
         return formatNumber(value) + "mm";
     }
 
-    private String formatNumber(Double value) {
+    private String formatNumber(Number value) {
         if (value == null) {
             return "暂无推荐";
         }
-        if (Math.abs(value - Math.rint(value)) < 0.001) {
-            return String.valueOf((int) Math.rint(value));
+        double d = value.doubleValue();
+        if (Math.abs(d - Math.rint(d)) < 0.001) {
+            return String.valueOf((int) Math.rint(d));
         }
-        return String.format(java.util.Locale.US, "%.1f", value);
+        return String.format(java.util.Locale.US, "%.1f", d);
     }
 
 

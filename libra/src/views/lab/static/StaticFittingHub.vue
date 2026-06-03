@@ -94,6 +94,7 @@
           <StaticFittingResultModal
               v-model:visible="showResultModal"
               :result="calculationResult"
+              :bodyData="bodyData"
               @to-report="navigateToReport"
           />
         </Teleport>
@@ -107,6 +108,7 @@ import { ref, computed, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useLabStore } from '@/stores/lab.js';
 import { staticFitting } from "@/api/staticFitting.js";
+import { getLatestUserBody } from "@/api/userBody.js";
 import { showToast } from '@/utils/toast';
 import { PROJECT_CONFIG } from '@/config/constants';
 import StaticFittingResultModal from "@/views/lab/components/StaticFittingResultModal.vue";
@@ -125,6 +127,7 @@ const isCalculating = ref(false);
 
 const showResultModal = ref(false);
 const calculationResult = ref({});
+const bodyData = ref(null);
 
 const fetchBikeInfo = async () => {
     try {
@@ -163,6 +166,13 @@ const startEngine = async () => {
   isCalculating.value = true;
   try {
     showToast(`${PROJECT_CONFIG.MASCOT} 引擎正在计算...`, 'loading');
+    // 先获取身体数据
+    try {
+      const bodyRes = await getLatestUserBody();
+      bodyData.value = bodyRes.data || bodyRes;
+    } catch (e) {
+      console.error('获取身体数据失败', e);
+    }
     const bId = selectedBike.value ? selectedBike.value.id : null;
     const res = await staticFitting(bId, selectedPains.value);
     calculationResult.value = res.data || res;

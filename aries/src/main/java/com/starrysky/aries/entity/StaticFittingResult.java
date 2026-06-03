@@ -7,6 +7,7 @@ import lombok.Getter;
 import lombok.Setter;
 import org.hibernate.annotations.Comment;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -36,7 +37,7 @@ public class StaticFittingResult {
     private Integer recSetback;
     @Comment("建议曲柄长度")
     @Column(precision = 5, scale = 1)
-    private Double recCrankLength;
+    private BigDecimal recCrankLength;
     @Comment("建议座垫宽度")
     private Integer recSaddleWidth;
     @Comment("建议把横宽度")

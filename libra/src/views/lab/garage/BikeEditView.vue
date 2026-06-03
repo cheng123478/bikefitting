@@ -281,23 +281,26 @@
                   <div class="zen-form-item">
                     <label class="input-label">当前座高</label>
                     <div class="input-with-unit">
-                      <input type="number" v-model.number="formData.saddleHeight" class="zen-input" placeholder="例如：720" @focus="activeField = 'saddleHeight'">
+                      <input type="number" v-model.number="formData.saddleHeight" class="zen-input" :class="{ 'has-warning': fieldWarnings.saddleHeight }" placeholder="例如：720" @focus="activeField = 'saddleHeight'">
                       <span class="unit">mm</span>
                     </div>
+                    <p v-if="fieldWarnings.saddleHeight" class="field-warning">{{ fieldWarnings.saddleHeight }}</p>
                   </div>
                   <div class="zen-form-item">
                     <label class="input-label">座垫后移</label>
                     <div class="input-with-unit">
-                      <input type="number" v-model.number="formData.saddleSetback" class="zen-input" placeholder="例如：55" @focus="activeField = 'saddleSetback'">
+                      <input type="number" v-model.number="formData.saddleSetback" class="zen-input" :class="{ 'has-warning': fieldWarnings.saddleSetback }" placeholder="例如：55" @focus="activeField = 'saddleSetback'">
                       <span class="unit">mm</span>
                     </div>
+                    <p v-if="fieldWarnings.saddleSetback" class="field-warning">{{ fieldWarnings.saddleSetback }}</p>
                   </div>
                   <div class="zen-form-item">
                     <label class="input-label">座垫角度</label>
                     <div class="input-with-unit">
-                      <input type="number" v-model.number="formData.saddleTilt" class="zen-input" placeholder="例如：-2" @focus="activeField = 'saddleTilt'">
+                      <input type="number" v-model.number="formData.saddleTilt" class="zen-input" :class="{ 'has-warning': fieldWarnings.saddleTilt }" placeholder="例如：-2" @focus="activeField = 'saddleTilt'">
                       <span class="unit">°</span>
                     </div>
+                    <p v-if="fieldWarnings.saddleTilt" class="field-warning">{{ fieldWarnings.saddleTilt }}</p>
                   </div>
                 </div>
                 <div class="grid-3">
@@ -330,32 +333,36 @@
                   <div class="zen-form-item">
                     <label class="input-label">把横宽度</label>
                     <div class="input-with-unit">
-                      <input type="number" v-model.number="formData.handlebarWidth" class="zen-input" placeholder="例如：400" @focus="activeField = 'handlebarWidth'">
+                      <input type="number" v-model.number="formData.handlebarWidth" class="zen-input" :class="{ 'has-warning': fieldWarnings.handlebarWidth }" placeholder="例如：400" @focus="activeField = 'handlebarWidth'">
                       <span class="unit">mm</span>
                     </div>
+                    <p v-if="fieldWarnings.handlebarWidth" class="field-warning">{{ fieldWarnings.handlebarWidth }}</p>
                   </div>
                   <div class="zen-form-item">
                     <label class="input-label">曲柄长度</label>
                     <div class="input-with-unit">
-                      <input type="number" v-model.number="formData.crankLength" class="zen-input" placeholder="例如：170" @focus="activeField = 'crankLength'">
+                      <input type="number" v-model.number="formData.crankLength" class="zen-input" :class="{ 'has-warning': fieldWarnings.crankLength }" placeholder="例如：170" @focus="activeField = 'crankLength'">
                       <span class="unit">mm</span>
                     </div>
+                    <p v-if="fieldWarnings.crankLength" class="field-warning">{{ fieldWarnings.crankLength }}</p>
                   </div>
                   <div class="zen-form-item">
                     <label class="input-label">车把落差</label>
                     <div class="input-with-unit">
-                      <input type="number" v-model.number="formData.handlebarDrop" class="zen-input" placeholder="例如：70" @focus="activeField = 'handlebarDrop'">
+                      <input type="number" v-model.number="formData.handlebarDrop" class="zen-input" :class="{ 'has-warning': fieldWarnings.handlebarDrop }" placeholder="例如：70" @focus="activeField = 'handlebarDrop'">
                       <span class="unit">mm</span>
                     </div>
+                    <p v-if="fieldWarnings.handlebarDrop" class="field-warning">{{ fieldWarnings.handlebarDrop }}</p>
                   </div>
                 </div>
                 <div class="grid-2">
                   <div class="zen-form-item">
                     <label class="input-label">座垫宽度</label>
                     <div class="input-with-unit">
-                      <input type="number" v-model.number="formData.saddleWidth" class="zen-input" placeholder="例如：143" @focus="activeField = 'saddleWidth'">
+                      <input type="number" v-model.number="formData.saddleWidth" class="zen-input" :class="{ 'has-warning': fieldWarnings.saddleWidth }" placeholder="例如：143" @focus="activeField = 'saddleWidth'">
                       <span class="unit">mm</span>
                     </div>
+                    <p v-if="fieldWarnings.saddleWidth" class="field-warning">{{ fieldWarnings.saddleWidth }}</p>
                   </div>
                   <div class="zen-form-item">
                     <label class="input-label">踏板类型</label>
@@ -532,14 +539,81 @@ const activeFieldInfo = computed(() => fieldGuides[activeField.value] || fieldGu
 
 const hasInputValue = (value) => value !== null && value !== undefined && value !== '' && !Number.isNaN(value);
 const optionalCockpitFields = ['stemLength', 'stemAngle', 'spacersHeight'];
-const cockpitRangeRules = {
-  stemLength: { label: '把立长度', min: 40, max: 160, unit: 'mm' },
-  stemAngle: { label: '把立角度', min: -30, max: 30, unit: '°' },
-  spacersHeight: { label: '垫圈高度', min: 0, max: 80, unit: 'mm' }
+const safetyRangeRules = {
+  saddleHeight: { 
+    label: '当前座高', 
+    min: 450, 
+    max: 1100, 
+    unit: 'mm',
+    safetyMessage: '安全风险：座高超出人类正常使用范围，可能导致膝盖严重损伤或锁鞋脱落'
+  },
+  saddleSetback: { 
+    label: '座垫后移', 
+    min: -80, 
+    max: 150, 
+    unit: 'mm',
+    safetyMessage: '安全风险：过度偏移会导致重心失衡，爬坡翘头或下坡失控'
+  },
+  saddleTilt: { 
+    label: '座垫角度', 
+    min: -25, 
+    max: 15, 
+    unit: '°',
+    safetyMessage: '安全风险：角度过大会导致会阴部严重压迫或从座垫滑落'
+  },
+  stemLength: { 
+    label: '把立长度', 
+    min: 30, 
+    max: 220, 
+    unit: 'mm',
+    safetyMessage: '安全风险：过短导致转向过于灵敏失控，过长导致操控迟钝下坡危险'
+  },
+  stemAngle: { 
+    label: '把立角度', 
+    min: -35, 
+    max: 35, 
+    unit: '°',
+    safetyMessage: '安全风险：极端角度会导致头管和前叉受力异常，增加断裂风险'
+  },
+  spacersHeight: { 
+    label: '垫圈高度', 
+    min: 0, 
+    max: 90, 
+    unit: 'mm',
+    safetyMessage: '安全风险：垫圈过高会降低车头刚性，前叉舵管易断裂'
+  },
+  handlebarWidth: { 
+    label: '把横宽度', 
+    min: 300, 
+    max: 950, 
+    unit: 'mm',
+    safetyMessage: '安全风险：过窄操控不稳，过宽过弯困难易碰撞障碍物'
+  },
+  crankLength: { 
+    label: '曲柄长度', 
+    min: 140, 
+    max: 195, 
+    unit: 'mm',
+    safetyMessage: '安全风险：长度不当会导致膝关节过度屈伸，造成永久性损伤'
+  },
+  handlebarDrop: { 
+    label: '车把落差', 
+    min: -150, 
+    max: 250, 
+    unit: 'mm',
+    safetyMessage: '安全风险：过大落差会导致重心严重偏移，易翻车或造成颈腰损伤'
+  },
+  saddleWidth: { 
+    label: '座垫宽度', 
+    min: 100, 
+    max: 220, 
+    unit: 'mm',
+    safetyMessage: '安全风险：过窄坐骨支撑不足，过宽严重摩擦大腿内侧'
+  }
 };
 
-const validateCockpitField = (field) => {
-  const rule = cockpitRangeRules[field];
+const validateSafetyField = (field) => {
+  const rule = safetyRangeRules[field];
   const value = formData[field];
   if (!rule) return '';
   if (!hasInputValue(value)) {
@@ -550,19 +624,26 @@ const validateCockpitField = (field) => {
     return `${rule.label}必须为有效数字。`;
   }
   if (numericValue < rule.min || numericValue > rule.max) {
-    return `${rule.label}超出正常范围，请确认单位为 ${rule.unit}，正常范围 ${rule.min}-${rule.max}${rule.unit}。`;
+    return rule.safetyMessage;
   }
   return '';
 };
 
 const fieldWarnings = computed(() => ({
-  stemLength: validateCockpitField('stemLength'),
-  stemAngle: validateCockpitField('stemAngle'),
-  spacersHeight: validateCockpitField('spacersHeight')
+  saddleHeight: validateSafetyField('saddleHeight'),
+  saddleSetback: validateSafetyField('saddleSetback'),
+  saddleTilt: validateSafetyField('saddleTilt'),
+  stemLength: validateSafetyField('stemLength'),
+  stemAngle: validateSafetyField('stemAngle'),
+  spacersHeight: validateSafetyField('spacersHeight'),
+  handlebarWidth: validateSafetyField('handlebarWidth'),
+  crankLength: validateSafetyField('crankLength'),
+  handlebarDrop: validateSafetyField('handlebarDrop'),
+  saddleWidth: validateSafetyField('saddleWidth')
 }));
 
-const getFirstCockpitWarning = () => {
-  return ['stemLength', 'stemAngle', 'spacersHeight']
+const getFirstSafetyWarning = () => {
+  return Object.keys(safetyRangeRules)
       .map(field => fieldWarnings.value[field])
       .find(Boolean) || '';
 };
@@ -775,9 +856,9 @@ const submitForm = async () => {
     showToast('Stack 和 Reach 为核心基准，不可为空', 'warning');
     return;
   }
-  const cockpitWarning = getFirstCockpitWarning();
-  if (cockpitWarning) {
-    showToast(cockpitWarning, 'warning');
+  const safetyWarning = getFirstSafetyWarning();
+  if (safetyWarning) {
+    showToast(safetyWarning, 'warning');
     return;
   }
   submitting.value = true;

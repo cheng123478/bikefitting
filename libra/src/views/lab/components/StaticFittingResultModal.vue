@@ -42,6 +42,21 @@
           <!-- 建议实车设定 -->
           <div class="setup-module">
             <h4 class="module-title"><i class="fas fa-sliders-h"></i> 建议实车设定</h4>
+            
+            <!-- 身体信息未填全提示 -->
+            <div v-if="!isBodyDataComplete" class="incomplete-data-notice">
+              <div class="notice-icon">
+                <i class="fas fa-user-lock"></i>
+              </div>
+              <div class="notice-content">
+                <h5>身体信息待补全</h5>
+                <p>补全身体信息，才能解锁这些的具体数值</p>
+                <button class="btn-complete-data" @click="goToBodyProfile">
+                  <i class="fas fa-arrow-right"></i> 前往补全
+                </button>
+              </div>
+            </div>
+            
             <div class="metrics-grid">
             <!-- 组 A: 下肢动力 -->
             <div class="metric-group">
@@ -68,7 +83,7 @@
                     推荐车架Stack
                     <span class="info-tooltip-wrapper">
                       <i class="info-icon fas fa-exclamation-circle"></i>
-                      <span class="tooltip-text">这是车架几何参考，不是日常调车刻度；实际把高请看车把高度与垫圈高度</span>
+                      <span class="tooltip-text">该高度可通过调整垫圈高度与把立角度实现</span>
                     </span>
                   </span>
                   <span class="v">{{ result.recFrameStack }}<small>mm</small></span>
@@ -180,15 +195,18 @@
 
 <script setup>
 import {computed, ref, nextTick} from 'vue';
+import { useRouter } from 'vue-router';
 import { PROJECT_CONFIG } from '@/config/constants';
 import SharingPoster from './StaticSharingPoster.vue';
 
 const props = defineProps({
   visible: Boolean,
-  result: {type: Object, default: () => ({})}
+  result: {type: Object, default: () => ({})},
+  bodyData: {type: Object, default: null}
 });
 
 const emit = defineEmits(['update:visible', 'to-report']);
+const router = useRouter();
 
 const posterRef = ref(null);
 const posterImage = ref(null);
@@ -202,6 +220,36 @@ const confirmToReport = () => {
   close();
   emit('to-report');
 };
+const goToBodyProfile = () => {
+  close();
+  router.push('/lab/body');
+};
+
+// 检查身体数据是否完整
+const isBodyDataComplete = computed(() => {
+  const body = props.bodyData;
+  if (!body) return false;
+  const hasInputValue = (value) => value !== null && value !== undefined && value !== '';
+  // 检查所有必填项
+  return !!(
+    // 步骤1必填
+    body.height &&
+    body.spanHeight &&
+    body.weightKg &&
+    // 步骤2必填
+    body.longArmLength &&
+    body.shortArmLength &&
+    body.thighLength &&
+    body.calfLength &&
+    // 步骤3必填（柔韧性评估）
+    body.thoracicRotationAngle !== null && body.thoracicRotationAngle !== undefined &&
+    body.armRaiseAngle !== null && body.armRaiseAngle !== undefined &&
+    body.thoracicPainLevel !== null && body.thoracicPainLevel !== undefined &&
+    // 步骤4必填（核心稳定性）
+    body.squatStabilityScore !== null && body.squatStabilityScore !== undefined &&
+    body.plankScore !== null && body.plankScore !== undefined
+  );
+});
 
 const handleShare = async () => {
   showSharePreview.value = true;
@@ -536,6 +584,73 @@ const diagnosisCards = computed(() => {
 
 .setup-module {
   margin-bottom: 40px;
+}
+
+/* 身体信息未填全提示 */
+.incomplete-data-notice {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  background: linear-gradient(135deg, #F9F9F7 0%, #F4F5F7 100%);
+  border: 1px dashed #C8C8C0;
+  border-radius: 16px;
+  padding: 24px 28px;
+  margin-bottom: 24px;
+}
+
+.notice-icon {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #D4AF37 0%, #B8972F 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.notice-icon i {
+  font-size: 1.4rem;
+  color: white;
+}
+
+.notice-content {
+  flex: 1;
+}
+
+.notice-content h5 {
+  margin: 0 0 6px 0;
+  font-size: 1rem;
+  color: #1D1D1F;
+  font-weight: 700;
+}
+
+.notice-content p {
+  margin: 0 0 12px 0;
+  font-size: 0.85rem;
+  color: #86868B;
+  line-height: 1.5;
+}
+
+.btn-complete-data {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: #5C6E58;
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.btn-complete-data:hover {
+  background: #4D5F49;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(92, 110, 88, 0.3);
 }
 
 .module-title {
@@ -1017,6 +1132,21 @@ small {
   }
   .metrics-grid {
     grid-template-columns: 1fr;
+  }
+  .incomplete-data-notice {
+    flex-direction: column;
+    text-align: center;
+    padding: 20px;
+  }
+  .notice-icon {
+    width: 48px;
+    height: 48px;
+  }
+  .notice-content h5 {
+    font-size: 0.9rem;
+  }
+  .notice-content p {
+    font-size: 0.8rem;
   }
   .result-footer {
     flex-direction: column;

@@ -421,10 +421,9 @@ public class UserBodyService {
             addUnique(tags, "长臂优势");
         }
         if (vo.getApeIndex() != null && vo.getApeIndex() < 0.98) {
-            addUnique(tags, "前伸需保守");
             addUnique(priorities, "肩颈与肩胛控制");
-            addUnique(findings, String.format("上肢前伸方面：你的猿臂比约为 %.2f，上肢相对身高偏短；长时间支撑时更容易通过耸肩、锁肘或手掌压迫代偿。", vo.getApeIndex()));
-            addUnique(advice, "肩颈补弱建议：做肩胛后缩下压、弹力带划船、墙天使和胸小肌放松，每周 2-3 次；目标是让肩膀放松承重，而不是靠耸肩硬撑。");
+            addUnique(findings, String.format("上肢前伸方面：你的猿臂比约为 %.2f，上肢比例紧凑；系统已为你推荐更集中的座舱坐标，让肩膀自然承重、减少前倾压力。", vo.getApeIndex()));
+            addUnique(advice, "肩颈优化建议：做肩胛后缩下压、弹力带划船、墙天使和胸小肌放松，每周 2-3 次；目标是让肩膀放松承重，发挥紧凑比例的优势。");
         }
 
         if (vo.getFemurTibiaRatio() != null && vo.getFemurTibiaRatio() > 1.15) {
@@ -444,42 +443,29 @@ public class UserBodyService {
         boolean lowShoulderFlexion = entity.getArmRaiseAngle() != null && entity.getArmRaiseAngle() < 150;
         boolean hasPainRisk = entity.getThoracicPainLevel() != null && entity.getThoracicPainLevel() >= 3;
         if (vo.getFlexibilityScore() != null) {
-            if (vo.getFlexibilityScore() < 50) {
-                addUnique(tags, "低把位谨慎");
-                addUnique(priorities, "柔韧性与活动度");
-            } else if (vo.getFlexibilityScore() > 80) {
+            if (vo.getFlexibilityScore() > 80) {
                 addUnique(tags, "柔韧性优秀");
             }
         }
         if (lowThoracicRotation || lowShoulderFlexion || (vo.getFlexibilityScore() != null && vo.getFlexibilityScore() < 50)) {
-            addUnique(tags, "前端设定需保守");
             addUnique(priorities, "柔韧性与活动度");
             addUnique(findings, buildUpperBodyFinding(vo, entity, lowThoracicRotation, lowShoulderFlexion));
-            addUnique(advice, "柔韧性补弱建议：重点拉伸腘绳肌、髋屈肌、臀肌和胸小肌，每个动作保持 20-30 秒、2-3 组，每周 3-5 次；不要用疼痛换幅度。");
-            addUnique(advice, "胸椎与肩部活动建议：开书式、四点跪姿胸椎旋转、泡沫轴胸椎伸展、墙天使，每周 2-3 次；目标是前倾时肩颈不紧、呼吸不被压住。");
+            addUnique(advice, "柔韧性提升建议：重点拉伸腘绳肌、髋屈肌、臀肌和胸小肌，每个动作保持 20-30 秒、2-3 组，每周 3-5 次；循序渐进，享受过程。");
+            addUnique(advice, "胸椎与肩部活动建议：开书式、四点跪姿胸椎旋转、泡沫轴胸椎伸展、墙天使，每周 2-3 次；目标是前倾时肩颈放松、呼吸顺畅。");
         }
         if (hasPainRisk) {
-            addUnique(tags, "疼痛优先处理");
             addUnique(priorities, "先处理疼痛信号");
-            addUnique(findings, "疼痛与恢复方面：你在动作测试中出现中高等级不适，说明当前身体状态不适合只按角度或尺寸继续推进。");
-            addUnique(advice, "疼痛处理建议：近期先降低训练刺激，避免硬拉伸和强行压低姿态；如果疼痛持续、放射或影响日常活动，建议找运动医学或康复专业人士评估。");
+            addUnique(findings, "疼痛与恢复方面：你在动作测试中出现中高等级不适，系统已为你调整至更温和的座舱坐标，优先保障恢复与舒适。");
+            addUnique(advice, "恢复建议：近期先降低训练刺激，避免硬拉伸和强行压低姿态；如果疼痛持续、放射或影响日常活动，建议找运动医学或康复专业人士评估。");
         }
 
         boolean lowSquat = entity.getSquatStabilityScore() != null && entity.getSquatStabilityScore() <= 2;
         boolean lowPlank = entity.getPlankScore() != null && entity.getPlankScore() <= 2;
-        if (entity.getSquatStabilityScore() != null) {
-            if (entity.getSquatStabilityScore() <= 2) {
-                addUnique(tags, "骨盆控制不足");
-            }
-        }
-        if (entity.getPlankScore() != null && entity.getPlankScore() <= 2) {
-            addUnique(tags, "核心耐力不足");
-        }
         if (lowSquat || lowPlank || (vo.getStabilityScore() != null && vo.getStabilityScore() < 50)) {
             addUnique(priorities, "长时间姿态稳定");
             addUnique(findings, buildCoreFinding(vo, entity));
-            addUnique(advice, "补强核心抗旋转与骨盆控制：死虫、鸟狗、侧桥，每周 2-3 次。");
-            addUnique(advice, "补强核心耐力：平板支撑、侧桥、臀桥，从短组多次开始；先保证腰椎不塌、骨盆不左右晃，再逐步延长时间。");
+            addUnique(advice, "核心抗旋转与骨盆控制：死虫、鸟狗、侧桥，每周 2-3 次。");
+            addUnique(advice, "核心耐力培养：平板支撑、侧桥、臀桥，从短组多次开始；先保证腰椎不塌、骨盆稳定，再逐步延长时间。");
         }
 
         if (vo.getApeIndex() == null) {
@@ -513,7 +499,7 @@ public class UserBodyService {
             signals.add("举臂角度 " + entity.getArmRaiseAngle() + "°");
         }
         String signalText = signals.isEmpty() ? "上身活动度数据" : String.join("、", signals);
-        return "柔韧性与活动度方面：你的" + signalText + "提示上身前倾耐受偏保守；肩颈、腰背和手掌压力可能会比心肺能力更早成为限制。";
+        return "柔韧性与活动度方面：你的" + signalText + "提示系统已为你推荐更舒适的座舱坐标；通过规律拉伸，肩颈和腰背会更加放松。";
     }
 
     private String buildCoreFinding(UserBodyVO vo, UserBody entity) {
@@ -527,7 +513,8 @@ public class UserBodyService {
         if (entity.getPlankScore() != null && entity.getPlankScore() <= 2) {
             signals.add("平板支撑耐力偏低");
         }
-        return "核心稳定方面：你的" + String.join("、", signals) + "提示骨盆和躯干在长时间骑行中可能难以持续稳定；这会放大手掌、腰背或膝部压力。";
+        String signalText = signals.isEmpty() ? "核心稳定性数据" : String.join("、", signals);
+        return "核心稳定性方面：你的" + signalText + "提示通过规律训练，核心对长时间骑行的支撑会逐步增强；系统已为你推荐更友好的座舱坐标。";
     }
 
     private String buildUserCenteredSummary(List<String> findings, List<String> priorities) {

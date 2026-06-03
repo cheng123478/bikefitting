@@ -179,7 +179,24 @@ const riderTitle = computed(() => {
 });
 
 const calculatedScore = computed(() => {
-  return safeResult.value.matchScore || safeResult.value.thoracicScore || 85;
+  // 基于雷达维度的加权平均值计算综合适配评估分数
+  const d = radarDimensions.value;
+  const weights = {
+    flexibility: 0.20,    // 柔韧素质
+    core: 0.20,           // 核心力量
+    painResistance: 0.25, // 抗伤痛指数
+    legLeverage: 0.15,    // 下肢杠杆
+    clearance: 0.20       // 空间余量
+  };
+  
+  const weightedSum = 
+    d.flexibility * weights.flexibility +
+    d.core * weights.core +
+    d.painResistance * weights.painResistance +
+    d.legLeverage * weights.legLeverage +
+    d.clearance * weights.clearance;
+  
+  return Math.round(weightedSum);
 });
 
 const diagnosisText = computed(() => {
