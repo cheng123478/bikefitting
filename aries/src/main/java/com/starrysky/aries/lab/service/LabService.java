@@ -53,6 +53,17 @@ public class LabService {
                     latestBody.getThoracicPainLevel()
             );
             vo.setFlexibilityScore(score);
+
+            // 计算稳定性评分 (深蹲60% + 平板支撑40%，转换为0-100分)
+            Integer squatScore = latestBody.getSquatStabilityScore();
+            Integer plankScore = latestBody.getPlankScore();
+            if (squatScore != null && squatScore > 0) {
+                double coreScore = squatScore * 0.6;
+                if (plankScore != null && plankScore > 0) {
+                    coreScore += plankScore * 0.4;
+                }
+                vo.setStabilityScore((int) Math.round(coreScore * 20));
+            }
         }
 
         // 2. 获取车辆列表及其(静态/动态)报告状态

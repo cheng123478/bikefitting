@@ -98,6 +98,7 @@ public class UserBikeService {
 
         userBike.setBikeModel(bikeModel);
         userBike.setRemark(dto.getRemark());
+        userBike.setImageUrl(dto.getImageUrl());
         userBike.setStatus(BikeStatus.ACTIVE.code);
         userBike = userBikeRepository.save(userBike);
 
@@ -247,7 +248,8 @@ public class UserBikeService {
                 vo.setBrandCn(model.getBrandCn());
                 vo.setModel(model.getModel());
                 vo.setModelYear(model.getModelYear());
-                vo.setImageUrl(model.getImageUrl());
+                // 优先使用用户上传的个性化图片，没有则回退到车型库图片
+                vo.setImageUrl(entity.getImageUrl() != null ? entity.getImageUrl() : model.getImageUrl());
                 vo.setBikeType(model.getBikeType());
                 vo.setFrameSize(model.getSize()); // 车架尺码
 

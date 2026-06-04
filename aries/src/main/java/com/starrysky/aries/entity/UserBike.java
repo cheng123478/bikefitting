@@ -29,6 +29,8 @@ public class UserBike {
     private Long id;
     @Comment("备注(例如: 我的爬坡主力车)")
     private String remark;
+    @Comment("单车个性化图片")
+    private String imageUrl;
     @Comment("状态:1-现役，2-退役")
     private Integer status;
     @CreationTimestamp

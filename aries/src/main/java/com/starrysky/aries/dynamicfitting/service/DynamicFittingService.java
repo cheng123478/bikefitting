@@ -148,7 +148,15 @@ public class DynamicFittingService {
                         String tag = snapEntry.getKey();
                         String base64 = snapEntry.getValue();
 
+                        // 过滤掉 null 或空字符串的 base64，避免保存无效记录
+                        if (!StringUtils.hasText(base64)) {
+                            continue;
+                        }
+
                         String imageUrl = uploadBase64Image(base64, userId, viewType, tag);
+                        if (!StringUtils.hasText(imageUrl)) {
+                            continue;
+                        }
 
                         DynamicFittingSnapshot snapshot = new DynamicFittingSnapshot();
                         snapshot.setSession(session);

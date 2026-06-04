@@ -20,6 +20,8 @@ public class LabDashboardVO {
     private boolean hasBodyProfile;
     /** 身体灵活性/韧性得分 (基于最新身体图谱计算) */
     private Integer flexibilityScore;
+    /** 身体稳定性得分 (基于最新身体图谱计算) */
+    private Integer stabilityScore;
 
     // --- 2. 我的车库 (Garage) ---
     /** 活跃车辆总数 */

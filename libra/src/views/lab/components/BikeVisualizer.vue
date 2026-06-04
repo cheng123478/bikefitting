@@ -158,9 +158,9 @@
           <!-- 座垫高度水平参考虚线 -->
           <path :d="`M${c.saddle.x},${c.saddle.y} H${c.htTop.x + 30}`" class="helper-dashed"/>
           <!-- 车把中心水平参考虚线 -->
-          <path :d="`M${c.htTop.x - 80},${c.htTop.y - 25} H${c.stemEnd.x - 60}`" class="helper-dashed"/>
+          <path :d="`M${c.htTop.x - 20},${c.htTop.y - 85} H${c.stemEnd.x + 20}`" class="helper-dashed"/>
           <!-- 落差金色垂直指示线 -->
-          <line :x1="c.htTop.x + 25" :y1="c.saddle.y" :x2="c.htTop.x + 25.5" :y2="c.htTop.y - 25"
+          <line :x1="c.htTop.x + 25" :y1="c.saddle.y" :x2="c.htTop.x + 25.5" :y2="c.htTop.y - 85" 
                 stroke="var(--accent-gold)" stroke-width="3" stroke-dasharray="6,4"/>
           <text :x="c.htTop.x + 40" :y="c.saddle.y + 20" class="metric-label">DROP</text>
           <text :x="c.htTop.x + 40" :y="c.saddle.y + 40" class="metric-label" font-size="14">把立落差</text>
@@ -182,12 +182,12 @@
           <!-- 水平参考虚线 -->
           <path :d="isRoadType 
             ? `M${c.htTop.x - 40},${c.htTop.y - 65} L${c.stemEnd.x - 20},${c.htTop.y - 65}` 
-            : `M${c.htTop.x - 20},${c.htTop.y -5} L${c.stemEnd.x},${c.htTop.y - 5}`"
+            : `M${c.htTop.x - 20},${c.htTop.y + -10} L${c.stemEnd.x},${c.htTop.y + 5}`" 
                 class="helper-dashed"/>
           <!-- 把立角度指示线 -->
           <path :d="isRoadType 
             ? `M${c.htTop.x - 30},${c.htTop.y - 60} L${c.stemEnd.x - 45},${c.stemEnd.y - 85}` 
-            : `M${c.htTop.x - 30},${c.htTop.y - 10} L${c.stemEnd.x - 45},${c.stemEnd.y - 45}`"
+            : `M${c.htTop.x - 30},${c.htTop.y - 10} L${c.stemEnd.x - 45},${c.stemEnd.y - 35}`" 
                 class="indicator-glow" marker-end="url(#arrow-small)"/>
           <!-- 角度弧线 -->
           <path :d="isRoadType 
@@ -205,7 +205,7 @@
           <!-- 垫圈区域高亮矩形（带动画效果） -->
           <rect :x="c.htTop.x - 28" :y="c.htTop.y - 50" :width="28" :height="12"
                 fill="rgba(212, 175, 55, 0.4)" stroke="var(--accent-gold)" stroke-width="2.5" rx="2"
-                :transform="'rotate(-15, ' + (c.htTop.x + 164) + ', ' + (c.htTop.y - 84) + ')'"
+                :transform="'rotate(-15, ' + (c.htTop.x - 14) + ', ' + (c.htTop.y - 44) + ')'"
                 filter="url(#spacerGlow)">
             <animate attributeName="opacity" values="0.4;1;0.4" dur="2s" repeatCount="indefinite"/>
           </rect>

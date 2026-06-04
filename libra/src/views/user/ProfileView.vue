@@ -23,15 +23,15 @@
 
         <div class="header-right stats-box">
           <div class="stat-item">
-            <span class="val">12</span><span class="lbl">Fitting 报告</span>
+            <span class="val">{{ staticFittingCount }}</span><span class="lbl">静态报告</span>
           </div>
           <div class="divider-v"></div>
           <div class="stat-item">
-            <span class="val">3</span><span class="lbl">我的车辆</span>
+            <span class="val">{{ dynamicFittingCount }}</span><span class="lbl">动态报告</span>
           </div>
           <div class="divider-v"></div>
           <div class="stat-item">
-            <span class="val">1,240</span><span class="lbl">累计里程(km)</span>
+            <span class="val">{{ activeBikeCount }}</span><span class="lbl">我的车辆</span>
           </div>
         </div>
       </div>
@@ -70,6 +70,9 @@
 import { ref, onMounted } from 'vue';
 import { useRoute } from 'vue-router';
 import { useUserStore } from '@/stores/user.js';
+import { getStaticFittingCount } from '@/api/staticFitting.js';
+import { getDynamicFittingCount } from '@/api/dynamicFitting.js';
+import { getActiveBikeCount } from '@/api/userBike.js';
 
 // Components
 import BasicInfoTab from './components/BasicInfoTab.vue';
@@ -83,6 +86,10 @@ const userStore = useUserStore();
 const currentTab = ref(route.query.tab || 'basic');
 const defaultAvatar = '/src/assets/image/default-avatar.png';
 
+const staticFittingCount = ref(0);
+const dynamicFittingCount = ref(0);
+const activeBikeCount = ref(0);
+
 const menuItems = [
   { id: 'basic', name: '个人资料', icon: 'far fa-id-card' },
   { id: 'security', name: '账号安全', icon: 'fas fa-shield-alt' },
@@ -90,8 +97,25 @@ const menuItems = [
   { id: 'favorites', name: '我的收藏', icon: 'fas fa-star' }
 ];
 
-onMounted(() => {
-  // 可以在这里刷新用户信息以确保数据最新
+// 辅助函数：将后端返回的 Long（Jackson 会序列化为字符串）转为数字
+const toNum = (val) => {
+  const n = Number(val);
+  return isNaN(n) ? 0 : n;
+};
+
+onMounted(async () => {
+  try {
+    const [staticRes, dynamicRes, bikeRes] = await Promise.all([
+      getStaticFittingCount(),
+      getDynamicFittingCount(),
+      getActiveBikeCount()
+    ]);
+    staticFittingCount.value = toNum(staticRes);
+    dynamicFittingCount.value = toNum(dynamicRes);
+    activeBikeCount.value = toNum(bikeRes);
+  } catch (e) {
+    console.error('加载个人中心统计数据失败:', e);
+  }
 });
 </script>
 

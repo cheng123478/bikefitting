@@ -35,7 +35,8 @@
           <!-- 价格信息 -->
           <div class="price-card glass-card" v-scroll-reveal.delay="100">
             <div class="price-label">官网建议零售价</div>
-            <div class="price-value">¥{{ bikeDetail.price }}</div>
+            <div class="price-value" v-if="bikeDetail.price">¥{{ bikeDetail.price }}</div>
+            <div class="price-value" v-else>暂无报价</div>
             <div class="price-note">价格仅供参考，实际价格请咨询经销商</div>
           </div>
 

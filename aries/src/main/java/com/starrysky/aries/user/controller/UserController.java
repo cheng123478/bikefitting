@@ -163,17 +163,22 @@ public class UserController {
     @PostMapping("/avatar")
     public ResponseResult<String> uploadAvatar(@AuthenticationPrincipal User user,
             @RequestParam("file") MultipartFile file) {
+        String contentType = file.getContentType();
+        String ext = "jpg";
+        if (contentType != null && contentType.contains("/")) {
+            ext = contentType.split("/")[1];
+        }
         String key = String.format("/%d/user/%s.%s",
-                user.getId(), UUID.randomUUID(), file.getContentType().split("/")[1]);
+                user.getId(), UUID.randomUUID(), ext);
 
         try {
-            String url = cosUtil.upload(file.getInputStream(), file.getSize(), key);
+            String url = cosUtil.upload(file.getInputStream(), file.getSize(), key, contentType);
             userService.editAvatar(user.getId(), url);
             userService.updateRedisCache(user.getId());
             return ResponseResult.success(url);
-        } catch (IOException e) {
+        } catch (Exception e) {
             log.warn("上传头像失败", e);
-            return ResponseResult.failure(500, "上传头像失败");
+            return ResponseResult.failure(500, "上传头像失败: " + e.getMessage());
         }
 //
 //        FileUploadResult fileUploadResult;

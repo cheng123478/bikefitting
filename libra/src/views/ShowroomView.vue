@@ -106,8 +106,8 @@
                   <img :src="bike.imageUrl || bike.img" :alt="bike.model" class="result-img">
                   <div class="result-info">
                     <div class="result-brand">{{ bike.brandCn }} {{ bike.brand }}</div>
-                    <div class="result-model">{{ bike.model }} ({{ bike.size }})</div>
-                    <div class="result-price">¥{{ bike.price }}</div>
+                    <div class="result-model">{{ bike.model }}</div>
+                    <div class="result-price">{{ bike.price ? '¥' + bike.price : '暂无报价' }}</div>
                   </div>
                   <div class="result-score">
                     <div class="score-label">推荐分</div>
@@ -184,14 +184,10 @@
       <header class="showroom-intro" v-scroll-reveal>
         <div class="intro-left">
           <h1 class="showroom-title serif-title">单车展厅</h1>
-          <p class="page-subtitle">Aries 顶级单车几何数据库 & 选号中心</p>
+          <p class="page-subtitle">全览车型数据，一眼看透硬件实力</p>
         </div>
 
         <div class="header-right">
-          <div class="engine-status">
-            <span class="status-dot"></span>
-            <span class="status-text">Data: Real API</span>
-          </div>
           <div class="header-actions">
             <button 
               class="smart-recommend-btn" 

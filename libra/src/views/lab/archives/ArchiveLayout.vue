@@ -17,7 +17,7 @@
           <div class="capsule-nav">
             <router-link to="/lab/archives/static" class="nav-item" active-class="active">静态几何</router-link>
             <router-link to="/lab/archives/dynamic" class="nav-item" active-class="active">动态视觉</router-link>
-            <router-link to="/lab/archives/realtime" class="nav-item" active-class="active">实时日志</router-link>
+            <a href="#" class="nav-item" @click.prevent="$router.push('/lab/realtime')">实时日志</a>
           </div>
         </nav>
 
