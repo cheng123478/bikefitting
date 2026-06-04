@@ -513,7 +513,7 @@ const fieldGuides = {
 
   // --- 03 实车设定 (The Setup) ---
   'saddleHeight': { title: '座垫高度 (Saddle Height)', desc: '五通中心沿立管至座垫顶面中心点的距离。', tip: 'Fitting 中最重要的参数，直接决定踩踏效率和膝盖健康。' },
-  'saddleSetback': { title: '座垫后移量 (Saddle Setback)', desc: '座垫鼻尖相对于五通中心垂直线的水平位移。', tip: '建议使用铅垂线从坐垫鼻头垂直向下对准五通轴心，测量其水平距离。' },
+  'saddleSetback': { title: '座垫后移量 (Saddle Setback)', desc: '座垫中心相对于五通中心垂直线的水平位移。', tip: '建议使用铅垂线从坐垫鼻头垂直向下对准五通轴心，测量其水平距离。' },
   'saddleTilt': { title: '座垫倾角 (Saddle Tilt)', desc: '座垫中心线与水平线的夹角。', tip: '决定了会阴压力。' },
   'stemLength': { title: '把立长度 (Stem Length)', desc: '把立中心盖到车把夹持位中心点的距离。', tip: '调整上肢拉伸感（Reach）最直接的零件。' },
   'stemAngle': { title: '把立角度 (Stem Angle)', desc: '把立中心线与垂直方向的夹角。', tip: '通过翻转把立可显著改变车头高度。' },
