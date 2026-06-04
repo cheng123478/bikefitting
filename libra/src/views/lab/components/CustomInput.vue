@@ -8,6 +8,7 @@
           @input="$emit('update:modelValue', $event.target.value)"
           @focus="handleFocus"
           @blur="isFocused = false"
+          @wheel="$event.target.blur()"
           :placeholder="placeholder"
           class="zen-field"
       />

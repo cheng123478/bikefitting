@@ -28,7 +28,7 @@
           <div class="form-group">
             <h4 class="group-title">01 基础信息 (Basic Info)</h4>
             <div class="input-grid">
-              <div class="identity-section" :class="{ 'locked-section': isGeometryLocked || isEdit }">
+              <div class="identity-section" :class="{ 'locked-section': !isManualMode && (isGeometryLocked || isEdit) }">
                 <!-- 品牌识别与搜索入口 -->
                 <div class="zen-form-item full-width autocomplete-container">
                   <div class="label-row">
@@ -41,7 +41,7 @@
                         class="zen-input"
                         :class="{ 'is-linked': formData.bikeModelId && !isManualMode }"
                         placeholder="输入品牌，如: Giant / 捷安特"
-                        :disabled="isEdit || isGeometryLocked"
+                        :disabled="!isManualMode && (isEdit || isGeometryLocked)"
                         @input="onSearchInput"
                         @focus="showDropdown = true; activeField = 'brand'"
                         @blur="closeDropdown"
@@ -84,11 +84,11 @@
                   <div class="grid-2">
                     <div class="zen-form-item">
                       <label class="input-label">中文品牌</label>
-                      <input v-model="formData.brandCn" class="zen-input" :disabled="!isManualMode || isEdit" @focus="activeField = 'brandCn'">
+                      <input v-model="formData.brandCn" class="zen-input" :disabled="!isManualMode" @focus="activeField = 'brandCn'">
                     </div>
                     <div class="zen-form-item">
                       <label class="input-label">具体型号 *</label>
-                      <input v-model="formData.model" class="zen-input" :disabled="!isManualMode || isEdit" @focus="activeField = 'model'">
+                      <input v-model="formData.model" class="zen-input" :disabled="!isManualMode" @focus="activeField = 'model'">
                     </div>
                   </div>
                 </template>
@@ -150,11 +150,11 @@
                   <div class="grid-2">
                     <div class="zen-form-item">
                       <label class="input-label">年份</label>
-                      <input v-model="formData.modelYear" class="zen-input" placeholder="2024" :disabled="isEdit" @focus="activeField = 'modelYear'">
+                      <input v-model="formData.modelYear" class="zen-input" placeholder="2024" @focus="activeField = 'modelYear'">
                     </div>
                     <div class="zen-form-item">
                       <label class="input-label">尺码</label>
-                      <input v-model="formData.size" class="zen-input" placeholder="例如: 52/M" :disabled="isEdit" @focus="activeField = 'size'">
+                      <input v-model="formData.size" class="zen-input" placeholder="例如: 52/M" @focus="activeField = 'size'">
                     </div>
                   </div>
                 </template>
@@ -572,8 +572,11 @@ onMounted(async () => {
       }
 
       // 编辑模式下直接进入完成状态
+      // 手动录入(sourceType=2)的车型保持可编辑，官方数据才锁定几何
+      const isManualSource = data.bikeModelVO?.sourceType === 2;
+      isManualMode.value = isManualSource;
       currentStep.value = 'complete';
-      isGeometryLocked.value = !!formData.bikeModelId;
+      isGeometryLocked.value = !!formData.bikeModelId && !isManualSource;
     } catch (e) {
       console.error('Failed to load bike detail', e);
       showToast('获取单车详情失败', 'error');
