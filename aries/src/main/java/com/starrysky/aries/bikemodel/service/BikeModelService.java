@@ -47,9 +47,40 @@ public class BikeModelService {
      */
     public List<BikeModelSearchVO> searchModels(String keyword) {
         List<Object[]> results = bikeModelRepository.findDistinctBrandAndModelByKeyword(keyword);
+        String lowerKeyword = keyword.toLowerCase();
         return results.stream()
                 .map(row -> new BikeModelSearchVO((String) row[0], (String) row[1], (String) row[2]))
+                .sorted((a, b) -> {
+                    int scoreA = getRelevanceScore(a, lowerKeyword);
+                    int scoreB = getRelevanceScore(b, lowerKeyword);
+                    // 分数越高越靠前
+                    return Integer.compare(scoreB, scoreA);
+                })
                 .collect(Collectors.toList());
+    }
+
+    /**
+     * 计算搜索结果与关键词的相关性评分
+     * 评分规则：
+     * - 品牌英文以关键词开头：3分
+     * - 品牌中文以关键词开头：3分
+     * - 型号以关键词开头：2分
+     * - 其他包含关键词的情况：1分
+     */
+    private int getRelevanceScore(BikeModelSearchVO vo, String lowerKeyword) {
+        int score = 1; // 包含即1分
+        String brand = vo.getBrand();
+        String brandCn = vo.getBrandCn();
+        String model = vo.getModel();
+
+        if (brand != null && brand.toLowerCase().startsWith(lowerKeyword)) {
+            score = 3;
+        } else if (brandCn != null && brandCn.toLowerCase().startsWith(lowerKeyword)) {
+            score = 3;
+        } else if (model != null && model.toLowerCase().startsWith(lowerKeyword)) {
+            score = 2;
+        }
+        return score;
     }
 
     /**
