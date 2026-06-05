@@ -4,6 +4,7 @@ import cn.hutool.json.JSONUtil;
 import com.starrysky.aries.bikemodel.repository.BikeModelRepository;
 import com.starrysky.aries.bikemodel.repository.BikeModelStatsRepository;
 import com.starrysky.aries.bikerecommend.schema.BikeRecommendCacheDTO;
+import com.starrysky.aries.bikerecommend.schema.BikeStandOverCacheItem;
 import com.starrysky.aries.entity.BikeModel;
 import com.starrysky.aries.entity.BikeModelStats;
 import com.starrysky.aries.redis.RedisConstant;
@@ -13,13 +14,15 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 /**
  * 推荐缓存服务
- * 管理推荐热度分的 Redis 缓存，减少 DB 查询和热度分重复计算
+ * 管理推荐热度分和跨高几何数据的 Redis 缓存，减少 DB 查询
  *
  * @author adi
  * @since 2026/06/01
@@ -32,6 +35,8 @@ public class BikeRecommendCacheService {
     private final RedisUtil redisUtil;
     private final BikeModelRepository bikeModelRepository;
     private final BikeModelStatsRepository statsRepository;
+
+    // ==================== 热度分缓存 ====================
 
     /**
      * 获取缓存的推荐数据（model -> BikeRecommendCacheDTO）
@@ -66,8 +71,7 @@ public class BikeRecommendCacheService {
 
         // 2. 缓存未命中，从 DB 加载并计算热度分
         log.info("推荐缓存未命中，从 DB 加载并计算热度分");
-        Map<String, BikeRecommendCacheDTO> computedCache = computeAndCache();
-        return computedCache;
+        return computeAndCache();
     }
 
     /**
@@ -113,16 +117,104 @@ public class BikeRecommendCacheService {
         return result;
     }
 
+    // ==================== 跨高数据缓存 ====================
+
     /**
-     * 清除推荐缓存（统计数据更新后调用）
+     * 获取缓存的跨高数据（model -> List&lt;BikeStandOverCacheItem&gt;）
+     * 纯静态几何数据，不限 TTL，仅在车型数据更新后清除重建。
+     * 优先从 Redis 读取，缓存未命中时从 DB 加载全量车型的尺码×跨高数据。
+     *
+     * @return model名称 -> 该车型所有尺码的跨高数据列表
      */
-    public void clearCache() {
-        redisUtil.del(RedisConstant.RECOMMEND_CACHE);
-        log.info("推荐缓存已清除");
+    @SuppressWarnings("unchecked")
+    public Map<String, List<BikeStandOverCacheItem>> loadStandOverCache() {
+        String cacheKey = RedisConstant.RECOMMEND_STAND_OVER_CACHE;
+
+        // 1. 尝试从 Redis 加载
+        if (redisUtil.hasKey(cacheKey)) {
+            Object cached = redisUtil.get(cacheKey);
+            if (cached != null) {
+                try {
+                    String json = cached.toString();
+                    Map<String, List<BikeStandOverCacheItem>> result = JSONUtil.toBean(
+                            json,
+                            new cn.hutool.core.lang.TypeReference<Map<String, List<BikeStandOverCacheItem>>>() {},
+                            false);
+                    if (result != null && !result.isEmpty()) {
+                        log.info("从 Redis 加载跨高缓存, 共 {} 个车型", result.size());
+                        return result;
+                    }
+                } catch (Exception e) {
+                    log.warn("反序列化跨高缓存失败", e);
+                }
+            }
+        }
+
+        // 2. 缓存未命中，从 DB 加载
+        log.info("跨高缓存未命中，从 DB 加载");
+        return computeStandOverCache();
     }
 
     /**
-     * 计算热度评分（与 BikeRecommendService.calculateHotScore 保持一致）
+     * 从 DB 加载所有车型的尺码×跨高数据，写入 Redis（无 TTL，永久有效）
+     */
+    private Map<String, List<BikeStandOverCacheItem>> computeStandOverCache() {
+        // 查询所有有跨高数据的车型记录
+        List<BikeModel> allModels = bikeModelRepository.findAllDistinctModels();
+        // 根据去重后的 model 名，批量查所有尺寸变体
+        List<String> modelNames = allModels.stream().map(BikeModel::getModel).distinct().collect(Collectors.toList());
+        List<BikeModel> allVariants = bikeModelRepository.findByModelIn(modelNames);
+
+        // 按 model 分组，提取 size + stand_over_height
+        Map<String, List<BikeStandOverCacheItem>> result = new HashMap<>();
+        for (BikeModel variant : allVariants) {
+            if (variant.getStandOverHeight() == null) {
+                continue;
+            }
+            result.computeIfAbsent(variant.getModel(), k -> new ArrayList<>())
+                    .add(new BikeStandOverCacheItem(variant.getSize(), variant.getStandOverHeight()));
+        }
+
+        // 写入 Redis（无 TTL，纯静态数据）
+        if (!result.isEmpty()) {
+            String json = JSONUtil.toJsonStr(result);
+            redisUtil.set(RedisConstant.RECOMMEND_STAND_OVER_CACHE, json);
+            log.info("跨高缓存已写入 Redis, 共 {} 个车型", result.size());
+        }
+
+        return result;
+    }
+
+    // ==================== 缓存管理 ====================
+
+    /**
+     * 清除所有推荐缓存（热度分 + 跨高数据，统计数据或车型数据更新后调用）
+     */
+    public void clearCache() {
+        redisUtil.del(RedisConstant.RECOMMEND_CACHE, RedisConstant.RECOMMEND_STAND_OVER_CACHE);
+        log.info("推荐缓存已全部清除");
+    }
+
+    /**
+     * 仅清除热度分缓存（统计数据更新后调用）
+     */
+    public void clearHotScoreCache() {
+        redisUtil.del(RedisConstant.RECOMMEND_CACHE);
+        log.info("热度分缓存已清除");
+    }
+
+    /**
+     * 仅清除跨高数据缓存（车型几何数据更新后调用）
+     */
+    public void clearStandOverCache() {
+        redisUtil.del(RedisConstant.RECOMMEND_STAND_OVER_CACHE);
+        log.info("跨高数据缓存已清除");
+    }
+
+    // ==================== 私有工具方法 ====================
+
+    /**
+     * 计算热度评分
      */
     private double calculateHotScore(BikeModel model, BikeModelStats stats) {
         long viewCount = stats != null && stats.getViewCount() != null ? stats.getViewCount() : 0;
@@ -132,7 +224,6 @@ public class BikeRecommendCacheService {
         double viewScore = Math.min(viewCount / 20.0, 100);
         double favoriteScore = Math.min(favoriteCount * 5, 100);
 
-        // 计算newScore(基于车龄)
         int currentYear = LocalDate.now().getYear();
         int bikeYear = parseModelYear(model.getModelYear());
         int yearDiff = currentYear - bikeYear;

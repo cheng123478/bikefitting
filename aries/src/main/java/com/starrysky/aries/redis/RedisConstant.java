@@ -34,4 +34,10 @@ public class RedisConstant {
      * 推荐缓存过期时间（秒），默认24小时
      */
     public static final int RECOMMEND_CACHE_TIMEOUT = 60 * 60 * 24;
+
+    /**
+     * 跨高数据缓存 key（String结构，value=Map<String, List<BikeStandOverCacheItem>>的JSON）
+     * 纯静态几何数据，不设TTL，仅在车型数据更新时清除
+     */
+    public static final String RECOMMEND_STAND_OVER_CACHE = "starrysky:aries:recommend:stand_over";
 }

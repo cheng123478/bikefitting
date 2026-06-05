@@ -204,6 +204,41 @@ public interface BikeModelRepository extends JpaRepository<BikeModel, Long>, Jpa
     List<Object[]> computeGeometryScores(@Param("inseam") int inseam);
 
     /**
+     * 在数据库层批量计算指定车型的几何匹配评分和推荐尺码
+     * 相比 {@link #computeGeometryScores(int)}，增加了模型名过滤，
+     * 避免对价格预过滤砍除的车型做无效计算。
+     *
+     * @param inseam     用户跨高
+     * @param modelNames 需要计算评分的车型名称列表
+     * @return [modelName(String), bestScore(Integer), recommendedSize(String)]
+     */
+    @Query(value = "SELECT " +
+            "bm.model, " +
+            "COALESCE(MAX(CASE " +
+            "    WHEN :inseam - s.stand_over_height < 0 THEN 0 " +
+            "    WHEN :inseam - s.stand_over_height < 10 THEN 30 " +
+            "    WHEN :inseam - s.stand_over_height < 20 THEN 60 " +
+            "    WHEN :inseam - s.stand_over_height < 40 THEN 85 " +
+            "    WHEN :inseam - s.stand_over_height < 60 THEN 100 " +
+            "    ELSE 90 END), 50), " +
+            "COALESCE(SUBSTRING_INDEX(GROUP_CONCAT(s.size ORDER BY " +
+            "    CASE WHEN :inseam - s.stand_over_height < 0 THEN 0 " +
+            "         WHEN :inseam - s.stand_over_height < 10 THEN 30 " +
+            "         WHEN :inseam - s.stand_over_height < 20 THEN 60 " +
+            "         WHEN :inseam - s.stand_over_height < 40 THEN 85 " +
+            "         WHEN :inseam - s.stand_over_height < 60 THEN 100 " +
+            "         ELSE 90 END DESC, s.id ASC " +
+            "SEPARATOR ','), ',', 1), '') " +
+            "FROM bike_model bm " +
+            "LEFT JOIN bike_model s ON s.model = bm.model AND s.stand_over_height IS NOT NULL " +
+            "WHERE bm.id IN (SELECT MIN(id) FROM bike_model GROUP BY model) " +
+            "AND bm.model IN (:modelNames) " +
+            "GROUP BY bm.model",
+            nativeQuery = true)
+    List<Object[]> computeGeometryScoresByModels(@Param("inseam") int inseam,
+                                                  @Param("modelNames") List<String> modelNames);
+
+    /**
      * 批量查询同型号所有尺码（按model名称分组）
      * 用于推荐算法预加载几何数据
      *
