@@ -134,7 +134,7 @@ public class UserBikeController {
             fileUploadResult = fileUploadUtil.uploadPic(user.getId() + "/bike", file);
         } catch (IOException e) {
             log.warn("上传单车图片失败", e);
-            return ResponseResult.failure(500, "上传头像失败");
+            return ResponseResult.failure(500, "上传单车图片失败");
         }
         if (fileUploadResult.isResult()) {
             return ResponseResult.success("/resource" + fileUploadResult.getUrl());

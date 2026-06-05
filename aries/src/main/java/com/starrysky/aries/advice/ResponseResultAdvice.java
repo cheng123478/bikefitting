@@ -4,7 +4,6 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.starrysky.aries.util.ResponseResult;
 import jakarta.annotation.Resource;
-import lombok.extern.slf4j.Slf4j;
 import org.jetbrains.annotations.NotNull;
 import org.springframework.core.MethodParameter;
 import org.springframework.http.MediaType;
@@ -24,7 +23,6 @@ import org.springframework.web.servlet.mvc.method.annotation.ResponseBodyAdvice;
  * @since 2025-07-01 11:07:49
  */
 @RestControllerAdvice(basePackages = "com.starrysky.aries")
-@Slf4j
 public class ResponseResultAdvice implements ResponseBodyAdvice<Object> {
     @Resource
     private ObjectMapper objectMapper;
