@@ -90,12 +90,12 @@ public class StaticFittingCalculator {
      * @param bikeType   单车类型
      * @return 建议曲柄长度 (mm)，取整至最近的 2.5mm (如 170, 172.5)
      */
-    public static int calcCrankLength(int spanHeight, int bikeType) {
+    public static double calcCrankLength(int spanHeight, int bikeType) {
         double raw = spanHeight * FittingConstants.CRANK_RATIO;
         if (bikeType == BikeType.TT_BIKE.code) {
             raw -= 2.5;
         }
-        return (int) (Math.round(raw / 2.5) * 2.5);
+        return Math.round(raw / 2.5) * 2.5;
     }
 
     /**
@@ -238,8 +238,9 @@ public class StaticFittingCalculator {
             if (bikeType != BikeType.CITY_BIKE.code)
                 drop *= 0.7; // Not CITY_BIKE
         }
-        if (thoracicScore != null && thoracicScore < 60)
-            drop *= 0.85;
+        if (thoracicScore != null && thoracicScore < 60) {
+            drop = drop >= 0 ? drop * 0.85 : drop * 1.10;
+        }
         return Math.round(drop * 10.0) / 10.0;
     }
 
@@ -252,5 +253,50 @@ public class StaticFittingCalculator {
      */
     public static double calculateReachOffset(int stemLength, double stemAngle) {
         return stemLength * Math.cos(Math.toRadians(Math.abs(stemAngle)));
+    }
+
+    public static Double calculateBmi(Integer heightMm, Double weightKg) {
+        if (heightMm == null || heightMm <= 0 || weightKg == null || weightKg <= 0) {
+            return null;
+        }
+        double heightM = heightMm / 1000.0;
+        double bmi = weightKg / (heightM * heightM);
+        return Math.round(bmi * 10.0) / 10.0;
+    }
+
+    public static Double calculateWaistToHeightRatio(Integer heightMm, Integer waistMm) {
+        if (heightMm == null || heightMm <= 0 || waistMm == null || waistMm <= 0) {
+            return null;
+        }
+        double ratio = (double) waistMm / heightMm;
+        return Math.round(ratio * 1000.0) / 1000.0;
+    }
+
+    public static boolean hasAbdominalClearanceNeed(Double bmi, Double waistToHeightRatio) {
+        return waistToHeightRatio != null
+                && waistToHeightRatio >= FittingConstants.WAIST_HEIGHT_RATIO_RISK_THRESHOLD;
+    }
+
+    public static boolean isSevereAbdominalClearanceNeed(Double waistToHeightRatio) {
+        return waistToHeightRatio != null
+                && waistToHeightRatio >= FittingConstants.ABDOMINAL_SEVERE_WAIST_HEIGHT_RATIO;
+    }
+
+    public static int calcAbdominalReachReduction(Double bmi, Double waistToHeightRatio) {
+        if (!hasAbdominalClearanceNeed(bmi, waistToHeightRatio)) {
+            return 0;
+        }
+        return isSevereAbdominalClearanceNeed(waistToHeightRatio)
+                ? FittingConstants.ABDOMINAL_REACH_REDUCTION_SEVERE
+                : FittingConstants.ABDOMINAL_REACH_REDUCTION_MILD;
+    }
+
+    public static int calcAbdominalDropReduction(Double bmi, Double waistToHeightRatio) {
+        if (!hasAbdominalClearanceNeed(bmi, waistToHeightRatio)) {
+            return 0;
+        }
+        return isSevereAbdominalClearanceNeed(waistToHeightRatio)
+                ? FittingConstants.ABDOMINAL_DROP_REDUCTION_SEVERE
+                : FittingConstants.ABDOMINAL_DROP_REDUCTION_MILD;
     }
 }

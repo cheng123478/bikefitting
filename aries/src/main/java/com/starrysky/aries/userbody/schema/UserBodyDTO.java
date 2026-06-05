@@ -5,18 +5,15 @@ import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Past;
 import jakarta.validation.constraints.Positive;
+import jakarta.validation.constraints.DecimalMax;
+import jakarta.validation.constraints.DecimalMin;
 import lombok.Getter;
 import lombok.Setter;
 
 import java.time.LocalDate;
 
 /**
- * 用户身体数据模型
- * 用于创建用户身体数据
- *
- * @author adi
- * @version 1.0
- * @since 2026/2/6 15:37
+ * 用户身体数据录入 DTO
  */
 @Setter
 @Getter
@@ -29,32 +26,46 @@ public class UserBodyDTO {
 
     private Byte gender;
 
-    // 基础尺寸 (mm)
     @NotNull(message = "身高不能为空")
-    @Min(value = 500, message = "身高数据异常(单位:mm)")
-    @Max(value = 2500, message = "身高数据异常(单位:mm)")
+    @Min(value = 1200, message = "身高数据异常(单位:mm，正常范围1200-2200)")
+    @Max(value = 2200, message = "身高数据异常(单位:mm，正常范围1200-2200)")
     private Integer height;
 
-    @Positive(message = "跨高必须为正数")
+    @Min(value = 600, message = "跨高数据异常(单位:mm，正常范围600-1100)")
+    @Max(value = 1100, message = "跨高数据异常(单位:mm，正常范围600-1100)")
     private Integer spanHeight;
-    @Positive(message = "胸高必须为正数")
+    @Min(value = 900, message = "胸高数据异常(单位:mm，正常范围900-1800)")
+    @Max(value = 1800, message = "胸高数据异常(单位:mm，正常范围900-1800)")
     private Integer breastHeight;
-    @Positive(message = "肩宽必须为正数")
+    @Min(value = 200, message = "肩宽数据异常(单位:mm，正常范围200-600)")
+    @Max(value = 600, message = "肩宽数据异常(单位:mm，正常范围200-600)")
     private Integer shoulderWidth;
-    @Positive(message = "大臂长必须为正数")
+    @Min(value = 180, message = "大臂长数据异常(单位:mm，正常范围180-500)")
+    @Max(value = 500, message = "大臂长数据异常(单位:mm，正常范围180-500)")
     private Integer longArmLength;
-    @Positive(message = "小臂长必须为正数")
+    @Min(value = 160, message = "小臂长数据异常(单位:mm，正常范围160-450)")
+    @Max(value = 450, message = "小臂长数据异常(单位:mm，正常范围160-450)")
     private Integer shortArmLength;
-    @Positive(message = "大腿长必须为正数")
+    @Min(value = 250, message = "大腿长数据异常(单位:mm，正常范围250-650)")
+    @Max(value = 650, message = "大腿长数据异常(单位:mm，正常范围250-650)")
     private Integer thighLength;
-    @Positive(message = "小腿长必须为正数")
+    @Min(value = 250, message = "小腿长数据异常(单位:mm，正常范围250-650)")
+    @Max(value = 650, message = "小腿长数据异常(单位:mm，正常范围250-650)")
     private Integer calfLength;
-    @Positive(message = "坐骨间距必须为正数")
+    @Min(value = 50, message = "坐骨间距数据异常(单位:mm，正常范围50-200)")
+    @Max(value = 200, message = "坐骨间距数据异常(单位:mm，正常范围50-200)")
     private Integer ischialDistance;
-    @Positive(message = "脚长必须为正数")
+    @Min(value = 180, message = "足长数据异常(单位:mm，正常范围180-350)")
+    @Max(value = 350, message = "足长数据异常(单位:mm，正常范围180-350)")
     private Integer footLength;
+    @NotNull(message = "体重不能为空")
+    @DecimalMin(value = "30.0", message = "体重数据异常(单位:kg，正常范围30-250)")
+    @DecimalMax(value = "250.0", message = "体重数据异常(单位:kg，正常范围30-250)")
+    private Double weightKg;
+    @Min(value = 400, message = "腰围数据异常(单位:mm，正常范围400-1800)")
+    @Max(value = 1800, message = "腰围数据异常(单位:mm，正常范围400-1800)")
+    private Integer waistCircumference;
 
-    // 灵活性与稳定性测试数据
     @Min(value = 0, message = "举臂角度不能小于0")
     @Max(value = 180, message = "举臂角度不能大于180")
     private Double armRaiseAngle;
@@ -63,8 +74,8 @@ public class UserBodyDTO {
     @Max(value = 90, message = "胸椎旋转角度不能大于90")
     private Double thoracicRotationAngle;
 
-    @Min(value = 0, message = "胸椎痛感等级最小为0")
-    @Max(value = 5, message = "胸椎痛感等级最大为5")
+    @Min(value = 0, message = "胸椎疼痛等级最小为0")
+    @Max(value = 5, message = "胸椎疼痛等级最大为5")
     private Integer thoracicPainLevel;
 
     private Double squatDepth;

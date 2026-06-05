@@ -7,6 +7,7 @@ import lombok.Getter;
 import lombok.Setter;
 import org.hibernate.annotations.Comment;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -35,13 +36,16 @@ public class StaticFittingResult {
     @Comment("建议座垫后移量(Setback)")
     private Integer recSetback;
     @Comment("建议曲柄长度")
-    private Integer recCrankLength;
+    @Column(precision = 5, scale = 1)
+    private BigDecimal recCrankLength;
     @Comment("建议座垫宽度")
     private Integer recSaddleWidth;
     @Comment("建议把横宽度")
     private Integer recHandlebarWidth;
     @Comment("建议把立长度")
     private Integer recStemLength;
+    @Comment("建议把立角度(度)")
+    private Double recStemAngle;
     // --- 空间坐标数据 (Stack/Reach Plus) ---
     @Comment("推荐车架Stack (跨高×车型系数)")
     private Integer recFrameStack;

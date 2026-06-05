@@ -8,11 +8,6 @@ import java.util.List;
 
 /**
  * 用户身体信息响应VO
- * 包含原始数据、计算得出的画像分析及评分
- *
- * @author adi
- * @version 1.0
- * @since 2026/2/6 15:39
  */
 @Setter
 @Getter
@@ -21,8 +16,7 @@ public class UserBodyVO {
     private Long userId;
     private LocalDateTime createTime;
 
-    // --- 原始数据展示 ---
-    private Byte gender; //从User聚合而来
+    private Byte gender;
     private Integer age;
     private Integer height;
     private Integer spanHeight;
@@ -34,27 +28,30 @@ public class UserBodyVO {
     private Integer calfLength;
     private Integer ischialDistance;
     private Integer footLength;
+    private Double weightKg;
+    private Integer waistCircumference;
     private Double armRaiseAngle;
     private Double thoracicRotationAngle;
     private Integer thoracicPainLevel;
     private Double squatDepth;
     private Integer squatStabilityScore;
     private Integer plankScore;
-    // --- Fittor生物力学分析结果 ---
-    private Double apeIndex;          // 猿臂比
-    private Double femurTibiaRatio;   // 股胫比
-    private Double trunkRatio;        // 躯干占比
-    private List<String> riderTags;   // 骑士画像标签 (如: "长股骨特征", "气动天赋")
-    private String summary;     // 专家寄语/诊断文案
-    private List<String> findings;    // 身体发现/特征描述
-    private List<String> advice;      // 针对性建议
-    // 评分与初判建议
-    private Integer flexibilityScore; // 柔韧性得分 (0-100)
-    private Double coreScore;         // 核心稳定性得分 (1-5)
-    private Integer stabilityScore;   // 稳定性得分 (0-100)
-    // 基础器材建议
-    private String recSaddleHeight;   // 建议坐垫高度
-    private String recSaddleType;     // 建议坐垫类型
-    private String recStack;          // 建议车把高度（Stack）
-    private String recReach;          // 建议前伸距离（Reach）
+
+    private Double apeIndex;
+    private Double femurTibiaRatio;
+    private Double trunkRatio;
+    private Double bmi;
+    private Double waistToHeightRatio;
+    private List<String> riderTags;
+    private String summary;
+    private List<String> findings;
+    private List<String> advice;
+    private Integer flexibilityScore;
+    private Double coreScore;
+    private Integer stabilityScore;
+
+    private String recSaddleHeight;
+    private String recSaddleType;
+    private String recStack;
+    private String recReach;
 }

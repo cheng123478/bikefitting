@@ -260,18 +260,20 @@ public class UserBikeService {
                 }
 
                 // --- 2. 计算 Effective Reach+ (实车水平总前伸) ---
-                if (isPositive(model.getReach()) && setup != null && isPositive(setup.getStemLength())) {
-                    double angleRad = Math.toRadians(setup.getStemAngle() != null ? Math.abs(setup.getStemAngle()) : 7.0);
+                if (isPositive(model.getReach()) && setup != null
+                        && isPositive(setup.getStemLength()) && setup.getStemAngle() != null) {
+                    double angleRad = Math.toRadians(setup.getStemAngle());
                     double reachPlus = model.getReach() + (setup.getStemLength() * Math.cos(angleRad));
                     vo.setEffectiveReachPlus(Math.round(reachPlus * 10.0) / 10.0);
                 }
 
                 // --- 3. 计算 Effective Stack+ (实车垂直总高度) ---
-                if (isPositive(model.getStack()) && setup != null) {
-                    double angleRad = Math.toRadians(setup.getStemAngle() != null ? Math.abs(setup.getStemAngle()) : 7.0);
-                    double spacers = setup.getSpacersHeight() != null ? setup.getSpacersHeight() : 0;
+                if (isPositive(model.getStack()) && setup != null
+                        && isPositive(setup.getStemLength()) && setup.getStemAngle() != null && setup.getSpacersHeight() != null) {
+                    double angleRad = Math.toRadians(setup.getStemAngle());
+                    double spacers = setup.getSpacersHeight();
                     double stackPlus = model.getStack() + spacers
-                            + (setup.getStemLength() != null ? setup.getStemLength() * Math.sin(angleRad) : 0);
+                            + (setup.getStemLength() * Math.sin(angleRad));
                     vo.setEffectiveStackPlus(Math.round(stackPlus * 10.0) / 10.0);
                 }
             }
@@ -307,9 +309,19 @@ public class UserBikeService {
      * @param setup 单车设置实体
      */
     private void validateBikeSetup(UserBikeSetup setup) {
+        validateRange("把立长度", setup.getStemLength(), 40, 160, "mm");
+        validateRange("把立角度", setup.getStemAngle(), -30, 30, "°");
+        validateRange("垫圈高度", setup.getSpacersHeight(), 0, 80, "mm");
+
         // 如果填了座高，基本判定不能小于 400mm (成人车)
         if (isPositive(setup.getSaddleHeight()) && setup.getSaddleHeight() < 400) {
             throw new IllegalArgumentException("单车设定异常：座垫高度数值过小，请核实是否以毫米(mm)为单位。");
+        }
+    }
+
+    private void validateRange(String label, Number value, double min, double max, String unit) {
+        if (value != null && (value.doubleValue() < min || value.doubleValue() > max)) {
+            throw new BizException(500, String.format("[%s] 超出正常范围，请确认单位为 %s，正常范围 %.0f-%.0f%s。", label, unit, min, max, unit));
         }
     }
 

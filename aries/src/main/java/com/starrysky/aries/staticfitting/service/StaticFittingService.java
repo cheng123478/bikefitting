@@ -17,6 +17,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -31,6 +32,15 @@ import java.util.stream.Collectors;
 @Service
 @Slf4j
 public class StaticFittingService {
+    private static final int MIN_STEM_LENGTH = 60;
+    private static final int MAX_STEM_LENGTH = 140;
+    private static final int MIN_SPACER_HEIGHT = 0;
+    private static final int MAX_SPACER_HEIGHT = 80;
+    private static final int COCKPIT_STEP = 5;
+    private static final int ROAD_COCKPIT_STACK_OFFSET = 45;
+    private static final int FLAT_BAR_COCKPIT_STACK_OFFSET = 55;
+    private static final int[] COMMON_STEM_ANGLES = {-17, -12, -10, -8, -7, -6, 0, 6, 7, 10, 17};
+
     @Resource
     private FittorDiagnosticsManager diagnosticsManager;
     @Resource
@@ -113,16 +123,23 @@ public class StaticFittingService {
             processLevel2Ergonomics(user, body, bike.getBikeModel().getBikeType(), result);
             diagnosticsManager.diagnoseComponents(result, body, setup);
             processLevel3Biomechanical(body, bike, setup, result);
+            applyAbdominalClearanceProtocol(body, result);
+            if (result.getRiderTags().contains("腹部空间优化") || result.getRiderTags().contains("腹部空间优化-增强")) {
+                removeUpperBodyPostureDetail(result);
+                diagnosticsManager.diagnoseUpperBody(result, body, setup);
+            }
 
             // B-2. 痛点修正 (在计算把立和垫圈的机械调校处方之前执行，确保调教推荐直接响应痛点保护)
             List<RidingPainType> painLevels = request.getPainLevels();
             if (painLevels != null && !painLevels.isEmpty()) {
                 result.setInputPainTypes(new ArrayList<>(painLevels));
                 diagnosticsManager.diagnosePain(result, painLevels);
+                normalizePostureTargets(result);
+                refreshPrimaryPostureDetails(result, body, setup);
             }
 
             // C. 现状对比与器材调教处方
-            processBikeAdjustment(bike, setup, result);
+            processBikeAdjustment(bike, result);
             diagnosticsManager.addAdjustmentAdvice(result, setup);
 
             diagnosticsManager.diagnoseSafety(result, body);
@@ -153,6 +170,9 @@ public class StaticFittingService {
                 body.getSpanHeight() == null || body.getSpanHeight() < 600 || body.getSpanHeight() > 1100) {
             throw new BizException("基础数据(身高/跨高)疑似异常或缺失，请确认测量单位(mm)及数值准确性。");
         }
+        if (body.getWeightKg() == null || body.getWeightKg() < 30 || body.getWeightKg() > 250) {
+            throw new BizException("体重为必填项，请确认单位为 kg，且数值在 30-250kg 的合理范围内。");
+        }
     }
 
     /**
@@ -176,7 +196,7 @@ public class StaticFittingService {
         vo.setTargetBarHeight(entity.getTargetBarHeight());
         vo.setRecHandlebarDrop(entity.getRecHandlebarDrop());
         vo.setRecSpacerHeight(entity.getRecSpacerHeight());
-        vo.setRecCrankLength(entity.getRecCrankLength());
+        vo.setRecCrankLength(entity.getRecCrankLength() != null ? entity.getRecCrankLength().doubleValue() : null);
         vo.setRecHandlebarWidth(entity.getRecHandlebarWidth());
         vo.setRecSaddleWidth(entity.getRecSaddleWidth());
         vo.setRecStemLength(entity.getRecStemLength());
@@ -212,7 +232,7 @@ public class StaticFittingService {
         }
         res.setRecSeatHeight(baseHeight);
         res.setRecFrameStack(StaticFittingCalculator.calcBaseStack(body.getSpanHeight(), bikeType));
-        res.setRecCrankLength(StaticFittingCalculator.calcCrankLength(body.getSpanHeight(), bikeType));
+        res.setRecCrankLength(BigDecimal.valueOf(StaticFittingCalculator.calcCrankLength(body.getSpanHeight(), bikeType)));
         res.getRiderTags().add("核心基准已生成");
     }
 
@@ -264,12 +284,14 @@ public class StaticFittingService {
      */
     private void processLevel3Biomechanical(UserBody body, UserBike bike, UserBikeSetup setup, StaticFittingResult res) {
 
-        int tScore = 0;
+        int tScore = 60;
         if (body.getThoracicRotationAngle() != null && body.getArmRaiseAngle() != null) {
             int pain = (body.getThoracicPainLevel() != null) ? body.getThoracicPainLevel() : 0;
             tScore = (int) (body.getThoracicRotationAngle() * 0.6 + body.getArmRaiseAngle() * 0.4 - pain * 10);
             tScore = Math.min(100, Math.max(0, tScore)); // 保证在百分制合理范围内
             res.setThoracicScore(tScore);
+        } else {
+            addIncompleteNote(res, "上肢座舱", "missing_mobility");
         }
 
         if (body.getThighLength() != null && body.getThighLength() > 0 && body.getSpanHeight() != null) {
@@ -318,25 +340,212 @@ public class StaticFittingService {
      * @param setup 用户单车设定数据
      * @param res   调教结果对象
      */
-    private void processBikeAdjustment(UserBike bike, UserBikeSetup setup, StaticFittingResult res) {
-        if (res.getRecReachPlus() == null || bike.getBikeModel() == null || bike.getBikeModel().getReach() == null)
-            return;
-        double stemRaw = res.getRecReachPlus() - bike.getBikeModel().getReach();
-        if (setup == null || setup.getStemAngle() == null || setup.getStemLength() == null) {
-            addIncompleteNote(res, "调教方案", "missing_stem_angle");
+    private void applyAbdominalClearanceProtocol(UserBody body, StaticFittingResult res) {
+        Double bmi = StaticFittingCalculator.calculateBmi(body.getHeight(), body.getWeightKg());
+        Double waistToHeightRatio = StaticFittingCalculator.calculateWaistToHeightRatio(body.getHeight(), body.getWaistCircumference());
+        if (bmi == null) {
             return;
         }
-        double stemCos = Math.cos(Math.toRadians(Math.abs(setup.getStemAngle())));
-        if (stemCos <= 0.1) stemCos = 1.0; // 防零除保护
-        double stemLength = stemRaw / stemCos;
-        res.setRecStemLength((int) (Math.round(stemLength / 5.0) * 5));
+        if (waistToHeightRatio == null) {
+            if (bmi >= FittingConstants.BMI_OBESITY_THRESHOLD) {
+                res.getRiderTags().add("腹部空间待确认");
+                diagnosticsManager.addDetail(
+                        res,
+                        "上肢座舱",
+                        "腹部空间待确认",
+                        "体重与身高提示可能存在腹部空间需求，但本次未填写腰围，无法判断腰高比。系统保留常规静态 fitting 结果，未自动启用腹部空间优化；如骑行时有大腿顶腹、腹部压迫或深把位呼吸受限，建议补录腰围后重新生成方案。"
+                );
+            }
+            return;
+        }
+        if (!StaticFittingCalculator.hasAbdominalClearanceNeed(bmi, waistToHeightRatio)) {
+            return;
+        }
+        if (res.getRecReachPlus() == null || res.getRecHandlebarDrop() == null || res.getRecSeatHeight() == null) {
+            return;
+        }
 
-        // 计算建议垫圈高度: Spacer = targetBarHeight - frameStack - stemLength * sin(stemAngle)
-        if (res.getTargetBarHeight() != null && bike.getBikeModel().getStack() != null
-                && res.getRecStemLength() != null && setup.getStemAngle() != null) {
-            double stemVertical = res.getRecStemLength() * Math.sin(Math.toRadians(Math.abs(setup.getStemAngle())));
-            int spacer = (int) Math.round(res.getTargetBarHeight() - bike.getBikeModel().getStack() - stemVertical);
-            res.setRecSpacerHeight(Math.max(spacer, 0));
+        int reachReduction = StaticFittingCalculator.calcAbdominalReachReduction(bmi, waistToHeightRatio);
+        int dropReduction = StaticFittingCalculator.calcAbdominalDropReduction(bmi, waistToHeightRatio);
+        res.setRecReachPlus(Math.max(res.getRecReachPlus() - reachReduction, 350));
+        res.setRecHandlebarDrop(clampHandlebarDrop(res.getRecHandlebarDrop() - dropReduction));
+        refreshTargetBarHeight(res);
+
+        if (StaticFittingCalculator.isSevereAbdominalClearanceNeed(waistToHeightRatio)) {
+            res.getRiderTags().add("腹部空间优化-增强");
+        } else {
+            res.getRiderTags().add("腹部空间优化");
+        }
+    }
+
+    private void processBikeAdjustment(UserBike bike, StaticFittingResult res) {
+        BikeModel bikeModel = bike.getBikeModel();
+        if (bikeModel == null) {
+            addIncompleteNote(res, "调教方案", "missing_frame_geometry");
+            return;
+        }
+        refreshRecommendedFrameStack(res, bikeModel.getBikeType());
+        if (res.getRecReachPlus() == null || res.getTargetBarHeight() == null || res.getRecSetback() == null) {
+            return;
+        }
+        if (bikeModel.getReach() == null || bikeModel.getStack() == null) {
+            addIncompleteNote(res, "调教方案", "missing_frame_geometry");
+            return;
+        }
+
+        CockpitFitCandidate fit = findBestCockpitFit(
+                res.getRecReachPlus(),
+                res.getTargetBarHeight(),
+                res.getRecSetback(),
+                bikeModel.getReach(),
+                bikeModel.getStack(),
+                bikeModel.getBikeType()
+        );
+        if (fit != null) {
+            res.setRecStemLength(fit.stemLength);
+            res.setRecStemAngle(fit.stemAngle);
+            res.setRecSpacerHeight(fit.spacerHeight);
+        }
+    }
+
+    private void refreshRecommendedFrameStack(StaticFittingResult res, Integer bikeType) {
+        if (res.getTargetBarHeight() == null) {
+            return;
+        }
+        res.setRecFrameStack(calculateRecommendedFrameStack(res.getTargetBarHeight(), bikeType));
+    }
+
+    private int calculateRecommendedFrameStack(int targetBarHeight, Integer bikeType) {
+        int stemLength = preferredStemLengthForStack(bikeType);
+        int stemAngle = preferredStemAngleForStack(bikeType);
+        int spacer = preferredSpacerHeightForStack(bikeType);
+        double stemVertical = stemLength * Math.sin(Math.toRadians(stemAngle));
+        double stack = targetBarHeight - cockpitStackOffset(bikeType) - spacer - stemVertical;
+        return roundToCockpitStep(stack);
+    }
+
+    private CockpitFitCandidate findBestCockpitFit(int targetReachPlus, int targetBarHeight, int targetSetback,
+                                                   int frameReach, int frameStack, Integer bikeType) {
+        CockpitFitCandidate best = null;
+        int cockpitStackOffset = cockpitStackOffset(bikeType);
+        for (int stemLength = MIN_STEM_LENGTH; stemLength <= MAX_STEM_LENGTH; stemLength += COCKPIT_STEP) {
+            for (int angle : COMMON_STEM_ANGLES) {
+                double angleRad = Math.toRadians(angle);
+                double reach = frameReach + stemLength * Math.cos(Math.abs(angleRad)) + targetSetback;
+                double barHeightWithoutSpacer = frameStack + cockpitStackOffset + stemLength * Math.sin(angleRad);
+                for (int spacer = MIN_SPACER_HEIGHT; spacer <= MAX_SPACER_HEIGHT; spacer += COCKPIT_STEP) {
+                    double barHeight = barHeightWithoutSpacer + spacer;
+                    double reachError = Math.abs(targetReachPlus - reach);
+                    double heightError = Math.abs(targetBarHeight - barHeight);
+                    double score = reachError * 1.15 + heightError + cockpitHardwarePenalty(stemLength, angle, spacer, bikeType);
+
+                    if (best == null || score < best.score) {
+                        best = new CockpitFitCandidate(stemLength, (double) angle, spacer, score);
+                    }
+                }
+            }
+        }
+        return best;
+    }
+
+    private int cockpitStackOffset(Integer bikeType) {
+        if (Objects.equals(bikeType, BikeType.MOUNTAIN_BIKE.code) || Objects.equals(bikeType, BikeType.CITY_BIKE.code)) {
+            return FLAT_BAR_COCKPIT_STACK_OFFSET;
+        }
+        return ROAD_COCKPIT_STACK_OFFSET;
+    }
+
+    private int preferredStemLengthForStack(Integer bikeType) {
+        if (Objects.equals(bikeType, BikeType.MOUNTAIN_BIKE.code) || Objects.equals(bikeType, BikeType.CITY_BIKE.code)) {
+            return 60;
+        }
+        if (Objects.equals(bikeType, BikeType.TT_BIKE.code)) {
+            return 100;
+        }
+        return 90;
+    }
+
+    private int preferredStemAngleForStack(Integer bikeType) {
+        if (Objects.equals(bikeType, BikeType.MOUNTAIN_BIKE.code)) {
+            return 6;
+        }
+        if (Objects.equals(bikeType, BikeType.CITY_BIKE.code)) {
+            return 10;
+        }
+        if (Objects.equals(bikeType, BikeType.TT_BIKE.code)) {
+            return -10;
+        }
+        return -7;
+    }
+
+    private int preferredSpacerHeightForStack(Integer bikeType) {
+        if (Objects.equals(bikeType, BikeType.CITY_BIKE.code)) {
+            return 35;
+        }
+        if (Objects.equals(bikeType, BikeType.MOUNTAIN_BIKE.code) || Objects.equals(bikeType, BikeType.GRAVEL_BIKE.code)) {
+            return 30;
+        }
+        if (Objects.equals(bikeType, BikeType.TT_BIKE.code)) {
+            return 15;
+        }
+        return 25;
+    }
+
+    private int roundToCockpitStep(double value) {
+        return (int) Math.round(value / COCKPIT_STEP) * COCKPIT_STEP;
+    }
+
+    private double cockpitHardwarePenalty(int stemLength, int stemAngle, int spacerHeight, Integer bikeType) {
+        double penalty = 0;
+        int preferredMin = 60;
+        int preferredMax = 120;
+        if (Objects.equals(bikeType, BikeType.MOUNTAIN_BIKE.code) || Objects.equals(bikeType, BikeType.CITY_BIKE.code)) {
+            preferredMin = 40;
+            preferredMax = 100;
+        } else if (Objects.equals(bikeType, BikeType.TT_BIKE.code)) {
+            preferredMin = 70;
+            preferredMax = 130;
+        }
+
+        if (stemLength < preferredMin) {
+            penalty += (preferredMin - stemLength) * 0.25;
+        } else if (stemLength > preferredMax) {
+            penalty += (stemLength - preferredMax) * 0.25;
+        }
+
+        if (spacerHeight > 40) {
+            penalty += (spacerHeight - 40) * 0.35;
+        }
+        if (spacerHeight > 60) {
+            penalty += (spacerHeight - 60) * 0.55;
+        }
+
+        if (Math.abs(stemAngle) == 6 || Math.abs(stemAngle) == 7) {
+            return penalty;
+        }
+        if (stemAngle == 0) {
+            return penalty + 0.5;
+        }
+        if (Math.abs(stemAngle) <= 10) {
+            return penalty + 1.0;
+        }
+        if (Math.abs(stemAngle) <= 12) {
+            return penalty + 1.5;
+        }
+        return penalty + 2.5;
+    }
+
+    private static class CockpitFitCandidate {
+        private final int stemLength;
+        private final double stemAngle;
+        private final int spacerHeight;
+        private final double score;
+
+        private CockpitFitCandidate(int stemLength, double stemAngle, int spacerHeight, double score) {
+            this.stemLength = stemLength;
+            this.stemAngle = stemAngle;
+            this.spacerHeight = spacerHeight;
+            this.score = score;
         }
     }
 
@@ -391,23 +600,28 @@ public class StaticFittingService {
         report.setFittingResultId("FIT-" + ideal.getId());
         report.setCreateTime(ideal.getFittingTime().toString());
 
-        // 车架几何匹配检查 (Stack & Reach)
+        // 车架几何适用性：Reach+ 检查的是“推荐座舱是否可落地”，不是把车架 Reach 直接和 Reach+ 相比。
         if (bike.getBikeModel() != null) {
-            // Stack 匹配检查
             if (ideal.getRecFrameStack() != null && bike.getBikeModel().getStack() != null) {
                 int stackDelta = Math.abs(ideal.getRecFrameStack() - bike.getBikeModel().getStack());
                 String stackStatus = stackDelta <= 10 ? "PERFECT" : (stackDelta <= 25 ? "ADJUST" : "WARNING");
-                String stackReason = stackDelta <= 10 ? "车架 Stack 与推荐值完美匹配" :
-                    (stackDelta <= 20 ? "车架 Stack 略有偏差，可通过垫圈微调" : "车架 Stack 偏差较大，后期调教受限");
-                report.setFrameStackCheck(buildMetric("Stack", ideal.getRecFrameStack(), bike.getBikeModel().getStack(), 10, stackReason, stackStatus));
+                String stackReason = stackDelta <= 10 ? "车架 Stack 接近由目标把高反推的推荐区间，车头高度有较好调整余量" :
+                    (stackDelta <= 25 ? "车架 Stack 与目标把高反推区间有差异，优先通过垫圈和把立规格微调" : "车架 Stack 与目标把高反推区间差异较大，后续车头高度调整余量可能受限");
+                report.setFrameStackCheck(buildMetric("Frame Stack (车架 Stack)", ideal.getRecFrameStack(), bike.getBikeModel().getStack(), 10, stackReason, stackStatus));
             }
-            // Reach 匹配检查
-            if (ideal.getRecReachPlus() != null && bike.getBikeModel().getReach() != null) {
-                int reachDelta = Math.abs(ideal.getRecReachPlus() - bike.getBikeModel().getReach());
-                String reachStatus = reachDelta <= 5 ? "PERFECT" : (reachDelta <= 15 ? "ADJUST" : "WARNING");
-                String reachReason = reachDelta <= 5 ? "车架 Reach 与推荐值完美匹配" :
-                    (reachDelta <= 20 ? "车架 Reach 略有偏差，可通过把立微调" : "车架 Reach 偏差较大，建议更换车架尺码");
-                report.setFrameReachCheck(buildMetric("Reach", ideal.getRecReachPlus(), bike.getBikeModel().getReach(), 10, reachReason, reachStatus));
+            if (ideal.getRecReachPlus() != null && bike.getBikeModel().getReach() != null
+                    && ideal.getRecStemLength() != null && ideal.getRecStemAngle() != null
+                    && ideal.getRecSetback() != null) {
+                double reachableReachPlus = bike.getBikeModel().getReach()
+                        + StaticFittingCalculator.calculateReachOffset(ideal.getRecStemLength(), ideal.getRecStemAngle())
+                        + ideal.getRecSetback();
+                double reachDelta = Math.abs(ideal.getRecReachPlus() - reachableReachPlus);
+                String reachStatus = reachDelta <= 8 ? "PERFECT" : (reachDelta <= 18 ? "ADJUST" : "WARNING");
+                String reachReason = reachDelta <= 8 ? "当前车架搭配推荐把立长度与推荐座垫后移后，可接近目标 Reach+ 坐标" :
+                    (reachDelta <= 18 ? "当前车架可接近目标 Reach+，但需要结合把立长度、座垫前后和手变头位置微调" : "按常见把立范围仍难以接近目标 Reach+，说明车架前后几何可能受限");
+                report.setFrameReachCheck(buildMetric("Reach+ 可达性", ideal.getRecReachPlus(), Math.round(reachableReachPlus * 10.0) / 10.0, 8, reachReason, reachStatus));
+            } else if (ideal.getRecReachPlus() != null && bike.getBikeModel().getReach() != null) {
+                report.setFrameReachCheck(buildReferenceMetric("Reach+ 可达性", ideal.getRecReachPlus(), "缺少完整车架几何、座舱推荐或推荐座垫后移，暂不判断当前车架是否能落到目标 Reach+。"));
             }
         }
 
@@ -418,87 +632,168 @@ public class StaticFittingService {
         double maxDelta = 0;
         double totalWeightedScore = 0;
         double totalWeight = 0;
+        int comparisonCount = 0;
 
         // 1. 座垫高度
-        if (ideal.getRecSeatHeight() != null && setup.getSaddleHeight() != null) {
-            StaticFittingMetricVO m = buildMetric("Saddle Height (座垫高度)", ideal.getRecSeatHeight(), setup.getSaddleHeight(), 5, "决定踩踏效率与膝盖健康");
-            mechanicalAdjustments.add(m);
-            double delta = Math.abs(m.getDelta().doubleValue());
-            maxDelta = Math.max(maxDelta, delta);
-            if (delta > 20) {
-                expertDiagnoses.add(m.getDelta().doubleValue() > 0 ? "🔴 座垫显著偏低，易造成膝前受压。" : "🔴 座垫显著偏高，易造成大腿后侧拉伤。");
+        if (ideal.getRecSeatHeight() != null) {
+            if (setup.getSaddleHeight() != null) {
+                StaticFittingMetricVO m = buildMetric("Saddle Height (座垫高度)", ideal.getRecSeatHeight(), setup.getSaddleHeight(), 10, "决定踩踏效率、膝关节伸展和骨盆稳定");
+                mechanicalAdjustments.add(m);
+                double delta = Math.abs(m.getDelta().doubleValue());
+                maxDelta = Math.max(maxDelta, delta);
+                if (delta > 20) {
+                    expertDiagnoses.add(m.getDelta().doubleValue() > 0 ? "当前座高明显偏低，可能增加膝前压力；建议先小幅上调并观察膝盖反馈。" : "当前座高明显偏高，可能带来骨盆晃动、腘绳肌或跟腱压力；建议先小幅下调。");
+                }
+                totalWeightedScore += calculateItemScore(m.getDelta().doubleValue(), 10) * 0.30;
+                totalWeight += 0.30;
+                comparisonCount++;
+            } else {
+                mechanicalAdjustments.add(buildReferenceMetric("Saddle Height (座垫高度)", ideal.getRecSeatHeight(), "先按推荐座高作为静态起点，再结合动态膝角、骨盆稳定和疼痛反馈微调。"));
             }
-            totalWeightedScore += calculateItemScore(m.getDelta().doubleValue(), 5) * 0.30;
-            totalWeight += 0.30;
         }
 
         // 2. 有效前伸量
-        if (ideal.getRecReachPlus() != null && bike.getBikeModel() != null && bike.getBikeModel().getReach() != null && setup.getStemLength() != null) {
-            double currentReachPlus = calculateCurrentReachPlus(bike.getBikeModel(), setup);
-            StaticFittingMetricVO m = buildMetric("Reach+ (有效前伸量)", ideal.getRecReachPlus(), currentReachPlus, 10, "影响重心分布与操控舒适度");
-            mechanicalAdjustments.add(m);
-            double delta = Math.abs(m.getDelta().doubleValue());
-            maxDelta = Math.max(maxDelta, delta);
-            if (delta > 25) {
-                expertDiagnoses.add("🔴 骑行姿态过" + (m.getDelta().doubleValue() > 0 ? "短" : "长") + "，建议调整把立长度。");
+        if (ideal.getRecReachPlus() != null) {
+            if (bike.getBikeModel() != null && bike.getBikeModel().getReach() != null
+                    && setup.getStemLength() != null && setup.getStemAngle() != null
+                    && setup.getSaddleSetback() != null) {
+                double currentReachPlus = calculateCurrentReachPlus(bike.getBikeModel(), setup);
+                StaticFittingMetricVO m = buildMetric("Reach+ (有效前伸量)", ideal.getRecReachPlus(), currentReachPlus, 15, "影响上肢承重、重心分布和操控稳定");
+                mechanicalAdjustments.add(m);
+                double delta = Math.abs(m.getDelta().doubleValue());
+                maxDelta = Math.max(maxDelta, delta);
+                if (delta > 25) {
+                    expertDiagnoses.add("当前前伸量明显偏" + (m.getDelta().doubleValue() > 0 ? "短" : "长") + "；优先检查把立长度，再看座垫前后和手变头位置。");
+                }
+                totalWeightedScore += calculateItemScore(m.getDelta().doubleValue(), 15) * 0.25;
+                totalWeight += 0.25;
+                comparisonCount++;
+            } else {
+                mechanicalAdjustments.add(buildReferenceMetric("Reach+ (有效前伸量)", ideal.getRecReachPlus(), "这是身体侧目标坐标；未填写当前把立长度、角度与座垫后移时，不计算当前 setup 偏差。"));
             }
-            totalWeightedScore += calculateItemScore(m.getDelta().doubleValue(), 10) * 0.25;
-            totalWeight += 0.25;
         }
 
         // 3. 坐垫后移
-        if (ideal.getRecSetback() != null && setup.getSaddleSetback() != null) {
-            StaticFittingMetricVO m = buildMetric("Setback (座垫后移)", ideal.getRecSetback(), setup.getSaddleSetback(), 5, "影响发力角度与膝盖健康");
-            mechanicalAdjustments.add(m);
-            totalWeightedScore += calculateItemScore(m.getDelta().doubleValue(), 5) * 0.15;
-            totalWeight += 0.15;
+        if (ideal.getRecSetback() != null) {
+            if (setup.getSaddleSetback() != null) {
+                StaticFittingMetricVO m = buildMetric("Setback (座垫后移)", ideal.getRecSetback(), setup.getSaddleSetback(), 10, "影响踩踏重心、髋膝角度和臀肌介入");
+                mechanicalAdjustments.add(m);
+                maxDelta = Math.max(maxDelta, Math.abs(m.getDelta().doubleValue()));
+                totalWeightedScore += calculateItemScore(m.getDelta().doubleValue(), 10) * 0.15;
+                totalWeight += 0.15;
+                comparisonCount++;
+            } else {
+                mechanicalAdjustments.add(buildReferenceMetric("Setback (座垫后移)", ideal.getRecSetback(), "先按推荐后移量建立发力重心，再用膝盖压力和坐垫支撑感微调。"));
+            }
         }
 
         // 4. 曲柄长度
-        if (ideal.getRecCrankLength() != null && setup.getCrankLength() != null) {
-            StaticFittingMetricVO m = buildMetric("Crank Length (曲柄长度)", ideal.getRecCrankLength(), setup.getCrankLength(), 2, "影响踩踏效率与膝盖负荷");
-            mechanicalAdjustments.add(m);
-            totalWeightedScore += calculateItemScore(m.getDelta().doubleValue(), 2) * 0.08;
-            totalWeight += 0.08;
+        if (ideal.getRecCrankLength() != null) {
+            if (setup.getCrankLength() != null) {
+                StaticFittingMetricVO m = buildMetric("Crank Length (曲柄长度)", ideal.getRecCrankLength(), setup.getCrankLength(), 5, "影响髋膝活动范围、踏频习惯和低趴时的髋腹空间");
+                mechanicalAdjustments.add(m);
+                maxDelta = Math.max(maxDelta, Math.abs(m.getDelta().doubleValue()));
+                totalWeightedScore += calculateItemScore(m.getDelta().doubleValue(), 5) * 0.08;
+                totalWeight += 0.08;
+                comparisonCount++;
+            } else {
+                mechanicalAdjustments.add(buildReferenceMetric("Crank Length (曲柄长度)", ideal.getRecCrankLength(), "曲柄属于器材规格项，不需要立刻更换；下次升级或装车时按该规格优先筛选。"));
+            }
         }
 
         // 5. 坐垫推荐宽
-        if (ideal.getRecSaddleWidth() != null && setup.getSaddleWidth() != null) {
-            StaticFittingMetricVO m = buildMetric("Saddle Width (坐垫推荐宽)", ideal.getRecSaddleWidth(), setup.getSaddleWidth(), 5, "影响坐骨支撑与舒适度");
-            mechanicalAdjustments.add(m);
-            totalWeightedScore += calculateItemScore(m.getDelta().doubleValue(), 5) * 0.06;
-            totalWeight += 0.06;
+        if (ideal.getRecSaddleWidth() != null) {
+            if (setup.getSaddleWidth() != null) {
+                StaticFittingMetricVO m = buildMetric("Saddle Width (坐垫推荐宽)", ideal.getRecSaddleWidth(), setup.getSaddleWidth(), 10, "影响坐骨支撑、会阴压力和长距离舒适度");
+                mechanicalAdjustments.add(m);
+                maxDelta = Math.max(maxDelta, Math.abs(m.getDelta().doubleValue()));
+                totalWeightedScore += calculateItemScore(m.getDelta().doubleValue(), 10) * 0.06;
+                totalWeight += 0.06;
+                comparisonCount++;
+            } else {
+                mechanicalAdjustments.add(buildReferenceMetric("Saddle Width (坐垫推荐宽)", ideal.getRecSaddleWidth(), "按坐骨间距选择座垫宽度，优先保证坐骨支撑而不是单纯追求窄或轻。"));
+            }
         }
 
-        // 6. 车把落差
-        if (ideal.getRecHandlebarDrop() != null && setup.getHandlebarDrop() != null) {
-            StaticFittingMetricVO m = buildMetric("Handlebar Drop (车把落差)", ideal.getRecHandlebarDrop(), setup.getHandlebarDrop(), 10, "影响骑行姿态与风阻");
-            mechanicalAdjustments.add(m);
-            totalWeightedScore += calculateItemScore(m.getDelta().doubleValue(), 10) * 0.10;
-            totalWeight += 0.10;
+        // 6. 车把高度
+        if (ideal.getTargetBarHeight() != null) {
+            // 通过座高和落差计算当前车把高度
+            Integer currentBarHeight = null;
+            if (setup.getSaddleHeight() != null && setup.getHandlebarDrop() != null) {
+                currentBarHeight = setup.getSaddleHeight() - setup.getHandlebarDrop();
+            }
+            if (currentBarHeight != null) {
+                StaticFittingMetricVO m = buildMetric("Bar Height (车把高度)", ideal.getTargetBarHeight(), currentBarHeight, 10, "影响车头高度与骑行舒适度");
+                mechanicalAdjustments.add(m);
+                maxDelta = Math.max(maxDelta, Math.abs(m.getDelta().doubleValue()));
+                totalWeightedScore += calculateItemScore(m.getDelta().doubleValue(), 10) * 0.08;
+                totalWeight += 0.08;
+                comparisonCount++;
+            } else {
+                mechanicalAdjustments.add(buildReferenceMetric("Bar Height (车把高度)", ideal.getTargetBarHeight(), "车把高度是座高减去落差的结果；请填写座高和落差以计算当前值。"));
+            }
         }
 
-        // 7. 垫圈高度
-        if (ideal.getRecSpacerHeight() != null && setup.getSpacersHeight() != null) {
-            StaticFittingMetricVO m = buildMetric("Spacer Height (垫圈高度)", ideal.getRecSpacerHeight(), setup.getSpacersHeight(), 5, "影响车把高度与舒适度");
-            mechanicalAdjustments.add(m);
-            totalWeightedScore += calculateItemScore(m.getDelta().doubleValue(), 5) * 0.06;
-            totalWeight += 0.06;
+        // 7. 车把落差
+        if (ideal.getRecHandlebarDrop() != null) {
+            if (setup.getHandlebarDrop() != null) {
+                StaticFittingMetricVO m = buildMetric("Handlebar Drop (车把落差)", ideal.getRecHandlebarDrop(), setup.getHandlebarDrop(), 15, "影响躯干角度、肩颈压力、视野和风阻");
+                mechanicalAdjustments.add(m);
+                maxDelta = Math.max(maxDelta, Math.abs(m.getDelta().doubleValue()));
+                totalWeightedScore += calculateItemScore(m.getDelta().doubleValue(), 15) * 0.10;
+                totalWeight += 0.10;
+                comparisonCount++;
+            } else {
+                mechanicalAdjustments.add(buildReferenceMetric("Handlebar Drop (车把落差)", ideal.getRecHandlebarDrop(), "把落差作为舒适与效率的起点；如果腰背、肩颈或手掌压力明显，优先降低落差。"));
+            }
         }
 
-        // 8. 把立长度
-        if (ideal.getRecStemLength() != null && setup.getStemLength() != null) {
-            StaticFittingMetricVO m = buildMetric("Stem Length (把立长度)", ideal.getRecStemLength(), setup.getStemLength(), 5, "影响前伸量与操控");
-            mechanicalAdjustments.add(m);
+        // 8. 垫圈高度
+        if (ideal.getRecSpacerHeight() != null) {
+            if (setup.getSpacersHeight() != null) {
+                StaticFittingMetricVO m = buildMetric("Spacer Height (垫圈高度)", ideal.getRecSpacerHeight(), setup.getSpacersHeight(), 10, "影响车把高度，是最容易落地的车头微调项");
+                mechanicalAdjustments.add(m);
+                maxDelta = Math.max(maxDelta, Math.abs(m.getDelta().doubleValue()));
+                totalWeightedScore += calculateItemScore(m.getDelta().doubleValue(), 10) * 0.06;
+                totalWeight += 0.06;
+                comparisonCount++;
+            } else {
+                mechanicalAdjustments.add(buildReferenceMetric("Spacer Height (垫圈高度)", ideal.getRecSpacerHeight(), "这是按车架几何和目标车把高度反推的垫圈建议，方便直接调车。"));
+            }
         }
 
-        if (ideal.getRecCrankLength() != null && setup.getCrankLength() != null && !ideal.getRecCrankLength().equals(setup.getCrankLength())) {
+        // 9. 把立长度
+        if (ideal.getRecStemLength() != null) {
+            if (setup.getStemLength() != null) {
+                StaticFittingMetricVO m = buildMetric("Stem Length (把立长度)", ideal.getRecStemLength(), setup.getStemLength(), 10, "影响前伸量、上肢承重和转向响应");
+                mechanicalAdjustments.add(m);
+                maxDelta = Math.max(maxDelta, Math.abs(m.getDelta().doubleValue()));
+                totalWeightedScore += calculateItemScore(m.getDelta().doubleValue(), 10) * 0.06;
+                totalWeight += 0.06;
+                comparisonCount++;
+            } else {
+                mechanicalAdjustments.add(buildReferenceMetric("Stem Length (把立长度)", ideal.getRecStemLength(), "把立长度是实现目标 Reach+ 的主要可更换零件；优先按推荐长度选择常见规格。"));
+            }
+        }
+
+        if (ideal.getRecCrankLength() != null && setup.getCrankLength() != null
+                && Math.abs(ideal.getRecCrankLength().doubleValue() - setup.getCrankLength()) >= 1.0) {
             HardwareUpgradeVO h = new HardwareUpgradeVO();
             h.setPart("曲柄长度");
             h.setCurrentValue(setup.getCrankLength() + "mm");
-            h.setTargetSpec(ideal.getRecCrankLength() + "mm");
-            h.setReason("您的跨高对应的最佳曲柄杠杆比为" + ideal.getRecCrankLength() + "mm。");
+            h.setTargetSpec(formatMillimeter(ideal.getRecCrankLength()));
+            h.setReason("您的跨高与车型对应的曲柄静态建议为 " + formatMillimeter(ideal.getRecCrankLength()) + "；下次更换传动或曲柄时可优先参考。");
             hardwareUpgrades.add(h);
+        }
+
+        if (ideal.getRiderTags() != null) {
+            if (ideal.getRiderTags().contains("腹部空间优化-增强")) {
+                expertDiagnoses.add("系统已启用增强版腹部空间优化：缩短前伸并抬高把位，优先保留髋腹夹角与呼吸空间。");
+            } else if (ideal.getRiderTags().contains("腹部空间优化")) {
+                expertDiagnoses.add("系统已启用腹部空间优化：适度缩短前伸并降低落差，减少大腿顶腹、腹部压迫或深把位呼吸受限。");
+            } else if (ideal.getRiderTags().contains("腹部空间待确认")) {
+                expertDiagnoses.add("体重与身高提示可能存在腹部空间需求，但腰围未填写；本次未自动启用腹部空间优化，建议补录腰围后重新生成方案。");
+            }
         }
 
         report.setMechanicalAdjustments(mechanicalAdjustments);
@@ -506,24 +801,33 @@ public class StaticFittingService {
         report.setHardwareUpgrades(hardwareUpgrades);
 
         // 计算匹配得分
-        int matchScore = 100;
+        Integer matchScore = null;
         if (totalWeight > 0) {
             matchScore = (int) Math.round(totalWeightedScore / totalWeight);
         }
         report.setMatchScore(matchScore);
 
-        if (maxDelta > 40 || matchScore < 60) {
+        boolean hasReferenceOnly = mechanicalAdjustments.stream().anyMatch(m -> "REFERENCE".equals(m.getStatus()));
+        if (matchScore == null) {
+            report.setOverallStatus("REFERENCE");
+            report.setMatchLevel("仅推荐");
+            report.setSummary("已根据您的身体数据和车架几何生成静态推荐值；由于当前实车设定未填写，本报告不评价“差多少”，只提供可直接调车的目标。");
+        } else if (maxDelta > 40 || matchScore < 60) {
             report.setOverallStatus("DANGER");
             report.setMatchLevel("偏差极大");
-            report.setSummary("🚨 警告：当前设定与黄金比例偏差过大（或匹配得分极低），请勿盲目骑行，建议参照下方详情逐步校准。");
+            report.setSummary("已填写的设定与静态推荐差异较大。建议先从座高、后移、把立长度和垫圈高度这些可控项开始，逐步调整并观察膝盖、腰背、肩颈和手部反馈。");
         } else if (maxDelta > 10 || matchScore < 85) {
             report.setOverallStatus("WARNING");
             report.setMatchLevel("需优化");
-            report.setSummary("检测到关键参数存在明显偏差，建议微调。");
+            report.setSummary("已填写的关键参数存在可优化空间。优先调整偏差最大的项目，单次调整幅度保持保守，并通过短距离试骑验证。");
+        } else if (hasReferenceOnly || comparisonCount < 5) {
+            report.setOverallStatus("PARTIAL");
+            report.setMatchLevel("部分对比");
+            report.setSummary("已填写的项目整体接近推荐值；未填写的当前设定仅展示推荐目标，不参与通过判定。");
         } else {
             report.setOverallStatus("PASS");
-            report.setMatchLevel("完美契合");
-            report.setSummary("当前设定非常理想，尽情享受骑行！");
+            report.setMatchLevel("匹配良好");
+            report.setSummary("已填写的实车设定整体接近静态推荐。建议保留当前方向，并通过 2-3 次短距离骑行确认身体反馈。");
         }
         return report;
     }
@@ -559,7 +863,52 @@ public class StaticFittingService {
      * @return 当前前伸量
      */
     private double calculateCurrentReachPlus(BikeModel model, UserBikeSetup setup) {
-        return model.getReach() + StaticFittingCalculator.calculateReachOffset(setup.getStemLength(), setup.getStemAngle());
+        return model.getReach()
+                + StaticFittingCalculator.calculateReachOffset(setup.getStemLength(), setup.getStemAngle())
+                + setup.getSaddleSetback();
+    }
+
+    private void normalizePostureTargets(StaticFittingResult res) {
+        if (res.getRecReachPlus() != null) {
+            res.setRecReachPlus(Math.max(res.getRecReachPlus(), 350));
+        }
+        if (res.getRecHandlebarDrop() != null) {
+            res.setRecHandlebarDrop(clampHandlebarDrop(res.getRecHandlebarDrop()));
+        }
+        refreshTargetBarHeight(res);
+    }
+
+    private void refreshTargetBarHeight(StaticFittingResult res) {
+        if (res.getRecSeatHeight() != null && res.getRecHandlebarDrop() != null) {
+            res.setTargetBarHeight(res.getRecSeatHeight() - res.getRecHandlebarDrop());
+        }
+    }
+
+    private int clampHandlebarDrop(int drop) {
+        return Math.max(-80, Math.min(160, drop));
+    }
+
+    private void refreshPrimaryPostureDetails(StaticFittingResult res, UserBody body, UserBikeSetup setup) {
+        removePrimaryPostureDetails(res);
+        diagnosticsManager.diagnoseLowerBody(res, calculateFemurRatio(body), setup);
+        diagnosticsManager.diagnoseUpperBody(res, body, setup);
+    }
+
+    private void removePrimaryPostureDetails(StaticFittingResult res) {
+        res.getDetails().removeIf(d ->
+                ("下肢动力链".equals(d.getPart()) && "踩踏力线".equals(d.getBodyFeature()))
+                        || ("上肢座舱".equals(d.getPart()) && "舒适度/落差".equals(d.getBodyFeature()))
+        );
+    }
+
+    private void removeUpperBodyPostureDetail(StaticFittingResult res) {
+        res.getDetails().removeIf(d -> "上肢座舱".equals(d.getPart()) && "舒适度/落差".equals(d.getBodyFeature()));
+    }
+
+    private double calculateFemurRatio(UserBody body) {
+        return (body.getThighLength() != null && body.getSpanHeight() != null)
+                ? (double) body.getThighLength() / body.getSpanHeight()
+                : 0.46;
     }
 
     /**
@@ -603,6 +952,19 @@ public class StaticFittingService {
         return buildMetric(label, ideal, current, tolerance, reason, null);
     }
 
+    private StaticFittingMetricVO buildReferenceMetric(String label, Number ideal, String reason) {
+        StaticFittingMetricVO metric = new StaticFittingMetricVO();
+        metric.setLabel(label);
+        metric.setUnit("mm");
+        metric.setIdealValue(ideal);
+        metric.setCurrentValue(null);
+        metric.setDelta(null);
+        metric.setStatus("REFERENCE");
+        metric.setAction("按推荐值调车");
+        metric.setReason(reason);
+        return metric;
+    }
+
     private StaticFittingMetricVO buildMetric(String label, Number ideal, Number current, double tolerance, String reason, String forceStatus) {
         StaticFittingMetricVO metric = new StaticFittingMetricVO();
         metric.setLabel(label);
@@ -614,7 +976,7 @@ public class StaticFittingService {
         metric.setDelta(Math.round(diff * 10.0) / 10.0);
         if (forceStatus != null) {
             metric.setStatus(forceStatus);
-            metric.setAction(forceStatus.equals("PERFECT") ? "保持现状" : (forceStatus.equals("ADJUST") ? "建议微调" : "需重装/更换"));
+            metric.setAction(forceStatus.equals("PERFECT") ? "当前可用" : (forceStatus.equals("ADJUST") ? "建议微调" : "调整余量受限"));
         } else {
             double absDiff = Math.abs(diff);
             if (absDiff <= tolerance) {
@@ -629,5 +991,16 @@ public class StaticFittingService {
             }
         }
         return metric;
+    }
+
+    private String formatMillimeter(Number value) {
+        if (value == null) {
+            return "暂无推荐";
+        }
+        double d = value.doubleValue();
+        if (Math.abs(d - Math.rint(d)) < 0.001) {
+            return (int) Math.rint(d) + "mm";
+        }
+        return String.format(Locale.US, "%.1fmm", d);
     }
 }

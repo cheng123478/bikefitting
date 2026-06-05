@@ -169,6 +169,13 @@ public class FittorDiagnosticsManager {
 
         // C. 手变头通用建议
         logic.append("\n").append(diagLib.getTemplate("module_3_upper_body", "hoods_angle", v));
+        if (res.getRiderTags() != null) {
+            if (res.getRiderTags().contains("腹部空间优化-增强")) {
+                logic.append("\n系统检测到较高腹部空间需求，已启用增强版腹部空间优化：在不重复叠加柔韧性补偿的前提下，进一步缩短前伸并抬高把位目标，优先保留髋腹夹角与呼吸空间。");
+            } else if (res.getRiderTags().contains("腹部空间优化")) {
+                logic.append("\n系统检测到腹部空间需求，已启用腹部空间优化：在保留原有柔韧性模型的基础上，适度缩短前伸并降低把位落差，减少大腿顶腹、腹部压迫或深把位呼吸受限。");
+            }
+        }
 
         if (!logic.isEmpty()) {
             addDetail(res, "上肢座舱", "舒适度/落差", logic.toString());
@@ -188,9 +195,10 @@ public class FittorDiagnosticsManager {
 
         // 曲柄规格对比
         if (res.getRecCrankLength() != null) {
-            v.put("recValue", res.getRecCrankLength());
+            v.put("recValue", formatNumber(res.getRecCrankLength()));
             logic.append(diagLib.getTemplate("module_2_lower_body", "crank_logic", v));
-            if (setup != null && setup.getCrankLength() != null && !res.getRecCrankLength().equals(setup.getCrankLength())) {
+            if (setup != null && setup.getCrankLength() != null
+                    && Math.abs(res.getRecCrankLength().doubleValue() - setup.getCrankLength()) >= 1.0) {
                 logic.append("【注意】：您当前实车使用的是 ").append(setup.getCrankLength())
                         .append("mm 曲柄，建议在下次升级时考虑更换。");
             }
@@ -217,8 +225,8 @@ public class FittorDiagnosticsManager {
     }
 
     /**
-     * 实车调教方案 (现状对比)
-     * 依赖：recStemLength, setup
+     * 实车调教方案 (推荐处方，可附加现状对比)
+     * 依赖：recStemLength
      *
      * @param res      静态分析结果
      * @param setup    用户实车信息
@@ -228,7 +236,8 @@ public class FittorDiagnosticsManager {
             return;
 
         Map<String, Object> v = new HashMap<>();
-        v.put("recValue", res.getRecStemLength());
+        v.put("stemLengthText", res.getRecStemLength() + "mm");
+        v.put("spacerText", formatMillimeter(res.getRecSpacerHeight()));
 
         StringBuilder logic = new StringBuilder();
         logic.append(diagLib.getTemplate("module_6_equipment", "stem_logic", v));
@@ -247,7 +256,29 @@ public class FittorDiagnosticsManager {
 
         logic.append("\n").append(diagLib.getTemplate("module_7_summary", "adjusting_mode", v));
 
-        addDetail(res, "调教方案", "现状对比诊断", logic.toString());
+        addDetail(res, "调教方案", "推荐处方与现状对比", logic.toString());
+    }
+
+    private String formatMillimeter(Integer value) {
+        return value == null ? "暂无推荐" : value + "mm";
+    }
+
+    private String formatMillimeter(Double value) {
+        if (value == null) {
+            return "暂无推荐";
+        }
+        return formatNumber(value) + "mm";
+    }
+
+    private String formatNumber(Number value) {
+        if (value == null) {
+            return "暂无推荐";
+        }
+        double d = value.doubleValue();
+        if (Math.abs(d - Math.rint(d)) < 0.001) {
+            return String.valueOf((int) Math.rint(d));
+        }
+        return String.format(java.util.Locale.US, "%.1f", d);
     }
 
 

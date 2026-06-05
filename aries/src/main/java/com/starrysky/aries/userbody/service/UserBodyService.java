@@ -3,6 +3,8 @@ package com.starrysky.aries.userbody.service;
 import com.starrysky.aries.entity.User;
 import com.starrysky.aries.entity.UserBody;
 import com.starrysky.aries.exception.BizException;
+import com.starrysky.aries.staticfitting.service.FittingConstants;
+import com.starrysky.aries.staticfitting.service.StaticFittingCalculator;
 import com.starrysky.aries.user.repository.UserRepository;
 import com.starrysky.aries.user.service.UserService;
 import com.starrysky.aries.userbody.repository.UserBodyRepository;
@@ -165,6 +167,8 @@ public class UserBodyService {
             vo.setStabilityScore((int) Math.round(coreScore * 20));
         }
         // 3. 生成专家建议 (内部已做 null 判定)
+        vo.setBmi(StaticFittingCalculator.calculateBmi(userBody.getHeight(), userBody.getWeightKg()));
+        vo.setWaistToHeightRatio(StaticFittingCalculator.calculateWaistToHeightRatio(userBody.getHeight(), userBody.getWaistCircumference()));
         generateExpertPrescription(vo, userBody);
         // 4. 基础器材建议 (基于跨高、柔韧性、核心稳定性等综合计算)
         if (userBody.getSpanHeight() != null && userBody.getSpanHeight() > 0) {
@@ -278,8 +282,30 @@ public class UserBodyService {
         }
 
         // --- 2. 基础逻辑与单位校验 ---
-        if (dto.getHeight() < 500) {
-            throw new BizException(500, "数值异常：身高数据过小，请确保单位为[毫米(mm)]。");
+        validateIntegerRange("身高", dto.getHeight(), 1200, 2200, "mm");
+        validateDoubleRange("体重", dto.getWeightKg(), 30.0, 250.0, "kg");
+        validateIntegerRange("跨高", dto.getSpanHeight(), 600, 1100, "mm");
+        validateIntegerRange("腰围", dto.getWaistCircumference(), 400, 1800, "mm");
+        validateIntegerRange("胸高", dto.getBreastHeight(), 900, 1800, "mm");
+        validateIntegerRange("肩宽", dto.getShoulderWidth(), 200, 600, "mm");
+        validateIntegerRange("坐骨间距", dto.getIschialDistance(), 50, 200, "mm");
+        validateIntegerRange("大臂长", dto.getLongArmLength(), 180, 500, "mm");
+        validateIntegerRange("小臂长", dto.getShortArmLength(), 160, 450, "mm");
+        validateIntegerRange("大腿长", dto.getThighLength(), 250, 650, "mm");
+        validateIntegerRange("小腿长", dto.getCalfLength(), 250, 650, "mm");
+        validateIntegerRange("脚长", dto.getFootLength(), 180, 350, "mm");
+
+        if (dto.getLongArmLength() != null && dto.getShortArmLength() != null) {
+            double armRatio = (double) dto.getLongArmLength() / dto.getShortArmLength();
+            if (armRatio < 0.7 || armRatio > 1.5) {
+                throw new BizException(500, "比例异常：[大臂长] 与 [小臂长] 比例异常，请重新测量。");
+            }
+        }
+        if (dto.getThighLength() != null && dto.getCalfLength() != null) {
+            double legRatio = (double) dto.getThighLength() / dto.getCalfLength();
+            if (legRatio < 0.7 || legRatio > 1.5) {
+                throw new BizException(500, "比例异常：[大腿长] 与 [小腿长] 比例异常，请重新测量。");
+            }
         }
         
         // 只有当跨高存在时才进行跨高相关校验
@@ -297,18 +323,10 @@ public class UserBodyService {
         }
 
         // 躯干长度校验
-        if (dto.getBreastHeight() != null) {
+        if (dto.getBreastHeight() != null && dto.getSpanHeight() != null) {
             if (dto.getBreastHeight() <= dto.getSpanHeight()) {
                 throw new BizException(500, "逻辑错误：[胸高] 必须大于 [跨高]，否则无法计算躯干长度。");
             }
-        }
-
-        // 肩宽与坐骨校验
-        if (dto.getShoulderWidth() != null && (dto.getShoulderWidth() < 200 || dto.getShoulderWidth() > 600)) {
-            throw new BizException(500, "数值异常：[肩宽] 填写错误（建议范围 200-600mm）。");
-        }
-        if (dto.getIschialDistance() != null && (dto.getIschialDistance() < 50 || dto.getIschialDistance() > 200)) {
-            throw new BizException(500, "数值异常：[坐骨间距] 填写错误（建议范围 50-200mm）。");
         }
 
         // --- 4. 灵活性数据范围校验 (防止异常输入) ---
@@ -336,125 +354,186 @@ public class UserBodyService {
         log.debug("用户 {} 的生物力学数据通过高阶常模校验。", dto.getUserId());
     }
 
+    private void validateIntegerRange(String label, Integer value, int min, int max, String unit) {
+        if (value != null && (value < min || value > max)) {
+            throw new BizException(500, String.format("数值异常：[%s] 请确认单位为 %s，正常范围 %d-%d%s。", label, unit, min, max, unit));
+        }
+    }
+
+    private void validateDoubleRange(String label, Double value, double min, double max, String unit) {
+        if (value != null && (value < min || value > max)) {
+            throw new BizException(500, String.format("数值异常：[%s] 请确认单位为 %s，正常范围 %.0f-%.0f%s。", label, unit, min, max, unit));
+        }
+    }
+
     private void generateExpertPrescription(UserBodyVO vo, UserBody entity) {
         List<String> tags = new ArrayList<>();
         List<String> findings = new ArrayList<>();
         List<String> advice = new ArrayList<>();
+        List<String> priorities = new ArrayList<>();
 
-        // 1. 性别特征分析
+        // BMI 与腰高比只作为筛查和空间判断线索，结论必须回到骑行姿态耐受，而不是健康诊断。
         if (vo.getGender() != null) {
             if (vo.getGender() == 2) {
-                tags.add("女性骑行者");
-                findings.add("骨盆结构相对更宽，耻骨角度更大，骑行时骨盆前倾角度更明显");
-                advice.add("建议优先选择女性专用坐垫（短鼻头或中空设计），以减少会阴压迫，同时适当关注坐垫宽度匹配");
+                addUnique(tags, "女性骑行者");
             } else if (vo.getGender() == 1) {
-                tags.add("男性骑行者");
+                addUnique(tags, "男性骑行者");
             }
         }
 
-        // 2. 年龄段分析
         if (vo.getAge() != null) {
             if (vo.getAge() < 25) {
-                tags.add("高适应潜力");
-                findings.add("肌肉与关节适应能力强，对骑行姿态变化的耐受度较高");
-                advice.add("在保证舒适性的前提下，可逐步尝试更低的把位和更大的落差，以提升气动表现");
+                addUnique(tags, "高适应潜力");
             } else if (vo.getAge() > 45) {
-                tags.add("稳定优先");
-                findings.add("随着年龄增长，关节活动度与恢复能力下降，脊柱与腰背部代偿风险增加");
-                advice.add("建议适当提高车头高度，减少过度前倾姿态，同时加强核心稳定性训练以保护腰背");
+                addUnique(tags, "稳定优先");
+                addUnique(priorities, "恢复与活动度维护");
+                addUnique(advice, "恢复与活动度维护：训练日之间保留恢复窗口；每周安排 2-3 次低强度力量或活动度练习，重点照顾髋、胸椎、肩颈和腰背。");
             }
         }
 
-        // 3. 猿臂比分析
+        boolean hasAbdominalNeed = StaticFittingCalculator.hasAbdominalClearanceNeed(vo.getBmi(), vo.getWaistToHeightRatio());
+        boolean hasSevereAbdominalNeed = StaticFittingCalculator.isSevereAbdominalClearanceNeed(vo.getWaistToHeightRatio());
+        if (hasSevereAbdominalNeed) {
+            addUnique(tags, "腹部空间高优先级");
+            addUnique(priorities, "体重与腰围管理");
+            addUnique(findings, String.format("体重与腰围方面：你的腰高比约为 %.2f，提示腹部空间需要优先关注；这不等于健康诊断，但会影响前倾时的呼吸和髋腹活动余量。", vo.getWaistToHeightRatio()));
+            addUnique(advice, buildWeightManagementAdvice());
+        } else if (hasAbdominalNeed) {
+            addUnique(tags, "腹部空间需预留");
+            addUnique(priorities, "体重与腰围管理");
+            addUnique(findings, String.format("体重与腰围方面：你的 BMI 约为 %.1f，腰高比约为 %.2f，两项一起提示腹部空间和呼吸舒适度需要关注。", vo.getBmi(), vo.getWaistToHeightRatio()));
+            addUnique(advice, buildWeightManagementAdvice());
+        } else if (vo.getBmi() != null && vo.getWaistToHeightRatio() == null
+                && vo.getBmi() >= FittingConstants.BMI_OBESITY_THRESHOLD) {
+            addUnique(tags, "腹部空间待确认");
+            addUnique(priorities, "体重与腰围管理");
+            addUnique(findings, String.format("体重与腰围方面：你的 BMI 约为 %.1f，但 BMI 不能区分肌肉量和脂肪分布；缺少腰围时，只能先把腹部空间列为待确认。", vo.getBmi()));
+            addUnique(advice, buildWeightManagementAdvice());
+            addUnique(advice, "记录建议：补录腰围，并每 2-4 周固定同一时间记录体重和腰围趋势，比单次体重更有参考价值。");
+        } else if (vo.getBmi() != null && vo.getBmi() >= 25.0 && vo.getWaistToHeightRatio() == null) {
+            addUnique(tags, "腰围待补录");
+            addUnique(priorities, "体重与腰围管理");
+            addUnique(findings, String.format("体重与腰围方面：你的 BMI 约为 %.1f，建议补录腰围辅助判断腹部空间；BMI 本身不用于评价骑行能力。", vo.getBmi()));
+            addUnique(advice, "轻量体重管理建议：减少含糖饮料和高频夜宵，维持规律骑行或快走；先追求稳定习惯，不追求短期大幅下降。");
+        }
+
         if (vo.getApeIndex() != null && vo.getApeIndex() > 1.04) {
-            tags.add("长臂优势");
-            findings.add("上肢长度相对较长，具备更好的前伸能力与气动姿态适应性");
-            advice.add("可以适当降低把位或增加前伸距离（Reach），在保证舒适的前提下优化空气动力学姿态");
+            addUnique(tags, "长臂优势");
         }
         if (vo.getApeIndex() != null && vo.getApeIndex() < 0.98) {
-            tags.add("前伸受限");
-            findings.add("上肢相对较短，前伸能力有限，过长的骑行姿态容易导致肩颈紧张");
-            advice.add("建议缩短把立长度或提高车头高度，避免过度前伸带来的上肢疲劳");
+            addUnique(priorities, "肩颈与肩胛控制");
+            addUnique(findings, String.format("上肢前伸方面：你的猿臂比约为 %.2f，上肢比例紧凑；系统已为你推荐更集中的座舱坐标，让肩膀自然承重、减少前倾压力。", vo.getApeIndex()));
+            addUnique(advice, "肩颈优化建议：做肩胛后缩下压、弹力带划船、墙天使和胸小肌放松，每周 2-3 次；目标是让肩膀放松承重，发挥紧凑比例的优势。");
         }
 
-        // 4. 股胫比分析
         if (vo.getFemurTibiaRatio() != null && vo.getFemurTibiaRatio() > 1.15) {
-            tags.add("长股骨特征");
-            findings.add("大腿长度占比高，下蹲与骑行时骨盆更容易后移，重心偏后");
-            advice.add("需要重点关注坐垫后移量（Setback）与高度匹配，避免踩踏时出现后坐或发力不顺");
+            addUnique(tags, "长股骨特征");
+            addUnique(priorities, "髋膝控制");
+            addUnique(findings, String.format("下肢发力方面：你的大腿/小腿比例约为 %.2f，大腿相对更长；发力时更需要稳定髋关节和膝盖轨迹。", vo.getFemurTibiaRatio()));
+            addUnique(advice, "髋膝控制建议：加入臀桥、分腿蹲、台阶下蹲和蚌式开合，每周 2-3 次；动作中注意膝盖对准脚尖，避免内扣。");
         }
         if (vo.getFemurTibiaRatio() != null && vo.getFemurTibiaRatio() < 0.9) {
-            tags.add("长小腿特征");
-            findings.add("小腿比例较高，踝关节参与踩踏的幅度更大");
-            advice.add("建议关注锁鞋位置与踩踏角度，避免踝关节过度参与导致疲劳");
+            addUnique(tags, "长小腿特征");
+            addUnique(priorities, "踝关节控制");
+            addUnique(findings, String.format("下肢发力方面：你的大腿/小腿比例约为 %.2f，小腿相对更长；踩踏中更容易用踝关节补偿。", vo.getFemurTibiaRatio()));
+            addUnique(advice, "踝关节控制建议：做提踵离心下降、胫骨前肌抬脚尖和小腿后侧拉伸，每周 2-3 次；目标是减少踩踏底部过度垫脚尖。");
         }
 
-        // 5. 柔韧性分析
+        boolean lowThoracicRotation = entity.getThoracicRotationAngle() != null && entity.getThoracicRotationAngle() < 40;
+        boolean lowShoulderFlexion = entity.getArmRaiseAngle() != null && entity.getArmRaiseAngle() < 150;
+        boolean hasPainRisk = entity.getThoracicPainLevel() != null && entity.getThoracicPainLevel() >= 3;
         if (vo.getFlexibilityScore() != null) {
-            if (vo.getFlexibilityScore() < 50) {
-                tags.add("柔韧性受限");
-                findings.add("髋部与后链肌群（如腘绳肌）活动受限，身体前倾能力不足");
-                advice.add("建议采用更保守的骑行姿态（较高车头），并优先进行后侧链拉伸训练");
-            } else if (vo.getFlexibilityScore() > 80) {
-                tags.add("柔韧性优秀");
-                findings.add("关节活动范围大，具备良好的前倾能力与姿态适应能力");
-                advice.add("可以尝试更低的把位与更大的落差，以提升骑行效率与气动表现");
+            if (vo.getFlexibilityScore() > 80) {
+                addUnique(tags, "柔韧性优秀");
             }
         }
-
-        // 6. 疼痛风险分析
-        if (entity.getThoracicPainLevel() != null && entity.getThoracicPainLevel() >= 3) {
-            tags.add("疼痛风险");
-            findings.add("在动作测试中出现明显不适或疼痛，提示当前身体状态可能存在功能性限制或潜在损伤风险");
-            advice.add("建议降低骑行姿态激进程度，避免大幅度前倾，同时优先进行恢复与评估训练");
+        if (lowThoracicRotation || lowShoulderFlexion || (vo.getFlexibilityScore() != null && vo.getFlexibilityScore() < 50)) {
+            addUnique(priorities, "柔韧性与活动度");
+            addUnique(findings, buildUpperBodyFinding(vo, entity, lowThoracicRotation, lowShoulderFlexion));
+            addUnique(advice, "柔韧性提升建议：重点拉伸腘绳肌、髋屈肌、臀肌和胸小肌，每个动作保持 20-30 秒、2-3 组，每周 3-5 次；循序渐进，享受过程。");
+            addUnique(advice, "胸椎与肩部活动建议：开书式、四点跪姿胸椎旋转、泡沫轴胸椎伸展、墙天使，每周 2-3 次；目标是前倾时肩颈放松、呼吸顺畅。");
+        }
+        if (hasPainRisk) {
+            addUnique(priorities, "先处理疼痛信号");
+            addUnique(findings, "疼痛与恢复方面：你在动作测试中出现中高等级不适，系统已为你调整至更温和的座舱坐标，优先保障恢复与舒适。");
+            addUnique(advice, "恢复建议：近期先降低训练刺激，避免硬拉伸和强行压低姿态；如果疼痛持续、放射或影响日常活动，建议找运动医学或康复专业人士评估。");
         }
 
-        // 7. 核心稳定性分析
-        if (entity.getSquatStabilityScore() != null) {
-            if (entity.getSquatStabilityScore() <= 2) {
-                tags.add("稳定性不足");
-                findings.add("下肢与核心控制能力较弱，下蹲过程中存在明显晃动或代偿");
-                advice.add("骑行中可能出现骨盆晃动，建议加强核心训练（如平板支撑、死虫训练）以提升稳定性");
-            }
-        }
-        if (entity.getPlankScore() != null && entity.getPlankScore() <= 2) {
-            tags.add("核心耐力不足");
-            findings.add("核心肌群耐力较弱，长时间骑行中难以维持稳定姿态");
-            advice.add("建议增加核心耐力训练（如平板支撑、侧桥），提升长时间骑行稳定性");
+        boolean lowSquat = entity.getSquatStabilityScore() != null && entity.getSquatStabilityScore() <= 2;
+        boolean lowPlank = entity.getPlankScore() != null && entity.getPlankScore() <= 2;
+        if (lowSquat || lowPlank || (vo.getStabilityScore() != null && vo.getStabilityScore() < 50)) {
+            addUnique(priorities, "长时间姿态稳定");
+            addUnique(findings, buildCoreFinding(vo, entity));
+            addUnique(advice, "核心抗旋转与骨盆控制：死虫、鸟狗、侧桥，每周 2-3 次。");
+            addUnique(advice, "核心耐力培养：平板支撑、侧桥、臀桥，从短组多次开始；先保证腰椎不塌、骨盆稳定，再逐步延长时间。");
         }
 
-        // 8. 肩部活动度分析
-        if (entity.getArmRaiseAngle() != null && entity.getArmRaiseAngle() < 150) {
-            tags.add("肩部活动受限");
-            findings.add("肩关节活动范围不足，上肢前伸时容易产生紧张或代偿");
-            advice.add("建议提高车头高度或缩短前伸距离，同时增加肩部活动度训练");
+        if (vo.getApeIndex() == null) {
+            addUnique(advice, "补录肩宽、大臂长和小臂长后，可进一步判断 Reach 是否需要偏短或偏长。");
+        }
+        if (vo.getFemurTibiaRatio() == null) {
+            addUnique(advice, "补录大腿长和小腿长后，可进一步复核座垫前后位置与锁片设定。");
         }
 
-        // 9. 躯干灵活性分析
-        if (entity.getThoracicRotationAngle() != null && entity.getThoracicRotationAngle() < 40) {
-            tags.add("躯干灵活性不足");
-            findings.add("胸椎旋转能力不足，影响骑行中的身体协调与姿态调整");
-            advice.add("建议增加躯干旋转训练，以提升骑行中的灵活性与舒适性");
-        }
+        String summary = buildUserCenteredSummary(findings, priorities);
 
-        // 10. 生成总结文案（基于已生成的tags）
-        String summary = "根据您的身体测量与功能评估结果，";
-        if (tags.contains("柔韧性受限")) {
-            summary += "当前柔韧性存在一定限制，";
-        }
-        if (tags.contains("核心稳定性不足") || tags.contains("核心耐力不足")) {
-            summary += "核心稳定性有待提升，";
-        }
-        if (tags.contains("疼痛风险")) {
-            summary += "并伴随一定的疼痛风险，";
-        }
-        summary += "建议在保证舒适与安全的前提下进行骑行姿态调整，并结合针对性训练逐步改善身体能力。";
-
-        // 11. 设置到VO中
         vo.setRiderTags(tags);
         vo.setSummary(summary);
         vo.setFindings(findings);
         vo.setAdvice(advice);
+    }
+
+    private String buildWeightManagementAdvice() {
+        return "体重与腰围建议：从可持续的小改动开始，减少含糖饮料和高频夜宵，保持规律骑行、快走或其他低冲击有氧；每周加入 2 次基础力量训练，先看腰围和精神状态的趋势。";
+    }
+
+    private String buildUpperBodyFinding(UserBodyVO vo, UserBody entity, boolean lowThoracicRotation, boolean lowShoulderFlexion) {
+        List<String> signals = new ArrayList<>();
+        if (vo.getFlexibilityScore() != null) {
+            signals.add("柔韧性评分 " + vo.getFlexibilityScore() + " 分");
+        }
+        if (lowThoracicRotation) {
+            signals.add("胸椎旋转 " + entity.getThoracicRotationAngle() + "°");
+        }
+        if (lowShoulderFlexion) {
+            signals.add("举臂角度 " + entity.getArmRaiseAngle() + "°");
+        }
+        String signalText = signals.isEmpty() ? "上身活动度数据" : String.join("、", signals);
+        return "柔韧性与活动度方面：你的" + signalText + "提示系统已为你推荐更舒适的座舱坐标；通过规律拉伸，肩颈和腰背会更加放松。";
+    }
+
+    private String buildCoreFinding(UserBodyVO vo, UserBody entity) {
+        List<String> signals = new ArrayList<>();
+        if (vo.getStabilityScore() != null) {
+            signals.add("稳定性评分 " + vo.getStabilityScore() + " 分");
+        }
+        if (entity.getSquatStabilityScore() != null && entity.getSquatStabilityScore() <= 2) {
+            signals.add("深蹲稳定性偏低");
+        }
+        if (entity.getPlankScore() != null && entity.getPlankScore() <= 2) {
+            signals.add("平板支撑耐力偏低");
+        }
+        String signalText = signals.isEmpty() ? "核心稳定性数据" : String.join("、", signals);
+        return "核心稳定性方面：你的" + signalText + "提示通过规律训练，核心对长时间骑行的支撑会逐步增强；系统已为你推荐更友好的座舱坐标。";
+    }
+
+    private String buildUserCenteredSummary(List<String> findings, List<String> priorities) {
+        if (findings.isEmpty()) {
+            return "从你已录入的数据看，目前没有明显高优先级的身体限制信号。后续建议以可持续输出为基准，结合真实骑行中的手麻、肩颈、腰背、膝盖和呼吸反馈做小幅微调。";
+        }
+        if (priorities.isEmpty()) {
+            return "从你的数据看，本次需要关注的不是单一尺寸，而是多个身体信号叠加后的姿态耐受。建议先看下方方面，再按补弱建议逐项改善。";
+        }
+        int limit = Math.min(3, priorities.size());
+        String priorityText = String.join("、", priorities.subList(0, limit));
+        return "从你的数据看，当前优先关注方面是：" + priorityText + "。先把身体本身的活动度、稳定性和恢复能力补起来，再谈更激进的车上姿态，会更稳也更可持续。";
+    }
+
+    private void addUnique(List<String> values, String value) {
+        if (value == null || value.isBlank() || values.contains(value)) {
+            return;
+        }
+        values.add(value);
     }
 
     private UserBody mapToEntity(UserBodyDTO d) {
@@ -475,6 +554,8 @@ public class UserBodyService {
         e.setSquatStabilityScore(d.getSquatStabilityScore());
         e.setPlankScore(d.getPlankScore());
         e.setFootLength(d.getFootLength());
+        e.setWeightKg(d.getWeightKg());
+        e.setWaistCircumference(d.getWaistCircumference());
         return e;
     }
 
@@ -491,6 +572,8 @@ public class UserBodyService {
         v.setCalfLength(e.getCalfLength());
         v.setIschialDistance(e.getIschialDistance());
         v.setFootLength(e.getFootLength());
+        v.setWeightKg(e.getWeightKg());
+        v.setWaistCircumference(e.getWaistCircumference());
         v.setArmRaiseAngle(e.getArmRaiseAngle());
         v.setThoracicRotationAngle(e.getThoracicRotationAngle());
         v.setThoracicPainLevel(e.getThoracicPainLevel());

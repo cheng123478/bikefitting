@@ -119,6 +119,7 @@ const radarDimensions = computed(() => {
   const detailsStr = JSON.stringify(details);
   const tagsStr = JSON.stringify(res.riderTags || []);
   const painCount = res.painLabels?.length || 0;
+  const hasAbdominalProtocol = tagsStr.includes('腹部空间优化');
 
   // 1. 柔韧素质
   const flex = res.thoracicScore || 80;
@@ -146,12 +147,18 @@ const radarDimensions = computed(() => {
     equipFit -= 15;
   }
 
+  let clearance = hasAbdominalProtocol ? 92 : 76;
+  if (tagsStr.includes('腹部空间待确认')) {
+    clearance = 62;
+  }
+
   return {
     flexibility: flex,
     core: core,
     painResistance: painResist,
     legLeverage: legLeverage,
-    equipmentFit: equipFit
+    equipmentFit: equipFit,
+    clearance
   };
 });
 
@@ -166,15 +173,43 @@ const riderTitle = computed(() => {
   if (d.painResistance > max) { max = d.painResistance; title = '[无伤行者]'; }
   if (d.legLeverage > max) { max = d.legLeverage; title = '[功率机器]'; }
   if (d.equipmentFit > max) { max = d.equipmentFit; title = '[原车绝配]'; }
+  if (d.clearance > max) { max = d.clearance; title = '[空间优化型]'; }
   
   return title;
 });
 
 const calculatedScore = computed(() => {
-  return safeResult.value.matchScore || safeResult.value.thoracicScore || 85;
+  // 基于雷达维度的加权平均值计算综合适配评估分数
+  const d = radarDimensions.value;
+  const weights = {
+    flexibility: 0.20,    // 柔韧素质
+    core: 0.20,           // 核心力量
+    painResistance: 0.25, // 抗伤痛指数
+    legLeverage: 0.15,    // 下肢杠杆
+    clearance: 0.20       // 空间余量
+  };
+  
+  const weightedSum = 
+    d.flexibility * weights.flexibility +
+    d.core * weights.core +
+    d.painResistance * weights.painResistance +
+    d.legLeverage * weights.legLeverage +
+    d.clearance * weights.clearance;
+  
+  return Math.round(weightedSum);
 });
 
 const diagnosisText = computed(() => {
+  const tags = safeResult.value.riderTags || [];
+  if (tags.includes('腹部空间优化-增强')) {
+    return '本次方案识别到较高腹前空间需求，已缩短 Reach+ 并抬高把位目标，让躯干前倾时保留更多呼吸与髋部活动空间。';
+  }
+  if (tags.includes('腹部空间优化')) {
+    return '本次方案已纳入腹部空间协议，适度减少前伸与落差，用更保守的座舱坐标提升长时间骑行舒适度。';
+  }
+  if (tags.includes('腹部空间待确认')) {
+    return '体重指标提示可能存在腹前空间需求，但腰围未填写；本次海报保留常规静态 fitting 结果，建议补录腰围后复算。';
+  }
   const details = safeResult.value.details || [];
   const painDetail = details.find(d => 
     d.bodyFeature && (d.bodyFeature.includes('痛') || d.bodyFeature.includes('酸') || d.bodyFeature.includes('麻'))
@@ -192,6 +227,11 @@ const prescriptionText = computed(() => {
   
   if (res.recSeatHeight) { fields.push('座高'); if(!previewItem) previewItem = `建议座高调整至 ${res.recSeatHeight}mm`; }
   if (res.recSetback) { fields.push('座垫位置'); if(!previewItem) previewItem = `建议座垫后移 ${res.recSetback}mm`; }
+  if ((res.riderTags || []).some(t => t.includes('腹部空间优化'))) {
+    if (res.recReachPlus && res.recHandlebarDrop != null) {
+      previewItem = `腹部空间协议已介入：Reach+ ${res.recReachPlus}mm，落差 ${res.recHandlebarDrop}mm`;
+    }
+  }
   if (res.recReachPlus) { fields.push('前伸量'); if(!previewItem) previewItem = `建议前伸量(Reach+)调整至 ${res.recReachPlus}mm`; }
   if (res.recHandlebarDrop) { fields.push('落差'); if(!previewItem) previewItem = `建议车把落差调整为 ${res.recHandlebarDrop}mm`; }
   if (res.recStemLength) { fields.push('把立'); }
@@ -250,7 +290,7 @@ const initChart = () => {
         { name: '核心支撑', max: 100 },
         { name: '抗伤痛值', max: 100 },
         { name: '下肢杠杆', max: 100 },
-        { name: '器材适配', max: 100 }
+        { name: '空间余量', max: 100 }
       ],
       shape: 'polygon',
       center: ['50%', '50%'],
@@ -279,7 +319,7 @@ const initChart = () => {
         type: 'radar',
         data: [
           {
-            value: [d.flexibility, d.core, d.painResistance, d.legLeverage, d.equipmentFit],
+            value: [d.flexibility, d.core, d.painResistance, d.legLeverage, d.clearance],
             name: '能力分布',
             itemStyle: {
               color: themeColor

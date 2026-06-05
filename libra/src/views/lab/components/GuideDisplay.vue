@@ -62,11 +62,25 @@ const guides = {
   // ========================================
   // 步骤1：个人及躯干基准
   // ========================================
-  step1_default: {
+  body_base: {
     title: '个人及躯干基准',
-    desc: '这些数据决定了您的整体车架尺码区间。请根据指引依次完成测量。',
+    desc: '体重、身高与跨高是静态 fitting 的基础输入；腰围等补充数据可帮助判断腹部空间和上身舒适度。',
     image: '/image/fitting/Trunk.png',
     tips: []
+  },
+  step1_default: {
+    title: '个人及躯干基准',
+    desc: '体重、身高与跨高是静态 fitting 的基础输入；腰围等补充数据可帮助判断腹部空间和上身舒适度。',
+    image: '/image/fitting/Trunk.png',
+    tips: []
+  },
+  weight: {
+    title: '体重 / Weight',
+    desc: '体重用于基础数据完整性校验，并结合身高计算 BMI，辅助判断骑行姿态是否需要预留更多腹部与呼吸空间。',
+    image: '/image/fitting/Trunk.png',
+    tips: [
+      { label: '测量建议', content: '建议在同一时间段、穿着轻便衣物测量，输入单位为 kg。' }
+    ]
   },
   height: {
     title: '身高 / Height',
@@ -86,6 +100,14 @@ const guides = {
       { label: '测量姿势', content: '将硬质书本置于两腿之间，书脊朝上，缓慢向上顶至裆部，施加适度压力（模拟骑行坐垫承重）。' },
       { label: '测量过程', content: '保持书本上边缘水平，用卷尺测量地面至书本上边缘的垂直距离。' },
       { label: '注意事项', content: '必须施加足够压力，否则数据偏小\n书本必须保持水平，否则误差可达 1–2 cm\n建议重复测量 2–3 次取平均值' }
+    ]
+  },
+  waist: {
+    title: '腰围 / Waist Circumference',
+    desc: '腰围为选填项；填写后可结合身高计算腰高比，帮助静态 fitting 更谨慎地评估腹部空间、车把落差和前伸量。',
+    image: '/image/fitting/waist.png',
+    tips: [
+      { label: '测量位置', content: '自然站立并正常呼气后，围绕腰部最窄处或肚脐附近水平测量，软尺不要勒紧。' }
     ]
   },
   breastHeight: {

@@ -95,23 +95,23 @@
                   </div>
                 </div>
 
-                <!-- 2. 关键问题 -->
+                <!-- 2. 待关注方面 -->
                 <div class="evaluation-block findings-block" v-if="profile.findings && profile.findings.length > 0">
                   <h5 class="block-title">
-                    <i class="fas fa-exclamation-triangle"></i> 关键问题
+                    <i class="fas fa-exclamation-triangle"></i> 待关注方面
                   </h5>
                   <ul class="findings-list">
                     <li v-for="(finding, index) in profile.findings" :key="index" class="finding-item">
-                      <i class="fas fa-times-circle"></i>
+                      <i class="fas fa-circle-info"></i>
                       <span>{{ finding }}</span>
                     </li>
                   </ul>
                 </div>
 
-                <!-- 3. Fitter 建议 -->
+                <!-- 3. 补弱建议 -->
                 <div class="evaluation-block advice-block" v-if="profile.advice && profile.advice.length > 0">
                   <h5 class="block-title">
-                    <i class="fas fa-lightbulb"></i> Fitter 建议
+                    <i class="fas fa-lightbulb"></i> 补弱建议
                   </h5>
                   <ul class="advice-list">
                     <li v-for="(item, index) in profile.advice" :key="index" class="advice-item">

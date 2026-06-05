@@ -25,8 +25,19 @@
         <div class="simple-modal-body">
           <!-- 步骤0：填写身体信息（仅当需要时显示） -->
           <div v-if="recommendStep === 0">
-            <p class="body-info-intro">为了给您更精准的单车推荐，请先填写身高信息：</p>
+            <p class="body-info-intro">为了给您更精准的单车推荐，请先完善基础身体档案：</p>
             <div class="body-info-form">
+              <div class="body-input-wrapper">
+                <label>体重 (kg)</label>
+                <input
+                  type="number"
+                  v-model="userWeight"
+                  class="body-input"
+                  placeholder="请输入体重"
+                  min="30"
+                  max="250"
+                />
+              </div>
               <div class="body-input-wrapper">
                 <label>身高 (mm)</label>
                 <input
@@ -34,8 +45,19 @@
                   v-model="userHeight"
                   class="body-input"
                   placeholder="请输入身高"
-                  min="1000"
-                  max="2500"
+                  min="1200"
+                  max="2200"
+                />
+              </div>
+              <div class="body-input-wrapper">
+                <label>跨高 (mm)</label>
+                <input
+                  type="number"
+                  v-model="userInseam"
+                  class="body-input"
+                  placeholder="请输入跨高"
+                  min="600"
+                  max="1100"
                 />
               </div>
             </div>
@@ -430,6 +452,7 @@ const recommendMinPrice = ref(null);
 const recommendMaxPrice = ref(null);
 const recommendResults = ref([]);
 const recommendLoading = ref(false);
+const userWeight = ref('');
 const userHeight = ref('');
 const userInseam = ref('');
 const userBodyInfo = ref(null); // 存储从后端获取的用户身体信息
@@ -464,10 +487,58 @@ const getStepNumber = (index) => {
   return index + 1; // 1, 2, 3
 };
 
-// 身体信息是否有效（单位：毫米）- 现在只检查身高
+const hasBodyValue = (value) => value !== null && value !== undefined && value !== '';
+
+const normalizeBodyResponse = (response) => response?.data || response || null;
+
+const applyLatestBodyInfo = (bodyInfo) => {
+  userBodyInfo.value = bodyInfo;
+  if (!bodyInfo) return false;
+
+  if (hasBodyValue(bodyInfo.weightKg)) {
+    userWeight.value = bodyInfo.weightKg.toString();
+  }
+  if (hasBodyValue(bodyInfo.height)) {
+    userHeight.value = bodyInfo.height.toString();
+  }
+  if (hasBodyValue(bodyInfo.spanHeight)) {
+    userInseam.value = bodyInfo.spanHeight.toString();
+  }
+
+  return hasBodyValue(bodyInfo.weightKg) && hasBodyValue(bodyInfo.height) && hasBodyValue(bodyInfo.spanHeight);
+};
+
+const loadLatestBodyInfo = async () => {
+  const response = await getLatestUserBody();
+  return applyLatestBodyInfo(normalizeBodyResponse(response));
+};
+
+const getBodyInfoValues = () => ({
+  weightKg: Number(userWeight.value),
+  height: Number(userHeight.value),
+  spanHeight: Number(userInseam.value)
+});
+
+const getBodyInfoWarning = () => {
+  const { weightKg, height, spanHeight } = getBodyInfoValues();
+  if (!Number.isFinite(weightKg) || weightKg < 30 || weightKg > 250) {
+    return '请填写有效的体重信息，单位为 kg，正常范围 30-250kg。';
+  }
+  if (!Number.isFinite(height) || height < 1200 || height > 2200) {
+    return '请填写有效的身高信息，单位为 mm，正常范围 1200-2200mm。';
+  }
+  if (!Number.isFinite(spanHeight) || spanHeight < 600 || spanHeight > 1100) {
+    return '请填写有效的跨高信息，单位为 mm，正常范围 600-1100mm。';
+  }
+  if (height <= spanHeight) {
+    return '跨高通常应小于身高，请重新核对两项数据。';
+  }
+  return '';
+};
+
+// 身体信息是否有效，保持和身体图谱基础档案校验一致
 const isBodyInfoValid = computed(() => {
-  const height = parseFloat(userHeight.value);
-  return !isNaN(height) && height >= 1000 && height <= 2500;
+  return getBodyInfoWarning() === '';
 });
 
 // 总页数
@@ -637,27 +708,17 @@ const handleSmartRecommend = async () => {
   recommendMinPrice.value = null;
   recommendMaxPrice.value = null;
   recommendResults.value = [];
+  userWeight.value = '';
   userHeight.value = '';
   userInseam.value = '';
   userBodyInfo.value = null;
   
-  // 判断是否需要填写身高跨高
+  // 判断是否需要填写体重、身高、跨高
   let needsBodyInfo = true;
   
   try {
-    // 从后端获取用户最新的身体信息
-    const response = await getLatestUserBody();
-    userBodyInfo.value = response;
-    
-    // 检查是否有身高和跨高数据（后端返回的字段名是 spanHeight）
-    if (response && response.height && response.spanHeight) {
-      // 有完整的身高和跨高信息，不需要填写
-      needsBodyInfo = false;
-    } else if (response && response.height) {
-      // 有身高但没有跨高，需要显示填写弹窗，并预填身高
-      needsBodyInfo = true;
-      userHeight.value = response.height.toString();
-    }
+    // 从后端获取用户最新的身体信息，并作为弹窗默认值
+    needsBodyInfo = !await loadLatestBodyInfo();
   } catch (error) {
     console.error('获取用户身体信息失败', error);
     // 获取失败时，需要用户填写
@@ -714,24 +775,31 @@ const goBackStep = () => {
 
 // 从身体信息步骤到场景选择步骤
 const goToSceneStep = async () => {
-  if (!isBodyInfoValid.value) {
-    showToast('请填写有效的身高信息', 'warning');
+  const warning = getBodyInfoWarning();
+  if (warning) {
+    showToast(warning, 'warning');
     return;
   }
 
-  // 如果用户已登录，保存身高信息到用户资料
+  const bodyValues = getBodyInfoValues();
+
+  // 保存与身体图谱一致的基础档案字段，后续默认值统一来自最新一次身体档案。
   if (userStore.isLoggedIn) {
     try {
-      // 调用API保存用户身体信息
-      await saveUserBody({
+      const response = await saveUserBody({
         userId: userStore.userInfo.id,
-        height: parseFloat(userHeight.value)
+        ...bodyValues
       });
-      // 更新本地用户信息
-      userStore.userInfo.height = userHeight.value;
+      userBodyInfo.value = normalizeBodyResponse(response) || { ...userBodyInfo.value, ...bodyValues };
+      userStore.setUserInfo({
+        ...userStore.userInfo,
+        weightKg: bodyValues.weightKg,
+        height: bodyValues.height,
+        spanHeight: bodyValues.spanHeight
+      });
     } catch (error) {
       console.error('保存身体信息失败', error);
-      // 即使保存失败也继续，因为本地已经记录了
+      userBodyInfo.value = { ...userBodyInfo.value, ...bodyValues };
     }
   }
 
@@ -747,7 +815,9 @@ const goToBodyProfile = () => {
     selectedScenes: selectedScenes.value,
     recommendMinPrice: recommendMinPrice.value,
     recommendMaxPrice: recommendMaxPrice.value,
-    userHeight: userHeight.value
+    userWeight: userWeight.value,
+    userHeight: userHeight.value,
+    userInseam: userInseam.value
   }));
   router.push('/lab/body');
 };
@@ -764,14 +834,14 @@ const confirmRecommend = async () => {
     };
     
     // 添加身高信息（优先使用用户填写的，其次使用从后端获取的）
-    if (userHeight.value) {
+    if (hasBodyValue(userHeight.value)) {
       requestData.height = parseInt(userHeight.value);
     } else if (userBodyInfo.value && userBodyInfo.value.height) {
       requestData.height = userBodyInfo.value.height;
     }
     
     // 添加跨高信息（如果用户填写了）
-    if (userInseam.value) {
+    if (hasBodyValue(userInseam.value)) {
       requestData.inseam = parseInt(userInseam.value);
     } else if (userBodyInfo.value && userBodyInfo.value.spanHeight) {
       requestData.inseam = userBodyInfo.value.spanHeight;
@@ -877,8 +947,22 @@ onMounted(() => {
       selectedScenes.value = state.selectedScenes || [];
       recommendMinPrice.value = state.recommendMinPrice;
       recommendMaxPrice.value = state.recommendMaxPrice;
+      userWeight.value = state.userWeight || '';
       userHeight.value = state.userHeight || '';
+      userInseam.value = state.userInseam || '';
       sessionStorage.removeItem('showroomRecommendModal');
+      if (showRecommendModal.value && userStore.isLoggedIn) {
+        loadLatestBodyInfo()
+          .then((hasCompleteBodyInfo) => {
+            needsBodyInfoStep.value = !hasCompleteBodyInfo;
+            if (hasCompleteBodyInfo && recommendStep.value === 0) {
+              recommendStep.value = 1;
+            }
+          })
+          .catch((error) => {
+            console.error('刷新最新身体档案失败', error);
+          });
+      }
     } catch (e) {
       console.error('恢复推荐弹窗状态失败', e);
     }

@@ -21,7 +21,7 @@ public class StaticFittingResultVO {
     // --- 核心展示参数 ---
     private Integer recSeatHeight;
     private Integer recSetback;
-    private Integer recCrankLength;
+    private Double recCrankLength;
     private Integer recReachPlus;
     private Integer recFrameStack;
     private Integer targetBarHeight;
