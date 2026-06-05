@@ -94,7 +94,7 @@
                 <p class="step-desc">这决定了您能耐受多大的落差（Drop）。</p>
                 <div class="input-grid">
                   <div class="zen-form-item" @click="setGuide('thoracic_rot')" :class="{'has-warning': stepValidationAttempted[3] && !hasInputValue(formData.thoracicRotationAngle)}">
-                    <label class="input-label">坐姿胸椎旋转 <span class="required-mark">*</span></label>
+                    <label class="input-label">坐姿胸椎旋转 *</label>
                     <div class="angle-selector">
                       <div class="angle-option" :class="{active: formData.thoracicRotationAngle === 85}" @click="formData.thoracicRotationAngle = 85">
                         <span class="angle-circle"></span>
@@ -116,7 +116,7 @@
                     <p v-if="stepValidationAttempted[3] && !hasInputValue(formData.thoracicRotationAngle)" class="field-warning">请选择坐姿胸椎旋转角度</p>
                   </div>
                   <div class="zen-form-item" @click="setGuide('arm_raise')" :class="{'has-warning': stepValidationAttempted[3] && !hasInputValue(formData.armRaiseAngle)}">
-                    <label class="input-label">举臂角度 <span class="required-mark">*</span></label>
+                    <label class="input-label">举臂角度 *</label>
                     <div class="angle-selector">
                       <div class="angle-option" :class="{active: formData.armRaiseAngle === 175}" @click="formData.armRaiseAngle = 175">
                         <span class="angle-circle"></span>
@@ -138,7 +138,7 @@
                     <p v-if="stepValidationAttempted[3] && !hasInputValue(formData.armRaiseAngle)" class="field-warning">请选择举臂角度</p>
                   </div>
                   <div class="zen-form-item" @click="setGuide('pain_level')" :class="{'has-warning': stepValidationAttempted[3] && !hasInputValue(formData.thoracicPainLevel)}">
-                    <label class="input-label">痛感等级 <span class="required-mark">*</span></label>
+                    <label class="input-label">痛感等级 *</label>
                     <div class="pain-selector">
                       <div class="pain-option" :class="{active: formData.thoracicPainLevel === 0}" @click="formData.thoracicPainLevel = 0">
                         <span class="pain-num">0</span>
@@ -183,7 +183,7 @@
                 <p class="step-desc">最后的评估项，帮助我们优化您的操控组件。</p>
                 <div class="input-grid">
                   <div class="zen-form-item" @click="setGuide('squat')" :class="{'has-warning': stepValidationAttempted[4] && !hasInputValue(formData.squatStabilityScore)}">
-                    <label class="input-label">深蹲稳定性评分 (1-5) <span class="required-mark">*</span></label>
+                    <label class="input-label">深蹲稳定性评分 (1-5) *</label>
                     <div class="squat-selector">
                       <div class="squat-option" :class="{active: formData.squatStabilityScore === 1}" @click="formData.squatStabilityScore = 1">
                         <span class="squat-num">1</span>
@@ -209,7 +209,7 @@
                     <p v-if="stepValidationAttempted[4] && !hasInputValue(formData.squatStabilityScore)" class="field-warning">请选择深蹲稳定性评分</p>
                   </div>
                   <div class="zen-form-item" @click="setGuide('plank')" :class="{'has-warning': stepValidationAttempted[4] && !hasInputValue(formData.plankScore)}">
-                    <label class="input-label">平板支撑评分 (1-5) <span class="required-mark">*</span></label>
+                    <label class="input-label">平板支撑评分 (1-5) *</label>
                     <div class="plank-selector">
                       <div class="plank-option" :class="{active: formData.plankScore === 1}" @click="formData.plankScore = 1">
                         <span class="plank-num">1</span>

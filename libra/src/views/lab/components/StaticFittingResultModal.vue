@@ -64,19 +64,19 @@
               <div class="lower-body-grid">
                 <div class="data-card">
                   <span class="l">建议座高</span>
-                  <span class="v">{{ result.recSeatHeight }}<small>mm</small></span>
+                  <span class="v" :class="{ 'unavailable-text': !result.recSeatHeight }">{{ formatMm(result.recSeatHeight) }}</span>
                 </div>
                 <div class="data-card">
                   <span class="l">座垫后移</span>
-                  <span class="v">{{ result.recSetback }}<small>mm</small></span>
+                  <span class="v" :class="{ 'unavailable-text': !result.recSetback }">{{ formatMm(result.recSetback) }}</span>
                 </div>
                 <div class="data-card">
                   <span class="l">曲柄长度</span>
-                  <span class="v">{{ result.recCrankLength }}<small>mm</small></span>
+                  <span class="v" :class="{ 'unavailable-text': !result.recCrankLength }">{{ formatMm(result.recCrankLength) }}</span>
                 </div>
                 <div class="data-card">
                   <span class="l">座垫推荐宽</span>
-                  <span class="v">{{ result.recSaddleWidth }}<small>mm</small></span>
+                  <span class="v" :class="{ 'unavailable-text': !result.recSaddleWidth }">{{ formatMm(result.recSaddleWidth) }}</span>
                 </div>
                 <div class="data-card wide">
                   <span class="l">
@@ -86,7 +86,7 @@
                       <span class="tooltip-text">该高度可通过调整垫圈高度与把立角度实现</span>
                     </span>
                   </span>
-                  <span class="v">{{ result.recFrameStack }}<small>mm</small></span>
+                  <span class="v" :class="{ 'unavailable-text': !result.recFrameStack }">{{ formatMm(result.recFrameStack) }}</span>
                 </div>
               </div>
             </div>
@@ -97,19 +97,19 @@
               <div class="lower-body-grid">
                 <div class="data-card">
                   <span class="l">车把高度</span>
-                  <span class="v">{{ result.targetBarHeight }}<small>mm</small></span>
+                  <span class="v" :class="{ 'unavailable-text': !result.targetBarHeight }">{{ formatMm(result.targetBarHeight) }}</span>
                 </div>
                 <div class="data-card">
                   <span class="l">车把落差</span>
-                  <span class="v">{{ result.recHandlebarDrop }}<small>mm</small></span>
+                  <span class="v" :class="{ 'unavailable-text': !result.recHandlebarDrop }">{{ formatMm(result.recHandlebarDrop) }}</span>
                 </div>
                 <div class="data-card">
                   <span class="l">垫圈高度</span>
-                  <span class="v">{{ formatRecommendedValue(result.recSpacerHeight) }}<small v-if="result.recSpacerHeight != null">mm</small></span>
+                  <span class="v" :class="{ 'unavailable-text': !result.recSpacerHeight }">{{ formatRecommendedValue(result.recSpacerHeight) }}</span>
                 </div>
                 <div class="data-card">
                   <span class="l">把立长度</span>
-                  <span class="v">{{ formatRecommendedValue(result.recStemLength) }}<small v-if="result.recStemLength != null">mm</small></span>
+                  <span class="v" :class="{ 'unavailable-text': !result.recStemLength }">{{ formatRecommendedValue(result.recStemLength) }}</span>
                 </div>
                 <div class="data-card wide">
                   <span class="l">
@@ -119,7 +119,7 @@
                       <span class="tooltip-text">该前伸可通过调整把立长度与座垫前后位置实现</span>
                     </span>
                   </span>
-                  <span class="v">{{ result.recReachPlus }}<small>mm</small></span>
+                  <span class="v" :class="{ 'unavailable-text': !result.recReachPlus }">{{ formatMm(result.recReachPlus) }}</span>
                 </div>
               </div>
             </div>
@@ -145,8 +145,8 @@
         <!-- 5. 底部操作区 -->
         <footer class="result-footer">
           <div class="footer-info">
-            <i class="fas fa-database"></i>
-            {{ PROJECT_CONFIG.MASCOT }} Engine Analysis Complete.
+            <i class="fas fa-info-circle"></i>
+            推荐数值为理论值，如有不适，请及时就医
           </div>
           <div class="footer-btns">
             <button class="btn-zen-text" @click="handleShare">
@@ -222,7 +222,8 @@ const confirmToReport = () => {
 };
 const goToBodyProfile = () => {
   close();
-  router.push('/lab/body');
+  // 直接跳转到第一页
+  router.push('/lab/body?step=1');
 };
 
 // 检查身体数据是否完整
@@ -233,6 +234,8 @@ const isBodyDataComplete = computed(() => {
   // 检查所有必填项
   return !!(
     // 步骤1必填
+    body.gender &&
+    body.birthday &&
     body.height &&
     body.spanHeight &&
     body.weightKg &&
@@ -297,7 +300,7 @@ const formatDate = (dateStr) => {
 };
 
 const formatRecommendedValue = (value) => {
-  return value === null || value === undefined || value === '' ? '暂无推荐' : value;
+  return value === null || value === undefined || value === '' ? '无法推荐' : value;
 };
 
 const asArray = (value) => Array.isArray(value) ? value : [];
@@ -313,7 +316,7 @@ const detailText = (details) => {
 };
 
 const formatMm = (value) => {
-  return value === null || value === undefined || value === '' ? '暂无推荐' : `${value}mm`;
+  return value === null || value === undefined || value === '' ? '无法推荐' : `${value}mm`;
 };
 
 const diagnosisCards = computed(() => {
@@ -644,7 +647,27 @@ const diagnosisCards = computed(() => {
   font-size: 0.85rem;
   font-weight: 600;
   cursor: pointer;
-  transition: all 0.3s ease;
+}
+
+/* 无法推荐文本样式 */
+.unavailable-text {
+  font-size: 0.85rem !important;
+  color: #B8B8B8 !important;
+  font-weight: 400 !important;
+  letter-spacing: 1px;
+  font-style: normal;
+  min-height: 1.5em;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-transform: none;
+}
+
+/* 宽版卡片中的无法推荐样式 */
+.data-card.wide .unavailable-text {
+  font-size: 1.1rem !important;
+  color: rgba(255,255,255,0.6) !important;
+  letter-spacing: 2px;
 }
 
 .btn-complete-data:hover {
@@ -690,8 +713,8 @@ const diagnosisCards = computed(() => {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 14px 10px;
-  min-height: 68px;
+  padding: 16px 10px;
+  height: 80px;
   border: 1px solid #E8E8E4;
   border-radius: 10px;
   background: #FFFFFF;
@@ -789,10 +812,19 @@ const diagnosisCards = computed(() => {
 .data-card.wide .v {
   font-size: 1.6rem;
   color: #FFFFFF;
+  display: inline-flex;
+  align-items: baseline;
+  line-height: 1;
 }
 
 .data-card.wide .v small {
-  color: rgba(255, 255, 255, 0.7);
+  color: rgba(255, 255, 255, 0.35);
+  font-size: 0.25rem;
+  margin-left: 2px;
+  font-weight: 300;
+  letter-spacing: 0.5px;
+  line-height: 1;
+  vertical-align: bottom;
 }
 
 .data-card.wide:hover {
@@ -818,13 +850,19 @@ const diagnosisCards = computed(() => {
   font-weight: bold;
   color: #333;
   font-family: var(--font-serif);
+  display: inline-flex;
+  align-items: baseline;
+  line-height: 1;
 }
 
 .data-card .v small {
-  font-size: 0.6rem;
-  color: #999;
+  font-size: 0.25rem;
+  color: #C8C8C0;
   margin-left: 2px;
-  font-weight: normal;
+  font-weight: 300;
+  letter-spacing: 0.5px;
+  line-height: 1;
+  vertical-align: bottom;
 }
 
 .group-label {
