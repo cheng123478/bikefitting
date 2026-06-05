@@ -994,9 +994,9 @@ onUnmounted(() => {
   aspect-ratio: 16 / 9;
   background: #000;
   border-radius: 20px;
-  overflow: hidden;
   box-shadow: 0 30px 60px rgba(0, 0, 0, 0.5);
   border: 1px solid rgba(255, 255, 255, 0.1);
+  transform: translateY(-25px);
 }
 
 .input-video-hidden {
@@ -1127,22 +1127,22 @@ onUnmounted(() => {
 .hud-metrics {
   position: absolute;
   right: 25px;
-  top: 25px;
+  top: -2px;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 8px;
   pointer-events: none;
-  width: 240px;
+  width: 220px;
 }
 
 .metric-card {
   background: rgba(15, 15, 12, 0.7);
   backdrop-filter: blur(12px);
-  padding: 12px 16px;
-  border-radius: 14px;
+  padding: 8px 10px;
+  border-radius: 10px;
   text-align: left;
   border: 1px solid rgba(255, 255, 255, 0.08);
-  border-left: 4px solid rgba(255, 255, 255, 0.2);
+  border-left: 3px solid rgba(255, 255, 255, 0.2);
   transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
   overflow: hidden;
 }
@@ -1160,17 +1160,17 @@ onUnmounted(() => {
 }
 
 .metric-card label {
-  font-size: 0.8rem;
+  font-size: 0.65rem;
   font-weight: 600;
   color: #5C6E58;
 }
 
 .target-tag {
-  font-size: 0.65rem;
+  font-size: 0.5rem;
   color: var(--accent-gold);
   background: rgba(212, 175, 55, 0.1);
-  padding: 2px 6px;
-  border-radius: 4px;
+  padding: 1px 3px;
+  border-radius: 3px;
   font-weight: 500;
 }
 
@@ -1182,7 +1182,7 @@ onUnmounted(() => {
 }
 
 .metric-card .val {
-  font-size: 1.8rem;
+  font-size: 1.2rem;
   font-family: 'Lato', sans-serif;
   font-weight: 900;
   color: #fff;
@@ -1216,7 +1216,7 @@ onUnmounted(() => {
 }
 
 .val-item .v {
-  font-size: 1.6rem;
+  font-size: 1.1rem;
   font-family: 'Lato', sans-serif;
   font-weight: 900;
   color: #fff;
@@ -1243,7 +1243,7 @@ onUnmounted(() => {
 
 .stage-controls {
   position: absolute;
-  bottom: 30px;
+  bottom: max(40px, env(safe-area-inset-bottom, 40px));
   left: 0;
   width: 100%;
   display: flex;
@@ -1255,7 +1255,7 @@ onUnmounted(() => {
 /* 自定义播放控制条 */
 .playback-controls {
   position: absolute;
-  bottom: 120px;
+  bottom: calc(max(40px, env(safe-area-inset-bottom, 40px)) + 85px);
   left: 50%;
   transform: translateX(-50%);
   width: 80%;
