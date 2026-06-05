@@ -148,7 +148,15 @@ public class DynamicFittingService {
                         String tag = snapEntry.getKey();
                         String base64 = snapEntry.getValue();
 
+                        // 过滤掉 null 或空字符串的 base64，避免保存无效记录
+                        if (!StringUtils.hasText(base64)) {
+                            continue;
+                        }
+
                         String imageUrl = uploadBase64Image(base64, userId, viewType, tag);
+                        if (!StringUtils.hasText(imageUrl)) {
+                            continue;
+                        }
 
                         DynamicFittingSnapshot snapshot = new DynamicFittingSnapshot();
                         snapshot.setSession(session);
@@ -275,9 +283,14 @@ public class DynamicFittingService {
             vo.setBikeId(session.getUserBike().getId());
             vo.setRemark(session.getUserBike().getRemark());
             // 重要：直接把名字带出去，这样前端历史记录列表就不用再查单车接口了
-            vo.setBikeName(
-                    session.getUserBike().getBikeModel() != null ? session.getUserBike().getBikeModel().getModel()
-                            : "未知车型");
+            try {
+                vo.setBikeName(
+                        session.getUserBike().getBikeModel() != null ? session.getUserBike().getBikeModel().getModel()
+                                : "未知车型");
+            } catch (Exception e) {
+                log.warn("获取会话 {} 关联的BikeModel失败, userBikeId={}", session.getId(), session.getUserBike().getId());
+                vo.setBikeName("未知车型");
+            }
         }
 
         // 处理关联的身体信息

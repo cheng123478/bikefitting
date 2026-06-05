@@ -49,9 +49,32 @@ export const useDynamicSessionStore = defineStore('dynamicSession', () => {
                 views: []
             };
 
-            if (sessionData.value.side) payload.views.push({ viewType: 'SIDE', ...sessionData.value.side });
-            if (sessionData.value.front) payload.views.push({ viewType: 'FRONT', ...sessionData.value.front });
-            if (sessionData.value.back) payload.views.push({ viewType: 'BACK', ...sessionData.value.back });
+            const cleanSnapshots = (snapshots) => {
+                if (!snapshots) return undefined;
+                const cleaned = {};
+                for (const [key, val] of Object.entries(snapshots)) {
+                    if (val && typeof val === 'string' && val.startsWith('data:')) {
+                        cleaned[key] = val;
+                    }
+                }
+                return Object.keys(cleaned).length > 0 ? cleaned : undefined;
+            };
+
+            if (sessionData.value.side) {
+                const view = { viewType: 'SIDE', ...sessionData.value.side };
+                view.snapshots = cleanSnapshots(view.snapshots);
+                payload.views.push(view);
+            }
+            if (sessionData.value.front) {
+                const view = { viewType: 'FRONT', ...sessionData.value.front };
+                view.snapshots = cleanSnapshots(view.snapshots);
+                payload.views.push(view);
+            }
+            if (sessionData.value.back) {
+                const view = { viewType: 'BACK', ...sessionData.value.back };
+                view.snapshots = cleanSnapshots(view.snapshots);
+                payload.views.push(view);
+            }
 
             console.log(payload);
             const res = await submitDynamicSession(payload);

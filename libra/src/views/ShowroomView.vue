@@ -128,8 +128,8 @@
                   <img :src="bike.imageUrl || bike.img" :alt="bike.model" class="result-img">
                   <div class="result-info">
                     <div class="result-brand">{{ bike.brandCn }} {{ bike.brand }}</div>
-                    <div class="result-model">{{ bike.model }} ({{ bike.size }})</div>
-                    <div class="result-price">¥{{ bike.price }}</div>
+                    <div class="result-model">{{ bike.model }}</div>
+                    <div class="result-price">{{ bike.price ? '¥' + bike.price : '暂无报价' }}</div>
                   </div>
                   <div class="result-score">
                     <div class="score-label">推荐分</div>
@@ -206,14 +206,10 @@
       <header class="showroom-intro" v-scroll-reveal>
         <div class="intro-left">
           <h1 class="showroom-title serif-title">单车展厅</h1>
-          <p class="page-subtitle">Aries 顶级单车几何数据库 & 选号中心</p>
+          <p class="page-subtitle">全览车型数据，一眼看透硬件实力</p>
         </div>
 
         <div class="header-right">
-          <div class="engine-status">
-            <span class="status-dot"></span>
-            <span class="status-text">Data: Real API</span>
-          </div>
           <div class="header-actions">
             <button 
               class="smart-recommend-btn" 
@@ -418,14 +414,15 @@
 
 <script setup>
 import { ref, onMounted, onUnmounted, computed } from 'vue';
-import { useRouter } from 'vue-router';
+import { useRouter, useRoute } from 'vue-router';
 import { useUserStore } from '@/stores/user';
-import { getShowroomBikes, recommendBikes, toggleFavorite, getUserFavorites, getFavoriteBikeDetails } from '@/api/bikeShowroom';
+import { getShowroomBikes, recommendBikes, toggleFavorite } from '@/api/bikeShowroom';
 import { saveUserBody, getLatestUserBody } from '@/api/userBody';
 import { showToast } from '@/utils/toast';
 import { getFavoriteList } from '@/api/favorite';
 
 const router = useRouter();
+const route = useRoute();
 const userStore = useUserStore();
 
 const brands = ref([]);
@@ -999,6 +996,11 @@ onMounted(() => {
   // 加载用户收藏列表
   loadUserFavorites();
 
+  // 检查是否从首页点击单车推荐跳转，如果是则自动打开智能推荐弹窗
+  if (route.query.recommend === '1') {
+    handleSmartRecommend();
+  }
+
   // 监听页面切换时的滚动事件
   window.addEventListener('beforeunload', saveScrollPosition);
 });
@@ -1073,7 +1075,8 @@ const fetchFavoriteBikes = async () => {
       brand: item.bikeModelBrand,
       brandCn: item.bikeModelBrandCn,
       model: item.bikeModelName,
-      imageUrl: item.bikeModelImg,
+      img: item.bikeModelImg,
+      desc: item.bikeModelDesc || '',
       bikeType: item.bikeModelType,
       price: item.bikeModelPrice
     }));

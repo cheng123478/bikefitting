@@ -347,7 +347,7 @@ const initReport = async () => {
         
         if ((snapshots && snapshots.length > 0) || (motion && motion.dataJson)) {
           activeViews.push(vt);
-          snapshotsMap.value[vt] = snapshots;
+          snapshotsMap.value[vt] = (snapshots || []).filter(s => s && s.url);
           if (motion && typeof motion.dataJson === 'string') {
              motion.parsedData = JSON.parse(motion.dataJson);
           }
@@ -380,7 +380,8 @@ const loadViewData = async (viewType) => {
       getMotionData(sessionId, viewType.toLowerCase())
     ]);
     
-    snapshotsMap.value[viewType] = snapRes.data || snapRes;
+    const snapshots = snapRes.data || snapRes;
+    snapshotsMap.value[viewType] = (snapshots || []).filter(s => s && s.url);
     
     let motionData = motionRes.data || motionRes;
     if (motionData && typeof motionData.dataJson === 'string') {

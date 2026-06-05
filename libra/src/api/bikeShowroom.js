@@ -59,33 +59,31 @@ export function recommendBikes(params) {
 
 /**
  * 切换单车收藏状态
+ * 首次调用会自动检查收藏状态并切换
  * @param {Long} bikeId 单车ID
+ * @returns {Promise<Boolean>} 返回当前是否已收藏
  */
-export function toggleFavorite(bikeId) {
-    return request({
-        url: `/bike-model/${bikeId}/favorite`,
-        method: 'post'
-    });
-}
-
-/**
- * 获取用户收藏的单车ID列表
- */
-export function getUserFavorites() {
-    return request({
-        url: '/bike-model/favorites',
+export async function toggleFavorite(bikeId) {
+    // 先检查是否已收藏
+    const statusRes = await request({
+        url: `/favorite/bike-model/${bikeId}/status`,
         method: 'get'
     });
-}
-
-/**
- * 获取用户收藏的车辆详情列表
- * @param {String} ids 车辆ID列表（逗号分隔）
- */
-export function getFavoriteBikeDetails(ids) {
-    return request({
-        url: '/bike-model/showroom/favorites',
-        method: 'get',
-        params: { ids }
-    });
+    const isFavorited = statusRes.data !== undefined ? statusRes.data : statusRes;
+    if (isFavorited) {
+        // 已收藏，取消收藏
+        await request({
+            url: `/favorite/bike-model/${bikeId}`,
+            method: 'delete'
+        });
+        return false;
+    } else {
+        // 未收藏，添加收藏
+        await request({
+            url: '/favorite/bike-model',
+            method: 'post',
+            data: { bikeModelId: bikeId }
+        });
+        return true;
+    }
 }

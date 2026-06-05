@@ -87,6 +87,9 @@ public class CosUtil {
      * @return 文件访问地址
      */
     public String upload(File file, String key) {
+        if (key.startsWith("/")) {
+            key = key.substring(1);
+        }
         PutObjectRequest request = new PutObjectRequest(bucket, key, file);
         return executeUpload(request, key);
     }
@@ -100,8 +103,27 @@ public class CosUtil {
      * @return 文件访问地址
      */
     public String upload(InputStream inputStream, long streamLength, String key) {
+        return upload(inputStream, streamLength, key, null);
+    }
+
+    /**
+     * 上传输入流（带 Content-Type）
+     *
+     * @param inputStream  文件输入流
+     * @param streamLength 文件长度
+     * @param key          对象在存储桶中的唯一标识
+     * @param contentType  文件 MIME 类型，如 image/jpeg
+     * @return 文件访问地址
+     */
+    public String upload(InputStream inputStream, long streamLength, String key, String contentType) {
+        if (key.startsWith("/")) {
+            key = key.substring(1);
+        }
         ObjectMetadata metadata = new ObjectMetadata();
         metadata.setContentLength(streamLength);
+        if (contentType != null && !contentType.isEmpty()) {
+            metadata.setContentType(contentType);
+        }
         PutObjectRequest request = new PutObjectRequest(bucket, key, inputStream, metadata);
         return executeUpload(request, key);
     }

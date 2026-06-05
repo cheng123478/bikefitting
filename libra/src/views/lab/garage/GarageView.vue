@@ -77,7 +77,7 @@
 
       <!-- 4. 底部说明 -->
       <footer class="garage-footer" v-scroll-reveal>
-        <p><i class="fas fa-info-circle"></i> 点击任意车辆名片，进入“数字化身”沉浸式调教展台。</p>
+        <p><i class="fas fa-info-circle"></i> 点击任意车辆名片，进入沉浸式校准界面。</p>
       </footer>
     </div>
 
@@ -175,7 +175,7 @@ onUnmounted(() => {
   document.body.style.overflow = '';
 });
 
-const handleAddNew = () => router.push('/showroom');
+const handleAddNew = () => router.push('/lab/garage/edit');
 const handleAddNewManual = () => router.push('/lab/garage/edit');
 
 /**

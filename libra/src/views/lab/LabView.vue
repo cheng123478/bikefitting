@@ -34,6 +34,7 @@
               <h4>身体图谱</h4>
               <template v-if="dashboardData.hasBodyProfile">
                 <p class="text-muted" style="font-size: 0.8rem">柔韧性评分: <strong class="score-val">{{ dashboardData.flexibilityScore || '--' }}</strong></p>
+                <p class="text-muted" style="font-size: 0.8rem">稳定性评分: <strong class="score-val">{{ dashboardData.stabilityScore || '--' }}</strong></p>
               </template>
               <template v-else>
                 <p class="pending-text" style="font-size: 0.8rem">尚未录入数据</p>

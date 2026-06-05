@@ -12,7 +12,10 @@
         <img :src="displayImageUrl" :alt="bikeName" class="bike-img" />
       </div>
 
-      <div class="bike-type-badge">{{ getBikeTypeName(bike.bikeType) }}</div>
+      <div class="bike-type-badge">
+        <i class="fas fa-bicycle"></i>
+        <span>{{ getBikeTypeName(bike.bikeType) }}</span>
+      </div>
 
       <!-- 缩小后的 STR 指示器 -->
       <div class="str-indicator" v-if="bike.frameStr">
@@ -80,7 +83,7 @@ const props = defineProps({
 
 const emit = defineEmits(['open-showcase', 'delete']);
 const handleShowcaseClick = () => {
-  emit('open-showcase', props.bike);
+  router.push({ path: '/lab/garage/edit', query: { id: props.bike.id } });
 };
 
 const defaultBikeImg = '/image/default-bike-card.png';
@@ -113,7 +116,7 @@ const handleQuickEdit = () => {
 };
 
 const goToReport = () => {
-  router.push({ path: '/lab/report', query: { bikeId: props.bike.id } });
+  router.push({ path: '/lab/archives' });
 };
 
 const handleDelete = () => {
@@ -182,8 +185,28 @@ const handleDelete = () => {
 .bike-type-badge {
   position: absolute; top: 10px; left: 10px;
   font-size: 0.7rem; font-weight: 800; color: white;
-  background: var(--text-main); padding: 3px 8px; border-radius: 4px;
+  background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-light, #6b8f5e) 100%);
+  padding: 4px 10px; border-radius: 20px;
   z-index: 2;
+  display: flex; align-items: center; gap: 5px;
+  box-shadow: 0 3px 12px rgba(92, 110, 88, 0.35);
+  transition: all 0.4s var(--ease-out-expo);
+  letter-spacing: 0.5px;
+  backdrop-filter: blur(4px);
+}
+
+.bike-type-badge i {
+  font-size: 0.65rem;
+  transition: transform 0.4s var(--ease-out-expo);
+}
+
+.bike-card:hover .bike-type-badge {
+  transform: scale(1.08) translateY(-1px);
+  box-shadow: 0 6px 20px rgba(92, 110, 88, 0.5);
+}
+
+.bike-card:hover .bike-type-badge i {
+  transform: rotate(-15deg) scale(1.2);
 }
 
 /* STR 指示器微调 */

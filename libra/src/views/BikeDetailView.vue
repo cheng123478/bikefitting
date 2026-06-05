@@ -22,6 +22,11 @@
             <span class="brand-tag">{{ bikeDetail.brand }}</span>
             <span v-if="getBikeTypeName(bikeDetail.bikeType)" class="type-tag">{{ getBikeTypeName(bikeDetail.bikeType) }}</span>
             <h1 class="bike-title serif-title">{{ bikeDetail.model }}</h1>
+            <button class="add-to-garage-btn" @click="handleAddToGarage" :disabled="isAddingToGarage">
+              <i v-if="!isAddingToGarage" class="fas fa-plus-circle"></i>
+              <i v-else class="fas fa-spinner fa-spin"></i>
+              {{ isAddingToGarage ? '录入中...' : '一键录入我的车库' }}
+            </button>
             <div class="bike-desc">
               <span v-for="(sentence, index) in splitByPunctuation(bikeDetail.desc)" :key="index">
                 {{ sentence }}<br><br>
@@ -35,7 +40,8 @@
           <!-- 价格信息 -->
           <div class="price-card glass-card" v-scroll-reveal.delay="100">
             <div class="price-label">官网建议零售价</div>
-            <div class="price-value">¥{{ bikeDetail.price }}</div>
+            <div class="price-value" v-if="bikeDetail.price">¥{{ bikeDetail.price }}</div>
+            <div class="price-value" v-else>暂无报价</div>
             <div class="price-note">价格仅供参考，实际价格请咨询经销商</div>
           </div>
 
@@ -106,15 +112,40 @@
         </main>
       </div>
     </div>
+
+    <!-- 录入成功弹窗 -->
+    <transition name="modal-fade">
+      <div v-if="showSuccessModal" class="success-modal-overlay" @click.self="showSuccessModal = false">
+        <div class="success-modal-card">
+          <div class="success-icon-wrapper">
+            <div class="success-icon-circle">
+              <i class="fas fa-check"></i>
+            </div>
+          </div>
+          <h2 class="success-modal-title">录入成功！</h2>
+          <p class="success-modal-desc">已将该车型及其几何数据同步至您的车库</p>
+          <div class="success-modal-actions">
+            <button class="btn-go-garage" @click="goToGarage">
+              <i class="fas fa-warehouse"></i> 前往车库查看
+            </button>
+            <button class="btn-later" @click="showSuccessModal = false">
+              稍后再说
+            </button>
+          </div>
+        </div>
+      </div>
+    </transition>
   </div>
 </template>
 
 <script setup>
 import { ref, onMounted, computed } from 'vue';
-import { useRoute } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
 import { getBikeDetail, getBikeByModel } from '@/api/bikeShowroom';
+import { saveUserBike } from '@/api/userBike.js';
 
 const route = useRoute();
+const router = useRouter();
 
 // 车型类型映射
 const bikeTypeMap = {
@@ -167,6 +198,10 @@ const fromRecommend = ref(false);
 // 推荐尺寸
 const recommendedSize = ref('');
 
+// 录入车库相关状态
+const isAddingToGarage = ref(false);
+const showSuccessModal = ref(false);
+
 // 获取所有尺寸列表（去重排序）
 const allSizes = computed(() => {
   const sizes = new Set();
@@ -206,6 +241,44 @@ const handleBack = () => {
     sessionStorage.setItem('recommendBack', 'true');
   }
   window.history.back();
+};
+
+// 一键录入我的车库
+const handleAddToGarage = async () => {
+  if (isAddingToGarage.value) return;
+  isAddingToGarage.value = true;
+  try {
+    const geo = currentGeometry.value;
+    await saveUserBike({
+      bikeModelId: geo.id,
+      brand: bikeDetail.value.brand,
+      model: bikeDetail.value.model,
+      size: geo.size || selectedSize.value || bikeDetail.value.size,
+      bikeType: parseInt(bikeDetail.value.bikeType) || undefined,
+      imageUrl: bikeDetail.value.img,
+      stack: geo.stack != null ? Number(geo.stack) : undefined,
+      reach: geo.reach != null ? Number(geo.reach) : undefined,
+      seatTubeAngle: geo.seatTubeAngle != null ? Number(geo.seatTubeAngle) : undefined,
+      headTubeAngle: geo.headTubeAngle != null ? Number(geo.headTubeAngle) : undefined,
+      bbDrop: geo.bbDrop != null ? Number(geo.bbDrop) : undefined,
+      wheelBase: geo.wheelBase != null ? Number(geo.wheelBase) : undefined,
+      standOverHeight: geo.standOverHeight != null ? Number(geo.standOverHeight) : undefined,
+    });
+    showSuccessModal.value = true;
+  } catch (err) {
+    console.error('录入车库失败', err);
+    // 使用动态导入避免循环依赖
+    const { showToast } = await import('@/utils/toast.js');
+    showToast('录入失败，请稍后重试', 'error');
+  } finally {
+    isAddingToGarage.value = false;
+  }
+};
+
+// 前往车库查看
+const goToGarage = () => {
+  showSuccessModal.value = false;
+  router.push('/lab/garage');
 };
 
 onMounted(async () => {
@@ -603,6 +676,169 @@ onMounted(async () => {
 }
 
 
+
+
+/* ==================== 一键录入车库按钮 ==================== */
+.add-to-garage-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
+  padding: 10px 22px;
+  background: var(--primary-color);
+  border: none;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #fff;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 8px rgba(92, 110, 88, 0.25);
+}
+
+.add-to-garage-btn:hover:not(:disabled) {
+  background: #4a5c48;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 16px rgba(92, 110, 88, 0.35);
+}
+
+.add-to-garage-btn:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.add-to-garage-btn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+/* ==================== 成功弹窗 ==================== */
+.success-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  background: rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+.success-modal-card {
+  background: #fff;
+  border-radius: 20px;
+  padding: 40px 36px 32px;
+  max-width: 400px;
+  width: 100%;
+  text-align: center;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.18);
+  animation: modal-pop-in 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.success-icon-wrapper {
+  margin-bottom: 16px;
+}
+
+.success-icon-circle {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--primary-color) 0%, #7a9a74 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto;
+  box-shadow: 0 6px 20px rgba(92, 110, 88, 0.35);
+}
+
+.success-icon-circle i {
+  font-size: 1.6rem;
+  color: #fff;
+}
+
+.success-modal-title {
+  font-family: var(--font-serif);
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--text-main);
+  margin: 0 0 8px 0;
+}
+
+.success-modal-desc {
+  font-size: 0.9rem;
+  color: var(--text-muted);
+  margin: 0 0 28px 0;
+  line-height: 1.5;
+}
+
+.success-modal-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.btn-go-garage {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  padding: 12px 0;
+  background: var(--primary-color);
+  border: none;
+  border-radius: 10px;
+  font-size: 1rem;
+  font-weight: 600;
+  color: #fff;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 8px rgba(92, 110, 88, 0.25);
+}
+
+.btn-go-garage:hover {
+  background: #4a5c48;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 16px rgba(92, 110, 88, 0.35);
+}
+
+.btn-later {
+  padding: 10px 0;
+  background: transparent;
+  border: none;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: color 0.2s;
+}
+
+.btn-later:hover {
+  color: var(--text-main);
+}
+
+/* 弹窗动画 */
+.modal-fade-enter-active {
+  transition: opacity 0.3s ease;
+}
+
+.modal-fade-leave-active {
+  transition: opacity 0.25s ease;
+}
+
+.modal-fade-enter-from,
+.modal-fade-leave-to {
+  opacity: 0;
+}
+
+@keyframes modal-pop-in {
+  0% {
+    opacity: 0;
+    transform: scale(0.85) translateY(20px);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
 
 @media (max-width: 900px) {
   .detail-content {

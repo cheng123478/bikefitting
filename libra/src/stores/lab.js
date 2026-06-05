@@ -6,6 +6,7 @@ export const useLabStore = defineStore('lab', {
     dashboardData: {
       hasBodyProfile: false,
       flexibilityScore: null,
+      stabilityScore: null,
       bikeCount: 0,
       bikes: [],
       defaultBikeId: null,

@@ -5,12 +5,10 @@ import com.starrysky.aries.bikemodel.schema.BikeModelSearchVO;
 import com.starrysky.aries.bikemodel.schema.BikeModelVO;
 import com.starrysky.aries.bikemodel.schema.ShowroomResponseDTO;
 import com.starrysky.aries.bikemodel.service.BikeModelService;
-import com.starrysky.aries.entity.User;
 import com.starrysky.aries.util.ResponseResult;
 import jakarta.annotation.Resource;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -112,57 +110,6 @@ public class BikeModelController {
     @GetMapping("/{id}")
     public ResponseResult<BikeModelVO> getBikeDetail(@PathVariable Long id) {
         return ResponseResult.success(bikeModelService.getBikeDetail(id));
-    }
-
-    /**
-     * 获取用户收藏的单车ID列表
-     * 未登录时返回空列表
-     *
-     * @param currentUser 当前登录用户（可选）
-     * @return 收藏的单车ID列表
-     */
-    @GetMapping("/favorites")
-    public ResponseResult<List<Long>> getUserFavorites(@AuthenticationPrincipal User currentUser) {
-        if (currentUser == null) {
-            // 未登录时返回空列表
-            return ResponseResult.success(List.of());
-        }
-        return ResponseResult.success(bikeModelService.getUserFavoriteIds(currentUser.getId()));
-    }
-
-    /**
-     * 获取用户收藏的车辆详情列表
-     *
-     * @param ids 车辆ID列表（逗号分隔）
-     * @param currentUser 当前登录用户
-     * @return 收藏的车辆详情列表
-     */
-    @GetMapping("/showroom/favorites")
-    public ResponseResult<ShowroomResponseDTO> getFavoriteBikeDetails(
-            @RequestParam String ids,
-            @AuthenticationPrincipal User currentUser) {
-        if (currentUser == null) {
-            return ResponseResult.failure(401, "请先登录");
-        }
-        return ResponseResult.success(bikeModelService.getFavoriteBikeDetails(ids));
-    }
-
-    /**
-     * 切换单车收藏状态
-     * 必须登录才能操作
-     *
-     * @param bikeId 单车ID
-     * @param currentUser 当前登录用户
-     * @return 是否已收藏
-     */
-    @PostMapping("/{bikeId}/favorite")
-    public ResponseResult<Boolean> toggleFavorite(
-            @PathVariable Long bikeId,
-            @AuthenticationPrincipal User currentUser) {
-        if (currentUser == null) {
-            return ResponseResult.failure(401, "请先登录");
-        }
-        return ResponseResult.success(bikeModelService.toggleFavorite(currentUser.getId(), bikeId));
     }
 
     /**

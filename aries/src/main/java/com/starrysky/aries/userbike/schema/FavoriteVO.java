@@ -55,6 +55,11 @@ public class FavoriteVO {
     private Integer bikeModelType;
     
     /**
+     * 车型描述
+     */
+    private String bikeModelDesc;
+    
+    /**
      * 价格
      */
     private Integer bikeModelPrice;

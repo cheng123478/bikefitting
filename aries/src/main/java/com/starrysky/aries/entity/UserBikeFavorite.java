@@ -5,6 +5,8 @@ import lombok.Getter;
 import lombok.Setter;
 import org.hibernate.annotations.Comment;
 import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.NotFound;
+import org.hibernate.annotations.NotFoundAction;
 
 import java.time.LocalDateTime;
 
@@ -33,6 +35,7 @@ public class UserBikeFavorite {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "bike_id", foreignKey = @ForeignKey(name = "none", value = ConstraintMode.NO_CONSTRAINT))
     @Comment("关联的单车车型")
+    @NotFound(action = NotFoundAction.IGNORE)
     private BikeModel bikeModel;
     
     @ManyToOne(fetch = FetchType.LAZY)

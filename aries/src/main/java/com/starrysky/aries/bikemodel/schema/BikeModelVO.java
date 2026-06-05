@@ -36,6 +36,9 @@ public class BikeModelVO {
     private Integer price;
     private Integer favoriteCount;
     
+    // 数据来源类型 (1:官方同步, 2:用户手动, 3:AI识别)
+    private Integer sourceType;
+    
     // 收藏时间
     private LocalDateTime favoriteTime;
 
