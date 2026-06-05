@@ -160,9 +160,12 @@
           <!-- 座垫高度水平参考虚线 -->
           <path :d="`M${c.saddle.x},${c.saddle.y} H${c.htTop.x + 30}`" class="helper-dashed"/>
           <!-- 车把中心水平参考虚线 -->
-          <path :d="`M${c.htTop.x - 20},${c.htTop.y - 25} H${c.stemEnd.x - 60}`" class="helper-dashed"/>
+          <path :d="isRoadType 
+            ? `M${c.htTop.x - 20},${c.stemEnd.y - 62} H${c.stemEnd.x - 30}` 
+            : `M${c.htTop.x - 20},${c.htTop.y - 25} H${c.stemEnd.x - 60}`" class="helper-dashed"/>
           <!-- 落差金色垂直指示线 -->
-          <line :x1="c.htTop.x + 25" :y1="c.saddle.y" :x2="c.htTop.x + 25.5" :y2="c.htTop.y - 25" 
+          <line :x1="c.htTop.x + 25" :y1="c.saddle.y" :x2="c.htTop.x + 25.5"  
+                :y2="isRoadType ? c.stemEnd.y - 65 : c.htTop.y - 25" 
                 stroke="var(--accent-gold)" stroke-width="3" stroke-dasharray="6,4"/>
           <text :x="c.htTop.x + 40" :y="c.saddle.y + 20" class="metric-label">DROP</text>
           <text :x="c.htTop.x + 40" :y="c.saddle.y + 40" class="metric-label" font-size="14">把立落差</text>
@@ -202,10 +205,20 @@
         <!-- SPACERS HEIGHT (垫圈高度) -->
         <template v-if="activePart === 'spacersHeight'">
           <!-- 垫圈高度指示线 -->
-          <path :d="`M${c.htTop.x - 20},${c.htTop.y - 20} L${c.htTop.x - 20},${c.htTop.y - 50}`" class="indicator-glow"
-                marker-start="url(#arrow-small)" marker-end="url(#arrow-small)"/>
+          <path :d="isRoadType 
+            ? `M${c.htTop.x - 20},${c.stemEnd.y} L${c.htTop.x - 20},${c.htTop.y}` 
+            : `M${c.htTop.x - 20},${c.htTop.y - 20} L${c.htTop.x - 20},${c.htTop.y - 50}`" 
+                class="indicator-glow" marker-start="url(#arrow-small)" marker-end="url(#arrow-small)"/>
           <!-- 垫圈区域高亮矩形（带动画效果） -->
-          <rect :x="c.htTop.x - 21" :y="c.htTop.y - 0" :width="20" :height="12"
+          <rect v-if="isRoadType"
+                :x="c.htTop.x - 15" :y="c.stemEnd.y - 31" :width="18" :height="12"
+                fill="rgba(212, 175, 55, 0.4)" stroke="var(--accent-gold)" stroke-width="2.5" rx="2"
+                :transform="'rotate(-15, ' + (c.htTop.x - 14) + ', ' + (c.stemEnd.y + 11) + ')'"
+                filter="url(#spacerGlow)">
+            <animate attributeName="opacity" values="0.4;1;0.4" dur="2s" repeatCount="indefinite"/>
+          </rect>
+          <rect v-else
+                :x="c.htTop.x - 21" :y="c.htTop.y - 0" :width="20" :height="12"
                 fill="rgba(212, 175, 55, 0.4)" stroke="var(--accent-gold)" stroke-width="2.5" rx="2"
                 :transform="'rotate(-15, ' + (c.htTop.x - 14) + ', ' + (c.htTop.y - 44) + ')'"
                 filter="url(#spacerGlow)">
