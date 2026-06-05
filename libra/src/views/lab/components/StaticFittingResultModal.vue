@@ -235,7 +235,7 @@ const isBodyDataComplete = computed(() => {
   return !!(
     // 步骤1必填
     body.gender &&
-    body.birthday &&
+    body.age &&
     body.height &&
     body.spanHeight &&
     body.weightKg &&

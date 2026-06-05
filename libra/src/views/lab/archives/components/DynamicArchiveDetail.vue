@@ -48,16 +48,16 @@
 
               <template v-else>
                 <div class="result-hero">
-                  <div class="score-viz">
-                    <svg viewBox="0 0 100 100">
-                      <circle class="rail" cx="50" cy="50" r="45"></circle>
-                      <circle class="progress" cx="50" cy="50" r="45" :style="scoreRingStyle"></circle>
-                    </svg>
-                    <div class="score-text">
-                      <span class="num">{{ selectedSession.matchScore || '--' }}</span>
-                      <span class="unit">MATCH</span>
-                    </div>
-                  </div>
+                  <div class="score-orbit">
+            <svg viewBox="0 0 100 100" class="ring-svg">
+              <circle class="ring-bg" cx="50" cy="50" r="45"></circle>
+              <circle class="ring-fill" cx="50" cy="50" r="45" :style="scoreRingStyle"></circle>
+            </svg>
+            <div class="score-content">
+              <span class="value">{{ selectedSession.matchScore || '--' }}</span>
+              <span class="label">MATCH</span>
+            </div>
+          </div>
 
                     <div class="summary-info">
                       <h4 :class="getScoreClass(selectedSession.matchScore)">诊断摘要已就绪</h4>
@@ -175,13 +175,13 @@ const handleDelete = (id) => emit('delete', id);
 .sk-blocks { display: flex; gap: 15px; margin-top: 20px; }
 .sk-b { flex: 1; height: 60px; background: #f5f5f5; border-radius: 8px; }
 .result-hero { display: flex; align-items: center; gap: 40px; padding: 25px; background: #fbfbf9; border-radius: 20px; margin-bottom: 40px; }
-.score-viz { position: relative; width: 130px; height: 130px; }
-.score-viz svg { transform: rotate(-90deg); width: 100%; height: 100%; }
-.score-viz .rail { fill: none; stroke: #eee; stroke-width: 8; }
-.score-viz .progress { fill: none; stroke: var(--primary-color); stroke-width: 8; stroke-linecap: round; transition: 1s ease; }
-.score-text { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; }
-.score-text .num { font-size: 2rem; font-family: var(--font-serif); font-weight: 800; color: var(--text-main); line-height: 1; }
-.score-text .unit { font-size: 0.5rem; color: var(--text-muted); margin-top: 4px; letter-spacing: 1px; }
+.score-orbit { position: relative; width: 120px; height: 120px; flex-shrink: 0; }
+.ring-svg { width: 100%; height: 100%; }
+.ring-bg { fill: none; stroke: rgba(92, 110, 88, 0.1); stroke-width: 8; }
+.ring-fill { fill: none; stroke: var(--primary-color); stroke-width: 8; stroke-linecap: round; transform: rotate(-90deg); transform-origin: 50% 50%; transition: stroke-dashoffset 1.2s ease-out; filter: drop-shadow(0 0 8px rgba(92, 110, 88, 0.3)); }
+.score-content { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; }
+.score-content .value { font-family: var(--font-serif); font-size: 2.5rem; font-weight: 800; line-height: 1; color: var(--text-main); }
+.score-content .label { font-size: 0.7rem; color: var(--text-muted); letter-spacing: 3px; text-transform: uppercase; margin-top: 4px; display: block; }
 .summary-info h4 { font-size: 1.5rem; font-family: var(--font-serif); margin-bottom: 10px; margin-top: 0;}
 .summary-text-list { display: flex; flex-direction: column; gap: 5px; margin-top: 5px; margin-bottom: 5px; }
 .summary-hero-text { font-size: 1.1rem; color: var(--text-main); font-weight: 600; line-height: 1.5; margin-bottom: 12px; font-family: var(--font-serif); }
