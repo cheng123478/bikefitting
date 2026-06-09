@@ -1,0 +1,104 @@
+server:
+  port: 9200
+  servlet:
+    context-path: /aries
+
+spring:
+  servlet:
+    multipart:
+      max-file-size: 512MB
+      max-request-size: 512MB
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://${MYSQL_HOST}:${MYSQL_PORT}/${MYSQL_DATABASE}?useUnicode=true&characterEncoding=UTF-8&serverTimezone=Asia/Shanghai
+    username: ${MYSQL_USERNAME}
+    password: ${MYSQL_PASSWORD}
+    type: com.zaxxer.hikari.HikariDataSource
+    hikari:
+      minimum-idle: 30
+      maximum-pool-size: 100
+      connection-test-query: SELECT 1
+      max-lifetime: 1800000
+      connection-timeout: 30000
+  jpa:
+    hibernate:
+      ddl-auto: none
+    generate-ddl: false
+    show-sql: true
+    open-in-view: true
+  sql:
+    init:
+      mode: never
+      data-locations: classpath*:/db-init.sql
+  data:
+    redis:
+      host: ${REDIS_HOST}
+      port: ${REDIS_PORT}
+      database: ${REDIS_DB}
+      password: ${REDIS_PASSWORD}
+      timeout: 30000s #连接超时时间
+      lettuce:
+        shutdown-timeout: 100ms #关闭超时时间
+        pool:
+          max-active: 8 # 连接池最大连接数 默认 8（-1 ：表示没有限制）
+          max-wait: 60000ms # 连接池最大阻塞等待时间 默认-1ms （-1 :表示没有限制） 这里设置1分钟
+          max-idle: 8 # 最大空闲连接  默认 8
+          min-idle: 0 # 最小空闲连接  默认 0
+  jackson:
+    time-zone: GMT+8
+    date-format: yyyy-MM-dd HH:mm:ss
+  mvc:
+    format:
+      date-time: yyyy-MM-dd HH:mm:ss
+      date: yyyy-MM-dd
+      time: HH:mm:ss
+
+file:
+  resource:
+    location: ./resource/
+    relative:
+      path: /resource/**
+
+txCloud:
+  cos:
+    uid: ${TX_CLOUD_COS_UID}
+    region: ${TX_CLOUD_COS_REGION}
+    secretId: ${TX_CLOUD_COS_SECRET_ID}
+    secretKey: ${TX_CLOUD_COS_SECRET_KEY}
+    bucket: ${TX_CLOUD_COS_BUCKET}
+sms:
+  base-url: ${SMS_BASE_URL}
+  key: ${SMS_KEY}
+  tpl-id: ${SMS_TPL_ID}
+
+wechat:
+  mini-program:
+    app-id: ${WECHAT_MINI_PROGRAM_APP_ID}
+    app-secret: ${WECHAT_MINI_PROGRAM_APP_SECRET}
+  web:
+    app-id: ${WECHAT_WEB_APP_ID}
+    app-secret: ${WECHAT_WEB_APP_SECRET}
+
+aries:
+  security:
+    jwt:
+      key-id: ${ARIES_SECURITY_JWT_KEY_ID}
+      public-key: ${ARIES_SECURITY_JWT_PUBLIC_KEY}
+      private-key: ${ARIES_SECURITY_JWT_PRIVATE_KEY}
+    rsa:
+      private-key: ${ARIES_SECURITY_RSA_PRIVATE_KEY}
+  snowflake:
+    worker-id: ${ARIES_SNOWFLAKE_WORKER_ID:1}
+    datacenter-id: ${ARIES_SNOWFLAKE_DATACENTER_ID:1}
+
+# 若日志文件改为log4j2-spring.xml,则需要修改logging.config以下配置，
+# 日志交由Spring管理
+#logging:
+#  config: classpath:log4j2-spring.xml
+#  level:
+#    root: info
+#    com.starrysky.aries: debug
+#    org.springframework: info
+#    org.hibernate.SQL: debug
+#  file:
+#    path: ./logs

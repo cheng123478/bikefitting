@@ -1,0 +1,163 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Configuration status="WARN" monitorInterval="3600">
+    <Properties>
+        <Property name="log_base_dir">./logs</Property>
+        <Property name="log_pattern">[%d{yyyy-MM-dd HH:mm:ss.SSS}][%-5p][%T][%X{traceId}][%c] %msg%xEx%n</Property>
+        <Property name="max_single_file_size">20MB</Property>
+    </Properties>
+
+    <Appenders>
+        <Console name="Console" target="SYSTEM_OUT">
+            <ThresholdFilter level="DEBUG" onMatch="ACCEPT" onMismatch="DENY"/>
+            <PatternLayout pattern="${log_pattern}" charset="UTF-8"/>
+        </Console>
+
+        <RollingFile name="DebugLogRollingFile" fileName="${log_base_dir}/debug.log"
+                     filePattern="${log_base_dir}/$${date:yyyy_MM_dd}/debug_%d{yyyy_MM_dd_HH}_%i.log.gz" immediateFlush="false">
+            <Filters>
+                <BurstFilter level="DEBUG" rate="500" maxBurst="2000"/>
+                <ThresholdFilter level="DEBUG" onMatch="ACCEPT" onMismatch="DENY"/>
+            </Filters>
+            <PatternLayout pattern="${log_pattern}" charset="UTF-8"/>
+            <Policies>
+                <TimeBasedTriggeringPolicy interval="1" modulate="false"/>
+                <SizeBasedTriggeringPolicy size="${max_single_file_size}"/>
+            </Policies>
+            <DefaultRolloverStrategy fileIndex="nomax">
+                <Delete basePath="${log_base_dir}" maxDepth="2">
+                    <IfFileName glob="*/debug_*.log.gz">
+                        <IfLastModified age="9d">
+                            <IfAny>
+                                <IfAccumulatedFileSize exceeds="3GB"/>
+                                <IfAccumulatedFileCount exceeds="3000"/>
+                            </IfAny>
+                        </IfLastModified>
+                    </IfFileName>
+                </Delete>
+            </DefaultRolloverStrategy>
+        </RollingFile>
+
+        <RollingFile name="InfoLogRollingFile" fileName="${log_base_dir}/info.log"
+                     filePattern="${log_base_dir}/$${date:yyyy_MM_dd}/info_%d{yyyy_MM_dd_HH}_%i.log.gz" immediateFlush="false">
+            <Filters>
+                <BurstFilter level="INFO" rate="500" maxBurst="2000"/>
+                <ThresholdFilter level="INFO" onMatch="ACCEPT" onMismatch="DENY"/>
+            </Filters>
+            <PatternLayout pattern="${log_pattern}" charset="UTF-8"/>
+            <Policies>
+                <TimeBasedTriggeringPolicy/>
+                <SizeBasedTriggeringPolicy size="${max_single_file_size}"/>
+            </Policies>
+            <DefaultRolloverStrategy fileIndex="nomax">
+                <Delete basePath="${log_base_dir}" maxDepth="2">
+                    <IfFileName glob="*/info_*.log.gz">
+                        <IfAny>
+                            <IfAccumulatedFileSize exceeds="3GB"/>
+                            <IfAccumulatedFileCount exceeds="3000"/>
+                            <IfLastModified age="30d"/>
+                        </IfAny>
+                    </IfFileName>
+                </Delete>
+            </DefaultRolloverStrategy>
+        </RollingFile>
+
+        <RollingFile name="WarnLogRollingFile" fileName="${log_base_dir}/warn.log"
+                     filePattern="${log_base_dir}/$${date:yyyy_MM_dd}/warn_%d{yyyy_MM_dd_HH}_%i.log.gz">
+            <ThresholdFilter level="WARN" onMatch="ACCEPT" onMismatch="DENY"/>
+            <PatternLayout pattern="${log_pattern}" charset="UTF-8"/>
+            <Policies>
+                <TimeBasedTriggeringPolicy/>
+                <SizeBasedTriggeringPolicy size="${max_single_file_size}"/>
+            </Policies>
+            <DefaultRolloverStrategy fileIndex="nomax">
+                <Delete basePath="${log_base_dir}" maxDepth="2">
+                    <IfFileName glob="*/warn_*.log.gz">
+                        <IfAny>
+                            <IfAccumulatedFileSize exceeds="3GB"/>
+                            <IfAccumulatedFileCount exceeds="3000"/>
+                            <IfLastModified age="30d"/>
+                        </IfAny>
+                    </IfFileName>
+                </Delete>
+            </DefaultRolloverStrategy>
+        </RollingFile>
+
+        <RollingFile name="ErrorLogRollingFile" fileName="${log_base_dir}/error.log"
+                     filePattern="${log_base_dir}/$${date:yyyy_MM_dd}/error_%d{yyyy_MM_dd_HH}_%i.log.gz">
+            <ThresholdFilter level="ERROR" onMatch="ACCEPT" onMismatch="DENY"/>
+            <PatternLayout pattern="${log_pattern}" charset="UTF-8"/>
+            <Policies>
+                <TimeBasedTriggeringPolicy/>
+                <SizeBasedTriggeringPolicy size="${max_single_file_size}"/>
+            </Policies>
+            <DefaultRolloverStrategy fileIndex="nomax">
+                <Delete basePath="${log_base_dir}" maxDepth="2">
+                    <IfFileName glob="*/error_*.log.gz">
+                        <IfAny>
+                            <IfAccumulatedFileSize exceeds="3GB"/>
+                            <IfAccumulatedFileCount exceeds="3000"/>
+                            <IfLastModified age="30d"/>
+                        </IfAny>
+                    </IfFileName>
+                </Delete>
+            </DefaultRolloverStrategy>
+        </RollingFile>
+
+        <RollingFile name="AuditLogRollingFile" fileName="${log_base_dir}/audit.log"
+                     filePattern="${log_base_dir}/$${date:yyyy_MM_dd}/audit_%d{yyyy_MM_dd_HH}_%i.log.gz">
+            <ThresholdFilter level="INFO" onMatch="ACCEPT" onMismatch="DENY"/>
+            <PatternLayout pattern="${log_pattern}" charset="UTF-8"/>
+            <Policies>
+                <TimeBasedTriggeringPolicy/>
+                <SizeBasedTriggeringPolicy size="${max_single_file_size}"/>
+            </Policies>
+            <DefaultRolloverStrategy fileIndex="nomax">
+                <Delete basePath="${log_base_dir}" maxDepth="2">
+                    <IfFileName glob="*/audit_*.log.gz">
+                        <IfAny>
+                            <IfAccumulatedFileSize exceeds="1GB"/>
+                            <IfAccumulatedFileCount exceeds="1000"/>
+                            <IfLastModified age="90d"/>
+                        </IfAny>
+                    </IfFileName>
+                </Delete>
+            </DefaultRolloverStrategy>
+        </RollingFile>
+    </Appenders>
+
+    <Loggers>
+        <AsyncRoot level="INFO">
+            <AppenderRef ref="Console"/>
+            <AppenderRef ref="DebugLogRollingFile"/>
+            <AppenderRef ref="InfoLogRollingFile"/>
+            <AppenderRef ref="WarnLogRollingFile"/>
+            <AppenderRef ref="ErrorLogRollingFile"/>
+        </AsyncRoot>
+        <!-- 审计日志 -->
+        <AsyncLogger name="com.starrysky.aries.advice.LogAuditAspect" level="INFO" additivity="false">
+            <AppenderRef ref="AuditLogRollingFile"/>
+            <AppenderRef ref="Console"/>
+        </AsyncLogger>
+        <AsyncLogger name="com.starrysky.aries" level="DEBUG" additivity="true"/>
+        <!-- 统一屏蔽 Spring、Hibernate 的繁杂日志 -->
+        <AsyncLogger name="org.springframework" level="WARN"/>
+        <AsyncLogger name="org.hibernate" level="WARN"/>
+        <!-- 如果你想看 SQL，改为 DEBUG -->
+        <AsyncLogger name="org.hibernate.SQL" level="INFO"/>
+        <!-- 统一屏蔽 Web 容器 (Tomcat) 的内部日志 -->
+        <AsyncLogger name="org.apache.tomcat" level="WARN"/>
+        <AsyncLogger name="org.apache.catalina" level="WARN"/>
+        <AsyncLogger name="org.apache.coyote" level="WARN"/>
+        <!-- 数据库连接池和JDBC过滤 -->
+        <!-- 注意：只有当你使用了log4jdbc等工具时这些才生效 -->
+        <AsyncLogger name="jdbc.audit" level="OFF"/>
+        <AsyncLogger name="jdbc.resultset" level="OFF"/>
+        <AsyncLogger name="jdbc.sqlonly" level="OFF"/>
+        <AsyncLogger name="jdbc.sqltiming" level="INFO"/>
+        <AsyncLogger name="com.zaxxer.hikari" level="WARN"/>
+        <!-- 其他常用工具屏蔽 -->
+        <AsyncLogger name="org.thymeleaf" level="WARN"/>
+        <AsyncLogger name="io.netty" level="WARN"/>
+        <AsyncLogger name="com.aliyun" level="INFO"/>
+    </Loggers>
+</Configuration>

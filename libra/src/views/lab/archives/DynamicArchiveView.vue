@@ -1,0 +1,653 @@
+<template>
+  <div class="history-page">
+    <div class="container">
+      <div class="history-layout">
+        <!-- 左侧：时间轴 (Timeline) - 侧重索引与状态 -->
+        <aside class="timeline-column fade-up">
+          <div v-if="loading" class="loading-text">
+            <i class="fas fa-circle-notch fa-spin"></i> 调取历史档案...
+          </div>
+          <div v-else-if="sessions.length === 0" class="empty-text">尚无动态分析记录</div>
+
+          <div v-else class="timeline">
+            <div
+                v-for="session in sessions"
+                :key="session.id"
+                class="timeline-item"
+                :class="{
+                  'is-active': selectedSession?.id === session.id,
+                  'is-processing': session.status === 1
+                }"
+                @click="selectSession(session)"
+            >
+              <div class="timeline-marker"></div>
+              <div class="timeline-content glass-card">
+                <div class="record-head">
+                  <!-- 上部：日期时间 -->
+                  <span class="record-date">{{ formatDate(session.sessionTime, 'YYYY-MM-DD HH:mm') }}</span>
+                  <!-- 右侧：状态标签 -->
+                  <span v-if="session.status === 1" class="status-tag processing">分析中</span>
+                  <span v-else-if="session.status === 3" class="status-tag failed">失败</span>
+                </div>
+
+                <div class="record-body">
+                  <div class="bike-info-row">
+                    <i class="fas fa-bicycle"></i>
+                    <span class="bike-name">
+                      {{ session.bikeName || '未知战车' }}
+                      <span v-if="session.remark" class="remark-text">({{ session.remark }})</span>
+                    </span>
+                  </div>
+                  <!-- 视角标签 -->
+                  <div class="view-tags" v-if="session.viewTypes">
+                    <span class="v-tag" v-if="session.viewTypes.includes('side')"><i class="fas fa-user"></i> 侧面</span>
+                    <span class="v-tag" v-if="session.viewTypes.includes('front')"><i class="fas fa-user-friends"></i> 正面</span>
+                    <span class="v-tag" v-if="session.viewTypes.includes('back')"><i class="fas fa-user-alt"></i> 背面</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- 分页 -->
+            <div class="pagination-box" v-if="hasMore">
+              <button class="btn-load-more" @click="handleLoadMore" :disabled="isLoadingMore">
+                <i class="fas" :class="isLoadingMore ? 'fa-spinner fa-spin' : 'fa-chevron-down'"></i>
+                {{ isLoadingMore ? '正在读取' : '展开更早的记录' }}
+              </button>
+            </div>
+          </div>
+        </aside>
+
+        <!-- 右侧：详情面板 (Details Panel) -->
+        <main class="detail-column fade-up delay-1">
+          <DynamicArchiveDetail 
+            v-if="selectedSession" 
+            :selectedSession="selectedSession" 
+            :detailLoading="detailLoading"
+            @viewReport="handleViewReport"
+            @delete="handleDelete"
+          />
+
+          <!-- 未选中 -->
+          <div v-else class="empty-detail glass-card">
+            <div class="icon-circle"><i class="fas fa-history"></i></div>
+            <p>请选择左侧日期以查看动态分析详情</p>
+          </div>
+        </main>
+      </div>
+    </div>
+
+    <!-- Mobile Bottom Drawer -->
+    <Transition name="drawer-slide">
+      <div v-if="isMobileDrawerOpen && selectedSession" class="mobile-drawer-overlay" @click.self="closeDrawer">
+        <div class="mobile-drawer-content">
+           <div class="drawer-handle" @click="closeDrawer"></div>
+           <button class="drawer-close-btn" @click="closeDrawer">&times;</button>
+           <div class="drawer-scroll-area">
+             <DynamicArchiveDetail 
+                :selectedSession="selectedSession" 
+                :detailLoading="detailLoading"
+                @viewReport="handleViewReport"
+                @delete="handleDelete"
+             />
+           </div>
+        </div>
+      </div>
+    </Transition>
+  </div>
+</template>
+
+<script setup>
+import { ref, onMounted } from 'vue';
+import DynamicArchiveDetail from './components/DynamicArchiveDetail.vue';
+import { useRouter } from 'vue-router';
+import { getSessionHistory, deleteSession, getDiagnosisResult } from '@/api/dynamicFitting';
+import { showToast, showConfirm } from '@/utils/toast';
+import { PROJECT_CONFIG } from '@/config/constants';
+import dayjs from 'dayjs';
+
+const router = useRouter();
+const loading = ref(true);
+const sessions = ref([]);
+const selectedSession = ref(null);
+const isMobileDrawerOpen = ref(false);
+const closeDrawer = () => { isMobileDrawerOpen.value = false; };
+const detailLoading = ref(false);
+
+// 分页逻辑
+const page = ref(1);
+const hasMore = ref(false);
+const isLoadingMore = ref(false);
+
+const loadHistory = async (isMore = false) => {
+  if (isMore) isLoadingMore.value = true;
+  else loading.value = true;
+
+  try {
+    const res = await getSessionHistory({ page: page.value, size: 10 });
+    const data = res.data || res;
+
+    if (isMore) sessions.value.push(...data.content);
+    else {
+      sessions.value = data.content;
+      if (sessions.value.length > 0) selectSession(sessions.value[0]);
+    }
+    hasMore.value = sessions.value.length < data.totalElements;
+  } catch (e) {
+    showToast('调取历史记录失败', 'error');
+  } finally {
+    loading.value = false;
+    isLoadingMore.value = false;
+  }
+};
+
+const selectSession = async (session) => {
+  selectedSession.value = session;
+  if (window.innerWidth <= 900) { isMobileDrawerOpen.value = true; }
+};
+
+const handleLoadMore = () => {
+  page.value++;
+  loadHistory(true);
+};
+
+const formatDate = (date, format) => date ? dayjs(date).format(format) : '--';
+
+
+
+const handleViewReport = (session) => {
+  router.push({path: '/lab/report/dynamic', query: {sessionId: session.id}});
+};
+
+const handleDelete = async (id) => {
+  if (await showConfirm('确定要永久删除这条档案吗？')) {
+    try {
+      await deleteSession(id);
+      showToast('历史记录已清理', 'success');
+      loadHistory();
+    } catch (error) {
+      showToast('删除失败', 'error');
+    }
+  }
+};
+
+onMounted(loadHistory);
+</script>
+
+<style scoped>
+.history-page {
+  padding: 120px 0 60px;
+}
+
+.history-layout {
+  display: grid;
+  grid-template-columns: 340px 1fr;
+  gap: 30px;
+  align-items: start;
+}
+
+/* --- 左侧时间轴样式 --- */
+.timeline {
+  position: relative;
+  padding-left: 20px;
+}
+
+.timeline::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: rgba(92, 110, 88, 0.1);
+}
+
+.timeline-item {
+  position: relative;
+  margin-bottom: 20px;
+  cursor: pointer;
+}
+
+.timeline-marker {
+  position: absolute;
+  left: -26px;
+  top: 22px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #fff;
+  border: 2px solid var(--primary-color);
+  z-index: 2;
+  transition: 0.3s;
+}
+
+.timeline-item.is-active .timeline-marker {
+  background: var(--primary-color);
+  transform: scale(1.3);
+}
+
+.timeline-content {
+  padding: 20px;
+  border: 1.5px solid transparent;
+  transition: 0.3s;
+}
+
+.timeline-item.is-active .timeline-content {
+  border-color: var(--primary-color);
+  background: #fff;
+  box-shadow: var(--shadow-md);
+}
+
+.record-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.record-date {
+  font-size: 1rem;
+  color: var(--text-muted);
+  font-family: var(--font-serif);
+}
+
+.status-tag {
+  font-size: 0.65rem;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-weight: bold;
+}
+
+.status-tag.processing {
+  background: rgba(212, 175, 55, 0.1);
+  color: var(--accent-gold);
+}
+
+.status-tag.failed {
+  background: #fff1f0;
+  color: #ff4d4f;
+}
+
+.score-mini {
+  font-family: var(--font-serif);
+  font-weight: 800;
+  font-size: 1.2rem;
+}
+
+.bike-info-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 1.1rem;
+  color: var(--text-main);
+  font-weight: 600;
+}
+
+.bike-info-row i {
+  color: var(--primary-color);
+  opacity: 0.7;
+}
+
+.remark-text {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  font-weight: normal;
+  margin-left: 5px;
+}
+
+.view-tags {
+  margin-top: 8px;
+  display: flex;
+  gap: 8px;
+}
+
+.v-tag {
+  font-size: 0.7rem;
+  background-color: #f1f4f1;
+  color: var(--primary-color);
+  padding: 3px 6px;
+  border-radius: 4px;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-weight: bold;
+}
+
+/* --- 右侧详情面板样式 --- */
+.detail-card {
+  padding: 45px;
+  min-height: 550px;
+  background: #fff;
+  display: flex;
+  flex-direction: column;
+}
+
+.detail-header {
+  margin-bottom: 35px;
+  border-bottom: 1px solid #f2f2f2;
+  padding-bottom: 25px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.meta-label {
+  font-size: 0.7rem;
+  color: #AAA;
+  letter-spacing: 2px;
+  font-weight: 800;
+}
+
+.detail-header h3 {
+  font-size: 1.8rem;
+  font-family: var(--font-serif);
+  color: var(--text-main);
+  margin-top: 5px;
+}
+
+.bike-tag {
+  background: #f5f7f4;
+  color: var(--primary-color);
+  padding: 6px 14px;
+  border-radius: 6px;
+  font-weight: bold;
+  font-size: 0.9rem;
+}
+
+.pain-tags {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 8px;
+  justify-content: flex-end;
+}
+
+.pain-tag {
+  background-color: #fff1f0;
+  color: #ff4d4f;
+  padding: 3px 8px;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: bold;
+}
+
+/* 建模动画区域 */
+.zen-loader {
+  text-align: center;
+  padding: 40px 0;
+}
+
+.loader-rings {
+  position: relative;
+  width: 80px;
+  height: 80px;
+  margin: 0 auto 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.ring {
+  position: absolute;
+  inset: 0;
+  border: 2px solid var(--accent-gold);
+  border-radius: 50%;
+  animation: pulse 2s infinite;
+}
+
+.ring:nth-child(2) {
+  animation-delay: 1s;
+}
+
+.ai-icon {
+  font-size: 1.8rem;
+  color: var(--accent-gold);
+}
+
+@keyframes pulse {
+  0% {
+    transform: scale(0.7);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1.4);
+    opacity: 0;
+  }
+}
+
+/* 骨架屏样式 */
+.skeleton-content {
+  padding: 0 20px;
+  opacity: 0.3;
+}
+
+.sk-line {
+  height: 12px;
+  background: #eee;
+  border-radius: 6px;
+  margin-bottom: 15px;
+}
+
+.sk-line.short {
+  width: 50%;
+}
+
+.sk-blocks {
+  display: flex;
+  gap: 15px;
+  margin-top: 20px;
+}
+
+.sk-b {
+  flex: 1;
+  height: 60px;
+  background: #f5f5f5;
+  border-radius: 8px;
+}
+
+/* 结果展示 */
+.result-hero {
+  display: flex;
+  align-items: center;
+  gap: 40px;
+  padding: 25px;
+  background: #fbfbf9;
+  border-radius: 20px;
+  margin-bottom: 40px;
+}
+
+.score-viz {
+  position: relative;
+  width: 130px;
+  height: 130px;
+}
+
+.score-viz svg {
+  transform: rotate(-90deg);
+  width: 100%;
+  height: 100%;
+}
+
+.score-viz .rail {
+  fill: none;
+  stroke: #eee;
+  stroke-width: 8;
+}
+
+.score-viz .progress {
+  fill: none;
+  stroke: var(--primary-color);
+  stroke-width: 8;
+  stroke-linecap: round;
+  transition: 1s ease;
+}
+
+.score-text {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.score-text .num {
+  font-size: 2rem;
+  font-family: var(--font-serif);
+  font-weight: 800;
+  color: var(--text-main);
+  line-height: 1;
+}
+
+.score-text .unit {
+  font-size: 0.5rem;
+  color: var(--text-muted);
+  margin-top: 4px;
+  letter-spacing: 1px;
+}
+
+.summary-info h4 {
+  font-size: 1.5rem;
+  font-family: var(--font-serif);
+  margin-bottom: 10px;
+}
+
+.summary-text-list {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  margin-top: 5px;
+  margin-bottom: 5px;
+}
+
+.summary-hero-text {
+  font-size: 1.1rem;
+  color: var(--text-main);
+  font-weight: 600;
+  line-height: 1.5;
+  margin-bottom: 12px;
+  /* 使用衬线体增加高级感 */
+  font-family: var(--font-serif);
+}
+
+.summary-text {
+  color: var(--text-muted);
+  line-height: 1.6;
+  font-size: 0.95rem;
+}
+
+.meta-info {
+  margin-top: 10px;
+  font-size: 0.75rem;
+  color: #AAA;
+}
+
+.action-footer {
+  margin-top: auto;
+  display: flex;
+  gap: 15px;
+}
+
+.main-action {
+  flex: 1;
+  height: 50px;
+  font-weight: bold;
+  border-radius: var(--radius-pill);
+}
+
+.empty-detail {
+  height: 550px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted);
+  background: #fff;
+}
+
+.icon-circle {
+  width: 70px;
+  height: 70px;
+  background: #f8f8f6;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 2rem;
+  margin-bottom: 15px;
+  opacity: 0.4;
+}
+
+.text-success {
+  color: var(--primary-color);
+}
+
+.text-warning {
+  color: var(--accent-gold);
+}
+
+.text-danger {
+  color: #e74c3c;
+}
+
+.pagination-box {
+  margin-top: 20px;
+}
+
+.btn-load-more {
+  width: 100%;
+  padding: 12px;
+  background: none;
+  border: 1px dashed #ddd;
+  border-radius: 8px;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: 0.3s;
+}
+
+.btn-load-more:hover {
+  border-color: var(--primary-color);
+  color: var(--primary-color);
+}
+
+/* --- Drawer Mobile Styles --- */
+.mobile-drawer-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.5);
+  z-index: 9999;
+  display: flex;
+  align-items: flex-end;
+}
+.mobile-drawer-content {
+  width: 100%;
+  background: #fff;
+  border-radius: 20px 20px 0 0;
+  padding: 20px;
+  position: relative;
+  max-height: 85vh;
+  display: flex;
+  flex-direction: column;
+}
+.drawer-handle {
+  width: 40px; height: 5px; background: #ddd; border-radius: 3px; margin: 0 auto 15px;
+}
+.drawer-close-btn {
+  position: absolute; right: 20px; top: 15px; background: none; border: none; font-size: 1.5rem; color: #999;
+}
+.drawer-scroll-area {
+  overflow-y: auto;
+  flex: 1;
+}
+
+.drawer-slide-enter-active, .drawer-slide-leave-active {
+  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.3s;
+}
+.drawer-slide-enter-from, .drawer-slide-leave-to {
+  transform: translateY(100%);
+  opacity: 0;
+}
+
+@media (max-width: 900px) {
+  .detail-column { display: none !important; }
+}
+</style>

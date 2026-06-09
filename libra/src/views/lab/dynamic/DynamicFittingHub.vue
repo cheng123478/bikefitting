@@ -1,0 +1,608 @@
+<template>
+  <div class="hub-page">
+    <div class="container main-content-area">
+
+      <!-- Header -->
+      <header class="page-header fade-up">
+        <div class="header-left">
+          <h2 class="title serif-title">动态分析中心</h2>
+          <p class="subtitle">{{ PROJECT_CONFIG.MASCOT }} 引擎已就绪，请选择采集视角以启动或补充分析。</p>
+        </div>
+        <div class="header-actions">
+          <button v-if="capturedCount > 0" class="btn-text text-danger" style="margin-right: 15px;" @click="discardSession">
+            <i class="fas fa-trash-alt"></i> 清空暂存
+          </button>
+          <button class="btn-text back-btn" @click="handleBack">
+            <i class="fas fa-chevron-left"></i> 返回实验室
+          </button>
+        </div>
+      </header>
+
+      <!-- 1. 顶部选择区：单车 & 痛点 -->
+      <div class="top-selection-row fade-up delay-1">
+        <!-- 左侧：车辆选择 -->
+        <div class="view-card glass-card bike-selection-card">
+          <div class="card-header">
+            <div class="card-icon"><i class="fas fa-bicycle"></i></div>
+            <h3>选择分析车辆</h3>
+          </div>
+          <div class="card-body">
+            <div class="bike-selection-list">
+              <div
+                v-for="bike in allBikes"
+                :key="bike.id"
+                class="bike-selection-item"
+                :class="{ active: selectedBikeId == bike.id }"
+                @click="selectBike(bike)"
+              >
+                <div class="bike-status-dot" :class="{ 'has-report': bike.hasDynamicReport }"></div>
+                <div class="bike-main-info">
+                  <span class="bike-name">{{ bike.brand }} {{ bike.model }}</span>
+                  <span class="bike-remark">{{ bike.remark || '无备注' }}</span>
+                </div>
+                <i class="fas fa-check-circle active-check" :class="{ 'is-visible': selectedBikeId == bike.id }"></i>
+              </div>
+
+              <div v-if="allBikes.length === 0" class="empty-bikes">
+                <p>车库中暂无现役车辆</p>
+                <button class="btn-text" @click="router.push('/lab/garage/edit')">去添加单车</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 右侧：痛感诊断 -->
+        <div class="view-card glass-card pain-assessment-card">
+          <div class="card-header">
+            <div class="card-icon"><i class="fas fa-heartbeat"></i></div>
+            <div class="header-text">
+              <h3 class="panel-title">身体状态映射</h3>
+              <p class="desc-text-sm">勾选不适部位，{{ PROJECT_CONFIG.MASCOT }} 将引入医疗级修正参数以优化动态建议。</p>
+            </div>
+          </div>
+          <div class="card-body">
+            <PainSelector v-model="session.painLevels" />
+          </div>
+        </div>
+      </div>
+
+      <!-- 2. 中层：视角选择 -->
+      <div class="middle-selection-section fade-up delay-2">
+        <div class="section-header">
+          <div class="card-icon"><i class="fas fa-video"></i></div>
+          <h3>选择采集视角</h3>
+        </div>
+        
+        <div class="views-container">
+          <!-- 侧面 (Side) -->
+          <div class="view-card glass-card view-item" :class="{ active: selectedView === 'side', 'is-done': session.side }" @click="selectedView = 'side'">
+            <div class="card-icon"><i class="fas fa-bicycle"></i></div>
+            <div class="card-text">
+              <h3>侧面视角 <i v-if="session.side" class="fas fa-check-circle text-success ml-1"></i></h3>
+              <div v-if="session.side" class="data-preview">
+                <div class="mini-dashboard">
+                  <div class="m-item">
+                      <span class="l">最大膝角(BDC)</span>
+                    <span class="v">{{ session.side.summary?.maxKnee || '--' }}°</span>
+                  </div>
+                  <div class="m-item">
+                      <span class="l">最小髋角(TDC)</span>
+                    <span class="v">{{ session.side.summary?.minHip || '--' }}°</span>
+                  </div>
+                  <div class="m-item">
+                      <span class="l">平均躯干角</span>
+                    <span class="v">{{ session.side.summary?.avgTorso || '--' }}°</span>
+                  </div>
+                  <div class="m-item">
+                    <span class="l">采集帧数</span>
+                    <span class="v">{{ session.side.summary?.frameCount || '--' }}</span>
+                  </div>
+                </div>
+              </div>
+              <p v-else class="view-help-text">
+                <strong>核心几何与座高诊断</strong><br>
+                <span>分析膝关节伸展与躯干前倾姿态，预防膝盖/腰背疼痛，推导把立与座高。</span>
+              </p>
+            </div>
+            <div class="check-circle" v-if="selectedView === 'side'"><i class="fas fa-check"></i></div>
+          </div>
+
+          <!-- 正面 (Front) -->
+          <div class="view-card glass-card view-item" :class="{ active: selectedView === 'front', 'is-done': session.front }" @click="selectedView = 'front'">
+            <div class="card-icon"><i class="fas fa-arrows-alt-h"></i></div>
+            <div class="card-text">
+              <h3>正面视角 <i v-if="session.front" class="fas fa-check-circle text-success ml-1"></i></h3>
+              <div v-if="session.front" class="data-preview">
+                <div class="mini-dashboard">
+                  <div class="m-item">
+                      <span class="l">左右横摆(L/R)</span>
+                      <span class="v">{{ session.front.summary?.maxWobble_L || session.front.summary?.maxWobble || '--' }}<span style="font-size:0.7rem">mm</span> / {{ session.front.summary?.maxWobble_R || session.front.summary?.maxWobble || '--' }}<span style="font-size:0.7rem">mm</span></span>
+                  </div>
+                  <div class="m-item">
+                    <span class="l">躯干/骨盆侧倾极值</span>
+                    <span class="v">{{ session.front.summary?.maxTilt || session.front.summary?.frontMaxHipTilt || '--' }}<span style="font-size:0.7rem">°</span></span>
+                  </div>
+                  <div class="m-item">
+                    <span class="l">采集帧数</span>
+                    <span class="v">{{ session.front.summary?.frameCount || '--' }}</span>
+                  </div>
+                </div>
+              </div>
+              <p v-else class="view-help-text">
+                <strong>膝盖轨迹与风阻分析</strong><br>
+                <span>追踪发力期膝盖内扣或外翻轨迹，预防髂胫束摩擦，提供锁片与鞋垫调整建议。</span>
+              </p>
+            </div>
+            <div class="check-circle" v-if="selectedView === 'front'"><i class="fas fa-check"></i></div>
+          </div>
+
+          <!-- 背面 (Back) -->
+          <div class="view-card glass-card view-item" :class="{ active: selectedView === 'back', 'is-done': session.back }" @click="selectedView = 'back'">
+            <div class="card-icon"><i class="fas fa-align-center"></i></div>
+            <div class="card-text">
+              <h3>背面视角 <i v-if="session.back" class="fas fa-check-circle text-success ml-1"></i></h3>
+              <div v-if="session.back" class="data-preview">
+                <div class="mini-dashboard">
+                  <div class="m-item">
+                      <span class="l">最大骨盆晃动</span>
+                    <span class="v">{{ session.back.summary?.maxPelvisSway || '--' }}px</span>
+                  </div>
+                  <div class="m-item">
+                      <span class="l">最大脊柱侧偏</span>
+                    <span class="v">{{ session.back.summary?.maxSpineTilt || '--' }}°</span>
+                  </div>
+                </div>
+              </div>
+              <p v-else class="view-help-text">
+                <strong>骨盆与脊柱稳定性分析</strong><br>
+                <span>捕捉踩踏产生的骨盆代偿摇摆与高低肩现象，排查长短腿隐患与核心薄弱点。</span>
+              </p>
+            </div>
+            <div class="check-circle" v-if="selectedView === 'back'"><i class="fas fa-check"></i></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 3. 底部：操作按钮 -->
+      <div class="bottom-action-section fade-up delay-3">
+        <div class="action-panel glass-card-premium">
+          <div class="task-info">
+            <span class="label">当前任务</span>
+            <div class="selected-text">
+              准备{{ session[selectedView] ? '重录' : '启动' }}: <strong class="highlight">{{ getViewName(selectedView) }}</strong>
+            </div>
+            <p class="desc-text" v-if="session.painLevels.length > 0">
+              已搭载 <strong class="highlight">{{ session.painLevels.length }}</strong> 项医疗修正参数。
+            </p>
+            <p class="desc-text" v-else>{{ getViewDesc(selectedView) }}</p>
+          </div>
+
+          <div class="btn-group">
+            <button class="btn-action primary" @click="startSession('camera')">
+              <div class="btn-icon"><i class="fas fa-camera"></i></div>
+              <div class="btn-content">
+                <span class="main">{{ session[selectedView] ? '重新录制' : '实时采集' }}</span>
+                <span class="sub">打开摄像头</span>
+              </div>
+            </button>
+
+            <button class="btn-action outline" @click="startSession('upload')">
+              <div class="btn-icon"><i class="fas fa-upload"></i></div>
+              <div class="btn-content">
+                <span class="main">{{ session[selectedView] ? '重新上传' : '上传分析' }}</span>
+                <span class="sub">导入录像</span>
+              </div>
+            </button>
+
+            <transition name="fade-slide">
+              <button
+                  v-if="capturedCount > 0"
+                  class="btn-action submit-action"
+                  @click="submitAnalysis"
+              >
+                <div class="btn-icon"><i class="fas fa-bolt"></i></div>
+                <div class="btn-content">
+                  <span class="main">提交分析</span>
+                  <span class="sub">{{ session.side ? '生成深度报告' : '生成基础分析' }}</span>
+                </div>
+              </button>
+            </transition>
+          </div>
+        </div>
+
+        <p class="env-tip content-end-tip">
+          <i class="fas fa-info-circle"></i> 建议至少包含侧面视角以获得完整的几何调整建议。
+        </p>
+      </div>
+
+    </div>
+  </div>
+</template>
+
+<script setup>
+import { ref, computed, onMounted, watch } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
+import { useLabStore } from '@/stores/lab.js';
+import { useDynamicSessionStore } from "@/stores/dynamicSession.js";
+import { showToast, showConfirm } from '@/utils/toast';
+import { PROJECT_CONFIG } from '@/config/constants';
+import PainSelector from "@/views/lab/components/PainSelector.vue";
+
+const route = useRoute();
+const router = useRouter();
+const labStore = useLabStore();
+const sessionStore = useDynamicSessionStore();
+const selectedView = ref('side');
+
+// 状态
+const selectedBikeId = ref(null);
+const selectedBike = ref(null);
+const allBikes = ref([]);
+
+const session = computed(() => sessionStore.sessionData);
+const capturedCount = computed(() => {
+  return ['side', 'front', 'back'].filter(v => session.value[v]).length;
+});
+
+const fetchBikeInfo = async () => {
+    try {
+        const data = await labStore.fetchDashboard();
+        const bikes = data.bikes || [];
+        allBikes.value = bikes;
+
+        if (sessionStore.sessionData.bikeId) {
+            selectedBikeId.value = sessionStore.sessionData.bikeId;
+            selectedBike.value = bikes.find(b => b.id === Number(selectedBikeId.value)) || null;
+        } else if (route.query.bikeId) {
+            selectedBikeId.value = Number(route.query.bikeId);
+            selectedBike.value = bikes.find(b => b.id === selectedBikeId.value) || null;
+            if (selectedBikeId.value) sessionStore.initSession(selectedBikeId.value);
+        } else if (bikes.length > 0) {
+            selectedBikeId.value = bikes[0].id;
+            selectedBike.value = bikes[0];
+            sessionStore.initSession(selectedBikeId.value);
+        }
+    } catch(err) {
+        console.error("加载车辆信息失败", err);
+    }
+}
+
+const selectBike = async (bike) => {
+  if (selectedBikeId.value === bike.id) return;
+  
+  if (capturedCount.value > 0) {
+    const confirm = await showConfirm('切换车辆将清空当前已录制视角，是否继续？');
+    if (!confirm) return;
+  }
+
+  selectedBikeId.value = bike.id;
+  selectedBike.value = bike;
+  sessionStore.clearSession();
+  sessionStore.initSession(bike.id);
+};
+
+onMounted(() => {
+   fetchBikeInfo();
+});
+
+const startSession = (mode) => {
+  if (!selectedBikeId.value) {
+    showToast('请先选择一辆单车', 'warning');
+    return;
+  }
+  router.push({
+    path: '/lab/dynamic/capture',
+    query: { view: selectedView.value, mode: mode, bikeId: selectedBikeId.value }
+  });
+};
+
+const submitAnalysis = async () => {
+  if (capturedCount.value === 0) {
+    showToast('请至少采集一个视角的数据', 'warning');
+    return;
+  }
+
+  if (!session.value.side) {
+      const isConfirmed = await showConfirm(
+        `未检测到侧面视角数据。${PROJECT_CONFIG.MASCOT} 将无法生成关于座垫高度和前伸量的精准建议。是否继续提交已有的视角分析？`,
+        '视角缺失确认'
+      );
+    if (!isConfirmed) return;
+  }
+
+  try {
+    showToast('正在上传原始数据...', 'info');
+    const vo = await sessionStore.submit();
+    if (vo && vo.id) {
+      sessionStore.clearSession();
+      router.push({
+        path: '/lab/dynamic/session/submitted',
+        query: { id: vo.id, status: vo.status, bikeName: vo.bikeName || (selectedBike.value ? (selectedBike.value.brand + ' ' + selectedBike.value.model) : '您的单车') }
+      });
+    }
+  } catch (error) {
+    showToast('网络波动，请检查后重试', 'error');
+  }
+};
+
+const discardSession = async () => {
+  if (await showConfirm('确定要清空刚才辛苦采集的数据吗？')) {
+    sessionStore.clearSession();
+    if (selectedBikeId.value) sessionStore.initSession(selectedBikeId.value);
+    showToast('数据已清空', 'success');
+  }
+};
+
+const handleBack = async () => {
+  if (capturedCount.value > 0) {
+    if (await showConfirm('退出将丢失已采集的数据，确认返回？')) {
+      sessionStore.clearSession();
+      router.push('/lab');
+    }
+  } else {
+    router.push('/lab');
+  }
+};
+
+const getViewName = (v) => {
+  const map = { side: '侧面 (Side)', front: '正面 (Front)', back: '背面 (Back)' };
+  return map[v];
+};
+
+const getViewDesc = (v) => {
+  const map = {
+    side: '分析座高、Reach设置及关节角度',
+    front: '分析膝盖内扣轨迹及迎风面积',
+    back: '分析骨盆左右晃动及脊柱中线'
+  };
+  return map[v];
+};
+</script>
+
+<style scoped>
+.hub-page {
+  padding: 120px 0 80px;
+  min-height: 100vh;
+  background: transparent;
+}
+
+.main-content-area {
+  max-width: 1200px;
+}
+
+/* Header */
+.page-header {
+  display: flex; justify-content: space-between; align-items: flex-end;
+  margin-bottom: 40px; padding-bottom: 25px; border-bottom: 1px solid rgba(0,0,0,0.05);
+}
+.title { font-family: var(--font-serif); font-size: 2.2rem; color: var(--text-main); margin: 0; }
+.beta-tag { font-size: 0.65rem; background: var(--accent-gold); color: #fff; padding: 2px 8px; border-radius: 4px; vertical-align: middle; margin-left: 12px; font-weight: 800; letter-spacing: 1px; }
+.subtitle {
+  color: var(--text-muted);
+  font-size: 1rem;
+  margin: 0; }
+.header-actions { display: flex; align-items: center; }
+.back-btn { color: var(--text-muted); font-size: 0.95rem; background: transparent; border: none; cursor: pointer; transition: all 0.4s var(--ease-out-expo); display: flex; align-items: center; gap: 8px; }
+.back-btn:hover { color: var(--primary-color); transform: translateX(-5px); }
+
+/* Layout: Top row (Bike + Pain) */
+.top-selection-row {
+  display: grid;
+  grid-template-columns: 1fr 1.3fr;
+  gap: 30px;
+  margin-bottom: 40px;
+}
+
+.view-card {
+  position: relative;
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(92, 110, 88, 0.15);
+  border-radius: 20px;
+  box-shadow: 0 10px 40px rgba(0,0,0,0.04);
+  transition: all 0.5s var(--ease-out-expo);
+  overflow: hidden;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.view-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 20px 60px rgba(0,0,0,0.08);
+}
+
+.card-header {
+  padding: 24px 30px 15px;
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+
+.card-header h3 {
+  margin: 0;
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: var(--text-main);
+}
+
+.card-body {
+  padding: 0 30px 30px;
+  flex: 1;
+}
+
+/* Bike selection */
+.bike-selection-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.bike-selection-item {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  padding: 14px 18px;
+  background: rgba(255,255,255,0.5);
+  border: 1px solid rgba(92, 110, 88, 0.12);
+  border-radius: 14px;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.bike-selection-item.active {
+  background: #fff;
+  border-color: var(--primary-color);
+  box-shadow: 0 5px 15px rgba(0,0,0,0.05);
+}
+
+.bike-main-info { display: flex; flex-direction: column; }
+.bike-name { font-weight: 700; color: var(--text-main); font-size: 0.95rem; }
+.bike-remark { font-size: 0.75rem; color: var(--text-muted); }
+
+.active-check { position: absolute; right: 15px; color: var(--primary-color); opacity: 0; transform: scale(0.5); transition: 0.3s; }
+.active-check.is-visible { opacity: 1; transform: scale(1); }
+
+/* Middle: Views */
+.middle-selection-section {
+  margin-bottom: 50px;
+}
+
+.section-header {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  margin-bottom: 25px;
+  padding-left: 10px;
+}
+
+.section-header h3 { margin: 0; font-size: 1.4rem; color: var(--text-main); font-family: var(--font-serif); }
+
+.views-container {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 20px;
+}
+
+.view-item {
+  cursor: pointer;
+  padding: 25px;
+  border: 2px solid transparent;
+}
+
+.view-item.active {
+  border-color: var(--primary-color);
+  background: #fff;
+}
+
+.card-icon {
+  width: 50px; height: 50px;
+  border-radius: 12px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.4rem;
+  margin-bottom: 5px;
+}
+
+.card-text h3 { margin: 10px 0 5px; font-size: 1.1rem; }
+.card-text p { font-size: 0.85rem; color: var(--text-muted); }
+
+.view-help-text { line-height: 1.5; margin-top: 4px; }
+.view-help-text strong { display: block; margin-bottom: 3px; color: var(--text-main); font-weight: 600; font-size: 0.9rem; }
+.view-help-text span { opacity: 0.85; font-size: 0.8rem; }
+
+.mini-dashboard {
+  margin-top: 15px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.m-item .l { font-size: 0.7rem; color: var(--text-muted); text-transform: uppercase; }
+.m-item .v { font-size: 1rem; font-weight: 700; color: var(--primary-color); }
+
+.check-circle { position: absolute; top: 15px; right: 15px; color: var(--primary-color); }
+
+/* Bottom Action */
+.bottom-action-section {
+  background: var(--bg-soft);
+  padding: 40px;
+  border-radius: 30px;
+}
+
+.glass-card-premium {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 40px;
+}
+
+.task-info { flex: 1; }
+.task-info .label { font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; }
+.selected-text { font-size: 1.8rem; font-family: var(--font-serif); margin: 5px 0; }
+.desc-text { color: var(--text-muted); font-size: 0.95rem; }
+
+.btn-group { display: flex; gap: 15px; }
+.btn-action {
+  padding: 15px 30px;
+  border-radius: 16px;
+  border: none;
+  cursor: pointer;
+  display: flex; align-items: center; gap: 12px;
+  transition: 0.3s;
+}
+
+.btn-action.primary { background: var(--primary-color); color: #fff; }
+.btn-action.outline { background: #fff; border: 1px solid rgba(0,0,0,0.1); }
+.btn-action.submit-action { background: var(--accent-gold); }
+
+.btn-content .main { font-weight: 700; font-size: 1rem; }
+.btn-content .sub { font-size: 0.7rem; opacity: 0.7; display: block; }
+
+.content-end-tip { margin-top: 30px; text-align: center; font-size: 0.85rem; color: var(--text-muted); }
+
+/* --- 4. 响应式适配 --- */
+@media (max-width: 1024px) {
+  .top-selection-row { grid-template-columns: 1fr; }
+  .views-container { grid-template-columns: repeat(2, 1fr); }
+  .glass-card-premium { flex-direction: column; text-align: center; gap: 30px; }
+  .btn-group { width: 100%; }
+}
+
+@media (max-width: 768px) {
+  .hub-page { padding: 100px 0 60px; }
+  
+  /* Header 适配 */
+  .page-header { flex-direction: column; align-items: flex-start; gap: 15px; margin-bottom: 30px; }
+  .title { font-size: 1.8rem; }
+  .subtitle { font-size: 0.9rem; }
+  .header-actions { width: 100%; justify-content: space-between; }
+  .header-actions .btn-text { font-size: 0.85rem; margin-right: 0 !important; }
+
+  /* 选择区适配 */
+  .top-selection-row { gap: 20px; margin-bottom: 30px; }
+  .card-header { padding: 20px 20px 10px; }
+  .card-body { padding: 0 20px 20px; }
+  
+  /* 视角列表：单列显示 */
+  .views-container { grid-template-columns: 1fr; gap: 15px; }
+  .view-item { padding: 20px; }
+  .card-icon { width: 44px; height: 44px; font-size: 1.2rem; }
+  .card-text h3 { font-size: 1.1rem; }
+  .mini-dashboard { grid-template-columns: repeat(2, 1fr); }
+
+  /* 底部操作面板适配 */
+  .bottom-action-section { padding: 25px 20px; border-radius: 20px; }
+  .task-info .selected-text { font-size: 1.4rem; }
+  .btn-group { flex-direction: column; gap: 12px; }
+  .btn-action { width: 100%; justify-content: center; padding: 18px; border-radius: 12px; }
+  .btn-icon { font-size: 1.3rem; }
+}
+
+@media (max-width: 480px) {
+  .title { font-size: 1.6rem; }
+  .mini-dashboard { grid-template-columns: 1fr; }
+  .btn-group { gap: 10px; }
+  .btn-action .main { font-size: 0.95rem; }
+}
+</style>

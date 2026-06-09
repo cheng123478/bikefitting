@@ -1,0 +1,36 @@
+package com.starrysky.aries.bikemodel.schema;
+
+import lombok.Data;
+
+/**
+ * 单车模型DTO
+ *
+ * @author adi
+ * @version 1.0
+ * @since 2026/3/11 14:10
+ */
+@Data
+public class BikeModelDTO {
+    private Long id;
+    private String brand;
+    private String brandCn;
+    private String model;
+    private String modelYear;
+    private String size;
+    private Integer bikeType;
+
+    // Geometry
+    private Integer stack;
+    private Integer reach;
+    private Double seatTubeAngle;
+    private Double headTubeAngle;
+    private Integer bbDrop;
+    private Integer wheelBase;
+    private Integer standOverHeight;
+
+    // Extra
+    private String imageUrl;
+    private String sourceUrl;
+    private Integer sourceType;
+    private Integer status;
+}
