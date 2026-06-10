@@ -413,6 +413,147 @@ public class DynamicFittingService {
     }
 
     /**
+     * 基于权威生物力学文献的理想值范围（兜底用）
+     * 参考来源：
+     * - Holmes, Pruitt & Whalen (1994) "Lower extremity overuse in bicycling", Clin Sports Med
+     * - Bini, Hume & Croft (2011) "Effects of bicycle saddle height on knee injury risk", Sports Med
+     * - Silberman et al. (2005) "Road bicycle fit", Clin J Sport Med
+     * - Retül / GebioMized / Shimano Bike Fitting System 主流平台参考范围
+     */
+    private static final Map<String, String> LITERATURE_IDEAL_RANGES = new HashMap<>();
+    static {
+        // 侧面视角
+        LITERATURE_IDEAL_RANGES.put("avgTorso", "40.0-50.0");
+        LITERATURE_IDEAL_RANGES.put("minHip", "40.0-55.0");
+        LITERATURE_IDEAL_RANGES.put("maxHip", "70.0-80.0");
+        LITERATURE_IDEAL_RANGES.put("kopsOffset", "-10.0-10.0");
+        LITERATURE_IDEAL_RANGES.put("cadenceRpm", "80.0-100.0");
+        LITERATURE_IDEAL_RANGES.put("ankleAtBdc", "10.0-25.0");
+        LITERATURE_IDEAL_RANGES.put("ankleY", "0.0-15.0");
+        LITERATURE_IDEAL_RANGES.put("maxKnee", "140.0-150.0");
+        LITERATURE_IDEAL_RANGES.put("maxShoulder", "80.0-95.0");
+        // 正面视角
+        LITERATURE_IDEAL_RANGES.put("maxWobble", "0.0-15.0");
+        LITERATURE_IDEAL_RANGES.put("maxTilt", "0.0-5.0");
+        LITERATURE_IDEAL_RANGES.put("maxElbowFlare", "0.0-15.0");
+        LITERATURE_IDEAL_RANGES.put("maxShoulderTilt", "0.0-5.0");
+        LITERATURE_IDEAL_RANGES.put("maxHipTilt", "0.0-5.0");
+        // 背面视角
+        LITERATURE_IDEAL_RANGES.put("maxPelvisSway", "0.0-10.0");
+        LITERATURE_IDEAL_RANGES.put("maxSpineTilt", "0.0-5.0");
+        LITERATURE_IDEAL_RANGES.put("spineRockingVar", "0.0-3.0");
+        LITERATURE_IDEAL_RANGES.put("maxHipDrop", "0.0-8.0");
+    }
+
+    /**
+     * 获取理想范围（优先级：数据库标准 > 文献参考值 > "--"）
+     */
+    private String resolveIdealRange(String metricKey, DynamicFittingAdviceVO advice, Map<String, String> standardRanges) {
+        if (advice != null && advice.getRange() != null) {
+            return advice.getRange();
+        }
+        if (standardRanges != null && standardRanges.containsKey(metricKey)) {
+            return standardRanges.get(metricKey);
+        }
+        return LITERATURE_IDEAL_RANGES.getOrDefault(metricKey, "--");
+    }
+
+    /**
+     * 生成骑车人自身动作纠正建议（基于指标偏差）
+     * 参考主流 Bike Fitting 平台（Retul, GebioMized）的 rider education 思路
+     */
+    private String getRiderAdvice(String metricKey, double currentVal, String idealRange) {
+        if (idealRange.equals("--")) return null;
+        try {
+            String[] parts = idealRange.split("-");
+            double min = Double.parseDouble(parts[0].trim());
+            double max = Double.parseDouble(parts[1].trim());
+            if (currentVal >= min && currentVal <= max) return null; // 在理想范围内，无需纠正
+
+            boolean isLow = currentVal < min;
+
+            switch (metricKey) {
+                case "avgTorso":
+                    return isLow
+                        ? "骑行时尝试微微抬高上半身，收紧核心肌群（腹横肌），想象「肚脐向脊柱靠拢」。可尝试在骑行时每5分钟提醒自己「挺胸收腹」，避免塌腰。"
+                        : "尝试降低躯干，但需确保核心稳定。练习：下车后做猫牛式（Cat-Cow）拉伸，增强胸椎灵活性，让趴低时不会耸肩。";
+                case "minHip":
+                    return isLow
+                        ? "上死点时髋角过小（大腿贴近腹部），建议在踩踏顶部主动「提膝」而非挤压腹部，同时锻炼髋屈肌灵活性。"
+                        : "上死点髋角偏大，通常意味着坐垫过高。除调整车辆外，可以尝试单腿踩踏训练（Single Leg Drill）来改善髋关节在顶部的控制力。";
+                case "maxHip":
+                    return isLow
+                        ? "踩踏底部髋角偏小，说明伸展受限。建议在骑行前做髋屈肌拉伸（如弓步髋屈肌拉伸），改善髋关节活动度。"
+                        : "髋角偏大，注意踩踏时不要过度下沉骨盆，保持骨盆水平稳定。";
+                case "maxKnee":
+                    return isLow
+                        ? "膝部伸展不足，除了车辆调整外，建议做股四头肌和腘绳肌的动态拉伸（如Leg Swings），并注意踩踏时尽量「画圆」而非「踩踏」。"
+                        : "膝盖过度伸展（超伸），存在膝关节后侧韧带损伤风险。骑车时注意保持膝盖微曲，避免完全锁死。可以练习高踏频（90-100 RPM）来改善踩踏平顺度。";
+                case "maxShoulder":
+                    return isLow
+                        ? "肩角偏小，说明上肢过于蜷缩。建议在骑行时保持肘部微曲、肩胛骨微微后收下沉，避免耸肩。"
+                        : "肩角偏大，关注是否过度伸展手臂导致重心前移。建议保持肘部弯曲约15-20度，用手臂肌肉吸收震动。";
+                case "kopsOffset":
+                    return isLow
+                        ? "膝盖前移量不足，踩踏时膝部在踏板轴后方。可以尝试在踩踏时主动让膝盖向前「追踪」脚尖方向，感受股四头肌更早介入发力。"
+                        : "膝盖前移量过大，增加髌骨压力。注意踩踏时膝盖不要过度超过脚尖，感受臀大肌主导发力。";
+                case "cadenceRpm":
+                    return isLow
+                        ? "踏频偏低（大齿比踩踏），长期如此对膝关节压力较大。建议切换到更轻的齿比，目标踏频80-90 RPM，练习「画圆」式的平顺踩踏。"
+                        : "踏频偏高，可能导致身体在车座上跳动。建议配合核心收紧，并且适当增加齿比，找到能稳定骨盆的节奏。";
+                case "ankleAtBdc":
+                    return isLow
+                        ? "下死点踝角偏小（足尖下垂），说明踩踏时过度「垫脚尖」。建议练习在踩踏底部时微微勾起脚尖（dorsiflexion），想象用脚后跟「刮」过底部。"
+                        : "踝角过大，可能与锁片位置有关。踩踏时注意保持脚掌平放，不要过度勾脚尖。";
+                case "ankleY":
+                    return isLow
+                        ? "脚踝垂直轨迹较低，可能导致踩踏不连贯。可以练习单腿踩踏训练（Single Leg Drill），专注于脚踝的平滑过渡。"
+                        : "脚踝波动过大，可能踩踏时不稳定。建议收紧核心，感受脚掌始终与踏板保持接触，避免「抖动式」踩踏。";
+                case "maxWobble":
+                    return isLow
+                        ? null
+                        : "膝盖横向偏移过大，会损耗功率并增加髂胫束（ITB）损伤风险。建议练习：骑行时有意识地保持膝盖「向上、向下」运动（平行于车架），避免膝盖外翻或内扣。可以多做臀中肌激活训练（如蚌式开合、侧卧抬腿）。";
+                case "maxTilt":
+                    return isLow
+                        ? null
+                        : "身体侧倾过大，说明核心稳定性不足。建议加强核心抗旋转训练（如Pallof Press、侧平板支撑），骑行时注意骨盆保持水平。";
+                case "maxElbowFlare":
+                    return isLow
+                        ? null
+                        : "手肘外张过大，增加风阻且易导致肩部疲劳。骑行时注意保持肘部「内收」（肘部靠近身体，而非向外张开），感受前臂自然下垂。";
+                case "maxShoulderTilt":
+                    return isLow
+                        ? null
+                        : "高低肩偏角明显，可能由单侧肌力不均衡或脊柱侧弯趋势引起。建议：加强弱侧斜方肌中下束训练，日常注意左右对称发力。";
+                case "maxHipTilt":
+                    return isLow
+                        ? null
+                        : "骨盆侧倾过大，通常暗示坐垫过高或双腿发力不均衡。建议：练习单腿踩踏，并加强臀中肌和核心的抗侧倾能力。";
+                case "maxPelvisSway":
+                    return isLow
+                        ? null
+                        : "骨盆横摆位移过大，说明核心稳定性不足或坐垫过高。建议加强核心训练（平板支撑、死虫式），并尝试在骑行时保持骨盆「坐稳」的感觉。";
+                case "maxSpineTilt":
+                    return isLow
+                        ? null
+                        : "脊柱侧向偏移明显，可能存在结构性或功能性脊柱侧弯趋势。建议咨询物理治疗师，同时加强核心肌群对称性训练。";
+                case "spineRockingVar":
+                    return isLow
+                        ? null
+                        : "脊柱侧偏波动大，说明踩踏时身体不稳定。建议练习稳定踏频下的匀速踩踏，避免身体左右晃动。可以尝试在骑行台上闭眼骑行（安全环境），训练本体感觉。";
+                case "maxHipDrop":
+                    return isLow
+                        ? null
+                        : "骨盆下坠明显，说明踩踏时一侧髋关节支撑不足。建议加强弱侧臀中肌力量（如单腿站立、侧卧抬腿），并注意踩踏时保持骨盆水平。";
+                default:
+                    return null;
+            }
+        } catch (NumberFormatException e) {
+            return null;
+        }
+    }
+
+    /**
      * 将指标数据转换为VO对象
      *
      * @param metrics 指标数据
@@ -441,14 +582,17 @@ public class DynamicFittingService {
                         .filter(a -> a.getMetric().equalsIgnoreCase(key))
                         .findFirst().orElse(null);
 
-                String range = advice != null ? advice.getRange() : (standardRanges != null ? standardRanges.getOrDefault(key, "--") : "--");
+                String range = resolveIdealRange(key, advice, standardRanges);
+                double currentVal = convertToDouble(val);
+                String riderAdvice = getRiderAdvice(key, currentVal, range);
 
                 vos.add(DynamicFittingMetricVO.builder()
                         .label(getMetricLabel(key))
-                        .currentValue(String.format("%.1f", convertToDouble(val)))
+                        .currentValue(String.format("%.1f", currentVal))
                         .status(advice != null ? "ADJUST" : "OK")
                         .idealRange(range)
                         .advice(advice != null ? (advice.getAdviceContent() != null ? advice.getAdviceContent() : advice.getCode()) : "处于理想范围")
+                        .riderAdvice(riderAdvice)
                         .build());
             }
         });
@@ -467,7 +611,9 @@ public class DynamicFittingService {
             DynamicFittingAdviceVO finalAdvice = adviceAsym != null ? adviceAsym : (adviceL != null ? adviceL : adviceR);
             String status = finalAdvice != null ? "ADJUST" : "OK";
             String adviceText = finalAdvice != null ? (finalAdvice.getAdviceContent() != null ? finalAdvice.getAdviceContent() : finalAdvice.getCode()) : "根据生物力学模型对您的身体关键特征进行追踪量化。";
-            String range = finalAdvice != null && finalAdvice.getRange() != null ? finalAdvice.getRange() : (standardRanges != null ? standardRanges.getOrDefault("maxHipDrop", "--") : "--");
+            String range = resolveIdealRange("maxHipDrop", finalAdvice, standardRanges);
+            double maxDrop = Math.max(lVal, rVal);
+            String riderAdvice = getRiderAdvice("maxHipDrop", maxDrop, range);
 
             vos.add(DynamicFittingMetricVO.builder()
                     .label("左右侧骨盆下坠")
@@ -475,6 +621,7 @@ public class DynamicFittingService {
                     .status(status)
                     .idealRange(range)
                     .advice(adviceText)
+                    .riderAdvice(riderAdvice)
                     .build());
         }
         return vos;

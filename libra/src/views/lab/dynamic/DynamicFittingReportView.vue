@@ -294,12 +294,13 @@ const getReadableLabel = (tag) => {
 };
 
 const getUnit = (label, viewType) => {
-  if (label.includes('角') || label.includes('倾') || label.includes('Tilt') || label.includes('度')) return '°';
-  if (label.includes('横摆') || label.includes('跨度') || label.includes('偏离')) return 'mm';
-  if (label.includes('外张') || label.includes('摇摆') || label.includes('Flare') || label.includes('距')) return 'px';
+  if (label.includes('角') || label.includes('倾') || label.includes('Tilt') || label.includes('度')) return '\u00B0';
+  // 【修复 P13】以下三项均为归一化百分比值（已除以人体参照物尺寸），单位应为 % 而非 px/mm
+  if (label.includes('横摆') || label.includes('外张') || label.includes('摇摆') || label.includes('Flare')) return '%';
+  if (label.includes('跨度') || label.includes('偏离')) return 'mm';
   if (label.includes('下坠')) return '%';
   // Fallback
-  return viewType === 'side' ? '°' : '';
+  return viewType === 'side' ? '\u00B0' : '';
 };
 
 const getDescription = (label) => {
