@@ -145,10 +145,7 @@ public class PelotonTeamService {
     public PelotonTeamVO updateTeam(Long teamId, CreateTeamDTO dto, User user) {
         PelotonTeam team = pelotonTeamRepository.findById(teamId)
                 .orElseThrow(() -> new BizException(404, "车队不存在"));
-
-        if (!Objects.equals(team.getCreatorId(), user.getId())) {
-            throw new BizException(403, "仅车队创建者可编辑车队信息");
-        }
+        assertCreator(team, user, "仅车队创建者可编辑车队信息");
 
         // 名称唯一性校验（排除自身）
         String newName = dto.getName().trim();
@@ -255,10 +252,7 @@ public class PelotonTeamService {
     public void disbandTeam(Long teamId, User user) {
         PelotonTeam team = pelotonTeamRepository.findById(teamId)
                 .orElseThrow(() -> new BizException(404, "车队不存在"));
-
-        if (!Objects.equals(team.getCreatorId(), user.getId())) {
-            throw new BizException(403, "仅车队创建者可解散车队");
-        }
+        assertCreator(team, user, "仅车队创建者可解散车队");
 
         pelotonTeamMemberRepository.deleteByTeamId(teamId);
         pelotonTeamRepository.delete(team);
@@ -291,7 +285,16 @@ public class PelotonTeamService {
         pelotonTeamRepository.save(team);
     }
 
-    // ============================ 私有转换方法 ============================
+    // ============================ 私有方法 ============================
+
+    /**
+     * 校验当前用户是否为车队创建者，不是则抛出 403 异常
+     */
+    private void assertCreator(PelotonTeam team, User user, String message) {
+        if (!Objects.equals(team.getCreatorId(), user.getId())) {
+            throw new BizException(403, message);
+        }
+    }
 
     /**
      * 车队实体 -> VO

@@ -85,16 +85,16 @@ public class PelotonTeamController {
      * <p>
      * 仅车队创建者可操作。
      *
-     * @param id   车队ID
+     * @param teamId 车队ID
      * @param dto  编辑内容（与创建时相同结构）
      * @param user 当前登录用户
      * @return 更新后的车队信息
      */
-    @PutMapping("/{id}")
-    public ResponseResult<PelotonTeamVO> updateTeam(@PathVariable("id") Long id,
+    @PutMapping("/{teamId}")
+    public ResponseResult<PelotonTeamVO> updateTeam(@PathVariable("teamId") Long teamId,
                                                      @Valid @RequestBody CreateTeamDTO dto,
                                                      @AuthenticationPrincipal User user) {
-        return ResponseResult.success(pelotonTeamService.updateTeam(id, dto, user));
+        return ResponseResult.success(pelotonTeamService.updateTeam(teamId, dto, user));
     }
 
     /**
@@ -130,12 +130,12 @@ public class PelotonTeamController {
      * <p>
      * 该接口无需登录即可访问。
      *
-     * @param id 车队ID
+     * @param teamId 车队ID
      * @return 车队详情
      */
-    @GetMapping("/{id}")
-    public ResponseResult<PelotonTeamVO> getTeamDetail(@PathVariable("id") Long id) {
-        return ResponseResult.success(pelotonTeamService.getTeamDetail(id));
+    @GetMapping("/{teamId}")
+    public ResponseResult<PelotonTeamVO> getTeamDetail(@PathVariable("teamId") Long teamId) {
+        return ResponseResult.success(pelotonTeamService.getTeamDetail(teamId));
     }
 
     /**
@@ -188,14 +188,14 @@ public class PelotonTeamController {
      * <p>
      * 仅车队创建者可操作。删除所有成员记录并移除车队。
      *
-     * @param id   车队ID
+     * @param teamId 车队ID
      * @param user 当前登录用户
      * @return 操作结果
      */
-    @DeleteMapping("/{id}")
-    public ResponseResult<Void> disbandTeam(@PathVariable("id") Long id,
+    @DeleteMapping("/{teamId}")
+    public ResponseResult<Void> disbandTeam(@PathVariable("teamId") Long teamId,
                                             @AuthenticationPrincipal User user) {
-        pelotonTeamService.disbandTeam(id, user);
+        pelotonTeamService.disbandTeam(teamId, user);
         return ResponseResult.success();
     }
 }

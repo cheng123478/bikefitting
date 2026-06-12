@@ -106,7 +106,7 @@ public class SecurityConfig {
                                 "/error", "/sms/send", "/resource/**", 
                                 "/bike-model/showroom", "/bike-model/{id}", "/bike-model/model/**",
                                 "/team/list", "/team/{teamId}/members").permitAll()
-                        .requestMatchers(HttpMethod.GET, "/team/{id}").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/team/{teamId}").permitAll()
                         .requestMatchers("/user/logout").authenticated()
                         .anyRequest().authenticated()
                 )
