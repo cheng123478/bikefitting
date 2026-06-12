@@ -7,28 +7,24 @@ import { STORAGE_KEYS } from '@/config/constants.js';
 const router = createRouter({
     history: createWebHistory(import.meta.env.BASE_URL),
     routes: [
-        // --- 基础页面 ---
         {
             path: '/',
             name: 'home',
             component: HomeView,
             meta: { title: '首页' }
         },
-        // 单车展厅
         {
             path: '/showroom',
             name: 'show-room',
             component: () => import('@/views/ShowroomView.vue'),
             meta: { title: '单车展厅', requiresAuth: false }
         },
-        // 单车详情
         {
             path: '/showroom/:id',
             name: 'bike-detail',
             component: () => import('@/views/BikeDetailView.vue'),
             meta: { title: '单车详情', requiresAuth: false }
         },
-        // --- 实验室 模块 ---
         {
             path: '/lab',
             name: 'lab',
@@ -129,26 +125,66 @@ const router = createRouter({
                     component: () => import('@/views/lab/archives/DynamicArchiveView.vue'),
                     meta: { title: '动态Fitting报告历史记录', requiresAuth: true }
                 },
-                // {
-                //     path: 'realtime',
-                //     name: 'RealtimeArchive',
-                //     component: () => import('@/views/lab/archives/RealtimeArchiveView.vue'),
-                //     meta: { title: '实时监测历史记录', requiresAuth: true }
-                // }
                 {
                     path: '',
                     redirect: '/lab/archives/static'
                 }
             ]
         },
-        // --- 用户模块 ---
+        {
+            path: '/peloton',
+            name: 'peloton',
+            component: () => import('@/views/peloton/PelotonView.vue'),
+            meta: { title: '破风社', requiresAuth: false }
+        },
+        {
+            path: '/peloton/create',
+            name: 'team-create',
+            component: () => import('@/views/peloton/CreateTeamView.vue'),
+            meta: { title: '创建车队', requiresAuth: true }
+        },
+        {
+            path: '/peloton/:id',
+            name: 'team-detail',
+            component: () => import('@/views/peloton/TeamDetailView.vue'),
+            meta: { title: '车队详情', requiresAuth: false }
+        },
+        {
+            path: '/peloton/:id/activity/create',
+            name: 'activity-create',
+            component: () => import('@/views/peloton/ActivityCreateView.vue'),
+            meta: { title: '发布活动', requiresAuth: true }
+        },
+        {
+            path: '/peloton/:id/activity/edit/:activityId',
+            name: 'activity-edit',
+            component: () => import('@/views/peloton/ActivityEditView.vue'),
+            meta: { title: '编辑活动', requiresAuth: true }
+        },
+        {
+            path: '/peloton/:id/notice/create',
+            name: 'notice-create',
+            component: () => import('@/views/peloton/NoticeEditView.vue'),
+            meta: { title: '发布公告', requiresAuth: true }
+        },
+        {
+            path: '/peloton/:id/notice/edit/:noticeId',
+            name: 'notice-edit',
+            component: () => import('@/views/peloton/NoticeEditView.vue'),
+            meta: { title: '编辑公告', requiresAuth: true }
+        },
         {
             path: '/profile',
             name: 'profile',
             component: () => import('@/views/user/ProfileView.vue'),
             meta: { title: '个人中心', requiresAuth: true }
         },
-        // --- 法律相关 ---
+        {
+            path: '/messages',
+            name: 'message-center',
+            component: () => import('@/views/message/MessageCenterView.vue'),
+            meta: { title: '消息中心', requiresAuth: true }
+        },
         {
             path: '/user-agreement',
             name: 'user-agreement',
@@ -161,22 +197,19 @@ const router = createRouter({
             component: () => import('@/views/legal/PrivacyPolicyView.vue'),
             meta: { title: '隐私政策' }
         },
-        // --- 微信授权回调 ---
         {
             path: '/wechat/callback',
             name: 'wechat-callback',
             component: () => import('@/views/WeChatCallback.vue'),
             meta: { title: '微信授权登录中' }
         },
-        // --- 404 捕获路由 ---
         {
             path: '/:pathMatch(.*)*',
             name: 'NotFound',
-            redirect: '/' // 也可以重定向到专门的 404 页面
+            redirect: '/'
         }
     ],
 
-    // 滚动行为控制
     scrollBehavior(to, from, savedPosition) {
         if (savedPosition) {
             return savedPosition;
@@ -188,18 +221,15 @@ const router = createRouter({
     }
 });
 
-// --- 全局路由守卫 ---
 router.beforeEach((to, from, next) => {
     if (to.query.inviter) {
         localStorage.setItem(STORAGE_KEYS.INVITER_CODE, to.query.inviter);
     }
     const userStore = useUserStore();
 
-    // 1. 设置网页标题
     const appTitle = '骑迹';
     document.title = to.meta.title ? `${to.meta.title} | ${appTitle}` : appTitle;
 
-    // 2. 鉴权逻辑
     if (to.meta.requiresAuth && !userStore.isLoggedIn) {
         showToast('请先登录', 'warning');
         userStore.openAuthModal();

@@ -47,12 +47,18 @@ public class LabService {
             vo.setHasBodyProfile(true);
             latestBodyId = latestBody.getId();
 
-            int score = BiometricsCalculator.calculateFlexibilityScore(
-                    latestBody.getThoracicRotationAngle(),
-                    latestBody.getArmRaiseAngle(),
-                    latestBody.getThoracicPainLevel()
-            );
-            vo.setFlexibilityScore(score);
+            // 柔韧性评分：需要三个字段都存在才计算，避免 NPE
+            Double thoracicRotationAngle = latestBody.getThoracicRotationAngle();
+            Double armRaiseAngle = latestBody.getArmRaiseAngle();
+            Integer thoracicPainLevel = latestBody.getThoracicPainLevel();
+            if (thoracicRotationAngle != null && armRaiseAngle != null && thoracicPainLevel != null) {
+                int score = BiometricsCalculator.calculateFlexibilityScore(
+                        thoracicRotationAngle,
+                        armRaiseAngle,
+                        thoracicPainLevel
+                );
+                vo.setFlexibilityScore(score);
+            }
 
             // 计算稳定性评分 (深蹲60% + 平板支撑40%，转换为0-100分)
             Integer squatScore = latestBody.getSquatStabilityScore();

@@ -31,6 +31,9 @@
         <li @click="closeMobileMenu">
           <router-link to="/lab" class="nav-link" :class="{ 'active-link': $route.path.startsWith('/lab') }">实验室</router-link>
         </li>
+        <li @click="closeMobileMenu">
+          <router-link to="/peloton" class="nav-link" active-class="active-link">破风社</router-link>
+        </li>
 
         <!-- 4. 登录/用户信息区域 (保持原逻辑，优化样式) -->
         <li class="login-item" @click.stop>
@@ -57,6 +60,9 @@
                   </li>
                   <li @click="handleMenuClick('/lab/garage')">
                     <i class="fas fa-bicycle"></i> 我的车库
+                  </li>
+                  <li @click="handleMenuClick('/messages')">
+                    <i class="fas fa-bell"></i> 消息中心
                   </li>
                   <div class="divider"></div>
                   <li @click="handleLogout" class="logout-item">
