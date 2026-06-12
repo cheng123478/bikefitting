@@ -24,12 +24,9 @@ spring:
     hibernate:
       ddl-auto: update
     generate-ddl: true
-    show-sql: true
+    show-sql: false
     open-in-view: true
     defer-datasource-initialization: true
-    properties:
-      hibernate:
-        format_sql: true
   sql:
     init:
       mode: never

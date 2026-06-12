@@ -9,6 +9,7 @@ import com.starrysky.aries.security.wechat.WeChatAuthenticationFilter;
 import jakarta.annotation.Resource;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.ProviderManager;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
@@ -104,7 +105,8 @@ public class SecurityConfig {
                         .requestMatchers("/user/login", "/user/login/sms", "/user/login/wechat", "/user/refresh",
                                 "/error", "/sms/send", "/resource/**", 
                                 "/bike-model/showroom", "/bike-model/{id}", "/bike-model/model/**",
-                                "/team/list", "/team/{id}", "/team/{teamId}/members").permitAll()
+                                "/team/list", "/team/{teamId}/members").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/team/{id}").permitAll()
                         .requestMatchers("/user/logout").authenticated()
                         .anyRequest().authenticated()
                 )

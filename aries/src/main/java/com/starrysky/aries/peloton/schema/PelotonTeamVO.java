@@ -25,6 +25,9 @@ public class PelotonTeamVO {
     /** 车队ID */
     private Long id;
 
+    /** 创建者用户ID */
+    private Long creatorId;
+
     /** 车队名称 */
     private String name;
 

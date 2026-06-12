@@ -285,7 +285,22 @@ export function createTeam(data) {
   return request({
     url: '/team',
     method: 'post',
-    data
+    data,
+    silent: true
+  });
+}
+
+/**
+ * 编辑车队信息（仅创建者可操作）
+ * @param {Number} teamId - 车队ID
+ * @param {Object} data - 车队信息（同 createTeam）
+ */
+export function updateTeam(teamId, data) {
+  return request({
+    url: `/team/${teamId}`,
+    method: 'put',
+    data,
+    silent: true
   });
 }
 

@@ -7,8 +7,8 @@
           <i class="fas fa-arrow-left"></i>
         </button>
         <div class="header-text">
-          <h1 class="page-title serif-title">组建你的车队</h1>
-          <p class="header-sub">召集志同道合的骑手，一起破风前行</p>
+          <h1 class="page-title serif-title">{{ isEditMode ? '编辑车队' : '组建你的车队' }}</h1>
+          <p class="header-sub">{{ isEditMode ? '修改车队信息，让更多人了解你们' : '召集志同道合的骑手，一起破风前行' }}</p>
         </div>
       </header>
 
@@ -171,12 +171,12 @@
           <!-- 提交 -->
           <div class="form-actions">
             <button type="button" class="btn-ghost" @click="handleBack">取消</button>
-            <button type="submit" class="btn-primary" :disabled="!isFormValid || submitting">
+            <button type="submit" class="btn-primary" :disabled="!isFormValid || submitting || loadingTeam">
               <template v-if="submitting">
-                <i class="fas fa-spinner fa-spin"></i> 创建中...
+                <i class="fas fa-spinner fa-spin"></i> {{ isEditMode ? '保存中...' : '创建中...' }}
               </template>
               <template v-else>
-                <i class="fas fa-paper-plane"></i> 创建车队
+                <i class="fas fa-paper-plane"></i> {{ isEditMode ? '保存修改' : '创建车队' }}
               </template>
             </button>
           </div>
@@ -188,12 +188,17 @@
 
 <script setup>
 import { ref, reactive, computed, onMounted, onBeforeUnmount } from 'vue';
-import { useRouter } from 'vue-router';
-import { createTeam, uploadTeamImage } from '@/api/team';
+import { useRouter, useRoute } from 'vue-router';
+import { createTeam, updateTeam, getTeamDetail, uploadTeamImage } from '@/api/team';
 import { showToast } from '@/utils/toast';
 
 const router = useRouter();
+const route = useRoute();
 const submitting = ref(false);
+const loadingTeam = ref(false);
+
+const editTeamId = computed(() => route.query.id ? Number(route.query.id) : null);
+const isEditMode = computed(() => !!editTeamId.value);
 
 const coverInput = ref(null);
 const avatarInput = ref(null);
@@ -342,9 +347,37 @@ const handleImageUpload = async (e, type) => {
   }
 };
 
-const handleBack = () => router.push('/peloton');
+const handleBack = () => router.push(isEditMode.value ? `/peloton/${editTeamId.value}` : '/peloton');
 
-onMounted(() => document.addEventListener('click', closeCityDropdown));
+onMounted(async () => {
+  document.addEventListener('click', closeCityDropdown);
+
+  if (isEditMode.value) {
+    loadingTeam.value = true;
+    try {
+      const team = await getTeamDetail(editTeamId.value);
+      form.name = team.name || '';
+      form.location = team.location || '';
+      form.description = team.description || '';
+      form.tags = Array.isArray(team.tags) ? [...team.tags] : [];
+      form.avatar = team.avatar || null;
+      form.coverImage = team.coverImage || null;
+      coverPreview.value = team.coverImage || '';
+      avatarPreview.value = team.avatar || '';
+
+      // 根据城市反向查找省份
+      if (form.location) {
+        const province = provinceList.find(p => p.cities.includes(form.location));
+        if (province) selectedProvince.value = province;
+      }
+    } catch (err) {
+      showToast('加载车队信息失败', 'error');
+      router.push('/peloton');
+    } finally {
+      loadingTeam.value = false;
+    }
+  }
+});
 onBeforeUnmount(() => document.removeEventListener('click', closeCityDropdown));
 
 const handleSubmit = async () => {
@@ -354,18 +387,26 @@ const handleSubmit = async () => {
   }
   submitting.value = true;
   try {
-    const result = await createTeam({
+    const payload = {
       name: form.name.trim(),
       location: form.location.trim() || null,
       description: form.description.trim() || null,
       tags: form.tags.length > 0 ? form.tags : null,
       avatar: form.avatar,
       coverImage: form.coverImage
-    });
-    showToast('车队创建成功！', 'success');
-    router.push(`/peloton/${result.id}`);
+    };
+
+    if (isEditMode.value) {
+      await updateTeam(editTeamId.value, payload);
+      showToast('车队信息已更新', 'success');
+      router.push(`/peloton/${editTeamId.value}`);
+    } else {
+      const result = await createTeam(payload);
+      showToast('车队创建成功！', 'success');
+      router.push(`/peloton/${result.id}`);
+    }
   } catch (err) {
-    showToast(err?.message || '创建失败，请稍后重试', 'error');
+    showToast(err?.message || (isEditMode.value ? '保存失败，请稍后重试' : '创建失败，请稍后重试'), 'error');
   } finally {
     submitting.value = false;
   }

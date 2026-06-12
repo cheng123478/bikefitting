@@ -17,8 +17,13 @@
           <div class="hero-cover">
             <img :src="team.coverImage" :alt="team.name" class="cover-img" />
             <div class="cover-gradient"></div>
-            <button class="hero-join-btn" @click="handleJoin">
-              <i class="fas fa-plus"></i> 申请加入
+            <button
+              class="hero-join-btn"
+              :class="{ 'is-edit': isCreator }"
+              @click="isCreator ? handleEdit() : handleJoin()"
+            >
+              <i :class="isCreator ? 'fas fa-pen' : 'fas fa-plus'"></i>
+              {{ isCreator ? '编辑车队' : '申请加入' }}
             </button>
           </div>
 
@@ -474,6 +479,11 @@ const teamActivities = computed(() => (team.value?.activities || []).filter(a =>
 const teamNotices = computed(() => (team.value?.activities || []).filter(a => a.type === 'notice'))
 const teamPosts = computed(() => (team.value?.activities || []).filter(a => a.type === 'checkin'))
 
+const isCreator = computed(() => {
+  if (!userStore.isLoggedIn || !userStore.userInfo) return false
+  return String(team.value?.creatorId) === String(userStore.userInfo.id)
+})
+
 const isCaptain = computed(() => {
   if (!userStore.isLoggedIn || !userStore.userInfo) return false
   if (isMock.value) return true
@@ -504,6 +514,9 @@ const handleJoin = () => {
   if (!userStore.isLoggedIn) { showToast('请先登录', 'warning'); userStore.openAuthModal(); return }
   joinReason.value = ''
   showJoinModal.value = true
+}
+const handleEdit = () => {
+  router.push(`/peloton/create?id=${team.value.id}`)
 }
 const cancelJoin = () => {
   showJoinModal.value = false
@@ -705,8 +718,10 @@ onMounted(() => fetchData())
 .cover-gradient { position: absolute; inset: 0; background: linear-gradient(to bottom, transparent 40%, rgba(0,0,0,0.12) 72%, rgba(0,0,0,0.42) 100%) }
 .hero-join-btn { position: absolute; top: 24px; right: 24px; display: flex; align-items: center; gap: 7px; padding: 11px 24px; border-radius: 30px; border: none; background: rgba(255,255,255,0.92); backdrop-filter: blur(8px); color: var(--primary-color); font-size: 0.9rem; font-weight: 700; cursor: pointer; transition: all 0.35s cubic-bezier(0.165,0.84,0.44,1); box-shadow: 0 4px 20px rgba(0,0,0,0.12) }
 .hero-join-btn:hover { background: var(--primary-color); color: #fff; transform: translateY(-2px); box-shadow: 0 8px 28px rgba(92,110,88,0.4) }
+.hero-join-btn.is-edit:hover { background: rgba(255,255,255,0.92); color: var(--primary-color); transform: translateY(-2px) }
 .hero-join-btn i { font-size: 0.8rem; transition: transform 0.35s }
 .hero-join-btn:hover i { transform: rotate(90deg) }
+.hero-join-btn.is-edit:hover i { transform: none }
 .hero-body { display: flex; gap: 32px; padding: 32px 40px 36px; position: relative; align-items: flex-start }
 
 .hero-avatar-ring { position: relative; flex-shrink: 0; margin-top: -56px }

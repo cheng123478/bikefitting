@@ -81,8 +81,13 @@
                     <i class="fas fa-map-marker-alt"></i> {{ team.location }}
                   </span>
                 </div>
-                <button class="card-join-btn" @click.stop="openJoinDialog(team)" title="申请加入">
-                  <i class="fas fa-plus"></i>
+                <button
+                  class="card-join-btn"
+                  :class="{ 'is-edit': isCreator(team) }"
+                  @click.stop="isCreator(team) ? router.push(`/peloton/create?id=${team.id}`) : openJoinDialog(team)"
+                  :title="isCreator(team) ? '编辑车队' : '申请加入'"
+                >
+                  <i :class="isCreator(team) ? 'fas fa-pen' : 'fas fa-plus'"></i>
                 </button>
               </div>
               <p class="team-desc">{{ team.description }}</p>
@@ -192,6 +197,10 @@ import { showToast } from '@/utils/toast';
 
 const router = useRouter();
 const userStore = useUserStore();
+
+const isCreator = (team) => {
+  return userStore.isLoggedIn && userStore.userInfo && String(team.creatorId) === String(userStore.userInfo.id);
+};
 
 // 分类
 const categories = [
@@ -667,9 +676,15 @@ onUnmounted(() => {
   transform: rotate(90deg) scale(1.1);
   box-shadow: 0 4px 12px rgba(92, 110, 88, 0.35);
 }
+.card-join-btn.is-edit:hover {
+  transform: scale(1.1);
+}
 
 .team-card:hover .card-join-btn {
   border-color: rgba(92, 110, 88, 0.2);
+  color: var(--primary-color);
+}
+.team-card:hover .card-join-btn.is-edit {
   color: var(--primary-color);
 }
 

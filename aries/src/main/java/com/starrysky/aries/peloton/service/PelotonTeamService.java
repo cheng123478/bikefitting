@@ -13,7 +13,6 @@ import com.starrysky.aries.peloton.schema.PelotonTeamQueryDTO;
 import com.starrysky.aries.peloton.schema.PelotonTeamVO;
 import com.starrysky.aries.user.repository.UserRepository;
 import jakarta.annotation.Resource;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
@@ -33,7 +32,6 @@ import java.util.stream.Collectors;
  * @since 2026/06/12
  */
 @Service
-@Slf4j
 public class PelotonTeamService {
 
     @Resource
@@ -130,7 +128,43 @@ public class PelotonTeamService {
                 .build();
         pelotonTeamMemberRepository.save(captain);
 
-        log.info("用户 [{}] 创建车队 [{}] 成功", user.getId(), team.getName());
+        return convertToVO(team);
+    }
+
+    /**
+     * 编辑车队信息
+     * <p>
+     * 仅车队创建者可操作。修改车队名称时会校验唯一性。
+     *
+     * @param teamId 车队ID
+     * @param dto    编辑内容（与创建时相同结构）
+     * @param user   当前登录用户
+     * @return 更新后的车队信息
+     */
+    @Transactional(rollbackFor = Exception.class)
+    public PelotonTeamVO updateTeam(Long teamId, CreateTeamDTO dto, User user) {
+        PelotonTeam team = pelotonTeamRepository.findById(teamId)
+                .orElseThrow(() -> new BizException(404, "车队不存在"));
+
+        if (!Objects.equals(team.getCreatorId(), user.getId())) {
+            throw new BizException(403, "仅车队创建者可编辑车队信息");
+        }
+
+        // 名称唯一性校验（排除自身）
+        String newName = dto.getName().trim();
+        if (!newName.equals(team.getName()) && pelotonTeamRepository.existsByName(newName)) {
+            throw new BizException(400, "车队名称已被使用，请换一个名称");
+        }
+
+        team.setName(newName);
+        team.setAvatar(dto.getAvatar());
+        team.setCoverImage(dto.getCoverImage());
+        team.setLocation(dto.getLocation() != null ? dto.getLocation().trim() : null);
+        team.setDescription(dto.getDescription() != null ? dto.getDescription().trim() : null);
+        team.setTags((dto.getTags() != null && !dto.getTags().isEmpty())
+                ? String.join(",", dto.getTags()) : null);
+
+        pelotonTeamRepository.save(team);
         return convertToVO(team);
     }
 
@@ -207,8 +241,6 @@ public class PelotonTeamService {
 
         team.setMemberCount(Math.max(0, team.getMemberCount() - 1));
         pelotonTeamRepository.save(team);
-
-        log.info("用户 [{}] 退出车队 [{}] 成功", user.getId(), teamId);
     }
 
     /**
@@ -236,8 +268,6 @@ public class PelotonTeamService {
         // 更新车队成员数量（基于当前值 +1，避免并发下 count 读到旧值）
         team.setMemberCount(team.getMemberCount() + 1);
         pelotonTeamRepository.save(team);
-
-        log.info("用户 [{}] 加入车队 [{}] 成功", user.getId(), teamId);
     }
 
     // ============================ 私有转换方法 ============================
@@ -252,6 +282,7 @@ public class PelotonTeamService {
 
         return PelotonTeamVO.builder()
                 .id(team.getId())
+                .creatorId(team.getCreatorId())
                 .name(team.getName())
                 .avatar(team.getAvatar())
                 .coverImage(team.getCoverImage())

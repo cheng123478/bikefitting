@@ -81,6 +81,23 @@ public class PelotonTeamController {
     }
 
     /**
+     * 编辑车队信息
+     * <p>
+     * 仅车队创建者可操作。
+     *
+     * @param id   车队ID
+     * @param dto  编辑内容（与创建时相同结构）
+     * @param user 当前登录用户
+     * @return 更新后的车队信息
+     */
+    @PutMapping("/{id}")
+    public ResponseResult<PelotonTeamVO> updateTeam(@PathVariable("id") Long id,
+                                                     @Valid @RequestBody CreateTeamDTO dto,
+                                                     @AuthenticationPrincipal User user) {
+        return ResponseResult.success(pelotonTeamService.updateTeam(id, dto, user));
+    }
+
+    /**
      * 上传车队图片（头像或封面）
      * <p>
      * 需要登录。上传至 COS 后返回图片访问 URL。
