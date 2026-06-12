@@ -86,15 +86,46 @@
 
             <div class="field-group">
               <label class="field-label">所在城市</label>
-              <div class="input-with-icon">
-                <i class="fas fa-map-marker-alt input-icon"></i>
-                <input
-                  v-model="form.location"
-                  type="text"
-                  class="field-input field-input-icon"
-                  placeholder="上海、北京、成都..."
-                  maxlength="50"
-                />
+              <div class="city-selector" :class="{ open: cityDropdownOpen }">
+                <div class="city-trigger" @click.stop="cityDropdownOpen = !cityDropdownOpen">
+                  <i class="fas fa-map-marker-alt city-trigger-icon"></i>
+                  <span v-if="form.location" class="city-value">{{ selectedProvinceName }} · {{ form.location }}</span>
+                  <span v-else class="city-placeholder">选择车队所在城市</span>
+                  <i class="fas fa-chevron-down city-arrow" :class="{ rotated: cityDropdownOpen }"></i>
+                </div>
+                <Transition name="dropdown">
+                  <div v-if="cityDropdownOpen" class="city-dropdown" @click.stop>
+                    <!-- 省份列表 -->
+                    <template v-if="!selectedProvince">
+                      <div class="city-search">
+                        <i class="fas fa-search"></i>
+                        <input v-model="citySearch" type="text" placeholder="搜索省份..." class="city-search-input" />
+                      </div>
+                      <div class="city-grid">
+                        <button v-for="p in filteredProvinces" :key="p.name" type="button" class="city-card" @click="selectProvince(p)">
+                          <span class="city-emoji">{{ p.emoji }}</span>
+                          <span class="city-name">{{ p.name }}</span>
+                        </button>
+                      </div>
+                      <p v-if="filteredProvinces.length === 0" class="city-empty"><i class="fas fa-map"></i> 未找到匹配省份</p>
+                    </template>
+                    <!-- 城市列表 -->
+                    <template v-else>
+                      <div class="city-breadcrumb">
+                        <button type="button" class="breadcrumb-back" @click="selectedProvince = null">
+                          <i class="fas fa-arrow-left"></i> 返回
+                        </button>
+                        <span class="breadcrumb-name">{{ selectedProvince.emoji }} {{ selectedProvince.name }}</span>
+                      </div>
+                      <div class="city-grid">
+                        <button v-for="c in selectedProvince.cities" :key="c" type="button"
+                          class="city-card" :class="{ active: form.location === c }" @click="selectCity(c)">
+                          <span class="city-name">{{ c }}</span>
+                        </button>
+                      </div>
+                    </template>
+                  </div>
+                </Transition>
               </div>
             </div>
 
@@ -156,7 +187,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed } from 'vue';
+import { ref, reactive, computed, onMounted, onBeforeUnmount } from 'vue';
 import { useRouter } from 'vue-router';
 import { createTeam, uploadTeamImage } from '@/api/team';
 import { showToast } from '@/utils/toast';
@@ -169,6 +200,81 @@ const avatarInput = ref(null);
 const coverPreview = ref('');
 const avatarPreview = ref('');
 const uploading = reactive({ cover: false, avatar: false });
+
+const cityDropdownOpen = ref(false);
+const citySearch = ref('');
+const selectedProvince = ref(null);
+
+const provinceList = [
+  { name: '北京', emoji: '🏛', cities: ['北京'] },
+  { name: '上海', emoji: '🌃', cities: ['上海'] },
+  { name: '天津', emoji: '🎡', cities: ['天津'] },
+  { name: '重庆', emoji: '⛰', cities: ['重庆'] },
+  { name: '广东', emoji: '🌺', cities: ['广州','深圳','东莞','佛山','珠海','惠州','中山','汕头','江门','湛江','茂名','肇庆','揭阳','清远','梅州','韶关','河源','阳江','潮州','汕尾','云浮'] },
+  { name: '江苏', emoji: '🏮', cities: ['南京','苏州','无锡','常州','南通','徐州','扬州','镇江','泰州','盐城','淮安','连云港','宿迁'] },
+  { name: '浙江', emoji: '⚓', cities: ['杭州','宁波','温州','绍兴','嘉兴','金华','台州','湖州','衢州','丽水','舟山'] },
+  { name: '四川', emoji: '🐼', cities: ['成都','绵阳','德阳','宜宾','南充','乐山','自贡','泸州','达州','内江','广元','遂宁','眉山','攀枝花','广安','资阳','雅安','巴中','凉山'] },
+  { name: '湖北', emoji: '🌊', cities: ['武汉','宜昌','襄阳','荆州','黄石','十堰','荆门','鄂州','孝感','黄冈','咸宁','随州','恩施'] },
+  { name: '湖南', emoji: '🌶', cities: ['长沙','株洲','湘潭','衡阳','岳阳','常德','郴州','邵阳','益阳','娄底','永州','怀化','张家界','湘西'] },
+  { name: '山东', emoji: '🍺', cities: ['济南','青岛','烟台','潍坊','临沂','济宁','淄博','威海','泰安','德州','聊城','滨州','菏泽','枣庄','东营','日照'] },
+  { name: '福建', emoji: '🍵', cities: ['福州','厦门','泉州','漳州','莆田','龙岩','三明','南平','宁德'] },
+  { name: '河南', emoji: '🚂', cities: ['郑州','洛阳','开封','南阳','新乡','安阳','焦作','许昌','平顶山','商丘','信阳','驻马店','周口','漯河','濮阳','鹤壁','三门峡','济源'] },
+  { name: '河北', emoji: '🏗', cities: ['石家庄','唐山','保定','廊坊','秦皇岛','邯郸','邢台','沧州','张家口','承德','衡水'] },
+  { name: '辽宁', emoji: '🏭', cities: ['沈阳','大连','鞍山','抚顺','本溪','丹东','锦州','营口','阜新','辽阳','盘锦','铁岭','朝阳','葫芦岛'] },
+  { name: '陕西', emoji: '🏺', cities: ['西安','咸阳','宝鸡','渭南','汉中','榆林','安康','延安','商洛','铜川'] },
+  { name: '云南', emoji: '🌸', cities: ['昆明','大理','丽江','曲靖','玉溪','红河','楚雄','普洱','西双版纳','保山','昭通','临沧','文山','德宏','怒江','迪庆'] },
+  { name: '安徽', emoji: '🔬', cities: ['合肥','芜湖','蚌埠','马鞍山','安庆','淮南','阜阳','亳州','黄山','滁州','宣城','六安','池州','铜陵','淮北','宿州'] },
+  { name: '江西', emoji: '🚩', cities: ['南昌','赣州','九江','景德镇','上饶','吉安','宜春','抚州','萍乡','新余','鹰潭'] },
+  { name: '广西', emoji: '🌴', cities: ['南宁','桂林','柳州','北海','玉林','百色','梧州','钦州','贵港','河池','崇左','来宾','贺州','防城港'] },
+  { name: '贵州', emoji: '🌿', cities: ['贵阳','遵义','六盘水','安顺','毕节','铜仁','黔东南','黔南','黔西南'] },
+  { name: '山西', emoji: '⛏', cities: ['太原','大同','运城','临汾','晋中','长治','忻州','吕梁','朔州','阳泉','晋城'] },
+  { name: '海南', emoji: '🥥', cities: ['海口','三亚','儋州','琼海','文昌','万宁','五指山','陵水'] },
+  { name: '吉林', emoji: '🌲', cities: ['长春','吉林','四平','通化','延边','白山','白城','松原','辽源'] },
+  { name: '黑龙江', emoji: '❄', cities: ['哈尔滨','大庆','齐齐哈尔','牡丹江','佳木斯','鸡西','双鸭山','伊春','七台河','鹤岗','绥化','黑河','大兴安岭'] },
+  { name: '甘肃', emoji: '🍜', cities: ['兰州','天水','白银','酒泉','张掖','武威','庆阳','平凉','定西','陇南','金昌','嘉峪关','临夏','甘南'] },
+  { name: '内蒙古', emoji: '🐎', cities: ['呼和浩特','包头','鄂尔多斯','赤峰','通辽','呼伦贝尔','巴彦淖尔','乌兰察布','乌海','锡林郭勒','兴安盟','阿拉善'] },
+  { name: '宁夏', emoji: '🏜', cities: ['银川','石嘴山','吴忠','固原','中卫'] },
+  { name: '新疆', emoji: '🍇', cities: ['乌鲁木齐','克拉玛依','喀什','伊犁','哈密','阿克苏','吐鲁番','库尔勒','昌吉','石河子','塔城','阿勒泰','和田'] },
+  { name: '青海', emoji: '🏔', cities: ['西宁','海东','海西','海南州','海北','黄南','玉树','果洛'] },
+  { name: '西藏', emoji: '🗻', cities: ['拉萨','日喀则','昌都','林芝','山南','那曲','阿里'] },
+  { name: '香港', emoji: '🌉', cities: ['香港'] },
+  { name: '澳门', emoji: '🎰', cities: ['澳门'] },
+  { name: '台湾', emoji: '🏝', cities: ['台北','高雄','台中','台南','新竹','基隆','桃园'] },
+];
+
+const filteredProvinces = computed(() => {
+  const q = citySearch.value.trim();
+  if (!q) return provinceList;
+  return provinceList.filter(p => p.name.includes(q));
+});
+
+const selectedProvinceName = computed(() => selectedProvince.value?.name || '');
+
+const selectProvince = (p) => {
+  selectedProvince.value = p;
+  if (p.cities.length === 1) {
+    form.location = p.cities[0];
+    cityDropdownOpen.value = false;
+    selectedProvince.value = null;
+    citySearch.value = '';
+  }
+};
+
+const selectCity = (name) => {
+  form.location = name;
+  cityDropdownOpen.value = false;
+  selectedProvince.value = null;
+  citySearch.value = '';
+};
+
+const closeCityDropdown = (e) => {
+  const el = document.querySelector('.city-selector');
+  if (el && !el.contains(e.target)) {
+    cityDropdownOpen.value = false;
+    selectedProvince.value = null;
+    citySearch.value = '';
+  }
+};
 
 const presetTags = [
   { label: '公路', icon: 'fas fa-road' },
@@ -237,6 +343,9 @@ const handleImageUpload = async (e, type) => {
 };
 
 const handleBack = () => router.push('/peloton');
+
+onMounted(() => document.addEventListener('click', closeCityDropdown));
+onBeforeUnmount(() => document.removeEventListener('click', closeCityDropdown));
 
 const handleSubmit = async () => {
   if (!isFormValid.value) {
@@ -677,5 +786,106 @@ const handleSubmit = async () => {
   .tag-chip { padding: 8px 14px; font-size: 0.78rem }
   .form-actions { flex-direction: column }
   .form-actions button { width: 100%; justify-content: center }
+  .city-grid { grid-template-columns: repeat(3, 1fr) }
+  .city-dropdown { max-height: 280px }
 }
+
+/* ── City Selector ── */
+.city-selector { position: relative }
+.city-trigger {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 12px 16px;
+  border: 1.5px solid rgba(0,0,0,0.06);
+  border-radius: 12px;
+  font-size: 0.9rem;
+  color: var(--text-main);
+  background: #fafbf9;
+  cursor: pointer;
+  transition: all 0.25s ease;
+  box-sizing: border-box;
+}
+.city-trigger:hover { border-color: rgba(92,110,88,0.2) }
+.city-selector.open .city-trigger {
+  border-color: var(--primary-color);
+  background: #fff;
+  box-shadow: 0 0 0 3px rgba(92,110,88,0.06);
+}
+.city-trigger-icon { font-size: 0.82rem; color: var(--primary-color); opacity: 0.5; flex-shrink: 0 }
+.city-value { flex: 1; font-weight: 600 }
+.city-placeholder { flex: 1; color: var(--text-muted); opacity: 0.4 }
+.city-arrow {
+  font-size: 0.65rem; color: var(--text-muted); opacity: 0.4;
+  transition: transform 0.25s ease; flex-shrink: 0;
+}
+.city-arrow.rotated { transform: rotate(180deg) }
+
+.city-dropdown {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0; right: 0;
+  background: #fff;
+  border-radius: 14px;
+  border: 1px solid rgba(0,0,0,0.06);
+  box-shadow: 0 12px 40px rgba(0,0,0,0.1), 0 2px 8px rgba(0,0,0,0.04);
+  z-index: 50;
+  padding: 12px;
+  max-height: 340px;
+  overflow-y: auto;
+}
+
+.city-search {
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 12px; margin-bottom: 10px;
+  border-radius: 10px; background: #f6f7f5;
+}
+.city-search i { font-size: 0.75rem; color: var(--text-muted); opacity: 0.4 }
+.city-search-input {
+  flex: 1; border: none; background: transparent;
+  font-size: 0.82rem; color: var(--text-main); outline: none; font-family: inherit;
+}
+.city-search-input::placeholder { color: var(--text-muted); opacity: 0.35 }
+
+.city-breadcrumb {
+  display: flex; align-items: center; gap: 10px;
+  padding: 6px 4px 12px; margin-bottom: 6px;
+  border-bottom: 1px solid rgba(0,0,0,0.04);
+}
+.breadcrumb-back {
+  display: flex; align-items: center; gap: 5px;
+  padding: 4px 10px; border-radius: 8px;
+  border: 1px solid rgba(0,0,0,0.06); background: #fafbf9;
+  font-size: 0.72rem; color: var(--text-muted);
+  cursor: pointer; transition: all 0.2s ease; font-family: inherit;
+}
+.breadcrumb-back:hover { border-color: var(--primary-color); color: var(--primary-color) }
+.breadcrumb-back i { font-size: 0.6rem }
+.breadcrumb-name { font-size: 0.84rem; font-weight: 700; color: var(--text-main) }
+
+.city-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px }
+.city-card {
+  display: flex; flex-direction: column; align-items: center; gap: 4px;
+  padding: 10px 6px; border-radius: 10px;
+  border: 1.5px solid transparent; background: #fafbf9;
+  cursor: pointer; transition: all 0.2s ease; font-family: inherit;
+}
+.city-card:hover {
+  background: #f0f3ee; border-color: rgba(92,110,88,0.15);
+  transform: translateY(-1px); box-shadow: 0 3px 10px rgba(92,110,88,0.08);
+}
+.city-card.active {
+  background: linear-gradient(135deg, var(--primary-color) 0%, #6d816a 100%);
+  border-color: transparent; box-shadow: 0 4px 14px rgba(92,110,88,0.25);
+}
+.city-emoji { font-size: 1.2rem; line-height: 1 }
+.city-name { font-size: 0.78rem; font-weight: 600; color: var(--text-body) }
+.city-card.active .city-name { color: #fff }
+
+.city-empty { text-align: center; font-size: 0.8rem; color: var(--text-muted); padding: 20px 0; opacity: 0.5 }
+.city-empty i { margin-right: 6px }
+
+.dropdown-enter-active, .dropdown-leave-active { transition: all 0.2s ease }
+.dropdown-enter-from, .dropdown-leave-to { opacity: 0; transform: translateY(-8px) }
 </style>
