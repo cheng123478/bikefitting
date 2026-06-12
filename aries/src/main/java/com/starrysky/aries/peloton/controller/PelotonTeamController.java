@@ -1,18 +1,23 @@
 package com.starrysky.aries.peloton.controller;
 
 import com.starrysky.aries.entity.User;
+import com.starrysky.aries.peloton.schema.CreateTeamDTO;
 import com.starrysky.aries.peloton.schema.PelotonPageResponse;
 import com.starrysky.aries.peloton.schema.PelotonTeamMemberVO;
 import com.starrysky.aries.peloton.schema.PelotonTeamQueryDTO;
 import com.starrysky.aries.peloton.schema.PelotonTeamVO;
 import com.starrysky.aries.peloton.service.PelotonTeamService;
 import com.starrysky.aries.util.ResponseResult;
+import com.starrysky.aries.util.upload.CosUtil;
 import jakarta.annotation.Resource;
+import jakarta.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
+import java.util.UUID;
 
 /**
  * PelotonTeamController
@@ -29,6 +34,9 @@ public class PelotonTeamController {
 
     @Resource
     private PelotonTeamService pelotonTeamService;
+
+    @Resource
+    private CosUtil cosUtil;
 
     /**
      * 获取车队列表
@@ -55,6 +63,49 @@ public class PelotonTeamController {
     @GetMapping("/mine")
     public ResponseResult<List<PelotonTeamVO>> getMyTeams(@AuthenticationPrincipal User user) {
         return ResponseResult.success(pelotonTeamService.getMyTeams(user));
+    }
+
+    /**
+     * 创建车队
+     * <p>
+     * 需要登录。创建成功后自动将创建者添加为队长。
+     *
+     * @param dto  创建车队参数
+     * @param user 当前登录用户
+     * @return 创建的车队信息
+     */
+    @PostMapping
+    public ResponseResult<PelotonTeamVO> createTeam(@Valid @RequestBody CreateTeamDTO dto,
+                                                     @AuthenticationPrincipal User user) {
+        return ResponseResult.success(pelotonTeamService.createTeam(dto, user));
+    }
+
+    /**
+     * 上传车队图片（头像或封面）
+     * <p>
+     * 需要登录。上传至 COS 后返回图片访问 URL。
+     *
+     * @param file 图片文件
+     * @param user 当前登录用户
+     * @return 图片访问 URL
+     */
+    @PostMapping("/upload")
+    public ResponseResult<String> uploadTeamImage(@RequestParam("file") MultipartFile file,
+                                                   @AuthenticationPrincipal User user) {
+        String contentType = file.getContentType();
+        String ext = "jpg";
+        if (contentType != null && contentType.contains("/")) {
+            ext = contentType.split("/")[1];
+        }
+        String key = String.format("/%d/team/%s.%s",
+                user.getId(), UUID.randomUUID(), ext);
+        try {
+            String url = cosUtil.upload(file.getInputStream(), file.getSize(), key, contentType);
+            return ResponseResult.success(url);
+        } catch (Exception e) {
+            log.warn("上传车队图片失败", e);
+            return ResponseResult.failure(500, "上传图片失败: " + e.getMessage());
+        }
     }
 
     /**
@@ -96,6 +147,22 @@ public class PelotonTeamController {
     public ResponseResult<Void> joinTeam(@PathVariable("teamId") Long teamId,
                                          @AuthenticationPrincipal User user) {
         pelotonTeamService.joinTeam(teamId, user);
+        return ResponseResult.success();
+    }
+
+    /**
+     * 退出车队
+     * <p>
+     * 需要登录。队长不能退出，需先转让队长身份。
+     *
+     * @param teamId 车队ID
+     * @param user   当前登录用户
+     * @return 操作结果
+     */
+    @DeleteMapping("/{teamId}/members")
+    public ResponseResult<Void> leaveTeam(@PathVariable("teamId") Long teamId,
+                                          @AuthenticationPrincipal User user) {
+        pelotonTeamService.leaveTeam(teamId, user);
         return ResponseResult.success();
     }
 }

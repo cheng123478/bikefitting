@@ -83,4 +83,22 @@ public interface PelotonTeamRepository extends JpaRepository<PelotonTeam, Long> 
      * @return 车队列表
      */
     List<PelotonTeam> findByIdIn(List<Long> ids);
+
+    /**
+     * 判断车队名称是否已存在
+     *
+     * @param name 车队名称
+     * @return 是否存在
+     */
+    boolean existsByName(String name);
+
+    /**
+     * 查询用户关联的所有车队（创建的 + 加入的，自动去重）
+     *
+     * @param userId 用户ID
+     * @return 车队列表
+     */
+    @Query("SELECT t FROM PelotonTeam t WHERE t.creatorId = :userId " +
+            "OR t.id IN (SELECT m.teamId FROM PelotonTeamMember m WHERE m.userId = :userId)")
+    List<PelotonTeam> findTeamsByUserId(@Param("userId") Long userId);
 }

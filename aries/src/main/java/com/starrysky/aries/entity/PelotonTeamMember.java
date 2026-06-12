@@ -19,7 +19,8 @@ import java.time.LocalDateTime;
  * @since 2026/06/12
  */
 @Entity
-@Table(name = "plt_team_member")
+@Table(name = "plt_team_member",
+       uniqueConstraints = @UniqueConstraint(columnNames = {"team_id", "user_id"}))
 @Comment("车队成员表")
 @Data
 @Builder

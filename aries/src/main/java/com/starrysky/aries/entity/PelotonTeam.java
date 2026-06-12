@@ -20,7 +20,7 @@ import java.time.LocalDateTime;
  * @since 2026/06/12
  */
 @Entity
-@Table(name = "plt_team")
+@Table(name = "team")
 @Comment("车队表")
 @Data
 @Builder
@@ -60,7 +60,7 @@ public class PelotonTeam {
     @Comment("活跃度等级: hot-热门, normal-普通, new-新兴")
     private String activityLevel;
 
-    @Column(length = 200)
+    @Column(length = 500)
     @Comment("标签，逗号分隔，如: 公路,爬坡,长途")
     private String tags;
 

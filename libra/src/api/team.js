@@ -272,6 +272,39 @@ export function getMyTeams() {
 }
 
 /**
+ * 创建车队
+ * @param {Object} data - 车队信息
+ * @param {String} data.name - 车队名称（必填）
+ * @param {String} data.location - 所在地
+ * @param {String} data.description - 简介
+ * @param {Array<String>} data.tags - 标签列表
+ * @param {String} data.avatar - 头像 URL
+ * @param {String} data.coverImage - 封面图 URL
+ */
+export function createTeam(data) {
+  return request({
+    url: '/team',
+    method: 'post',
+    data
+  });
+}
+
+/**
+ * 上传车队图片（头像或封面）
+ * @param {FormData} formData - 包含 file 对象的 FormData
+ */
+export function uploadTeamImage(formData) {
+  return request({
+    url: '/team/upload',
+    method: 'post',
+    data: formData,
+    headers: {
+      'Content-Type': 'multipart/form-data'
+    }
+  });
+}
+
+/**
  * 申请加入车队
  * @param {Number} teamId - 车队ID
  */

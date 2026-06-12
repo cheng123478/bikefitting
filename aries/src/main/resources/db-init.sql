@@ -1,17 +1,17 @@
 -- ============================================================
--- 破风社-车队测试数据（plt_team / plt_team_member）
+-- 破风社-车队测试数据（team / plt_team_member）
 -- 使用方式：将 application-dev.yml 中 mode: never 改为 always，
 --          启动服务后自动执行，灌入数据后可改回 never
 -- ============================================================
 
 -- 清空旧数据（防止重复启动时报主键冲突）
 DELETE FROM plt_team_member;
-DELETE FROM plt_team;
+DELETE FROM team;
 
 -- ============================================================
 -- 车队数据（10支）
 -- ============================================================
-INSERT INTO plt_team (id, name, avatar, cover_image, location, description, member_count, activity_level, tags, creator_id, create_time, update_time) VALUES
+INSERT INTO team (id, name, avatar, cover_image, location, description, member_count, activity_level, tags, creator_id, create_time, update_time) VALUES
 (1, '破风者联盟',
  'https://images.unsplash.com/photo-1541625602330-2277a4c46182?w=200&h=200&fit=crop',
  'https://images.unsplash.com/photo-1517649763962-0c623066013b?w=800&h=300&fit=crop',

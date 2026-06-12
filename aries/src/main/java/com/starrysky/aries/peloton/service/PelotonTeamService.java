@@ -6,6 +6,7 @@ import com.starrysky.aries.entity.PelotonTeam;
 import com.starrysky.aries.entity.PelotonTeamMember;
 import com.starrysky.aries.peloton.repository.PelotonTeamMemberRepository;
 import com.starrysky.aries.peloton.repository.PelotonTeamRepository;
+import com.starrysky.aries.peloton.schema.CreateTeamDTO;
 import com.starrysky.aries.peloton.schema.PelotonPageResponse;
 import com.starrysky.aries.peloton.schema.PelotonTeamMemberVO;
 import com.starrysky.aries.peloton.schema.PelotonTeamQueryDTO;
@@ -17,6 +18,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.util.StringUtils;
 
 import java.util.*;
@@ -50,8 +52,8 @@ public class PelotonTeamService {
      * @return 分页车队列表
      */
     public PelotonPageResponse<PelotonTeamVO> getTeamList(PelotonTeamQueryDTO queryDTO) {
-        int page = queryDTO.getPage() != null ? queryDTO.getPage() : 1;
-        int size = queryDTO.getSize() != null ? queryDTO.getSize() : 8;
+        int page = queryDTO.getPage() != null ? queryDTO.getPage() : PelotonTeamQueryDTO.DEFAULT_PAGE;
+        int size = queryDTO.getSize() != null ? queryDTO.getSize() : PelotonTeamQueryDTO.DEFAULT_SIZE;
         PageRequest pageRequest = PageRequest.of(Math.max(page - 1, 0), size);
 
         String keyword = StringUtils.hasText(queryDTO.getKeyword()) ? queryDTO.getKeyword().trim() : null;
@@ -87,34 +89,59 @@ public class PelotonTeamService {
     }
 
     /**
+     * 创建车队
+     * <p>
+     * 创建车队后自动将创建者添加为队长，初始成员数为1。
+     *
+     * @param dto  创建车队参数
+     * @param user 当前登录用户
+     * @return 创建的车队信息
+     */
+    @Transactional(rollbackFor = Exception.class)
+    public PelotonTeamVO createTeam(CreateTeamDTO dto, User user) {
+        // 1. 校验车队名称唯一性
+        if (pelotonTeamRepository.existsByName(dto.getName().trim())) {
+            throw new BizException(400, "车队名称已被使用，请换一个名称");
+        }
+
+        // 2. 组装车队实体
+        String tagsStr = (dto.getTags() != null && !dto.getTags().isEmpty())
+                ? String.join(",", dto.getTags())
+                : null;
+
+        PelotonTeam team = PelotonTeam.builder()
+                .name(dto.getName().trim())
+                .avatar(dto.getAvatar())
+                .coverImage(dto.getCoverImage())
+                .location(dto.getLocation() != null ? dto.getLocation().trim() : null)
+                .description(dto.getDescription() != null ? dto.getDescription().trim() : null)
+                .tags(tagsStr)
+                .activityLevel("new")
+                .memberCount(1)
+                .creatorId(user.getId())
+                .build();
+        team = pelotonTeamRepository.save(team);
+
+        // 3. 将创建者添加为队长
+        PelotonTeamMember captain = PelotonTeamMember.builder()
+                .teamId(team.getId())
+                .userId(user.getId())
+                .role("队长")
+                .build();
+        pelotonTeamMemberRepository.save(captain);
+
+        log.info("用户 [{}] 创建车队 [{}] 成功", user.getId(), team.getName());
+        return convertToVO(team);
+    }
+
+    /**
      * 获取我的车队（我创建的 + 我加入的，去重）
      *
      * @param user 当前登录用户
      * @return 我的车队列表
      */
     public List<PelotonTeamVO> getMyTeams(User user) {
-        // 1. 查询我创建的车队
-        List<PelotonTeam> createdTeams = pelotonTeamRepository.findByCreatorId(user.getId());
-        Set<Long> teamIds = createdTeams.stream()
-                .map(PelotonTeam::getId)
-                .collect(Collectors.toSet());
-
-        // 2. 查询我加入的车队（排除已创建的，避免重复）
-        List<PelotonTeamMember> memberships = pelotonTeamMemberRepository.findByUserId(user.getId());
-        List<Long> joinedTeamIds = memberships.stream()
-                .map(PelotonTeamMember::getTeamId)
-                .filter(id -> !teamIds.contains(id))
-                .collect(Collectors.toList());
-
-        List<PelotonTeam> joinedTeams = joinedTeamIds.isEmpty()
-                ? Collections.emptyList()
-                : pelotonTeamRepository.findByIdIn(joinedTeamIds);
-
-        // 3. 合并并转换为VO
-        List<PelotonTeam> allTeams = new ArrayList<>(createdTeams);
-        allTeams.addAll(joinedTeams);
-
-        return allTeams.stream()
+        return pelotonTeamRepository.findTeamsByUserId(user.getId()).stream()
                 .map(this::convertToVO)
                 .collect(Collectors.toList());
     }
@@ -143,9 +170,45 @@ public class PelotonTeamService {
                 .orElseThrow(() -> new BizException(404, "车队不存在"));
 
         List<PelotonTeamMember> members = pelotonTeamMemberRepository.findByTeamIdOrderByJoinDateAsc(teamId);
+
+        // 批量查询所有成员的用户信息（避免 N+1）
+        Set<Long> userIds = members.stream()
+                .map(PelotonTeamMember::getUserId)
+                .collect(Collectors.toSet());
+        Map<Long, User> userMap = userIds.isEmpty()
+                ? Collections.emptyMap()
+                : userRepository.findAllById(userIds).stream()
+                        .collect(Collectors.toMap(User::getId, u -> u));
+
         return members.stream()
-                .map(this::convertMemberToVO)
+                .map(m -> buildMemberVO(m, userMap.get(m.getUserId())))
                 .collect(Collectors.toList());
+    }
+
+    /**
+     * 退出车队
+     *
+     * @param teamId 车队ID
+     * @param user   当前登录用户
+     */
+    @Transactional(rollbackFor = Exception.class)
+    public void leaveTeam(Long teamId, User user) {
+        PelotonTeam team = pelotonTeamRepository.findById(teamId)
+                .orElseThrow(() -> new BizException(404, "车队不存在"));
+
+        PelotonTeamMember member = pelotonTeamMemberRepository.findByTeamIdAndUserId(teamId, user.getId())
+                .orElseThrow(() -> new BizException(400, "您尚未加入该车队"));
+
+        if ("队长".equals(member.getRole())) {
+            throw new BizException(400, "队长不能退出车队，请先转让队长身份");
+        }
+
+        pelotonTeamMemberRepository.delete(member);
+
+        team.setMemberCount(Math.max(0, team.getMemberCount() - 1));
+        pelotonTeamRepository.save(team);
+
+        log.info("用户 [{}] 退出车队 [{}] 成功", user.getId(), teamId);
     }
 
     /**
@@ -156,27 +219,22 @@ public class PelotonTeamService {
      */
     @Transactional(rollbackFor = Exception.class)
     public void joinTeam(Long teamId, User user) {
-        // 校验车队是否存在
         PelotonTeam team = pelotonTeamRepository.findById(teamId)
                 .orElseThrow(() -> new BizException(404, "车队不存在"));
 
-        // 校验是否已加入
-        pelotonTeamMemberRepository.findByTeamIdAndUserId(teamId, user.getId())
-                .ifPresent(member -> {
-                    throw new BizException(400, "您已加入该车队，请勿重复申请");
-                });
-
-        // 创建成员记录
         PelotonTeamMember member = PelotonTeamMember.builder()
                 .teamId(teamId)
                 .userId(user.getId())
                 .role("成员")
                 .build();
-        pelotonTeamMemberRepository.save(member);
+        try {
+            pelotonTeamMemberRepository.save(member);
+        } catch (DataIntegrityViolationException e) {
+            throw new BizException(400, "您已加入该车队，请勿重复申请");
+        }
 
-        // 更新车队成员数量
-        long newCount = pelotonTeamMemberRepository.countByTeamId(teamId);
-        team.setMemberCount((int) newCount);
+        // 更新车队成员数量（基于当前值 +1，避免并发下 count 读到旧值）
+        team.setMemberCount(team.getMemberCount() + 1);
         pelotonTeamRepository.save(team);
 
         log.info("用户 [{}] 加入车队 [{}] 成功", user.getId(), teamId);
@@ -207,9 +265,9 @@ public class PelotonTeamService {
     }
 
     /**
-     * 车队成员实体 -> VO（关联查询用户信息）
+     * 车队成员实体 -> VO（使用预加载的用户信息）
      */
-    private PelotonTeamMemberVO convertMemberToVO(PelotonTeamMember member) {
+    private PelotonTeamMemberVO buildMemberVO(PelotonTeamMember member, User user) {
         PelotonTeamMemberVO.PelotonTeamMemberVOBuilder builder = PelotonTeamMemberVO.builder()
                 .id(member.getId())
                 .userId(member.getUserId())
@@ -217,11 +275,10 @@ public class PelotonTeamService {
                 .tag(member.getTag())
                 .joinDate(member.getJoinDate());
 
-        // 关联查询用户昵称和头像
-        userRepository.findById(member.getUserId()).ifPresent(user -> {
+        if (user != null) {
             builder.name(user.getName());
             builder.avatar(user.getAvatar());
-        });
+        }
 
         return builder.build();
     }
