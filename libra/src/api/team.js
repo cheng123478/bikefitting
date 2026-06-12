@@ -334,10 +334,63 @@ export function disbandTeam(teamId) {
 /**
  * 申请加入车队
  * @param {Number} teamId - 车队ID
+ * @param {String} reason - 申请理由
  */
-export function joinTeam(teamId) {
+export function joinTeam(teamId, reason) {
   return request({
     url: `/team/${teamId}/join`,
-    method: 'post'
+    method: 'post',
+    data: { reason },
+    silent: true
+  });
+}
+
+/**
+ * 获取车队待审核申请列表
+ * @param {Number} teamId - 车队ID
+ */
+export function getPendingApplications(teamId) {
+  return request({
+    url: `/team/${teamId}/applications`,
+    method: 'get'
+  });
+}
+
+/**
+ * 同意加入申请
+ * @param {Number} applicationId - 申请记录ID
+ */
+export function approveJoin(applicationId) {
+  return request({
+    url: `/team/applications/${applicationId}/approve`,
+    method: 'post',
+    silent: true
+  });
+}
+
+/**
+ * 拒绝加入申请
+ * @param {Number} applicationId - 申请记录ID
+ */
+export function rejectJoin(applicationId) {
+  return request({
+    url: `/team/applications/${applicationId}/reject`,
+    method: 'post',
+    silent: true
+  });
+}
+
+/**
+ * 修改成员骑行标签
+ * @param {Number} teamId - 车队ID
+ * @param {Number} targetUserId - 目标用户ID
+ * @param {String} tag - 新标签
+ */
+export function updateMemberTag(teamId, targetUserId, tag) {
+  return request({
+    url: `/team/${teamId}/members/${targetUserId}/tag`,
+    method: 'put',
+    data: { tag },
+    silent: true
   });
 }

@@ -39,6 +39,9 @@ public class PelotonTeamMemberVO {
     /** 成员标签 */
     private String tag;
 
-    /** 加入时间 */
+    /** 申请理由 */
+    private String reason;
+
+    /** 加入/申请时间 */
     private LocalDateTime joinDate;
 }

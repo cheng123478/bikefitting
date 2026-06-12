@@ -3,9 +3,11 @@ package com.starrysky.aries.peloton.service;
 import com.starrysky.aries.entity.User;
 import com.starrysky.aries.exception.BizException;
 import com.starrysky.aries.entity.PelotonTeam;
-import com.starrysky.aries.entity.PelotonTeamMember;
-import com.starrysky.aries.peloton.repository.PelotonTeamMemberRepository;
+import com.starrysky.aries.entity.TeamJoinApplication;
+import com.starrysky.aries.entity.TeamMember;
+import com.starrysky.aries.peloton.repository.TeamMemberRepository;
 import com.starrysky.aries.peloton.repository.PelotonTeamRepository;
+import com.starrysky.aries.peloton.repository.TeamJoinApplicationRepository;
 import com.starrysky.aries.peloton.schema.CreateTeamDTO;
 import com.starrysky.aries.peloton.schema.PelotonPageResponse;
 import com.starrysky.aries.peloton.schema.PelotonTeamMemberVO;
@@ -17,10 +19,11 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.util.StringUtils;
 
+import java.time.LocalDate;
 import java.util.*;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 /**
@@ -38,7 +41,10 @@ public class PelotonTeamService {
     private PelotonTeamRepository pelotonTeamRepository;
 
     @Resource
-    private PelotonTeamMemberRepository pelotonTeamMemberRepository;
+    private TeamMemberRepository teamMemberRepository;
+
+    @Resource
+    private TeamJoinApplicationRepository applicationRepository;
 
     @Resource
     private UserRepository userRepository;
@@ -121,12 +127,15 @@ public class PelotonTeamService {
         team = pelotonTeamRepository.save(team);
 
         // 3. 将创建者添加为队长
-        PelotonTeamMember captain = PelotonTeamMember.builder()
+        TeamMember captain = TeamMember.builder()
                 .teamId(team.getId())
                 .userId(user.getId())
-                .role("队长")
+                .role(TeamMember.ROLE_CAPTAIN)
+                .tag("新秀")
+                .joinDate(LocalDate.now())
+                .status(TeamMember.STATUS_ACTIVE)
                 .build();
-        pelotonTeamMemberRepository.save(captain);
+        teamMemberRepository.save(captain);
 
         return convertToVO(team);
     }
@@ -196,23 +205,36 @@ public class PelotonTeamService {
      * @return 成员列表（含用户信息）
      */
     public List<PelotonTeamMemberVO> getTeamMembers(Long teamId) {
-        // 校验车队是否存在
         pelotonTeamRepository.findById(teamId)
                 .orElseThrow(() -> new BizException(404, "车队不存在"));
 
-        List<PelotonTeamMember> members = pelotonTeamMemberRepository.findByTeamIdOrderByJoinDateAsc(teamId);
-
-        // 批量查询所有成员的用户信息（避免 N+1）
-        Set<Long> userIds = members.stream()
-                .map(PelotonTeamMember::getUserId)
-                .collect(Collectors.toSet());
-        Map<Long, User> userMap = userIds.isEmpty()
-                ? Collections.emptyMap()
-                : userRepository.findAllById(userIds).stream()
-                        .collect(Collectors.toMap(User::getId, u -> u));
+        List<TeamMember> members = teamMemberRepository
+                .findByTeamIdAndStatusOrderByJoinDateAsc(teamId, TeamMember.STATUS_ACTIVE);
+        Map<Long, User> userMap = buildUserMap(members, TeamMember::getUserId);
 
         return members.stream()
                 .map(m -> buildMemberVO(m, userMap.get(m.getUserId())))
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * 获取车队待审核申请列表（仅队长/管理员可查看）
+     *
+     * @param teamId 车队ID
+     * @param user   当前登录用户
+     * @return 申请列表
+     */
+    public List<PelotonTeamMemberVO> getPendingApplications(Long teamId, User user) {
+        PelotonTeam team = pelotonTeamRepository.findById(teamId)
+                .orElseThrow(() -> new BizException(404, "车队不存在"));
+        assertTeamAdmin(team, user);
+
+        List<TeamJoinApplication> applications = applicationRepository
+                .findByTeamIdAndStatusOrderByCreatedAtDesc(teamId, TeamJoinApplication.STATUS_PENDING);
+        Map<Long, User> userMap = buildUserMap(applications, TeamJoinApplication::getApplicantId);
+
+        return applications.stream()
+                .map(a -> buildApplicationVO(a, userMap.get(a.getApplicantId())))
                 .collect(Collectors.toList());
     }
 
@@ -227,17 +249,17 @@ public class PelotonTeamService {
         PelotonTeam team = pelotonTeamRepository.findById(teamId)
                 .orElseThrow(() -> new BizException(404, "车队不存在"));
 
-        PelotonTeamMember member = pelotonTeamMemberRepository.findByTeamIdAndUserId(teamId, user.getId())
+        TeamMember member = teamMemberRepository.findByTeamIdAndUserIdAndStatus(teamId, user.getId(), TeamMember.STATUS_ACTIVE)
                 .orElseThrow(() -> new BizException(400, "您尚未加入该车队"));
 
-        if ("队长".equals(member.getRole())) {
+        if (member.getRole() == TeamMember.ROLE_CAPTAIN) {
             throw new BizException(400, "队长不能退出车队，请先转让队长身份");
         }
 
-        pelotonTeamMemberRepository.delete(member);
+        member.setStatus(TeamMember.STATUS_LEFT);
+        teamMemberRepository.save(member);
 
-        team.setMemberCount(Math.max(0, team.getMemberCount() - 1));
-        pelotonTeamRepository.save(team);
+        decrementMemberCount(team);
     }
 
     /**
@@ -254,35 +276,118 @@ public class PelotonTeamService {
                 .orElseThrow(() -> new BizException(404, "车队不存在"));
         assertCreator(team, user, "仅车队创建者可解散车队");
 
-        pelotonTeamMemberRepository.deleteByTeamId(teamId);
+        applicationRepository.deleteByTeamId(teamId);
+        // 将所有活跃成员标记为已退出（软删除）
+        teamMemberRepository.updateStatusByTeamIdAndStatus(teamId, TeamMember.STATUS_ACTIVE, TeamMember.STATUS_LEFT);
         pelotonTeamRepository.delete(team);
     }
 
     /**
-     * 申请加入车队
+     * 申请加入车队（创建待审核记录）
      *
      * @param teamId 车队ID
+     * @param reason 申请理由
      * @param user   当前登录用户
      */
     @Transactional(rollbackFor = Exception.class)
-    public void joinTeam(Long teamId, User user) {
-        PelotonTeam team = pelotonTeamRepository.findById(teamId)
+    public void applyJoinTeam(Long teamId, String reason, User user) {
+        pelotonTeamRepository.findById(teamId)
                 .orElseThrow(() -> new BizException(404, "车队不存在"));
 
-        PelotonTeamMember member = PelotonTeamMember.builder()
-                .teamId(teamId)
-                .userId(user.getId())
-                .role("成员")
-                .build();
-        try {
-            pelotonTeamMemberRepository.save(member);
-        } catch (DataIntegrityViolationException e) {
-            throw new BizException(400, "您已加入该车队，请勿重复申请");
+        // 校验申请理由非空
+        String trimmedReason = reason != null ? reason.trim() : "";
+        if (!StringUtils.hasText(trimmedReason)) {
+            throw new BizException(400, "请填写申请理由");
         }
 
-        // 更新车队成员数量（基于当前值 +1，避免并发下 count 读到旧值）
-        team.setMemberCount(team.getMemberCount() + 1);
-        pelotonTeamRepository.save(team);
+        // 检查是否已有待审核申请
+        applicationRepository.findByTeamIdAndApplicantIdAndStatus(teamId, user.getId(), TeamJoinApplication.STATUS_PENDING)
+                .ifPresent(a -> {
+                    throw new BizException(400, "您已提交过申请，请等待审核");
+                });
+
+        // 检查是否已是成员
+        teamMemberRepository.findByTeamIdAndUserIdAndStatus(teamId, user.getId(), TeamMember.STATUS_ACTIVE)
+                .ifPresent(m -> {
+                    throw new BizException(400, "您已是该车队成员，无需重复申请");
+                });
+
+        TeamJoinApplication application = TeamJoinApplication.builder()
+                .teamId(teamId)
+                .applicantId(user.getId())
+                .reason(trimmedReason)
+                .status(TeamJoinApplication.STATUS_PENDING)
+                .build();
+        applicationRepository.save(application);
+    }
+
+    /**
+     * 同意加入申请（管理员/队长操作）
+     *
+     * @param applicationId 申请记录ID
+     * @param admin         操作人（需为队长或管理员）
+     */
+    @Transactional(rollbackFor = Exception.class)
+    public void approveJoin(Long applicationId, User admin) {
+        TeamJoinApplication application = applicationRepository.findById(applicationId)
+                .orElseThrow(() -> new BizException(404, "申请记录不存在"));
+        if (application.getStatus() != TeamJoinApplication.STATUS_PENDING) {
+            throw new BizException(400, "该申请已被处理");
+        }
+
+        PelotonTeam team = pelotonTeamRepository.findById(application.getTeamId())
+                .orElseThrow(() -> new BizException(404, "车队不存在"));
+        assertTeamAdmin(team, admin);
+
+        // 二次校验：申请人是否已通过其他途径成为成员
+        teamMemberRepository.findByTeamIdAndUserIdAndStatus(team.getId(), application.getApplicantId(), TeamMember.STATUS_ACTIVE)
+                .ifPresent(m -> {
+                    application.setStatus(TeamJoinApplication.STATUS_APPROVED);
+                    application.setReviewerId(admin.getId());
+                    applicationRepository.save(application);
+                    throw new BizException(400, "该用户已是车队成员，申请已自动通过");
+                });
+
+        // 更新申请状态为通过
+        application.setStatus(TeamJoinApplication.STATUS_APPROVED);
+        application.setReviewerId(admin.getId());
+        applicationRepository.save(application);
+
+        // 创建成员记录
+        TeamMember member = TeamMember.builder()
+                .teamId(application.getTeamId())
+                .userId(application.getApplicantId())
+                .role(TeamMember.ROLE_MEMBER)
+                .tag("新秀")
+                .joinDate(LocalDate.now())
+                .status(TeamMember.STATUS_ACTIVE)
+                .build();
+        teamMemberRepository.save(member);
+
+        incrementMemberCount(team);
+    }
+
+    /**
+     * 拒绝加入申请（管理员/队长操作）
+     *
+     * @param applicationId 申请记录ID
+     * @param admin         操作人（需为队长或管理员）
+     */
+    @Transactional(rollbackFor = Exception.class)
+    public void rejectJoin(Long applicationId, User admin) {
+        TeamJoinApplication application = applicationRepository.findById(applicationId)
+                .orElseThrow(() -> new BizException(404, "申请记录不存在"));
+        if (application.getStatus() != TeamJoinApplication.STATUS_PENDING) {
+            throw new BizException(400, "该申请已被处理");
+        }
+
+        PelotonTeam team = pelotonTeamRepository.findById(application.getTeamId())
+                .orElseThrow(() -> new BizException(404, "车队不存在"));
+        assertTeamAdmin(team, admin);
+
+        application.setStatus(TeamJoinApplication.STATUS_REJECTED);
+        application.setReviewerId(admin.getId());
+        applicationRepository.save(application);
     }
 
     // ============================ 私有方法 ============================
@@ -294,6 +399,104 @@ public class PelotonTeamService {
         if (!Objects.equals(team.getCreatorId(), user.getId())) {
             throw new BizException(403, message);
         }
+    }
+
+    /**
+     * 校验当前用户是否为车队管理员（队长或管理员）
+     */
+    private void assertTeamAdmin(PelotonTeam team, User user) {
+        if (Objects.equals(team.getCreatorId(), user.getId())) {
+            return;
+        }
+        teamMemberRepository.findByTeamIdAndUserIdAndStatus(team.getId(), user.getId(), TeamMember.STATUS_ACTIVE)
+                .filter(m -> m.getRole() <= TeamMember.ROLE_ADMIN)
+                .orElseThrow(() -> new BizException(403, "仅队长或管理员可执行此操作"));
+    }
+
+    /**
+     * 设为管理员
+     */
+    @Transactional(rollbackFor = Exception.class)
+    public void setAdmin(Long teamId, Long targetUserId, User admin) {
+        PelotonTeam team = pelotonTeamRepository.findById(teamId)
+                .orElseThrow(() -> new BizException(404, "车队不存在"));
+        assertTeamAdmin(team, admin);
+
+        TeamMember member = teamMemberRepository.findByTeamIdAndUserIdAndStatus(teamId, targetUserId, TeamMember.STATUS_ACTIVE)
+                .orElseThrow(() -> new BizException(404, "该成员不存在"));
+        if (member.getRole() == TeamMember.ROLE_CAPTAIN) {
+            throw new BizException(400, "不能修改队长的角色");
+        }
+        if (member.getRole() == TeamMember.ROLE_ADMIN) {
+            throw new BizException(400, "该成员已是管理员");
+        }
+        member.setRole(TeamMember.ROLE_ADMIN);
+        teamMemberRepository.save(member);
+    }
+
+    /**
+     * 撤销管理员
+     */
+    @Transactional(rollbackFor = Exception.class)
+    public void revokeAdmin(Long teamId, Long targetUserId, User admin) {
+        PelotonTeam team = pelotonTeamRepository.findById(teamId)
+                .orElseThrow(() -> new BizException(404, "车队不存在"));
+        // 仅队长可撤销管理员
+        assertCreator(team, admin, "仅队长可撤销管理员");
+
+        TeamMember member = teamMemberRepository.findByTeamIdAndUserIdAndStatus(teamId, targetUserId, TeamMember.STATUS_ACTIVE)
+                .orElseThrow(() -> new BizException(404, "该成员不存在"));
+        if (member.getRole() != TeamMember.ROLE_ADMIN) {
+            throw new BizException(400, "该成员不是管理员");
+        }
+        member.setRole(TeamMember.ROLE_MEMBER);
+        teamMemberRepository.save(member);
+    }
+
+    /**
+     * 请离车队
+     */
+    @Transactional(rollbackFor = Exception.class)
+    public void kickMember(Long teamId, Long targetUserId, User admin) {
+        PelotonTeam team = pelotonTeamRepository.findById(teamId)
+                .orElseThrow(() -> new BizException(404, "车队不存在"));
+        assertTeamAdmin(team, admin);
+
+        TeamMember member = teamMemberRepository.findByTeamIdAndUserIdAndStatus(teamId, targetUserId, TeamMember.STATUS_ACTIVE)
+                .orElseThrow(() -> new BizException(404, "该成员不存在"));
+        if (member.getRole() == TeamMember.ROLE_CAPTAIN) {
+            throw new BizException(400, "不能请离队长");
+        }
+
+        member.setStatus(TeamMember.STATUS_KICKED);
+        teamMemberRepository.save(member);
+
+        decrementMemberCount(team);
+    }
+
+    /**
+     * 修改成员骑行标签
+     *
+     * @param teamId       车队ID
+     * @param targetUserId 目标用户ID
+     * @param tag          新标签
+     * @param admin        操作人（需为队长或管理员）
+     */
+    @Transactional(rollbackFor = Exception.class)
+    public void updateMemberTag(Long teamId, Long targetUserId, String tag, User admin) {
+        PelotonTeam team = pelotonTeamRepository.findById(teamId)
+                .orElseThrow(() -> new BizException(404, "车队不存在"));
+        assertTeamAdmin(team, admin);
+
+        if (!StringUtils.hasText(tag) || tag.trim().length() > 20) {
+            throw new BizException(400, "标签无效");
+        }
+
+        TeamMember member = teamMemberRepository.findByTeamIdAndUserIdAndStatus(teamId, targetUserId, TeamMember.STATUS_ACTIVE)
+                .orElseThrow(() -> new BizException(404, "该成员不存在"));
+
+        member.setTag(tag.trim());
+        teamMemberRepository.save(member);
     }
 
     /**
@@ -320,15 +523,74 @@ public class PelotonTeamService {
     }
 
     /**
-     * 车队成员实体 -> VO（使用预加载的用户信息）
+     * 车队成员实体 -> VO
      */
-    private PelotonTeamMemberVO buildMemberVO(PelotonTeamMember member, User user) {
+    private PelotonTeamMemberVO buildMemberVO(TeamMember member, User user) {
         PelotonTeamMemberVO.PelotonTeamMemberVOBuilder builder = PelotonTeamMemberVO.builder()
                 .id(member.getId())
                 .userId(member.getUserId())
-                .role(member.getRole())
+                .role(convertRole(member.getRole()))
                 .tag(member.getTag())
-                .joinDate(member.getJoinDate());
+                .joinDate(member.getJoinDate() != null ? member.getJoinDate().atStartOfDay() : null);
+
+        if (user != null) {
+            builder.name(user.getName());
+            builder.avatar(user.getAvatar());
+        }
+
+        return builder.build();
+    }
+
+    /**
+     * 角色整数 -> 中文字符串
+     */
+    private String convertRole(Integer role) {
+        if (role == null) return "成员";
+        return switch (role) {
+            case TeamMember.ROLE_CAPTAIN -> "队长";
+            case TeamMember.ROLE_ADMIN -> "管理员";
+            default -> "成员";
+        };
+    }
+
+    /**
+     * 批量关联用户信息：从实体列表中提取 userId 并查询 User，返回 userId -> User 映射
+     */
+    private <T> Map<Long, User> buildUserMap(List<T> entities, Function<T, Long> userIdExtractor) {
+        Set<Long> userIds = entities.stream()
+                .map(userIdExtractor)
+                .collect(Collectors.toSet());
+        return userIds.isEmpty()
+                ? Collections.emptyMap()
+                : userRepository.findAllById(userIds).stream()
+                        .collect(Collectors.toMap(User::getId, u -> u));
+    }
+
+    /**
+     * 车队成员数 +1 并持久化
+     */
+    private void incrementMemberCount(PelotonTeam team) {
+        team.setMemberCount(team.getMemberCount() + 1);
+        pelotonTeamRepository.save(team);
+    }
+
+    /**
+     * 车队成员数 -1（不低于0）并持久化
+     */
+    private void decrementMemberCount(PelotonTeam team) {
+        team.setMemberCount(Math.max(0, team.getMemberCount() - 1));
+        pelotonTeamRepository.save(team);
+    }
+
+    /**
+     * 申请记录 -> VO（复用 MemberVO 结构）
+     */
+    private PelotonTeamMemberVO buildApplicationVO(TeamJoinApplication app, User user) {
+        PelotonTeamMemberVO.PelotonTeamMemberVOBuilder builder = PelotonTeamMemberVO.builder()
+                .id(app.getId())
+                .userId(app.getApplicantId())
+                .reason(app.getReason())
+                .joinDate(app.getCreatedAt());
 
         if (user != null) {
             builder.name(user.getName());

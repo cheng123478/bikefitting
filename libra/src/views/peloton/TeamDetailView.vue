@@ -115,7 +115,7 @@
                   <div class="apply-info">
                     <span class="apply-name">{{ app.name }}</span>
                     <span class="apply-reason">{{ app.reason }}</span>
-                    <span class="apply-time">{{ app.applyTime }}</span>
+                    <span class="apply-time">{{ formatApplyTime(app.joinDate) }}</span>
                   </div>
                   <div class="apply-actions">
                     <button class="apply-btn approve" title="同意" @click="handleApprove(app)">
@@ -144,9 +144,9 @@
                     <span class="glass-role" :class="{ 'is-leader': member.role === '队长', 'is-admin': member.role === '管理员' }">
                       {{ member.role }}
                     </span>
-                    <span v-if="member.tag" class="glass-tag" :class="[getTagClass(member.tag), { 'tag-editable': isManager && member.role !== '队长' }]" @click.stop="isManager && member.role !== '队长' && toggleTagEdit(member)">
+                    <span v-if="member.tag" class="glass-tag" :class="[getTagClass(member.tag), { 'tag-editable': isManager }]" @click.stop="isManager && toggleTagEdit(member)">
                       <span class="tag-label"><i :class="getTagIcon(member.tag)"></i> {{ member.tag }}</span>
-                      <span v-if="isManager && member.role !== '队长'" class="tag-hover-edit"><i class="fas fa-pen"></i></span>
+                      <span v-if="isManager" class="tag-hover-edit"><i class="fas fa-pen"></i></span>
                     </span>
                     <!-- 标签选择下拉 -->
                     <div v-if="editingTagMember?.id === member.id" class="tag-dropdown" @click.stop>
@@ -457,7 +457,7 @@
 import { ref, reactive, computed, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useUserStore } from '@/stores/user'
-import { getTeamDetail, getTeamMembers, getTeamGarage, disbandTeam } from '@/api/team'
+import { getTeamDetail, getTeamMembers, getTeamGarage, disbandTeam, joinTeam, getPendingApplications, approveJoin, rejectJoin, updateMemberTag } from '@/api/team'
 import { getBikeByModel } from '@/api/bikeShowroom'
 import { showToast } from '@/utils/toast'
 
@@ -487,11 +487,7 @@ const showDeleteNoticeModal = ref(false)
 const deletingNotice = ref(null)
 const showJoinModal = ref(false)
 const joinReason = ref('')
-const pendingApplications = ref([
-  { id: 201, name: '追风少年', avatar: 'https://i.pravatar.cc/100?img=33', reason: '热爱公路车，希望能和车队一起训练和参加比赛，每周可出勤3次以上。', applyTime: '2小时前' },
-  { id: 202, name: '骑迹人生', avatar: 'https://i.pravatar.cc/100?img=44', reason: '朋友推荐来的，骑龄2年，擅长爬坡，希望加入车队提升水平。', applyTime: '5小时前' },
-  { id: 203, name: '风驰电掣', avatar: 'https://i.pravatar.cc/100?img=55', reason: '参加过多次业余赛事，想找一个有组织的车队一起训练进步。', applyTime: '1天前' }
-])
+const pendingApplications = ref([])
 const garageBikes = ref([])
 const garageFilter = ref('all')
 
@@ -539,26 +535,42 @@ const isCreator = computed(() => {
 const isCaptain = computed(() => {
   if (!userStore.isLoggedIn || !userStore.userInfo) return false
   if (isMock.value) return true
-  const captain = members.value.find(m => m.role === '队长')
-  return captain && captain.name === userStore.userInfo.name
+  const uid = String(userStore.userInfo.id)
+  // 创建者即为队长
+  return String(team.value?.creatorId) === uid
 })
 const isManager = computed(() => {
   if (!userStore.isLoggedIn || !userStore.userInfo) return false
   if (isMock.value) return true
+  const uid = String(userStore.userInfo.id)
+  if (String(team.value?.creatorId) === uid) return true
   return members.value.some(m =>
-    (m.role === '队长' || m.role === '管理员') && m.name === userStore.userInfo.name
+    (m.role === '队长' || m.role === '管理员') && String(m.userId) === uid
   )
 })
 const isMember = computed(() => {
   if (!userStore.isLoggedIn || !userStore.userInfo) return false
   if (isMock.value) return true
-  return members.value.some(m => m.name === userStore.userInfo.name)
+  const uid = String(userStore.userInfo.id)
+  return members.value.some(m => String(m.userId) === uid)
 })
 
 const toggleNotice = (id) => { expandedNotice.value = expandedNotice.value === id ? null : id }
 const formatDistance = (km) => {
   if (km >= 10000) return (km / 10000).toFixed(1) + '万 km'
   return km.toLocaleString() + ' km'
+}
+const formatApplyTime = (dateStr) => {
+  if (!dateStr) return ''
+  const d = new Date(dateStr)
+  const now = new Date()
+  const diff = now - d
+  const hours = Math.floor(diff / 3600000)
+  if (hours < 1) return '刚刚'
+  if (hours < 24) return `${hours}小时前`
+  const days = Math.floor(hours / 24)
+  if (days < 7) return `${days}天前`
+  return `${d.getMonth() + 1}/${d.getDate()}`
 }
 const handleBack = () => router.push('/peloton')
 
@@ -576,22 +588,40 @@ const cancelJoin = () => {
 }
 const submitJoin = async () => {
   if (!joinReason.value.trim()) return
+  try {
+    await joinTeam(team.value.id, joinReason.value.trim())
+    showToast('申请已提交，等待管理员审核', 'success')
+  } catch (err) {
+    showToast(err.message || '提交申请失败', 'error')
+    return
+  }
   showJoinModal.value = false
   joinReason.value = ''
-  showToast('申请已提交，等待管理员审核', 'success')
 }
-const handleApprove = (app) => {
+const handleApprove = async (app) => {
+  try {
+    await approveJoin(app.id)
+  } catch (err) {
+    showToast(err.message || '操作失败', 'error')
+    return
+  }
   const idx = pendingApplications.value.findIndex(a => a.id === app.id)
   if (idx !== -1) pendingApplications.value.splice(idx, 1)
-  const today = new Date()
-  const dateStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
-  members.value.push({
-    id: app.id, name: app.name, avatar: app.avatar,
-    role: '成员', tag: '新秀', joinDate: dateStr
-  })
+  // 重新加载成员列表以反映新增
+  try {
+    const memberData = await getTeamMembers(team.value.id)
+    members.value = Array.isArray(memberData) ? memberData : (memberData.records || [])
+    if (team.value) team.value.memberCount = members.value.length
+  } catch { /* 忽略刷新失败 */ }
   showToast(`已同意 ${app.name} 加入车队`, 'success')
 }
-const handleReject = (app) => {
+const handleReject = async (app) => {
+  try {
+    await rejectJoin(app.id)
+  } catch (err) {
+    showToast(err.message || '操作失败', 'error')
+    return
+  }
   const idx = pendingApplications.value.findIndex(a => a.id === app.id)
   if (idx !== -1) pendingApplications.value.splice(idx, 1)
   showToast(`已拒绝 ${app.name} 的入队申请`, 'info')
@@ -694,12 +724,20 @@ const goHome = () => {
 const toggleTagEdit = (member) => {
   editingTagMember.value = editingTagMember.value?.id === member.id ? null : member
 }
-const changeMemberTag = (member, newTag) => {
-  if (member.tag !== newTag) {
+const changeMemberTag = async (member, newTag) => {
+  if (member.tag === newTag) {
+    editingTagMember.value = null
+    return
+  }
+  try {
+    await updateMemberTag(team.value.id, member.userId, newTag)
     member.tag = newTag
     showToast(`已将 ${member.name} 的标签改为「${newTag}」`, 'success')
+  } catch (err) {
+    showToast(err.message || '修改标签失败', 'error')
+  } finally {
+    editingTagMember.value = null
   }
-  editingTagMember.value = null
 }
 
 const garageFilters = computed(() => {
@@ -770,9 +808,17 @@ const fetchData = async () => {
     const [teamData, memberData, garageData] = await Promise.all([
       getTeamDetail(id), getTeamMembers(id), getTeamGarage(id)
     ])
-    team.value = teamData; members.value = memberData.records || []
+    team.value = teamData
+    members.value = Array.isArray(memberData) ? memberData : (memberData.records || [])
     garageBikes.value = garageData.records || []
     if (!teamData.id || teamData.id < 100) { isMock.value = true }
+
+    // 如果是管理员，加载待审核申请
+    if (isManager.value) {
+      try {
+        pendingApplications.value = await getPendingApplications(id)
+      } catch { pendingApplications.value = [] }
+    }
   } catch (err) { console.error('获取车队详情失败', err); team.value = null }
   finally { loading.value = false }
 }
@@ -1309,17 +1355,28 @@ onMounted(() => fetchData())
 
 /* ── 危险区域 ── */
 .danger-zone {
-  margin-top: 40px;
-  border: 1.5px solid rgba(220,53,69,0.25);
-  border-radius: 14px;
-  background: rgba(220,53,69,0.02);
-  padding: 24px 28px;
+  margin-top: 72px;
+  position: relative;
+  padding-top: 32px;
+}
+.danger-zone::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(to right, transparent, rgba(0,0,0,0.12) 20%, rgba(0,0,0,0.12) 80%, transparent);
 }
 .danger-zone-inner {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 20px;
+  border: 1.5px solid rgba(220,53,69,0.25);
+  border-radius: 14px;
+  background: rgba(220,53,69,0.02);
+  padding: 24px 28px;
 }
 .danger-zone-info {
   display: flex;

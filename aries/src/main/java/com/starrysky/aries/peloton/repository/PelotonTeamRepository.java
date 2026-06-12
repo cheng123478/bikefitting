@@ -99,6 +99,6 @@ public interface PelotonTeamRepository extends JpaRepository<PelotonTeam, Long> 
      * @return 车队列表
      */
     @Query("SELECT t FROM PelotonTeam t WHERE t.creatorId = :userId " +
-            "OR t.id IN (SELECT m.teamId FROM PelotonTeamMember m WHERE m.userId = :userId)")
+            "OR t.id IN (SELECT m.teamId FROM TeamMember m WHERE m.userId = :userId AND m.status = 0)")
     List<PelotonTeam> findTeamsByUserId(@Param("userId") Long userId);
 }

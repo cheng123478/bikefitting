@@ -192,7 +192,7 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { useUserStore } from '@/stores/user';
-import { getTeamList, getMyTeams } from '@/api/team';
+import { getTeamList, getMyTeams, joinTeam } from '@/api/team';
 import { showToast } from '@/utils/toast';
 
 const router = useRouter();
@@ -334,12 +334,18 @@ const openJoinDialog = (team) => {
   showJoinDialog.value = true;
 };
 
-const submitJoin = () => {
+const submitJoin = async () => {
   if (!joinReason.value.trim()) return;
+  try {
+    await joinTeam(joiningTeam.value.id, joinReason.value.trim());
+    showToast('申请已提交，等待管理员审核', 'success');
+  } catch (err) {
+    showToast(err.message || '提交申请失败', 'error');
+    return;
+  }
   showJoinDialog.value = false;
   joinReason.value = '';
   joiningTeam.value = null;
-  showToast('申请已提交，等待管理员审核', 'success');
 };
 
 const cancelJoin = () => {

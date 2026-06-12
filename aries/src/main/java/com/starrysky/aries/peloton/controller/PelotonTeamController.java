@@ -16,7 +16,10 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 /**
@@ -152,18 +155,85 @@ public class PelotonTeamController {
     }
 
     /**
-     * 申请加入车队
+     * 获取车队车库
      * <p>
-     * 需要登录，同一车队不可重复加入。
+     * 该接口无需登录即可访问。当前返回空列表，待车库功能完善后对接真实数据。
      *
      * @param teamId 车队ID
+     * @return 车库列表
+     */
+    @GetMapping("/{teamId}/garage")
+    public ResponseResult<Map<String, Object>> getTeamGarage(@PathVariable("teamId") Long teamId) {
+        Map<String, Object> result = new HashMap<>();
+        result.put("records", Collections.emptyList());
+        result.put("total", 0);
+        return ResponseResult.success(result);
+    }
+
+    /**
+     * 申请加入车队
+     * <p>
+     * 需要登录，提交申请理由后等待队长/管理员审核。
+     *
+     * @param teamId 车队ID
+     * @param body   包含 reason 字段
      * @param user   当前登录用户
      * @return 操作结果
      */
     @PostMapping("/{teamId}/join")
-    public ResponseResult<Void> joinTeam(@PathVariable("teamId") Long teamId,
-                                         @AuthenticationPrincipal User user) {
-        pelotonTeamService.joinTeam(teamId, user);
+    public ResponseResult<Void> applyJoin(@PathVariable("teamId") Long teamId,
+                                           @RequestBody(required = false) Map<String, String> body,
+                                           @AuthenticationPrincipal User user) {
+        String reason = body != null ? body.get("reason") : null;
+        pelotonTeamService.applyJoinTeam(teamId, reason, user);
+        return ResponseResult.success();
+    }
+
+    /**
+     * 获取车队待审核申请列表
+     * <p>
+     * 仅队长/管理员可查看。需要登录。
+     *
+     * @param teamId 车队ID
+     * @param user   当前登录用户
+     * @return 申请列表
+     */
+    @GetMapping("/{teamId}/applications")
+    public ResponseResult<List<PelotonTeamMemberVO>> getPendingApplications(
+            @PathVariable("teamId") Long teamId,
+            @AuthenticationPrincipal User user) {
+        return ResponseResult.success(pelotonTeamService.getPendingApplications(teamId, user));
+    }
+
+    /**
+     * 同意加入申请
+     * <p>
+     * 仅队长/管理员可操作。
+     *
+     * @param id   申请记录ID
+     * @param user 当前登录用户
+     * @return 操作结果
+     */
+    @PostMapping("/applications/{id}/approve")
+    public ResponseResult<Void> approveJoin(@PathVariable("id") Long id,
+                                             @AuthenticationPrincipal User user) {
+        pelotonTeamService.approveJoin(id, user);
+        return ResponseResult.success();
+    }
+
+    /**
+     * 拒绝加入申请
+     * <p>
+     * 仅队长/管理员可操作。
+     *
+     * @param id   申请记录ID
+     * @param user 当前登录用户
+     * @return 操作结果
+     */
+    @PostMapping("/applications/{id}/reject")
+    public ResponseResult<Void> rejectJoin(@PathVariable("id") Long id,
+                                            @AuthenticationPrincipal User user) {
+        pelotonTeamService.rejectJoin(id, user);
         return ResponseResult.success();
     }
 
@@ -196,6 +266,72 @@ public class PelotonTeamController {
     public ResponseResult<Void> disbandTeam(@PathVariable("teamId") Long teamId,
                                             @AuthenticationPrincipal User user) {
         pelotonTeamService.disbandTeam(teamId, user);
+        return ResponseResult.success();
+    }
+
+    /**
+     * 设为管理员
+     *
+     * @param teamId     车队ID
+     * @param targetUserId 目标用户ID
+     * @param admin      当前登录用户
+     * @return 操作结果
+     */
+    @PutMapping("/{teamId}/members/{targetUserId}/admin")
+    public ResponseResult<Void> setAdmin(@PathVariable("teamId") Long teamId,
+                                          @PathVariable("targetUserId") Long targetUserId,
+                                          @AuthenticationPrincipal User admin) {
+        pelotonTeamService.setAdmin(teamId, targetUserId, admin);
+        return ResponseResult.success();
+    }
+
+    /**
+     * 撤销管理员
+     *
+     * @param teamId     车队ID
+     * @param targetUserId 目标用户ID
+     * @param admin      当前登录用户
+     * @return 操作结果
+     */
+    @DeleteMapping("/{teamId}/members/{targetUserId}/admin")
+    public ResponseResult<Void> revokeAdmin(@PathVariable("teamId") Long teamId,
+                                             @PathVariable("targetUserId") Long targetUserId,
+                                             @AuthenticationPrincipal User admin) {
+        pelotonTeamService.revokeAdmin(teamId, targetUserId, admin);
+        return ResponseResult.success();
+    }
+
+    /**
+     * 请离车队
+     *
+     * @param teamId     车队ID
+     * @param targetUserId 目标用户ID
+     * @param admin      当前登录用户
+     * @return 操作结果
+     */
+    @DeleteMapping("/{teamId}/members/{targetUserId}/kick")
+    public ResponseResult<Void> kickMember(@PathVariable("teamId") Long teamId,
+                                            @PathVariable("targetUserId") Long targetUserId,
+                                            @AuthenticationPrincipal User admin) {
+        pelotonTeamService.kickMember(teamId, targetUserId, admin);
+        return ResponseResult.success();
+    }
+
+    /**
+     * 修改成员骑行标签
+     *
+     * @param teamId       车队ID
+     * @param targetUserId 目标用户ID
+     * @param body         包含 tag 字段
+     * @param admin        当前登录用户
+     * @return 操作结果
+     */
+    @PutMapping("/{teamId}/members/{targetUserId}/tag")
+    public ResponseResult<Void> updateMemberTag(@PathVariable("teamId") Long teamId,
+                                                 @PathVariable("targetUserId") Long targetUserId,
+                                                 @RequestBody Map<String, String> body,
+                                                 @AuthenticationPrincipal User admin) {
+        pelotonTeamService.updateMemberTag(teamId, targetUserId, body.get("tag"), admin);
         return ResponseResult.success();
     }
 }
