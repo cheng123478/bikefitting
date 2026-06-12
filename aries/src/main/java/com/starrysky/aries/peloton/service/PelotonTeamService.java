@@ -244,6 +244,27 @@ public class PelotonTeamService {
     }
 
     /**
+     * 解散车队
+     * <p>
+     * 仅车队创建者可操作。删除所有成员记录后删除车队。
+     *
+     * @param teamId 车队ID
+     * @param user   当前登录用户
+     */
+    @Transactional(rollbackFor = Exception.class)
+    public void disbandTeam(Long teamId, User user) {
+        PelotonTeam team = pelotonTeamRepository.findById(teamId)
+                .orElseThrow(() -> new BizException(404, "车队不存在"));
+
+        if (!Objects.equals(team.getCreatorId(), user.getId())) {
+            throw new BizException(403, "仅车队创建者可解散车队");
+        }
+
+        pelotonTeamMemberRepository.deleteByTeamId(teamId);
+        pelotonTeamRepository.delete(team);
+    }
+
+    /**
      * 申请加入车队
      *
      * @param teamId 车队ID

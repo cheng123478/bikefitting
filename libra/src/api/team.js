@@ -320,6 +320,18 @@ export function uploadTeamImage(formData) {
 }
 
 /**
+ * 解散车队（仅创建者可操作）
+ * @param {Number} teamId - 车队ID
+ */
+export function disbandTeam(teamId) {
+  return request({
+    url: `/team/${teamId}`,
+    method: 'delete',
+    silent: true
+  });
+}
+
+/**
  * 申请加入车队
  * @param {Number} teamId - 车队ID
  */

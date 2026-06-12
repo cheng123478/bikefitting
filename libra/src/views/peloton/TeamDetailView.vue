@@ -175,6 +175,22 @@
               </div>
             </div>
             <div v-else class="empty-tab"><i class="fas fa-user-plus"></i><p>暂无成员</p></div>
+
+            <!-- 危险区域：解散车队（仅队长可见） -->
+            <div v-if="isCaptain" class="danger-zone">
+              <div class="danger-zone-inner">
+                <div class="danger-zone-info">
+                  <i class="fas fa-exclamation-triangle danger-zone-icon"></i>
+                  <div>
+                    <h4 class="danger-zone-title">解散车队</h4>
+                    <p class="danger-zone-desc">此操作不可恢复，所有成员记录和活动数据将被永久删除</p>
+                  </div>
+                </div>
+                <button class="danger-zone-btn" @click="showDisbandModal = true">
+                  <i class="fas fa-trash-alt"></i> 解散车队
+                </button>
+              </div>
+            </div>
           </div>
 
           <!-- 车队车库 -->
@@ -398,14 +414,50 @@
         </div>
       </div>
     </Teleport>
+
+    <!-- 解散车队确认弹窗 -->
+    <Teleport to="body">
+      <div v-if="showDisbandModal" class="del-confirm-overlay" @click.self="showDisbandModal = false">
+        <div class="del-confirm-dialog">
+          <div class="del-confirm-icon" style="background: rgba(220,53,69,0.1); color: #dc3545;">
+            <i class="fas fa-exclamation-triangle"></i>
+          </div>
+          <h3 class="del-confirm-title">确认解散车队</h3>
+          <p class="del-confirm-body">您确定解散 <strong>「{{ team?.name }}」</strong> 吗？所有成员记录和活动数据将被永久删除，此操作不可恢复。</p>
+          <div class="del-confirm-actions">
+            <button type="button" class="del-confirm-btn del-confirm-btn-cancel" @click.stop="showDisbandModal = false">再想想</button>
+            <button type="button" class="del-confirm-btn del-confirm-btn-confirm" @click.stop="confirmDisband">确认解散</button>
+          </div>
+        </div>
+      </div>
+    </Teleport>
   </div>
+
+  <!-- 解散车队告别页 -->
+  <Teleport to="body">
+    <Transition name="farewell">
+      <div v-if="showFarewell" class="farewell-page">
+        <div class="farewell-content">
+          <div class="farewell-icon">
+            <i class="fas fa-heart"></i>
+          </div>
+          <h2 class="farewell-title">车队已解散</h2>
+          <p class="farewell-quote">感恩相遇，有缘再会</p>
+          <p class="farewell-sub">每一段并肩破风的旅程，都值得被记住</p>
+          <button class="farewell-btn" @click="goHome">
+            <i class="fas fa-arrow-left"></i> 返回破风社
+          </button>
+        </div>
+      </div>
+    </Transition>
+  </Teleport>
 </template>
 
 <script setup>
 import { ref, reactive, computed, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useUserStore } from '@/stores/user'
-import { getTeamDetail, getTeamMembers, getTeamGarage } from '@/api/team'
+import { getTeamDetail, getTeamMembers, getTeamGarage, disbandTeam } from '@/api/team'
 import { getBikeByModel } from '@/api/bikeShowroom'
 import { showToast } from '@/utils/toast'
 
@@ -614,6 +666,30 @@ const handlePromote = (member) => {
 const handleDemote = (member) => {
   member.role = '成员'
   showToast(`已撤销 ${member.name} 的管理员权限`, 'info')
+}
+
+// ── 解散车队 ──
+const showDisbandModal = ref(false)
+const showFarewell = ref(false)
+const disbanding = ref(false)
+const confirmDisband = async () => {
+  disbanding.value = true
+  try {
+    await disbandTeam(team.value.id)
+    showDisbandModal.value = false
+    showFarewell.value = true
+    setTimeout(() => {
+      if (showFarewell.value) goHome()
+    }, 6000)
+  } catch (err) {
+    showToast(err?.message || '解散失败，请稍后重试', 'error')
+  } finally {
+    disbanding.value = false
+  }
+}
+const goHome = () => {
+  showFarewell.value = false
+  router.push('/peloton')
 }
 const toggleTagEdit = (member) => {
   editingTagMember.value = editingTagMember.value?.id === member.id ? null : member
@@ -1230,6 +1306,69 @@ onMounted(() => fetchData())
 .apply-btn.approve:hover { background: var(--primary-color); color: #fff; transform: scale(1.1); box-shadow: 0 4px 12px rgba(92,110,88,0.3) }
 .apply-btn.reject { background: rgba(0,0,0,0.04); color: var(--text-muted) }
 .apply-btn.reject:hover { background: rgba(231,76,60,0.1); color: #e74c3c; transform: scale(1.1) }
+
+/* ── 危险区域 ── */
+.danger-zone {
+  margin-top: 40px;
+  border: 1.5px solid rgba(220,53,69,0.25);
+  border-radius: 14px;
+  background: rgba(220,53,69,0.02);
+  padding: 24px 28px;
+}
+.danger-zone-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+}
+.danger-zone-info {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+}
+.danger-zone-icon {
+  font-size: 1.3rem;
+  color: #dc3545;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+.danger-zone-title {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #dc3545;
+  margin: 0 0 4px;
+}
+.danger-zone-desc {
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  margin: 0;
+  line-height: 1.5;
+}
+.danger-zone-btn {
+  flex-shrink: 0;
+  padding: 9px 20px;
+  border-radius: 8px;
+  border: 1.5px solid rgba(220,53,69,0.4);
+  background: transparent;
+  color: #dc3545;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.25s ease;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.danger-zone-btn:hover {
+  background: #dc3545;
+  border-color: #dc3545;
+  color: #fff;
+  box-shadow: 0 4px 16px rgba(220,53,69,0.3);
+}
+@media (max-width: 600px) {
+  .danger-zone-inner { flex-direction: column; align-items: flex-start; }
+  .danger-zone-btn { width: 100%; justify-content: center; }
+}
 </style>
 
 <style>
@@ -1305,4 +1444,83 @@ onMounted(() => fetchData())
 .join-submit-btn:hover:not(:disabled) { background: var(--primary-dark); transform: translateY(-1px); box-shadow: 0 6px 16px rgba(92,110,88,0.3) }
 .join-submit-btn:disabled { opacity: 0.5; cursor: not-allowed }
 .join-submit-btn i { font-size: 0.78rem }
+
+/* ── 解散车队告别页 ── */
+.farewell-page {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  background: linear-gradient(160deg, #f8f6f3 0%, #eae6df 50%, #f0ece5 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.farewell-content {
+  text-align: center;
+  padding: 40px;
+  animation: farewell-rise 0.6s ease both;
+}
+@keyframes farewell-rise {
+  from { opacity: 0; transform: translateY(30px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.farewell-icon {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  background: rgba(220,53,69,0.08);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 28px;
+}
+.farewell-icon i {
+  font-size: 1.6rem;
+  color: #c85050;
+}
+.farewell-title {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #888;
+  margin: 0 0 20px;
+}
+.farewell-quote {
+  font-family: 'Georgia', 'STSong', serif;
+  font-size: 1.6rem;
+  font-weight: 400;
+  color: #3a3a3a;
+  letter-spacing: 4px;
+  margin: 0 0 12px;
+}
+.farewell-sub {
+  font-size: 0.88rem;
+  color: #aaa;
+  margin: 0 0 40px;
+}
+.farewell-btn {
+  padding: 10px 28px;
+  border-radius: 28px;
+  border: 1px solid rgba(0,0,0,0.1);
+  background: #fff;
+  color: #888;
+  font-size: 0.85rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.25s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.farewell-btn:hover {
+  background: var(--primary-color);
+  border-color: var(--primary-color);
+  color: #fff;
+  box-shadow: 0 4px 16px rgba(92,110,88,0.25);
+}
+
+/* farewell transition */
+.farewell-enter-active { transition: opacity 0.5s ease; }
+.farewell-leave-active { transition: opacity 0.4s ease; }
+.farewell-enter-from,
+.farewell-leave-to { opacity: 0; }
 </style>

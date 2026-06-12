@@ -182,4 +182,20 @@ public class PelotonTeamController {
         pelotonTeamService.leaveTeam(teamId, user);
         return ResponseResult.success();
     }
+
+    /**
+     * 解散车队
+     * <p>
+     * 仅车队创建者可操作。删除所有成员记录并移除车队。
+     *
+     * @param id   车队ID
+     * @param user 当前登录用户
+     * @return 操作结果
+     */
+    @DeleteMapping("/{id}")
+    public ResponseResult<Void> disbandTeam(@PathVariable("id") Long id,
+                                            @AuthenticationPrincipal User user) {
+        pelotonTeamService.disbandTeam(id, user);
+        return ResponseResult.success();
+    }
 }

@@ -48,4 +48,11 @@ public interface PelotonTeamMemberRepository extends JpaRepository<PelotonTeamMe
      * @return 成员数量
      */
     long countByTeamId(Long teamId);
+
+    /**
+     * 删除某车队的所有成员记录
+     *
+     * @param teamId 车队ID
+     */
+    void deleteByTeamId(Long teamId);
 }
