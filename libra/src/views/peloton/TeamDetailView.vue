@@ -144,9 +144,9 @@
                     <span class="glass-role" :class="{ 'is-leader': member.role === '队长', 'is-admin': member.role === '管理员' }">
                       {{ member.role }}
                     </span>
-                    <span v-if="member.tag" class="glass-tag" :class="[getTagClass(member.tag), { 'tag-editable': isManager }]" @click.stop="isManager && toggleTagEdit(member)">
+                    <span v-if="member.tag" class="glass-tag" :class="[getTagClass(member.tag), { 'tag-editable': canEditTag(member) }]" @click.stop="handleTagClick(member)">
                       <span class="tag-label"><i :class="getTagIcon(member.tag)"></i> {{ member.tag }}</span>
-                      <span v-if="isManager" class="tag-hover-edit"><i class="fas fa-pen"></i></span>
+                      <span v-if="canEditTag(member)" class="tag-hover-edit"><i class="fas fa-pen"></i></span>
                     </span>
                     <!-- 标签选择下拉 -->
                     <div v-if="editingTagMember?.id === member.id" class="tag-dropdown" @click.stop>
@@ -457,7 +457,7 @@
 import { ref, reactive, computed, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useUserStore } from '@/stores/user'
-import { getTeamDetail, getTeamMembers, getTeamGarage, disbandTeam, joinTeam, getPendingApplications, approveJoin, rejectJoin, updateMemberTag } from '@/api/team'
+import { getTeamDetail, getTeamMembers, getTeamGarage, disbandTeam, joinTeam, getPendingApplications, approveJoin, rejectJoin, updateMemberTag, promoteAdmin, revokeAdmin, kickMember } from '@/api/team'
 import { getBikeByModel } from '@/api/bikeShowroom'
 import { showToast } from '@/utils/toast'
 
@@ -534,26 +534,39 @@ const isCreator = computed(() => {
 
 const isCaptain = computed(() => {
   if (!userStore.isLoggedIn || !userStore.userInfo) return false
-  if (isMock.value) return true
   const uid = String(userStore.userInfo.id)
   // 创建者即为队长
   return String(team.value?.creatorId) === uid
 })
 const isManager = computed(() => {
   if (!userStore.isLoggedIn || !userStore.userInfo) return false
-  if (isMock.value) return true
   const uid = String(userStore.userInfo.id)
   if (String(team.value?.creatorId) === uid) return true
   return members.value.some(m =>
-    (m.role === '队长' || m.role === '管理员') && String(m.userId) === uid
+    (m.role === '队长' || m.role === '管理员') && String(m.userId || m.id) === uid
   )
 })
 const isMember = computed(() => {
   if (!userStore.isLoggedIn || !userStore.userInfo) return false
-  if (isMock.value) return true
   const uid = String(userStore.userInfo.id)
-  return members.value.some(m => String(m.userId) === uid)
+  return members.value.some(m => String(m.userId || m.id) === uid)
 })
+
+/**
+ * 判断当前用户是否可编辑某成员的标签
+ * - 队长：可编辑所有人（含自己）
+ * - 管理员：可编辑除队长外所有人
+ * - 普通成员：仅可编辑自己
+ * - 未登录 / 非队内成员：不可编辑
+ */
+const canEditTag = (member) => {
+  if (!userStore.isLoggedIn || !userStore.userInfo) return false
+  if (!isMember.value) return false
+  const uid = String(userStore.userInfo.id)
+  if (isCaptain.value) return true
+  if (isManager.value) return member.role !== '队长'
+  return String(member.userId) === uid
+}
 
 const toggleNotice = (id) => { expandedNotice.value = expandedNotice.value === id ? null : id }
 const formatDistance = (km) => {
@@ -681,21 +694,36 @@ const cancelKick = () => {
   showKickModal.value = false
   kickingMember.value = null
 }
-const confirmKick = () => {
+const confirmKick = async () => {
   const member = kickingMember.value
   showKickModal.value = false
   kickingMember.value = null
   if (!member) return
-  members.value = members.value.filter(m => m.id !== member.id)
-  showToast(`已将 ${member.name} 请离车队`, 'success')
+  try {
+    await kickMember(team.value.id, member.userId || member.id)
+    members.value = members.value.filter(m => (m.userId || m.id) !== (member.userId || member.id))
+    showToast(`已将 ${member.name} 请离车队`, 'success')
+  } catch (err) {
+    showToast(err?.message || '操作失败，请稍后重试', 'error')
+  }
 }
-const handlePromote = (member) => {
-  member.role = '管理员'
-  showToast(`已将 ${member.name} 设为管理员`, 'success')
+const handlePromote = async (member) => {
+  try {
+    await promoteAdmin(team.value.id, member.userId || member.id)
+    member.role = '管理员'
+    showToast(`已将 ${member.name} 设为管理员`, 'success')
+  } catch (err) {
+    showToast(err?.message || '操作失败，请稍后重试', 'error')
+  }
 }
-const handleDemote = (member) => {
-  member.role = '成员'
-  showToast(`已撤销 ${member.name} 的管理员权限`, 'info')
+const handleDemote = async (member) => {
+  try {
+    await revokeAdmin(team.value.id, member.userId || member.id)
+    member.role = '成员'
+    showToast(`已撤销 ${member.name} 的管理员权限`, 'info')
+  } catch (err) {
+    showToast(err?.message || '操作失败，请稍后重试', 'error')
+  }
 }
 
 // ── 解散车队 ──
@@ -720,6 +748,19 @@ const confirmDisband = async () => {
 const goHome = () => {
   showFarewell.value = false
   router.push('/peloton')
+}
+const handleTagClick = (member) => {
+  if (canEditTag(member)) {
+    toggleTagEdit(member)
+  } else {
+    if (!userStore.isLoggedIn) {
+      showToast('请先登录后再修改标签', 'warning')
+    } else if (!isMember.value) {
+      showToast('仅车队成员可修改标签', 'warning')
+    } else {
+      showToast('无权修改该成员的标签', 'warning')
+    }
+  }
 }
 const toggleTagEdit = (member) => {
   editingTagMember.value = editingTagMember.value?.id === member.id ? null : member
@@ -811,10 +852,10 @@ const fetchData = async () => {
     team.value = teamData
     members.value = Array.isArray(memberData) ? memberData : (memberData.records || [])
     garageBikes.value = garageData.records || []
-    if (!teamData.id || teamData.id < 100) { isMock.value = true }
+    // 不再使用 isMock 判断权限，权限始终基于真实数据校验
 
-    // 如果是管理员，加载待审核申请
-    if (isManager.value) {
+    // 仅登录的队长/管理员才加载待审核申请
+    if (userStore.isLoggedIn && isManager.value) {
       try {
         pendingApplications.value = await getPendingApplications(id)
       } catch { pendingApplications.value = [] }

@@ -414,13 +414,13 @@ public class PelotonTeamService {
     }
 
     /**
-     * 设为管理员
+     * 设为管理员（仅队长可操作）
      */
     @Transactional(rollbackFor = Exception.class)
     public void setAdmin(Long teamId, Long targetUserId, User admin) {
         PelotonTeam team = pelotonTeamRepository.findById(teamId)
                 .orElseThrow(() -> new BizException(404, "车队不存在"));
-        assertTeamAdmin(team, admin);
+        assertCreator(team, admin, "仅队长可设为管理员");
 
         TeamMember member = teamMemberRepository.findByTeamIdAndUserIdAndStatus(teamId, targetUserId, TeamMember.STATUS_ACTIVE)
                 .orElseThrow(() -> new BizException(404, "该成员不存在"));
@@ -454,13 +454,13 @@ public class PelotonTeamService {
     }
 
     /**
-     * 请离车队
+     * 请离车队（仅队长可操作）
      */
     @Transactional(rollbackFor = Exception.class)
     public void kickMember(Long teamId, Long targetUserId, User admin) {
         PelotonTeam team = pelotonTeamRepository.findById(teamId)
                 .orElseThrow(() -> new BizException(404, "车队不存在"));
-        assertTeamAdmin(team, admin);
+        assertCreator(team, admin, "仅队长可请离成员");
 
         TeamMember member = teamMemberRepository.findByTeamIdAndUserIdAndStatus(teamId, targetUserId, TeamMember.STATUS_ACTIVE)
                 .orElseThrow(() -> new BizException(404, "该成员不存在"));
@@ -476,27 +476,57 @@ public class PelotonTeamService {
 
     /**
      * 修改成员骑行标签
+     * <ul>
+     *   <li>队长：可修改所有人（包括自己）</li>
+     *   <li>管理员：可修改除队长外所有人</li>
+     *   <li>普通成员：仅可修改自己</li>
+     * </ul>
      *
      * @param teamId       车队ID
      * @param targetUserId 目标用户ID
      * @param tag          新标签
-     * @param admin        操作人（需为队长或管理员）
+     * @param user         当前登录用户
      */
     @Transactional(rollbackFor = Exception.class)
-    public void updateMemberTag(Long teamId, Long targetUserId, String tag, User admin) {
+    public void updateMemberTag(Long teamId, Long targetUserId, String tag, User user) {
         PelotonTeam team = pelotonTeamRepository.findById(teamId)
                 .orElseThrow(() -> new BizException(404, "车队不存在"));
-        assertTeamAdmin(team, admin);
 
         if (!StringUtils.hasText(tag) || tag.trim().length() > 20) {
             throw new BizException(400, "标签无效");
         }
 
-        TeamMember member = teamMemberRepository.findByTeamIdAndUserIdAndStatus(teamId, targetUserId, TeamMember.STATUS_ACTIVE)
+        TeamMember targetMember = teamMemberRepository.findByTeamIdAndUserIdAndStatus(teamId, targetUserId, TeamMember.STATUS_ACTIVE)
                 .orElseThrow(() -> new BizException(404, "该成员不存在"));
 
-        member.setTag(tag.trim());
-        teamMemberRepository.save(member);
+        // 判断操作人身份
+        boolean isCreator = Objects.equals(team.getCreatorId(), user.getId());
+        boolean isAdmin = false;
+        boolean isSelf = Objects.equals(user.getId(), targetUserId);
+
+        if (!isCreator) {
+            TeamMember operatorMember = teamMemberRepository.findByTeamIdAndUserIdAndStatus(teamId, user.getId(), TeamMember.STATUS_ACTIVE)
+                    .orElseThrow(() -> new BizException(403, "非车队成员无权操作"));
+            isAdmin = operatorMember.getRole() == TeamMember.ROLE_ADMIN;
+        }
+
+        // 权限校验
+        if (isCreator) {
+            // 队长：可修改所有人（包括自己），无限制
+        } else if (isAdmin) {
+            // 管理员：不能修改队长的标签
+            if (targetMember.getRole() == TeamMember.ROLE_CAPTAIN) {
+                throw new BizException(403, "管理员不能修改队长的标签");
+            }
+        } else {
+            // 普通成员：仅可修改自己
+            if (!isSelf) {
+                throw new BizException(403, "仅可修改自己的标签");
+            }
+        }
+
+        targetMember.setTag(tag.trim());
+        teamMemberRepository.save(targetMember);
     }
 
     /**

@@ -352,7 +352,8 @@ export function joinTeam(teamId, reason) {
 export function getPendingApplications(teamId) {
   return request({
     url: `/team/${teamId}/applications`,
-    method: 'get'
+    method: 'get',
+    silent: true
   });
 }
 
@@ -391,6 +392,45 @@ export function updateMemberTag(teamId, targetUserId, tag) {
     url: `/team/${teamId}/members/${targetUserId}/tag`,
     method: 'put',
     data: { tag },
+    silent: true
+  });
+}
+
+/**
+ * 设为管理员（仅队长可操作）
+ * @param {Number} teamId - 车队ID
+ * @param {Number} targetUserId - 目标用户ID
+ */
+export function promoteAdmin(teamId, targetUserId) {
+  return request({
+    url: `/team/${teamId}/members/${targetUserId}/admin`,
+    method: 'put',
+    silent: true
+  });
+}
+
+/**
+ * 撤销管理员（仅队长可操作）
+ * @param {Number} teamId - 车队ID
+ * @param {Number} targetUserId - 目标用户ID
+ */
+export function revokeAdmin(teamId, targetUserId) {
+  return request({
+    url: `/team/${teamId}/members/${targetUserId}/admin`,
+    method: 'delete',
+    silent: true
+  });
+}
+
+/**
+ * 请离车队（仅队长可操作）
+ * @param {Number} teamId - 车队ID
+ * @param {Number} targetUserId - 目标用户ID
+ */
+export function kickMember(teamId, targetUserId) {
+  return request({
+    url: `/team/${teamId}/members/${targetUserId}/kick`,
+    method: 'delete',
     silent: true
   });
 }
