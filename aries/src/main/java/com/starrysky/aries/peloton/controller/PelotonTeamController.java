@@ -270,6 +270,28 @@ public class PelotonTeamController {
     }
 
     /**
+     * 队长退出车队（需指定新队长）
+     * <p>
+     * 仅车队创建者可操作。将队长身份转让给指定成员后，原队长退出车队。
+     *
+     * @param teamId          车队ID
+     * @param body            包含 newCaptainUserId 字段
+     * @param user            当前登录用户（原队长）
+     * @return 操作结果
+     */
+    @PutMapping("/{teamId}/captain/leave")
+    public ResponseResult<Void> captainLeaveTeam(@PathVariable("teamId") Long teamId,
+                                                  @RequestBody Map<String, Long> body,
+                                                  @AuthenticationPrincipal User user) {
+        Long newCaptainUserId = body.get("newCaptainUserId");
+        if (newCaptainUserId == null) {
+            return ResponseResult.failure(400, "请指定新队长");
+        }
+        pelotonTeamService.captainLeaveTeam(teamId, newCaptainUserId, user);
+        return ResponseResult.success();
+    }
+
+    /**
      * 设为管理员
      *
      * @param teamId     车队ID

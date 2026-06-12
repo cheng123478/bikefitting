@@ -17,14 +17,32 @@
           <div class="hero-cover">
             <img :src="team.coverImage" :alt="team.name" class="cover-img" />
             <div class="cover-gradient"></div>
-            <button
-              class="hero-join-btn"
-              :class="{ 'is-edit': isCreator }"
-              @click="isCreator ? handleEdit() : handleJoin()"
-            >
-              <i :class="isCreator ? 'fas fa-pen' : 'fas fa-plus'"></i>
-              {{ isCreator ? '编辑车队' : '申请加入' }}
+            <!-- 非队长：申请加入按钮 -->
+            <button v-if="!isCreator" class="hero-join-btn" @click="handleJoin()">
+              <i class="fas fa-plus"></i> 申请加入
             </button>
+            <!-- 队长：操作菜单 -->
+            <div v-else class="hero-actions">
+              <div class="captain-menu-wrap" @click.stop>
+                <div v-if="showCaptainMenu" class="captain-menu-backdrop" @click="showCaptainMenu = false"></div>
+                <button class="hero-more-btn" @click="showCaptainMenu = !showCaptainMenu" title="车队管理">
+                  <i class="fas fa-ellipsis-v"></i>
+                </button>
+                <Transition name="menu-fade">
+                  <div v-if="showCaptainMenu" class="captain-dropdown">
+                    <button class="captain-dropdown-item edit" @click="showCaptainMenu = false; handleEdit()">
+                      <i class="fas fa-pen"></i> 编辑车队
+                    </button>
+                    <button v-if="otherMembers.length > 0" class="captain-dropdown-item leave" @click="showCaptainMenu = false; showLeaveModal = true">
+                      <i class="fas fa-sign-out-alt"></i> 退出车队
+                    </button>
+                    <button class="captain-dropdown-item disband" @click="showCaptainMenu = false; showDisbandModal = true">
+                      <i class="fas fa-trash-alt"></i> 解散车队
+                    </button>
+                  </div>
+                </Transition>
+              </div>
+            </div>
           </div>
 
           <div class="hero-body">
@@ -175,22 +193,6 @@
               </div>
             </div>
             <div v-else class="empty-tab"><i class="fas fa-user-plus"></i><p>暂无成员</p></div>
-
-            <!-- 危险区域：解散车队（仅队长可见） -->
-            <div v-if="isCaptain" class="danger-zone">
-              <div class="danger-zone-inner">
-                <div class="danger-zone-info">
-                  <i class="fas fa-exclamation-triangle danger-zone-icon"></i>
-                  <div>
-                    <h4 class="danger-zone-title">解散车队</h4>
-                    <p class="danger-zone-desc">此操作不可恢复，所有成员记录和活动数据将被永久删除</p>
-                  </div>
-                </div>
-                <button class="danger-zone-btn" @click="showDisbandModal = true">
-                  <i class="fas fa-trash-alt"></i> 解散车队
-                </button>
-              </div>
-            </div>
           </div>
 
           <!-- 车队车库 -->
@@ -415,6 +417,51 @@
       </div>
     </Teleport>
 
+    <!-- 退出车队 - 选择新队长弹窗 -->
+    <Teleport to="body">
+      <div v-if="showLeaveModal" class="del-confirm-overlay" @click.self="cancelLeave">
+        <div class="leave-team-dialog">
+          <div class="leave-dialog-header">
+            <i class="fas fa-crown" style="color: #ff9800; font-size: 1.6rem;"></i>
+            <h3 class="leave-dialog-title">退出车队</h3>
+          </div>
+          <p class="leave-dialog-desc">您确定要退出 <strong>「{{ team?.name }}」</strong> 吗？请选择一位成员作为新队长。</p>
+          <div class="new-captain-list">
+            <div
+              v-for="m in otherMembers"
+              :key="m.userId || m.id"
+              class="new-captain-item"
+              :class="{ 'is-selected': selectedNewCaptain?.id === m.id }"
+              @click="selectedNewCaptain = (selectedNewCaptain?.id === m.id) ? null : m"
+            >
+              <img :src="m.avatar" :alt="m.name" class="new-captain-avatar" />
+              <div class="new-captain-info">
+                <span class="new-captain-name">{{ m.name }}</span>
+                <span class="new-captain-role">{{ m.role }}</span>
+              </div>
+              <i v-if="selectedNewCaptain?.id === m.id" class="fas fa-check-circle new-captain-check"></i>
+            </div>
+          </div>
+          <div class="leave-dialog-actions">
+            <button type="button" class="del-confirm-btn del-confirm-btn-cancel" @click.stop="cancelLeave">取消</button>
+            <button
+              type="button"
+              class="leave-confirm-btn"
+              :disabled="!selectedNewCaptain || leavingTeam"
+              @click.stop="confirmLeave"
+            >
+              <template v-if="leavingTeam">
+                <i class="fas fa-spinner fa-spin"></i> 处理中...
+              </template>
+              <template v-else>
+                <i class="fas fa-check"></i> 确认退出
+              </template>
+            </button>
+          </div>
+        </div>
+      </div>
+    </Teleport>
+
     <!-- 解散车队确认弹窗 -->
     <Teleport to="body">
       <div v-if="showDisbandModal" class="del-confirm-overlay" @click.self="showDisbandModal = false">
@@ -457,7 +504,7 @@
 import { ref, reactive, computed, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useUserStore } from '@/stores/user'
-import { getTeamDetail, getTeamMembers, getTeamGarage, disbandTeam, joinTeam, getPendingApplications, approveJoin, rejectJoin, updateMemberTag, promoteAdmin, revokeAdmin, kickMember } from '@/api/team'
+import { getTeamDetail, getTeamMembers, getTeamGarage, disbandTeam, joinTeam, getPendingApplications, approveJoin, rejectJoin, updateMemberTag, promoteAdmin, revokeAdmin, kickMember, captainLeaveTeam } from '@/api/team'
 import { getBikeByModel } from '@/api/bikeShowroom'
 import { showToast } from '@/utils/toast'
 
@@ -551,6 +598,11 @@ const isMember = computed(() => {
   const uid = String(userStore.userInfo.id)
   return members.value.some(m => String(m.userId || m.id) === uid)
 })
+
+// 除队长外的其他成员（用于队长退出车队时选择新队长）
+const otherMembers = computed(() =>
+  members.value.filter(m => m.role !== '队长')
+)
 
 /**
  * 判断当前用户是否可编辑某成员的标签
@@ -726,7 +778,32 @@ const handleDemote = async (member) => {
   }
 }
 
+// ── 退出车队（队长转让身份后退出） ──
+const showLeaveModal = ref(false)
+const selectedNewCaptain = ref(null)
+const leavingTeam = ref(false)
+const cancelLeave = () => {
+  showLeaveModal.value = false
+  selectedNewCaptain.value = null
+}
+const confirmLeave = async () => {
+  if (!selectedNewCaptain.value) return
+  leavingTeam.value = true
+  try {
+    await captainLeaveTeam(team.value.id, selectedNewCaptain.value.userId || selectedNewCaptain.value.id)
+    showLeaveModal.value = false
+    selectedNewCaptain.value = null
+    showToast('已成功退出车队，队长身份已转让', 'success')
+    setTimeout(() => router.push('/peloton'), 1500)
+  } catch (err) {
+    showToast(err?.message || '退出失败，请稍后重试', 'error')
+  } finally {
+    leavingTeam.value = false
+  }
+}
+
 // ── 解散车队 ──
+const showCaptainMenu = ref(false)
 const showDisbandModal = ref(false)
 const showFarewell = ref(false)
 const disbanding = ref(false)
@@ -885,6 +962,23 @@ onMounted(() => fetchData())
 .hero-join-btn i { font-size: 0.8rem; transition: transform 0.35s }
 .hero-join-btn:hover i { transform: rotate(90deg) }
 .hero-join-btn.is-edit:hover i { transform: none }
+
+/* ── 队长操作下拉 ── */
+.hero-actions { position: absolute; top: 24px; right: 24px; display: flex; align-items: center; gap: 8px; z-index: 10; }
+.hero-actions .hero-join-btn { position: static; }
+.hero-more-btn { width: 40px; height: 40px; border-radius: 50%; border: none; background: rgba(255,255,255,0.92); backdrop-filter: blur(8px); color: var(--primary-color); font-size: 0.95rem; cursor: pointer; transition: all 0.25s ease; box-shadow: 0 4px 20px rgba(0,0,0,0.12); display: flex; align-items: center; justify-content: center; }
+.hero-more-btn:hover { background: var(--primary-color); color: #fff; transform: translateY(-2px); box-shadow: 0 8px 28px rgba(92,110,88,0.4); }
+.captain-menu-wrap { position: relative; }
+.captain-menu-backdrop { position: fixed; inset: 0; z-index: 199; }
+.captain-dropdown { position: absolute; top: calc(100% + 8px); right: 0; min-width: 160px; background: #fff; border-radius: 12px; box-shadow: 0 8px 32px rgba(0,0,0,0.14), 0 0 0 1px rgba(0,0,0,0.04); padding: 6px; z-index: 200; }
+.captain-dropdown-item { display: flex; align-items: center; gap: 10px; width: 100%; padding: 10px 14px; border-radius: 8px; border: none; background: transparent; font-size: 0.86rem; font-weight: 500; cursor: pointer; transition: all 0.2s ease; color: var(--text-body); white-space: nowrap; }
+.captain-dropdown-item i { font-size: 0.82rem; width: 18px; text-align: center; }
+.captain-dropdown-item.edit:hover { background: rgba(92,110,88,0.08); color: var(--primary-color); }
+.captain-dropdown-item.leave:hover { background: rgba(255,152,0,0.08); color: #e68900; }
+.captain-dropdown-item.disband:hover { background: rgba(220,53,69,0.06); color: #dc3545; }
+.menu-fade-enter-active { transition: opacity 0.18s ease, transform 0.18s ease; }
+.menu-fade-leave-active { transition: opacity 0.12s ease, transform 0.12s ease; }
+.menu-fade-enter-from, .menu-fade-leave-to { opacity: 0; transform: translateY(-6px); }
 .hero-body { display: flex; gap: 32px; padding: 32px 40px 36px; position: relative; align-items: flex-start }
 
 .hero-avatar-ring { position: relative; flex-shrink: 0; margin-top: -56px }
@@ -1323,7 +1417,8 @@ onMounted(() => fetchData())
 @media (max-width: 900px) { .hero-cover { height: 240px } .hero-body { gap: 24px } .hero-stats-side { gap: 8px } .side-stat { font-size: 0.78rem } }
 @media (max-width: 768px) {
   .team-detail-page { padding: 100px 0 60px } .hero-cover { height: 200px }
-  .hero-join-btn { top: 14px; right: 14px; padding: 8px 16px; font-size: 0.82rem }
+  .hero-actions { top: 14px; right: 14px; }
+  .hero-join-btn { padding: 8px 16px; font-size: 0.82rem }
   .hero-body { flex-direction: column; align-items: center; text-align: center; padding: 24px 24px 30px }
   .hero-avatar-ring { margin-top: -42px } .hero-avatar { width: 88px; height: 88px } .hero-text { padding-top: 0 }
   .team-name { font-size: 1.45rem } .hero-meta { justify-content: center; gap: 10px }
@@ -1339,7 +1434,7 @@ onMounted(() => fetchData())
   .event-card-actions { opacity: 1; pointer-events: auto }
 }
 @media (max-width: 480px) {
-  .hero-cover { height: 170px } .hero-join-btn { top: 10px; right: 10px; padding: 7px 12px; font-size: 0.78rem }
+  .hero-cover { height: 170px } .hero-actions { top: 10px; right: 10px; gap: 5px; } .hero-join-btn { padding: 7px 12px; font-size: 0.78rem } .hero-more-btn { width: 34px; height: 34px; font-size: 0.82rem; }
   .hero-body { padding: 20px 18px 24px } .team-name { font-size: 1.25rem }
   .hero-stats-side { gap: 6px } .side-stat { font-size: 0.72rem } .side-stat i { font-size: 0.65rem }
   .activity-item { padding: 18px 20px; gap: 14px } .event-card { padding: 16px 18px }
@@ -1621,4 +1716,114 @@ onMounted(() => fetchData())
 .farewell-leave-active { transition: opacity 0.4s ease; }
 .farewell-enter-from,
 .farewell-leave-to { opacity: 0; }
+
+/* ── 退出车队弹窗 ── */
+.leave-team-dialog {
+  background: #fff;
+  border-radius: 16px;
+  padding: 28px 32px 24px;
+  width: 420px;
+  max-width: 92vw;
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.18);
+}
+.leave-dialog-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+.leave-dialog-title {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--text-primary, #222);
+  margin: 0;
+}
+.leave-dialog-desc {
+  font-size: 0.88rem;
+  color: var(--text-muted, #888);
+  line-height: 1.6;
+  margin: 0 0 16px;
+}
+.new-captain-list {
+  flex: 1;
+  overflow-y: auto;
+  max-height: 280px;
+  border: 1px solid rgba(0,0,0,0.06);
+  border-radius: 10px;
+  padding: 6px;
+  margin-bottom: 18px;
+}
+.new-captain-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.new-captain-item:hover {
+  background: rgba(255,152,0,0.06);
+}
+.new-captain-item.is-selected {
+  background: rgba(255,152,0,0.1);
+  box-shadow: inset 0 0 0 1.5px rgba(255,152,0,0.4);
+}
+.new-captain-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+.new-captain-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.new-captain-name {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text-primary, #222);
+}
+.new-captain-role {
+  font-size: 0.75rem;
+  color: var(--text-muted, #888);
+}
+.new-captain-check {
+  color: #ff9800;
+  font-size: 1.1rem;
+  flex-shrink: 0;
+}
+.leave-dialog-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+}
+.leave-confirm-btn {
+  padding: 9px 22px;
+  border-radius: 8px;
+  border: none;
+  background: #ff9800;
+  color: #fff;
+  font-size: 0.88rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.25s ease;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.leave-confirm-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.leave-confirm-btn:not(:disabled):hover {
+  background: #e68900;
+  box-shadow: 0 4px 16px rgba(255,152,0,0.3);
+}
 </style>

@@ -434,3 +434,17 @@ export function kickMember(teamId, targetUserId) {
     silent: true
   });
 }
+
+/**
+ * 队长退出车队（需指定新队长）
+ * @param {Number} teamId - 车队ID
+ * @param {Number} newCaptainUserId - 新队长的用户ID
+ */
+export function captainLeaveTeam(teamId, newCaptainUserId) {
+  return request({
+    url: `/team/${teamId}/captain/leave`,
+    method: 'put',
+    data: { newCaptainUserId },
+    silent: true
+  });
+}

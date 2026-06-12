@@ -263,6 +263,47 @@ public class PelotonTeamService {
     }
 
     /**
+     * 队长退出车队（需指定新队长）
+     * <p>
+     * 仅车队创建者可操作。将队长身份转让给指定成员后，原队长退出车队。
+     *
+     * @param teamId          车队ID
+     * @param newCaptainUserId 新队长的用户ID
+     * @param user            当前登录用户（原队长）
+     */
+    @Transactional(rollbackFor = Exception.class)
+    public void captainLeaveTeam(Long teamId, Long newCaptainUserId, User user) {
+        PelotonTeam team = pelotonTeamRepository.findById(teamId)
+                .orElseThrow(() -> new BizException(404, "车队不存在"));
+        assertCreator(team, user, "仅车队创建者可执行此操作");
+
+        // 不能把队长身份转给自己
+        if (Objects.equals(user.getId(), newCaptainUserId)) {
+            throw new BizException(400, "不能将队长身份转让给自己");
+        }
+
+        // 查找新队长的活跃成员记录
+        TeamMember newCaptainMember = teamMemberRepository.findByTeamIdAndUserIdAndStatus(teamId, newCaptainUserId, TeamMember.STATUS_ACTIVE)
+                .orElseThrow(() -> new BizException(400, "指定的新队长不是当前车队成员"));
+
+        // 查找当前队长的成员记录
+        TeamMember currentCaptainMember = teamMemberRepository.findByTeamIdAndUserIdAndStatus(teamId, user.getId(), TeamMember.STATUS_ACTIVE)
+                .orElseThrow(() -> new BizException(400, "您尚未加入该车队"));
+
+        // 转让队长身份
+        newCaptainMember.setRole(TeamMember.ROLE_CAPTAIN);
+        teamMemberRepository.save(newCaptainMember);
+
+        // 原队长退出车队
+        currentCaptainMember.setStatus(TeamMember.STATUS_LEFT);
+        teamMemberRepository.save(currentCaptainMember);
+
+        // 更新车队创建者ID为新队长
+        team.setCreatorId(newCaptainUserId);
+        decrementMemberCount(team);
+    }
+
+    /**
      * 解散车队
      * <p>
      * 仅车队创建者可操作。删除所有成员记录后删除车队。
