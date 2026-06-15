@@ -127,38 +127,38 @@
               <div class="desc">躯干与手臂夹角</div>
             </div>
 
-            <div class="metric-card" :class="{ 'in-range': metrics.ankleAtBdc >= 90 && metrics.ankleAtBdc <= 100 }">
+            <div class="metric-card" :class="{ 'in-range': metrics.ankleAtBdc >= 10 && metrics.ankleAtBdc <= 25 }">
               <div class="card-header">
-                <label>过悬/下坠测量 (Ankling / BDC)</label>
-                <div class="target-tag">目标: 90°-100°</div>
+                <label>下死点跖屈代理 (Ankling / BDC)</label>
+                <div class="target-tag">目标: 10°-25°</div>
               </div>
               <div class="val-wrapper">
-                <span class="val">{{ metrics.ankleAtBdc || '--' }}°</span>
+                <span class="val">{{ metrics.sideMaxKnee > 0 ? metrics.ankleAtBdc : '--' }}°</span>
                 <span class="insight">触底瞬间跖屈评估</span>
               </div>
-              <div class="desc">脚尖下压 / 脚跟下坠侦测 (垫高不合理表现)</div>
+              <div class="desc">2D 跖屈代理 = 踝内角 - 90°；负值代表脚跟更低/背屈趋势，需结合锁片与实际脚感复核</div>
             </div>
 
             <div class="metric-card" :class="{ 'in-range': Math.abs(metrics.kopsOffset) < 10 }">
               <div class="card-header">
-                <label>膝曲柄同心轴位 (KOPS)</label>
+                <label>膝前后偏移代理 (KOPS Proxy)</label>
                 <div class="target-tag">理想偏移 &lt; 10%</div>
               </div>
               <div class="val-wrapper">
                 <span class="val" :class="{ warning: Math.abs(metrics.kopsOffset) > 15 }">
-                  {{ metrics.kopsOffset > 0 ? '偏前' : '退后' }} {{ Math.abs(metrics.kopsOffset) || 0 }}%
+                  {{ metrics.kopsOffset > 0 ? '偏前' : metrics.kopsOffset < 0 ? '偏后' : '中性' }} {{ Math.abs(metrics.kopsOffset) || 0 }}%
                 </span>
               </div>
-              <div class="desc">3点钟时膝盖偏移量（以胫骨长度标准化，跨设备可比）</div>
+              <div class="desc">以胫骨长度标准化的 2D 视觉偏移量，需结合曲柄相位复核</div>
             </div>
           </template>
 
           <!-- 正面模式 -->
           <template v-else-if="viewType === 'front'">
-            <div class="metric-card" :class="{ 'in-range': metrics.frontMaxLWobble < 10 && metrics.frontMaxRWobble < 10 }">
+            <div class="metric-card" :class="{ 'in-range': metrics.frontMaxLWobble <= 15 && metrics.frontMaxRWobble <= 15 }">
               <div class="card-header">
                 <label>膝盖追踪 (偏离率)</label>
-                <div class="target-tag">目标 < 10%</div>
+                <div class="target-tag">参考 ≤ 15%</div>
               </div>
               <div class="dual-vals">
                 <div class="val-item">
@@ -173,10 +173,10 @@
               <div class="desc">膝偏离/骨盆宽比值 (结合极值波动角综合判定)</div>
             </div>
 
-            <div class="metric-card" :class="{ 'in-range': Math.abs(metrics.frontMaxHipTilt) < 2.5 && Math.abs(metrics.frontMaxShoulderTilt) < 2.5 }">
+            <div class="metric-card" :class="{ 'in-range': Math.abs(metrics.frontMaxHipTilt) <= 5 && Math.abs(metrics.frontMaxShoulderTilt) <= 5 }">
               <div class="card-header">
                 <label>躯干稳度</label>
-                <div class="target-tag">目标 < 2.5°</div>
+                <div class="target-tag">参考 ≤ 5°</div>
               </div>
               <div class="val-wrapper">
                 <span class="val">H:{{ Math.abs(metrics.frontMaxHipTilt) }} / S:{{ Math.abs(metrics.frontMaxShoulderTilt) }}</span>
@@ -212,9 +212,10 @@
                 {{ (metrics.pelvisSway || 0).toFixed(1) }}%
               </div>
               <div class="desc">骨盆上下晃动的归一化幅度 (% 骨盆宽)，理想 &lt; 10%</div>
+            </div>
             <div class="metric-card">
               <label>高低肩 (Shoulder Tilt)</label>
-              <div class="val" :class="{ warning: metrics.shoulderTilt > 3 }">
+              <div class="val" :class="{ warning: metrics.shoulderTilt > 5 }">
                 {{ metrics.shoulderTilt }}°
               </div>
             </div>
@@ -226,10 +227,10 @@
             </div>
             <div class="metric-card duo">
               <label>骨盆下坠极值 (Hip Drop)</label>
-              <div class="val">
+              <div class="val" :class="{ warning: Math.max(metrics.leftHipDrop || 0, metrics.rightHipDrop || 0) > 8 }">
                 左: {{ metrics.leftHipDrop }}% / 右: {{ metrics.rightHipDrop }}%
               </div>
-              <div class="desc">占骨盆宽度比例 (>10%需注意)</div>
+              <div class="desc">占骨盆宽度比例 (>8%需复核)</div>
             </div>
           </template>
         </div>
@@ -719,7 +720,7 @@ const finishSession = () => {
         maxKnee: cleanNum(sideBdc, -1),
         minHip: cleanNum(sideTdc, 999),
         avgTorso: cleanNum(avgTorso, 0),
-        ankleAtBdc: cleanNum(metrics.value.ankleAtBdc),
+        ankleAtBdc: cleanNum(rawTrigger.ankleAtBdc ?? metrics.value.ankleAtBdc),
         kopsOffset: cleanNum(metrics.value.kopsOffset),
         cadenceRpm: estimatedCadence,
         frameCount: frameData.length

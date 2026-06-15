@@ -79,7 +79,7 @@
                     <div class="m-vals">
                       <div class="v-group">
                         <span class="v-label">实测</span>
-                        <span class="v-num" :class="{'out-of-range': m.status !== 'OK'}">{{ m.currentValue }}<span class="v-unit">{{ getUnit(m.label, viewType) }}</span></span>
+                        <span class="v-num" :class="{'needs-adjust': m.status === 'ADJUST', 'out-of-range': m.status === 'WARNING'}">{{ m.currentValue }}<span class="v-unit">{{ getUnit(m.label, viewType) }}</span></span>
                       </div>
                       <div class="v-group">
                         <span class="v-label">理想</span>
@@ -88,15 +88,15 @@
                     </div>
                     <p v-if="getDescription(m.label)" class="m-desc-text">{{ getDescription(m.label) }}</p>
                     <!-- 调车建议 -->
-                    <p class="m-advice" v-if="m.advice && m.status !== 'OK'">
+                    <div class="m-advice bike-advice-box" v-if="m.advice && m.status !== 'OK'">
                       <i class="fas fa-wrench advice-icon bike-icon"></i>
                       <span>{{ m.advice }}</span>
-                    </p>
+                    </div>
                     <!-- 骑车习惯/动作纠正建议 -->
-                    <p class="m-advice rider-advice" v-if="m.riderAdvice && m.status !== 'OK'">
+                    <div class="m-advice rider-advice-box" v-if="m.riderAdvice && m.status !== 'OK'">
                       <i class="fas fa-child advice-icon rider-icon"></i>
                       <span>{{ m.riderAdvice }}</span>
-                    </p>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -145,6 +145,20 @@
             <ul>
               <li v-for="s in report.equipmentSuggestions" :key="s">{{ s }}</li>
             </ul>
+          </div>
+
+          <!-- 骑车习惯纠正建议汇总 -->
+          <div class="rider-habits-card" v-if="allRiderAdvices.length">
+            <h4><i class="fas fa-person-running"></i> 骑车习惯 &amp; 动作纠正要点</h4>
+            <div class="rider-habits-list">
+              <div class="habit-item" v-for="(item, idx) in allRiderAdvices.slice(0, 3)" :key="idx">
+                <div class="habit-header">
+                  <span class="habit-badge">{{ getViewTitle(item.viewType) }}</span>
+                  <span class="habit-label">{{ item.label }}</span>
+                </div>
+                <p class="habit-text">{{ item.advice }}</p>
+              </div>
+            </div>
           </div>
           <div class="action-bar">
             <button class="btn btn-outline" @click="window.print()"><i class="fas fa-print"></i> 打印简报</button>
@@ -233,6 +247,22 @@ const scoreRingStyle = computed(() => {
   };
 });
 
+// 汇总所有视角的车手自身动作纠正建议
+const allRiderAdvices = computed(() => {
+  if (!report.value) return [];
+  const views = ['side', 'front', 'back'];
+  const advices = [];
+  views.forEach(vt => {
+    const metrics = getMetricsForView(vt);
+    metrics.forEach(m => {
+      if (m.riderAdvice && m.status !== 'OK') {
+        advices.push({ label: m.label, advice: m.riderAdvice, viewType: vt });
+      }
+    });
+  });
+  return advices;
+});
+
 const getScoreClass = (s) => {
   if (s >= 90) return 'text-success';
   if (s >= 70) return 'text-warning';
@@ -296,9 +326,8 @@ const getReadableLabel = (tag) => {
 const getUnit = (label, viewType) => {
   if (label.includes('角') || label.includes('倾') || label.includes('Tilt') || label.includes('度')) return '\u00B0';
   // 【修复 P13】以下三项均为归一化百分比值（已除以人体参照物尺寸），单位应为 % 而非 px/mm
-  if (label.includes('横摆') || label.includes('外张') || label.includes('摇摆') || label.includes('Flare')) return '%';
+  if (label.includes('KOPS') || label.includes('横摆') || label.includes('外张') || label.includes('摇摆') || label.includes('下坠') || label.includes('Flare')) return '%';
   if (label.includes('跨度') || label.includes('偏离')) return 'mm';
-  if (label.includes('下坠')) return '%';
   // Fallback
   return viewType === 'side' ? '\u00B0' : '';
 };
@@ -306,14 +335,14 @@ const getUnit = (label, viewType) => {
 const getDescription = (label) => {
   if (label.includes('肩')) return '反映上身稳定性。角度过大通常意味着核心力量不足或存在耸肩代偿。';
   if (label.includes('骨盆侧倾') || label.includes(' Pelvis Tilt')) return '骨盆的大幅扭动通常暗示坐垫过高、过窄或双腿伸展不均衡。';
-  if (label.includes('横摆') || label.includes('Wobble')) return '膝关节的横向偏移会大幅损耗功率，并增加髂胫束（ITB）受损风险。';
+  if (label.includes('横摆') || label.includes('Wobble')) return '膝关节横向偏移偏大时，提示力线控制、锁片角度或髋部稳定性需要复核。';
   if (label.includes('外张') || label.includes('肘')) return '反映风阻截面。外张过大通常由于车把过宽或上半身过于紧张。';
   if (label.includes('脊柱') || label.includes('躯干')) return '反映躯干与车辆水平面的夹角，接近理想范围骑行效率更佳。';
-  if (label.includes('伸展度')) return '决定座管高度的核心指标。过高易引发膝后痛，过低易引发膝前痛。';
-  if (label.includes('踝角') || label.includes('Ankle')) return '反映脚踝在踩踏过程中的代偿。过大通常意味着存在“垫脚尖”式发力。';
+  if (label.includes('伸展度')) return '决定座管高度的核心指标。偏高时需关注膝后侧不适，偏低时需关注膝前侧压力感。';
+  if (label.includes('踝') || label.includes('Ankle')) return '反映下死点附近脚踝跖屈/脚尖下压的代理变化。该值由 2D 踝内角减 90° 换算；负值代表脚跟更低/背屈趋势，需结合锁片、鞋底支撑和实际脚感复核。';
   if (label.includes('髋角') || label.includes('Hip')) return '反映大腿与腹部的夹角。过小（上死点）会产生撞击感并压迫呼吸。';
   if (label.includes('踏频')) return '高踏频有利于减轻肌肉负担，但过高的踏频若无稳定核心支撑则会产生身体跳动。';
-  if (label.includes('KOPS')) return '反映膝盖与脚踏轴心的垂直力线关系，关系到力量传导效率。';
+  if (label.includes('KOPS')) return '该项为 2D 视觉下的膝盖前后偏移代理值，需结合曲柄相位、踏板轴和锁片轴线复核。';
   return '';
 };
 
@@ -587,14 +616,18 @@ onUnmounted(() => {
 .v-group { display: flex; flex-direction: column; }
 .v-label { font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px; }
 .v-num { font-family: var(--font-serif); font-size: 1.5rem; font-weight: 700; color: var(--primary-color); }
+.v-num.needs-adjust { color: var(--accent-gold); }
 .v-num.out-of-range { color: #ff4d4f; }
 
 .m-desc-text { font-size: 0.8rem; color: #888; margin-bottom: 8px; line-height: 1.4; padding: 10px 12px; background: rgba(92, 110, 88, 0.03); border-radius: 8px; border-left: 3px solid rgba(92, 110, 88, 0.15); }
-.m-advice { font-size: 0.85rem; color: var(--text-body); line-height: 1.6; border-top: 1px dotted rgba(92, 110, 88, 0.15); padding-top: 12px; margin-top: 4px; font-style: italic; display: flex; align-items: flex-start; gap: 8px; }
+.m-advice { font-size: 0.84rem; line-height: 1.65; display: flex; align-items: flex-start; gap: 10px; padding: 12px 14px; margin-top: 10px; border-radius: 10px; }
 .m-advice .advice-icon { flex-shrink: 0; margin-top: 2px; font-size: 0.9rem; }
 .m-advice .bike-icon { color: var(--primary-color); }
-.m-advice.rider-advice { border-top: 1px dotted rgba(212, 175, 55, 0.2); background: linear-gradient(135deg, rgba(212, 175, 55, 0.04) 0%, rgba(212, 175, 55, 0.01) 100%); border-radius: 0 0 8px 8px; margin: 0 -12px -12px -12px; padding: 10px 16px; border-left: 3px solid var(--accent-gold); font-style: normal; }
 .m-advice .rider-icon { color: var(--accent-gold); }
+/* 调车建议：绿色主题卡片 */
+.m-advice.bike-advice-box { background: rgba(92, 110, 88, 0.04); border-left: 3px solid var(--primary-color); color: var(--text-body); }
+/* 骑车习惯建议：金色主题卡片 */
+.m-advice.rider-advice-box { background: linear-gradient(135deg, rgba(212, 175, 55, 0.06) 0%, rgba(212, 175, 55, 0.02) 100%); border-left: 3px solid var(--accent-gold); color: var(--text-body); }
 .v-unit { font-size: 0.9rem; margin-left: 2px; color: inherit; }
 .ideal-num { color: var(--text-muted) !important; }
 
@@ -625,6 +658,73 @@ onUnmounted(() => {
 
 .btn { padding: 14px 28px; border-radius: 25px; border: 2px solid var(--primary-color); background: transparent; color: var(--primary-color); font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 10px; transition: all 0.3s ease; font-size: 0.95rem; }
 .btn:hover { background: var(--primary-color); color: white; transform: translateY(-2px); box-shadow: 0 6px 20px rgba(92, 110, 88, 0.2); }
+
+/* 骑车习惯总结卡片样式 */
+.rider-habits-card {
+  padding: 28px 30px;
+  background: linear-gradient(135deg, rgba(212, 175, 55, 0.05) 0%, rgba(255, 255, 255, 1) 100%);
+  border: 1px solid rgba(212, 175, 55, 0.25);
+  border-radius: 16px;
+}
+.rider-habits-card h4 {
+  color: #b48b00;
+  margin-bottom: 12px;
+  font-size: 1.2rem;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.rider-habits-card h4 i {
+  font-size: 1.1rem;
+  color: var(--accent-gold);
+}
+.rider-habits-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-height: 300px;
+  overflow-y: auto;
+  padding-right: 8px;
+}
+.rider-habits-list::-webkit-scrollbar {
+  width: 4px;
+}
+.rider-habits-list::-webkit-scrollbar-thumb {
+  background: rgba(212, 175, 55, 0.25);
+  border-radius: 4px;
+}
+.habit-item {
+  background: white;
+  border-radius: 10px;
+  padding: 12px 16px;
+  border: 1px solid rgba(212, 175, 55, 0.18);
+}
+.habit-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 6px;
+}
+.habit-badge {
+  background: rgba(212, 175, 55, 0.12);
+  color: #b48b00;
+  padding: 3px 10px;
+  border-radius: 12px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+.habit-label {
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--text-main);
+}
+.habit-text {
+  font-size: 0.82rem;
+  line-height: 1.6;
+  color: var(--text-body);
+  margin: 0;
+}
 .btn-outline { border-color: rgba(92, 110, 88, 0.3); color: var(--text-muted); }
 .btn-outline:hover { border-color: var(--primary-color); background: var(--primary-color); color: white; }
 .btn-primary { background: linear-gradient(135deg, var(--primary-color) 0%, #4a7c59 100%); border: none; color: white; }
