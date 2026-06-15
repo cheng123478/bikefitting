@@ -349,7 +349,6 @@
                     </div>
                   </div>
                   <div v-if="expandedNotice === item.id" class="notice-body">
-                    <p v-if="item.desc">{{ item.desc }}</p>
                     <p v-if="item.content">{{ item.content }}</p>
                   </div>
                 </div>
@@ -631,7 +630,7 @@
 import { ref, reactive, computed, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useUserStore } from '@/stores/user'
-import { getTeamDetail, getTeamMembers, getTeamGarage, addBikeToTeamGarage, removeBikeFromTeamGarage, disbandTeam, joinTeam, getPendingApplications, approveJoin, rejectJoin, updateMemberTag, promoteAdmin, revokeAdmin, kickMember, captainLeaveTeam } from '@/api/team'
+import { getTeamDetail, getTeamMembers, getTeamGarage, addBikeToTeamGarage, removeBikeFromTeamGarage, disbandTeam, joinTeam, getPendingApplications, approveJoin, rejectJoin, updateMemberTag, promoteAdmin, revokeAdmin, kickMember, captainLeaveTeam, getNoticeBoard, deleteNotice } from '@/api/team'
 import { getBikeByModel } from '@/api/bikeShowroom'
 import { getMyGarage } from '@/api/userBike'
 import { showToast } from '@/utils/toast'
@@ -713,7 +712,7 @@ const tabs = [
 const visibleTabs = computed(() => tabs.filter(t => !t.memberOnly || isMember.value))
 
 const teamActivities = computed(() => (team.value?.activities || []).filter(a => a.type === 'activity'))
-const teamNotices = computed(() => (team.value?.activities || []).filter(a => a.type === 'notice'))
+const teamNotices = ref([])
 const teamPosts = computed(() => (team.value?.activities || []).filter(a => a.type === 'checkin'))
 
 const isCreator = computed(() => {
@@ -1138,15 +1137,17 @@ const cancelDeleteNotice = () => {
   showDeleteNoticeModal.value = false
   deletingNotice.value = null
 }
-const confirmDeleteNotice = () => {
+const confirmDeleteNotice = async () => {
   const notice = deletingNotice.value
   showDeleteNoticeModal.value = false
   deletingNotice.value = null
-  if (!notice || !team.value?.activities) return
-  const idx = team.value.activities.findIndex(a => a.id === notice.id)
-  if (idx !== -1) {
-    team.value.activities.splice(idx, 1)
+  if (!notice) return
+  try {
+    await deleteNotice(route.params.id, notice.id)
+    teamNotices.value = teamNotices.value.filter(n => n.id !== notice.id)
     showToast(`已删除公告「${notice.title}」`, 'success')
+  } catch (err) {
+    showToast('删除失败，请重试', 'error')
   }
 }
 
@@ -1199,6 +1200,14 @@ const fetchData = async () => {
     ])
     team.value = teamData
     garageBikes.value = garageData.records || []
+    // 加载公告栏
+    try {
+      const noticeRes = await getNoticeBoard(id, { page: 1, size: 20 })
+      teamNotices.value = (noticeRes.records || []).map(n => ({
+        ...n,
+        date: n.createdAt ? n.createdAt.substring(0, 10) : ''
+      }))
+    } catch { teamNotices.value = [] }
     // 单独加载成员列表（分页）
     await fetchMembers()
     // 不再使用 isMock 判断权限，权限始终基于真实数据校验

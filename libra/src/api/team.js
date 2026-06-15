@@ -478,3 +478,66 @@ export function captainLeaveTeam(teamId, newCaptainUserId) {
     silent: true
   });
 }
+
+// ============ 车队公告 API ============
+
+/**
+ * 发布公告
+ * @param {Number} teamId - 车队ID
+ * @param {Object} data - 公告信息
+ * @param {String} data.title - 公告标题
+ * @param {String} data.content - 公告内容
+ */
+export function publishNotice(teamId, data) {
+  return request({
+    url: `/team/${teamId}/notices`,
+    method: 'post',
+    data,
+    silent: true
+  });
+}
+
+/**
+ * 编辑公告
+ * @param {Number} teamId - 车队ID
+ * @param {Number} noticeId - 公告ID
+ * @param {Object} data - 公告信息
+ * @param {String} data.title - 公告标题
+ * @param {String} data.content - 公告内容
+ */
+export function updateNotice(teamId, noticeId, data) {
+  return request({
+    url: `/team/${teamId}/notices/${noticeId}`,
+    method: 'put',
+    data,
+    silent: true
+  });
+}
+
+/**
+ * 删除公告（软删除）
+ * @param {Number} teamId - 车队ID
+ * @param {Number} noticeId - 公告ID
+ */
+export function deleteNotice(teamId, noticeId) {
+  return request({
+    url: `/team/${teamId}/notices/${noticeId}`,
+    method: 'delete',
+    silent: true
+  });
+}
+
+/**
+ * 获取公告栏（分页查询）
+ * @param {Number} teamId - 车队ID
+ * @param {Object} [params] - 查询参数
+ * @param {Number} [params.page=1] - 页码
+ * @param {Number} [params.size=10] - 每页数量
+ */
+export function getNoticeBoard(teamId, params = {}) {
+  return request({
+    url: `/team/${teamId}/notices`,
+    method: 'get',
+    params
+  });
+}

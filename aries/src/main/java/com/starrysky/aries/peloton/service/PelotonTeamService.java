@@ -2,6 +2,7 @@ package com.starrysky.aries.peloton.service;
 
 import com.starrysky.aries.entity.PelotonTeam;
 import com.starrysky.aries.entity.TeamMember;
+import com.starrysky.aries.entity.TeamNotice;
 import com.starrysky.aries.entity.TeamGarage;
 import com.starrysky.aries.entity.User;
 import com.starrysky.aries.exception.BizException;
@@ -9,6 +10,7 @@ import com.starrysky.aries.peloton.repository.TeamMemberRepository;
 import com.starrysky.aries.peloton.repository.PelotonTeamRepository;
 import com.starrysky.aries.peloton.repository.TeamGarageRepository;
 import com.starrysky.aries.peloton.repository.TeamJoinApplicationRepository;
+import com.starrysky.aries.peloton.repository.TeamNoticeRepository;
 import com.starrysky.aries.peloton.schema.CreateTeamDTO;
 import com.starrysky.aries.peloton.schema.PelotonPageResponse;
 import com.starrysky.aries.peloton.schema.PelotonTeamMemberVO;
@@ -53,6 +55,9 @@ public class PelotonTeamService {
 
     @Resource
     private TeamGarageRepository teamGarageRepository;
+
+    @Resource
+    private TeamNoticeRepository teamNoticeRepository;
 
     @Resource
     private UserRepository userRepository;
@@ -275,6 +280,7 @@ public class PelotonTeamService {
         applicationRepository.deleteByTeamId(teamId);
         teamMemberRepository.updateStatusByTeamIdAndStatus(teamId, TeamMember.STATUS_ACTIVE, TeamMember.STATUS_LEFT);
         teamGarageRepository.updateStatusByTeamIdAndStatus(teamId, TeamGarage.STATUS_ACTIVE, TeamGarage.STATUS_REMOVED);
+        teamNoticeRepository.updateStatusByTeamIdAndStatus(teamId, TeamNotice.STATUS_ACTIVE, TeamNotice.STATUS_DELETED);
         pelotonTeamRepository.delete(team);
         log.info("用户 {} 解散了车队 {}（id={}）", user.getId(), team.getName(), teamId);
     }

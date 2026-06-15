@@ -76,6 +76,7 @@
 import { ref, reactive, computed, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { showToast } from '@/utils/toast'
+import { publishNotice, updateNotice, getNoticeBoard } from '@/api/team'
 
 const router = useRouter()
 const route = useRoute()
@@ -106,9 +107,15 @@ const handleSubmit = async () => {
   if (!isFormValid.value) return
   submitting.value = true
   try {
-    // TODO: 调用后端API
-    await new Promise(resolve => setTimeout(resolve, 800))
-    showToast(isEdit.value ? '公告修改成功' : '公告发布成功', 'success')
+    const teamId = route.params.id
+    const data = { title: form.title.trim(), content: form.content.trim() }
+    if (isEdit.value) {
+      await updateNotice(teamId, route.params.noticeId, data)
+      showToast('公告修改成功', 'success')
+    } else {
+      await publishNotice(teamId, data)
+      showToast('公告发布成功', 'success')
+    }
     router.push(`/peloton/${route.params.id}`)
   } catch (err) {
     showToast(isEdit.value ? '修改失败，请重试' : '发布失败，请重试', 'error')
@@ -117,15 +124,26 @@ const handleSubmit = async () => {
   }
 }
 
-onMounted(() => {
+onMounted(async () => {
   if (isEdit.value) {
     loading.value = true
-    // TODO: 从后端加载公告数据
-    setTimeout(() => {
-      form.title = '示例公告标题'
-      form.content = '示例公告内容'
+    try {
+      const teamId = route.params.id
+      const res = await getNoticeBoard(teamId, { page: 1, size: 100 })
+      const notices = res.records || []
+      const target = notices.find(n => String(n.id) === String(route.params.noticeId))
+      if (target) {
+        form.title = target.title
+        form.content = target.content
+      } else {
+        showToast('公告不存在或已被删除', 'error')
+        router.push(`/peloton/${route.params.id}`)
+      }
+    } catch (err) {
+      showToast('加载公告失败', 'error')
+    } finally {
       loading.value = false
-    }, 500)
+    }
   }
 })
 </script>
