@@ -192,6 +192,31 @@ export function getTeamGarage(teamId) {
 }
 
 /**
+ * 将个人车库单车录入车队车库
+ * @param {Number} teamId - 车队ID
+ * @param {Number} bikeId - 个人车库单车ID
+ */
+export function addBikeToTeamGarage(teamId, bikeId) {
+  return request({
+    url: `/team/${teamId}/garage`,
+    method: 'post',
+    data: { bikeId }
+  });
+}
+
+/**
+ * 从车队车库移除单车
+ * @param {Number} teamId - 车队ID
+ * @param {Number} bikeId - 单车ID
+ */
+export function removeBikeFromTeamGarage(teamId, bikeId) {
+  return request({
+    url: `/team/${teamId}/garage/${bikeId}`,
+    method: 'delete'
+  });
+}
+
+/**
  * 获取车队列表
  * @param {Object} params
  * @param {Number} params.page - 页码
@@ -249,15 +274,20 @@ export function getTeamDetail(id) {
 }
 
 /**
- * 获取车队成员列表
+ * 获取车队成员列表（分页 + 关键词搜索）
  * @param {Number} teamId - 车队ID
+ * @param {Object} [params] - 查询参数
+ * @param {Number} [params.page=1] - 页码
+ * @param {Number} [params.size=20] - 每页数量
+ * @param {String} [params.keyword] - 搜索关键词（匹配昵称或骑行标签）
  */
-export function getTeamMembers(teamId) {
+export function getTeamMembers(teamId, params = {}) {
   return request({
     url: `/team/${teamId}/members`,
-    method: 'get'
+    method: 'get',
+    params
   }).catch(() => {
-    return { records: MOCK_MEMBERS, total: MOCK_MEMBERS.length };
+    return { records: MOCK_MEMBERS, total: MOCK_MEMBERS.length, page: 1, size: 20, pages: 1 };
   });
 }
 

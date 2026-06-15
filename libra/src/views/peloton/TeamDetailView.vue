@@ -54,7 +54,7 @@
               <div class="hero-meta">
                 <span class="meta-item"><i class="fas fa-map-marker-alt"></i> {{ team.location }}</span>
                 <span class="meta-dot"></span>
-                <span class="meta-item"><i class="far fa-calendar-alt"></i> {{ team.createdAt }} 创建</span>
+                <span class="meta-item"><i class="far fa-calendar-alt"></i> {{ formatDate(team.createdAt) }} 创建</span>
               </div>
               <p class="team-description">{{ team.description }}</p>
             </div>
@@ -80,6 +80,23 @@
               @click="handlePublishActivity">
               <i class="fas fa-plus-circle"></i> 发布活动
             </button>
+            <!-- 成员搜索栏（显示在 tab-bar 右侧） -->
+            <div v-if="activeTab === 'members'" class="tab-bar-search">
+              <div class="search-input-wrap">
+                <i class="fas fa-search search-icon"></i>
+                <input
+                  v-model="memberSearchInput"
+                  type="text"
+                  class="member-search-input"
+                  placeholder="搜索昵称或标签…"
+                  @keyup.enter="handleMemberSearch"
+                />
+                <button v-if="memberSearchInput" class="search-clear-btn" @click="clearMemberSearch" title="清空">
+                  <i class="fas fa-times"></i>
+                </button>
+              </div>
+              <button class="search-submit-btn" @click="handleMemberSearch">搜索</button>
+            </div>
           </div>
 
           <!-- 车队活动 -->
@@ -120,6 +137,11 @@
 
           <!-- 成员列表 -->
           <div v-if="activeTab === 'members'" class="tab-content">
+            <!-- 搜索结果统计 -->
+            <div v-if="memberKeyword" class="member-search-info">
+              <span>搜索 "<strong>{{ memberKeyword }}</strong>" 共找到 <strong>{{ memberTotal }}</strong> 名成员</span>
+            </div>
+
             <!-- 待审核申请（管理员可见） -->
             <div v-if="isManager && pendingApplications.length > 0" class="apply-requests">
               <div class="apply-requests-header">
@@ -146,6 +168,12 @@
                 </div>
               </div>
             </div>
+
+            <!-- 成员加载中 -->
+            <div v-if="memberLoading" class="member-loading">
+              <i class="fas fa-spinner fa-spin"></i>
+            </div>
+
             <div v-if="members.length > 0" class="members-grid">
               <div v-for="(member, idx) in members" :key="member.id"
                 class="glass-member-card"
@@ -175,7 +203,7 @@
                   </div>
                   <div class="glass-join">
                     <i class="far fa-calendar-check"></i>
-                    <span>{{ member.joinDate }}</span>
+                    <span>{{ formatDate(member.joinDate) }}</span>
                   </div>
                   <!-- 队长管理操作 -->
                   <div v-if="isCaptain && member.role !== '队长'" class="glass-actions">
@@ -192,7 +220,37 @@
                 </div>
               </div>
             </div>
-            <div v-else class="empty-tab"><i class="fas fa-user-plus"></i><p>暂无成员</p></div>
+            <div v-else class="empty-tab"><i class="fas fa-user-plus"></i><p>{{ memberKeyword ? '未找到匹配的成员' : '暂无成员' }}</p></div>
+
+            <!-- 分页控件 -->
+            <div v-if="memberPages > 1" class="member-pagination">
+              <button
+                class="page-btn"
+                :disabled="memberPage <= 1"
+                @click="handleMemberPageChange(memberPage - 1)"
+              >
+                <i class="fas fa-chevron-left"></i> 上一页
+              </button>
+              <div class="page-numbers">
+                <button
+                  v-for="p in visibleMemberPages"
+                  :key="p"
+                  class="page-num-btn"
+                  :class="{ active: p === memberPage, ellipsis: p === '...' }"
+                  :disabled="p === '...'"
+                  @click="p !== '...' && handleMemberPageChange(p)"
+                >
+                  {{ p }}
+                </button>
+              </div>
+              <button
+                class="page-btn"
+                :disabled="memberPage >= memberPages"
+                @click="handleMemberPageChange(memberPage + 1)"
+              >
+                下一页 <i class="fas fa-chevron-right"></i>
+              </button>
+            </div>
           </div>
 
           <!-- 车队车库 -->
@@ -208,6 +266,10 @@
                 <span class="stat-num">{{ st.count }}</span>
                 <span class="stat-label">{{ st.type }}</span>
               </div>
+              <!-- 添加我的单车（仅车队成员可见） -->
+              <button v-if="isMember" class="garage-add-btn" @click="openAddBikeModal">
+                <i class="fas fa-plus"></i> 添加我的单车
+              </button>
             </div>
             <!-- 筛选胶囊 -->
             <div class="garage-filters">
@@ -222,6 +284,14 @@
                 :style="{ '--bike-color': bike.color }" @click="openBikeShowcase(bike)">
                 <!-- 背景色晕染 -->
                 <div class="bike-card-glow"></div>
+                <!-- 移除按钮（车主本人或管理员可见） -->
+                <button v-if="isBikeOwner(bike) || isManager"
+                  class="bike-remove-btn"
+                  :disabled="removingBikeId === bike.bikeId"
+                  title="从车队车库移除"
+                  @click.stop="handleRemoveBikeFromGarage(bike)">
+                  <i class="fas" :class="removingBikeId === bike.bikeId ? 'fa-circle-notch fa-spin' : 'fa-times'"></i>
+                </button>
                 <!-- 车主行 -->
                 <div class="bike-card-body">
                   <div class="bike-owner-row">
@@ -462,6 +532,63 @@
       </div>
     </Teleport>
 
+    <!-- 添加我的单车至车队车库弹窗 -->
+    <Teleport to="body">
+      <Transition name="showcase-zoom">
+        <div v-if="showAddBikeModal" class="add-bike-modal-overlay" @click.self="closeAddBikeModal">
+          <div class="add-bike-modal">
+            <div class="add-bike-modal-header">
+              <h3><i class="fas fa-bicycle"></i> 添加我的单车</h3>
+              <p>选择您个人车库中的单车，同步至车队车库</p>
+              <button class="add-bike-modal-close" @click="closeAddBikeModal">
+                <i class="fas fa-times"></i>
+              </button>
+            </div>
+            <div class="add-bike-modal-body">
+              <!-- 加载中 -->
+              <div v-if="myBikesLoading" class="add-bike-loading">
+                <i class="fas fa-circle-notch fa-spin"></i> 正在打开车库...
+              </div>
+              <!-- 无可录入的单车 -->
+              <div v-else-if="availableMyBikes.length === 0" class="add-bike-empty">
+                <i class="fas fa-info-circle"></i>
+                <p v-if="myBikes.length === 0">您的个人车库暂无单车，<br/>可前往「单车展厅」或「我的车库」先录入</p>
+                <p v-else>您的单车已全部录入车队车库</p>
+              </div>
+              <!-- 可录入的单车列表 -->
+              <div v-else class="add-bike-list">
+                <div v-for="bike in availableMyBikes" :key="bike.id" class="add-bike-item">
+                  <div class="add-bike-info">
+                    <div class="add-bike-img-wrap" v-if="bike.imageUrl">
+                      <img :src="bike.imageUrl" class="add-bike-img" />
+                    </div>
+                    <div class="add-bike-img-wrap add-bike-img-placeholder" v-else>
+                      <i class="fas fa-bicycle"></i>
+                    </div>
+                    <div class="add-bike-text">
+                      <span class="add-bike-name">
+                        {{ bike.brandModel || `${bike.brand || ''} ${bike.model || ''}`.trim() || '未知车型' }}
+                      </span>
+                      <span class="add-bike-meta">
+                        <span v-if="bike.frameSize">{{ bike.frameSize }} 码</span>
+                        <span v-if="bike.remark"> · {{ bike.remark }}</span>
+                      </span>
+                    </div>
+                  </div>
+                  <button class="add-bike-action-btn"
+                    :disabled="addingBikeId === bike.id"
+                    @click="handleAddBikeToGarage(bike)">
+                    <i class="fas" :class="addingBikeId === bike.id ? 'fa-circle-notch fa-spin' : 'fa-plus'"></i>
+                    {{ addingBikeId === bike.id ? '录入中' : '录入' }}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </Transition>
+    </Teleport>
+
     <!-- 解散车队确认弹窗 -->
     <Teleport to="body">
       <div v-if="showDisbandModal" class="del-confirm-overlay" @click.self="showDisbandModal = false">
@@ -504,8 +631,9 @@
 import { ref, reactive, computed, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useUserStore } from '@/stores/user'
-import { getTeamDetail, getTeamMembers, getTeamGarage, disbandTeam, joinTeam, getPendingApplications, approveJoin, rejectJoin, updateMemberTag, promoteAdmin, revokeAdmin, kickMember, captainLeaveTeam } from '@/api/team'
+import { getTeamDetail, getTeamMembers, getTeamGarage, addBikeToTeamGarage, removeBikeFromTeamGarage, disbandTeam, joinTeam, getPendingApplications, approveJoin, rejectJoin, updateMemberTag, promoteAdmin, revokeAdmin, kickMember, captainLeaveTeam } from '@/api/team'
 import { getBikeByModel } from '@/api/bikeShowroom'
+import { getMyGarage } from '@/api/userBike'
 import { showToast } from '@/utils/toast'
 
 const router = useRouter()
@@ -515,6 +643,15 @@ const userStore = useUserStore()
 const team = ref(null)
 const members = ref([])
 const loading = ref(true)
+
+// 成员列表分页与搜索状态
+const MEMBER_PAGE_SIZE = 20
+const memberPage = ref(1)
+const memberTotal = ref(0)
+const memberPages = ref(0)
+const memberKeyword = ref('')
+const memberSearchInput = ref('')
+const memberLoading = ref(false)
 const activeTab = ref('events')
 const totalDistance = ref(12860)
 const expandedNotice = ref(null)
@@ -537,6 +674,11 @@ const joinReason = ref('')
 const pendingApplications = ref([])
 const garageBikes = ref([])
 const garageFilter = ref('all')
+const showAddBikeModal = ref(false)
+const myBikes = ref([])
+const myBikesLoading = ref(false)
+const addingBikeId = ref(null)
+const removingBikeId = ref(null)
 
 const postInteractions = reactive({})
 const getPostInter = (postId) => {
@@ -605,6 +747,25 @@ const otherMembers = computed(() =>
 )
 
 /**
+ * 分页页码数组（包含省略号）
+ * 例如：[1, '...', 4, 5, 6, '...', 10]
+ */
+const visibleMemberPages = computed(() => {
+  const total = memberPages.value
+  const current = memberPage.value
+  if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1)
+  const pages = []
+  if (current <= 3) {
+    pages.push(1, 2, 3, 4, '...', total)
+  } else if (current >= total - 2) {
+    pages.push(1, '...', total - 3, total - 2, total - 1, total)
+  } else {
+    pages.push(1, '...', current - 1, current, current + 1, '...', total)
+  }
+  return pages
+})
+
+/**
  * 判断当前用户是否可编辑某成员的标签
  * - 队长：可编辑所有人（含自己）
  * - 管理员：可编辑除队长外所有人
@@ -624,6 +785,11 @@ const toggleNotice = (id) => { expandedNotice.value = expandedNotice.value === i
 const formatDistance = (km) => {
   if (km >= 10000) return (km / 10000).toFixed(1) + '万 km'
   return km.toLocaleString() + ' km'
+}
+const formatDate = (dateStr) => {
+  if (!dateStr) return ''
+  // 兼容 "2025-03-15 00:00:00" 或 "2025-03-15T00:00:00" 或 "2025-03-15" 格式
+  return String(dateStr).split(/[T ]/)[0]
 }
 const formatApplyTime = (dateStr) => {
   if (!dateStr) return ''
@@ -674,9 +840,8 @@ const handleApprove = async (app) => {
   if (idx !== -1) pendingApplications.value.splice(idx, 1)
   // 重新加载成员列表以反映新增
   try {
-    const memberData = await getTeamMembers(team.value.id)
-    members.value = Array.isArray(memberData) ? memberData : (memberData.records || [])
-    if (team.value) team.value.memberCount = members.value.length
+    await fetchMembers()
+    if (team.value) team.value.memberCount = memberTotal.value
   } catch { /* 忽略刷新失败 */ }
   showToast(`已同意 ${app.name} 加入车队`, 'success')
 }
@@ -754,6 +919,8 @@ const confirmKick = async () => {
   try {
     await kickMember(team.value.id, member.userId || member.id)
     members.value = members.value.filter(m => (m.userId || m.id) !== (member.userId || member.id))
+    memberTotal.value = Math.max(0, memberTotal.value - 1)
+    if (team.value) team.value.memberCount = memberTotal.value
     showToast(`已将 ${member.name} 请离车队`, 'success')
   } catch (err) {
     showToast(err?.message || '操作失败，请稍后重试', 'error')
@@ -877,6 +1044,69 @@ const garageStats = computed(() => {
   garageBikes.value.forEach(b => { map[b.type] = (map[b.type] || 0) + 1 })
   return Object.entries(map).map(([type, count]) => ({ type, count }))
 })
+
+/** 个人车库中尚未录入车队车库的单车 */
+const availableMyBikes = computed(() => {
+  const existingBikeIds = new Set(garageBikes.value.map(b => b.bikeId))
+  return myBikes.value.filter(b => !existingBikeIds.has(b.id))
+})
+
+/** 打开“添加我的单车”弹窗 */
+const openAddBikeModal = async () => {
+  showAddBikeModal.value = true
+  myBikesLoading.value = true
+  try {
+    const res = await getMyGarage()
+    myBikes.value = res.data || res || []
+  } catch (err) {
+    console.error('获取个人车库失败', err)
+    showToast('获取个人车库失败', 'error')
+    myBikes.value = []
+  } finally {
+    myBikesLoading.value = false
+  }
+}
+
+const closeAddBikeModal = () => {
+  showAddBikeModal.value = false
+}
+
+/** 将单车录入车队车库 */
+const handleAddBikeToGarage = async (bike) => {
+  addingBikeId.value = bike.id
+  try {
+    await addBikeToTeamGarage(team.value.id, bike.id)
+    showToast('录入车队车库成功', 'success')
+    // 刷新车队车库列表
+    const garageData = await getTeamGarage(team.value.id)
+    garageBikes.value = garageData.records || []
+  } catch (err) {
+    showToast(err.message || '录入失败', 'error')
+  } finally {
+    addingBikeId.value = null
+  }
+}
+
+/** 从车队车库移除单车 */
+const handleRemoveBikeFromGarage = async (bike) => {
+  removingBikeId.value = bike.bikeId
+  try {
+    await removeBikeFromTeamGarage(team.value.id, bike.bikeId)
+    showToast('已从车队车库移除', 'success')
+    garageBikes.value = garageBikes.value.filter(b => b.id !== bike.id)
+  } catch (err) {
+    showToast(err.message || '移除失败', 'error')
+  } finally {
+    removingBikeId.value = null
+  }
+}
+
+/** 当前用户是否为车库卡片车主 */
+const isBikeOwner = (bike) => {
+  if (!userStore.isLoggedIn || !userStore.userInfo) return false
+  return String(bike.ownerId) === String(userStore.userInfo.id)
+}
+
 const openBikeShowcase = async (bike) => {
   try {
     const res = await getBikeByModel(bike.model, bike.brand)
@@ -920,15 +1150,57 @@ const confirmDeleteNotice = () => {
   }
 }
 
+/**
+ * 加载成员列表（支持分页 + 关键词搜索）
+ * @param {Object} [opts] - 可选参数
+ * @param {Number} [opts.page] - 页码（默认使用当前页）
+ * @param {String} [opts.keyword] - 搜索关键词（默认使用当前关键词）
+ */
+const fetchMembers = async (opts = {}) => {
+  if (!team.value?.id) return
+  memberLoading.value = true
+  try {
+    const page = opts.page ?? memberPage.value
+    const keyword = opts.keyword ?? memberKeyword.value
+    const data = await getTeamMembers(team.value.id, { page, size: MEMBER_PAGE_SIZE, keyword })
+    members.value = Array.isArray(data) ? data : (data.records || [])
+    memberTotal.value = data.total ?? members.value.length
+    memberPages.value = data.pages ?? 1
+    memberPage.value = page
+  } catch { members.value = [] }
+  finally { memberLoading.value = false }
+}
+
+/** 成员搜索（回车或点击按钮触发） */
+const handleMemberSearch = () => {
+  memberKeyword.value = memberSearchInput.value.trim()
+  memberPage.value = 1
+  fetchMembers({ page: 1, keyword: memberKeyword.value })
+}
+
+/** 清空搜索 */
+const clearMemberSearch = () => {
+  memberSearchInput.value = ''
+  memberKeyword.value = ''
+  memberPage.value = 1
+  fetchMembers({ page: 1, keyword: '' })
+}
+
+/** 成员分页切换 */
+const handleMemberPageChange = (page) => {
+  fetchMembers({ page })
+}
+
 const fetchData = async () => {
   try {
     const id = route.params.id
-    const [teamData, memberData, garageData] = await Promise.all([
-      getTeamDetail(id), getTeamMembers(id), getTeamGarage(id)
+    const [teamData, garageData] = await Promise.all([
+      getTeamDetail(id), getTeamGarage(id)
     ])
     team.value = teamData
-    members.value = Array.isArray(memberData) ? memberData : (memberData.records || [])
     garageBikes.value = garageData.records || []
+    // 单独加载成员列表（分页）
+    await fetchMembers()
     // 不再使用 isMock 判断权限，权限始终基于真实数据校验
 
     // 仅登录的队长/管理员才加载待审核申请
@@ -1116,6 +1388,37 @@ onMounted(() => fetchData())
 .comment-submit:hover { background: var(--primary-dark); transform: scale(1.05) }
 .comment-submit:active { transform: scale(0.95) }
 
+/* ── 成员搜索栏（tab-bar 右侧） ── */
+.tab-bar-search { display: flex; align-items: center; gap: 8px; margin-left: auto }
+.tab-bar-search .search-input-wrap { position: relative; width: 220px }
+.tab-bar-search .search-icon { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--text-muted); font-size: 0.8rem; pointer-events: none }
+.tab-bar-search .member-search-input { width: 100%; padding: 8px 34px 8px 34px; border: 1px solid rgba(0,0,0,0.1); border-radius: 20px; font-size: 0.84rem; color: var(--text-main); background: #fff; outline: none; transition: border-color 0.25s, box-shadow 0.25s }
+.tab-bar-search .member-search-input:focus { border-color: var(--primary-color); box-shadow: 0 0 0 3px rgba(92,110,88,0.1) }
+.tab-bar-search .member-search-input::placeholder { color: var(--text-muted); opacity: 0.5 }
+.tab-bar-search .search-clear-btn { position: absolute; right: 8px; top: 50%; transform: translateY(-50%); width: 20px; height: 20px; border-radius: 50%; border: none; background: rgba(0,0,0,0.06); color: var(--text-muted); font-size: 0.68rem; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s }
+.tab-bar-search .search-clear-btn:hover { background: rgba(0,0,0,0.12); color: var(--text-main) }
+.tab-bar-search .search-submit-btn { padding: 8px 16px; border-radius: 20px; border: none; background: var(--primary-color); color: #fff; font-size: 0.84rem; font-weight: 600; cursor: pointer; transition: all 0.25s; white-space: nowrap }
+.tab-bar-search .search-submit-btn:hover { background: var(--primary-dark); transform: translateY(-1px); box-shadow: 0 4px 14px rgba(92,110,88,0.3) }
+
+/* ── 搜索结果信息 ── */
+.member-search-info { margin-bottom: 16px; font-size: 0.86rem; color: var(--text-muted) }
+.member-search-info strong { color: var(--text-main); font-weight: 600 }
+
+/* ── 成员加载中 ── */
+.member-loading { text-align: center; padding: 24px 0; color: var(--primary-color); font-size: 1.2rem }
+
+/* ── 成员分页控件 ── */
+.member-pagination { display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: 28px; padding: 16px 0 }
+.page-btn { display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px; border-radius: 8px; border: 1px solid rgba(0,0,0,0.1); background: #fff; color: var(--text-body); font-size: 0.85rem; font-weight: 500; cursor: pointer; transition: all 0.2s }
+.page-btn:hover:not(:disabled) { border-color: var(--primary-color); color: var(--primary-color); background: rgba(92,110,88,0.04) }
+.page-btn:disabled { opacity: 0.4; cursor: not-allowed }
+.page-numbers { display: flex; align-items: center; gap: 4px }
+.page-num-btn { min-width: 36px; height: 36px; border-radius: 8px; border: 1px solid transparent; background: transparent; color: var(--text-body); font-size: 0.88rem; font-weight: 500; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; justify-content: center }
+.page-num-btn:hover:not(:disabled):not(.active):not(.ellipsis) { background: rgba(92,110,88,0.08); color: var(--primary-color) }
+.page-num-btn.active { background: var(--primary-color); color: #fff; border-color: var(--primary-color); font-weight: 700 }
+.page-num-btn.ellipsis { cursor: default; color: var(--text-muted) }
+.page-num-btn:disabled { cursor: not-allowed }
+
 .members-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 20px }
 
 .glass-member-card {
@@ -1300,6 +1603,98 @@ onMounted(() => fetchData())
 .stat-label { font-size: 0.72rem; color: var(--text-muted); letter-spacing: 0.05em }
 .overview-divider { width: 1px; height: 32px; background: rgba(0,0,0,0.07); flex-shrink: 0 }
 
+/* 添加我的单车按钮 */
+.garage-add-btn {
+  margin-left: auto; padding: 8px 18px; border-radius: 12px;
+  background: var(--primary-color); color: #fff; border: none;
+  font-size: 0.82rem; font-weight: 700; cursor: pointer;
+  display: inline-flex; align-items: center; gap: 6px;
+  transition: all 0.3s ease; flex-shrink: 0;
+}
+.garage-add-btn:hover { background: #4a5e47; transform: translateY(-1px); box-shadow: 0 4px 12px rgba(92,110,88,0.25) }
+.garage-add-btn:active { transform: translateY(0) }
+
+/* 车库卡片移除按钮 */
+.bike-remove-btn {
+  position: absolute; top: 10px; right: 10px; z-index: 10;
+  width: 28px; height: 28px; border-radius: 50%;
+  background: rgba(0,0,0,0.04); border: none;
+  color: var(--text-muted); font-size: 0.75rem;
+  cursor: pointer; display: flex; align-items: center; justify-content: center;
+  transition: all 0.25s ease;
+}
+.bike-remove-btn:hover { background: rgba(231,76,60,0.12); color: #e74c3c }
+.bike-remove-btn:disabled { cursor: not-allowed; opacity: 0.5 }
+
+/* 添加单车弹窗 */
+.add-bike-modal-overlay {
+  position: fixed; inset: 0; z-index: 9000;
+  background: rgba(0,0,0,0.35); backdrop-filter: blur(6px);
+  display: flex; align-items: center; justify-content: center;
+  padding: 20px;
+}
+.add-bike-modal {
+  background: #fff; border-radius: 20px; width: 100%; max-width: 480px;
+  box-shadow: 0 24px 64px rgba(0,0,0,0.18); overflow: hidden;
+}
+.add-bike-modal-header {
+  padding: 24px 28px 16px; border-bottom: 1px solid rgba(0,0,0,0.05);
+  position: relative;
+}
+.add-bike-modal-header h3 {
+  font-family: var(--font-serif); font-size: 1.25rem; margin: 0 0 4px;
+  display: flex; align-items: center; gap: 8px; color: var(--primary-color);
+}
+.add-bike-modal-header p { font-size: 0.82rem; color: var(--text-muted); margin: 0 }
+.add-bike-modal-close {
+  position: absolute; top: 20px; right: 20px;
+  width: 32px; height: 32px; border-radius: 50%;
+  background: rgba(0,0,0,0.04); border: none;
+  color: var(--text-muted); cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: all 0.2s;
+}
+.add-bike-modal-close:hover { background: rgba(0,0,0,0.08); color: var(--text-main) }
+.add-bike-modal-body { padding: 16px 28px 28px; max-height: 60vh; overflow-y: auto }
+.add-bike-loading, .add-bike-empty {
+  text-align: center; padding: 40px 20px; color: var(--text-muted);
+}
+.add-bike-loading i, .add-bike-empty i { font-size: 1.5rem; margin-bottom: 12px; display: block; color: var(--primary-color); opacity: 0.5 }
+.add-bike-empty p { font-size: 0.85rem; line-height: 1.6 }
+.add-bike-list { display: flex; flex-direction: column; gap: 8px }
+.add-bike-item {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 12px 16px; border-radius: 14px;
+  background: rgba(0,0,0,0.02); border: 1px solid rgba(0,0,0,0.04);
+  transition: all 0.2s;
+}
+.add-bike-item:hover { background: rgba(92,110,88,0.04); border-color: rgba(92,110,88,0.12) }
+.add-bike-info { display: flex; align-items: center; gap: 12px; flex: 1; min-width: 0 }
+.add-bike-img-wrap {
+  width: 44px; height: 44px; border-radius: 12px; overflow: hidden; flex-shrink: 0;
+  background: rgba(0,0,0,0.03);
+}
+.add-bike-img { width: 100%; height: 100%; object-fit: cover }
+.add-bike-img-placeholder {
+  display: flex; align-items: center; justify-content: center;
+  color: var(--text-muted); font-size: 1rem;
+}
+.add-bike-text { display: flex; flex-direction: column; gap: 2px; min-width: 0 }
+.add-bike-name {
+  font-size: 0.9rem; font-weight: 700; color: var(--text-main);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.add-bike-meta { font-size: 0.75rem; color: var(--text-muted) }
+.add-bike-action-btn {
+  padding: 6px 14px; border-radius: 10px; border: none;
+  background: var(--primary-color); color: #fff;
+  font-size: 0.78rem; font-weight: 700; cursor: pointer;
+  display: inline-flex; align-items: center; gap: 5px;
+  transition: all 0.2s; flex-shrink: 0;
+}
+.add-bike-action-btn:hover { background: #4a5e47 }
+.add-bike-action-btn:disabled { opacity: 0.6; cursor: not-allowed }
+
 .garage-filters {
   display: flex; gap: 6px; padding: 5px;
   background: rgba(0,0,0,0.03); border-radius: 28px; width: fit-content;
@@ -1426,9 +1821,11 @@ onMounted(() => fetchData())
   .events-grid { grid-template-columns: 1fr } .tab-bar { flex-direction: column; align-items: stretch; gap: 12px }
   .capsule-nav { width: 100%; overflow-x: auto } .capsule-nav::-webkit-scrollbar { display: none }
   .capsule-btn { padding: 8px 18px; font-size: 0.82rem } .publish-btn { justify-content: center }
+  .tab-bar-search { margin-left: 0; width: 100% } .tab-bar-search .search-input-wrap { flex: 1; width: auto }
   .members-grid { grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 14px }
   .garage-grid { grid-template-columns: 1fr 1fr; gap: 12px }
   .garage-overview { flex-wrap: wrap; gap: 12px; padding: 14px 18px }
+    .garage-add-btn { width: 100%; justify-content: center }
   .garage-filters { width: 100%; overflow-x: auto; flex-wrap: nowrap }
   .garage-filters::-webkit-scrollbar { display: none }
   .event-card-actions { opacity: 1; pointer-events: auto }

@@ -4,6 +4,7 @@ import com.starrysky.aries.entity.PelotonTeam;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -94,6 +95,9 @@ public interface PelotonTeamRepository extends JpaRepository<PelotonTeam, Long> 
 
     /**
      * 查询用户关联的所有车队（创建的 + 加入的，自动去重）
+     * <p>
+     * 注意：子查询中 {@code m.status = 0} 对应 {@code TeamMember.STATUS_ACTIVE}，
+     * 仅统计活跃成员所归属的车队。
      *
      * @param userId 用户ID
      * @return 车队列表
@@ -101,4 +105,22 @@ public interface PelotonTeamRepository extends JpaRepository<PelotonTeam, Long> 
     @Query("SELECT t FROM PelotonTeam t WHERE t.creatorId = :userId " +
             "OR t.id IN (SELECT m.teamId FROM TeamMember m WHERE m.userId = :userId AND m.status = 0)")
     List<PelotonTeam> findTeamsByUserId(@Param("userId") Long userId);
+
+    /**
+     * 原子递增车队成员数（避免并发读写覆盖）
+     *
+     * @param teamId 车队ID
+     */
+    @Modifying
+    @Query("UPDATE PelotonTeam t SET t.memberCount = t.memberCount + 1 WHERE t.id = :teamId")
+    void incrementMemberCount(@Param("teamId") Long teamId);
+
+    /**
+     * 原子递减车队成员数（不低于0，避免并发读写覆盖）
+     *
+     * @param teamId 车队ID
+     */
+    @Modifying
+    @Query("UPDATE PelotonTeam t SET t.memberCount = GREATEST(t.memberCount - 1, 0) WHERE t.id = :teamId")
+    void decrementMemberCount(@Param("teamId") Long teamId);
 }

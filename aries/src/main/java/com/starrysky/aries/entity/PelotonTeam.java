@@ -65,7 +65,7 @@ public class PelotonTeam {
     private String tags;
 
     @Column(name = "creator_id")
-    @Comment("创建者用户ID")
+    @Comment("当前队长用户ID（注意：队长转让后此值会变更，非原始创建者）")
     private Long creatorId;
 
     @CreationTimestamp

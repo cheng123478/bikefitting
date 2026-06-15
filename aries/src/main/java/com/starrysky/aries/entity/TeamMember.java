@@ -48,6 +48,9 @@ public class TeamMember {
     /** 状态: 被踢出 */
     public static final int STATUS_KICKED = 2;
 
+    /** 新成员默认骑行标签 */
+    public static final String DEFAULT_TAG = "新秀";
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
