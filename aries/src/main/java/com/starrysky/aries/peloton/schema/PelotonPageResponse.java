@@ -5,6 +5,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.io.Serializable;
 import java.util.List;
 
 /**
@@ -19,7 +20,9 @@ import java.util.List;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class PelotonPageResponse<T> {
+public class PelotonPageResponse<T> implements Serializable {
+
+    private static final long serialVersionUID = 1L;
 
     /** 数据列表 */
     private List<T> records;

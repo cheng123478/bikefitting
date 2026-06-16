@@ -328,7 +328,8 @@ export function getNoticeBoard(teamId, params = {}) {
   return request({
     url: `/team/${teamId}/notices`,
     method: 'get',
-    params
+    params,
+    silent: true
   });
 }
 

@@ -256,6 +256,17 @@ public class TeamMemberService {
     }
 
     /**
+     * 校验当前用户是否为车队活跃成员（任意角色均可）
+     */
+    void assertTeamMember(PelotonTeam team, User user) {
+        if (Objects.equals(team.getCaptainId(), user.getId())) {
+            return;
+        }
+        teamMemberRepository.findByTeamIdAndUserIdAndStatus(team.getId(), user.getId(), TeamMember.STATUS_ACTIVE)
+                .orElseThrow(() -> new BizException(403, "仅队内成员可执行此操作"));
+    }
+
+    /**
      * 车队成员数 -1（数据库原子操作，避免并发覆盖）
      */
     void decrementMemberCount(Long teamId) {

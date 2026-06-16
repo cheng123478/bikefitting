@@ -24,6 +24,7 @@ import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.annotation.Caching;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
@@ -182,8 +183,10 @@ public class PelotonTeamService {
      * @return 更新后的车队信息
      */
     @Transactional(rollbackFor = Exception.class)
-    @CacheEvict(value = RedisConstant.PELOTON_TEAMS_DETAIL, key = "#teamId")
-    @CacheEvict(value = RedisConstant.PELOTON_TEAMS_MY, allEntries = true)
+    @Caching(evict = {
+            @CacheEvict(value = RedisConstant.PELOTON_TEAMS_DETAIL, key = "#teamId"),
+            @CacheEvict(value = RedisConstant.PELOTON_TEAMS_MY, allEntries = true)
+    })
     public PelotonTeamVO updateTeam(Long teamId, CreateTeamDTO dto, User user) {
         PelotonTeam team = pelotonTeamRepository.findById(teamId)
                 .orElseThrow(() -> new BizException(404, "车队不存在"));
@@ -285,10 +288,12 @@ public class PelotonTeamService {
      * @param user   当前登录用户
      */
     @Transactional(rollbackFor = Exception.class)
-    @CacheEvict(value = RedisConstant.PELOTON_TEAMS_DETAIL, key = "#teamId")
-    @CacheEvict(value = RedisConstant.PELOTON_TEAMS_MY, allEntries = true)
-    @CacheEvict(value = RedisConstant.PELOTON_TEAMS_MEMBERS, key = "#teamId")
-    @CacheEvict(value = RedisConstant.PELOTON_TEAMS_GARAGE, key = "#teamId")
+    @Caching(evict = {
+            @CacheEvict(value = RedisConstant.PELOTON_TEAMS_DETAIL, key = "#teamId"),
+            @CacheEvict(value = RedisConstant.PELOTON_TEAMS_MY, allEntries = true),
+            @CacheEvict(value = RedisConstant.PELOTON_TEAMS_MEMBERS, key = "#teamId"),
+            @CacheEvict(value = RedisConstant.PELOTON_TEAMS_GARAGE, key = "#teamId")
+    })
     public void disbandTeam(Long teamId, User user) {
         PelotonTeam team = pelotonTeamRepository.findById(teamId)
                 .orElseThrow(() -> new BizException(404, "车队不存在"));

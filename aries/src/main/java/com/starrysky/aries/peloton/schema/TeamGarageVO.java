@@ -5,6 +5,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.io.Serializable;
 import java.time.LocalDateTime;
 
 /**
@@ -21,7 +22,9 @@ import java.time.LocalDateTime;
 @Builder
 @AllArgsConstructor
 @NoArgsConstructor
-public class TeamGarageVO {
+public class TeamGarageVO implements Serializable {
+
+    private static final long serialVersionUID = 1L;
 
     /** 车库记录ID */
     private Long id;

@@ -177,7 +177,7 @@ public class TeamNoticeService {
         // C3: 添加成员身份校验，仅队内成员可查看公告栏
         PelotonTeam team = pelotonTeamRepository.findById(teamId)
                 .orElseThrow(() -> new BizException(404, "车队不存在"));
-        teamMemberService.assertTeamAdmin(team, user);
+        teamMemberService.assertTeamMember(team, user);
 
         int currentPage = (page != null && page > 0) ? page : 1;
         int pageSize = (size != null && size > 0) ? Math.min(size, 50) : NOTICE_PAGE_SIZE;

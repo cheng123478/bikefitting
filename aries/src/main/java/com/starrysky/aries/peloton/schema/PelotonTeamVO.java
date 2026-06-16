@@ -5,6 +5,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.io.Serializable;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -20,7 +21,9 @@ import java.util.List;
 @Builder
 @AllArgsConstructor
 @NoArgsConstructor
-public class PelotonTeamVO {
+public class PelotonTeamVO implements Serializable {
+
+    private static final long serialVersionUID = 1L;
 
     /** 车队ID */
     private Long id;
