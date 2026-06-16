@@ -16,6 +16,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -45,6 +46,11 @@ import java.util.UUID;
 @Slf4j
 public class PelotonTeamController {
 
+    /** W1: 允许上传的图片 MIME 类型白名单 */
+    private static final Set<String> ALLOWED_IMAGE_TYPES = Set.of(
+            "image/jpeg", "image/png", "image/gif", "image/webp"
+    );
+
     @Resource
     private PelotonTeamService pelotonTeamService;
 
@@ -70,7 +76,7 @@ public class PelotonTeamController {
      * @return 分页车队列表
      */
     @GetMapping("/list")
-    public ResponseResult<PelotonPageResponse<PelotonTeamVO>> getTeamList(PelotonTeamQueryDTO queryDTO) {
+    public ResponseResult<PelotonPageResponse<PelotonTeamVO>> getTeamList(@Valid PelotonTeamQueryDTO queryDTO) {
         return ResponseResult.success(pelotonTeamService.getTeamList(queryDTO));
     }
 
@@ -131,9 +137,19 @@ public class PelotonTeamController {
     @PostMapping("/upload")
     public ResponseResult<String> uploadTeamImage(@RequestParam("file") MultipartFile file,
                                                    @AuthenticationPrincipal User user) {
+        // W1: 校验文件是否为空
+        if (file.isEmpty()) {
+            return ResponseResult.failure(400, "请选择要上传的图片");
+        }
+
+        // W1: 图片类型白名单校验，防止上传非图片文件
         String contentType = file.getContentType();
+        if (contentType == null || !ALLOWED_IMAGE_TYPES.contains(contentType)) {
+            return ResponseResult.failure(400, "仅支持 JPG/PNG/GIF/WebP 格式图片");
+        }
+
         String ext = "jpg";
-        if (contentType != null && contentType.contains("/")) {
+        if (contentType.contains("/")) {
             ext = contentType.split("/")[1];
         }
         String key = String.format("/%d/team/%s.%s",
@@ -158,7 +174,11 @@ public class PelotonTeamController {
      */
     @GetMapping("/{teamId}")
     public ResponseResult<PelotonTeamVO> getTeamDetail(@PathVariable("teamId") Long teamId) {
-        return ResponseResult.success(pelotonTeamService.getTeamDetail(teamId));
+        PelotonTeamVO vo = pelotonTeamService.getTeamDetail(teamId);
+        if (vo == null) {
+            return ResponseResult.failure(404, "车队不存在");
+        }
+        return ResponseResult.success(vo);
     }
 
     /**
@@ -173,7 +193,7 @@ public class PelotonTeamController {
     @GetMapping("/{teamId}/members")
     public ResponseResult<PelotonPageResponse<PelotonTeamMemberVO>> getTeamMembers(
             @PathVariable("teamId") Long teamId,
-            TeamMemberQueryDTO queryDTO) {
+            @Valid TeamMemberQueryDTO queryDTO) {
         return ResponseResult.success(pelotonTeamService.getTeamMembers(teamId, queryDTO));
     }
 
@@ -196,7 +216,7 @@ public class PelotonTeamController {
      * 需要登录，且当前用户必须是车队成员。
      *
      * @param teamId 车队ID
-     * @param body   包含 bikeId 字段
+     * @param dto    包含 bikeId 字段
      * @param user   当前登录用户
      * @return 新增的车库记录
      */
@@ -233,7 +253,7 @@ public class PelotonTeamController {
      * 需要登录，提交申请理由后等待队长/管理员审核。
      *
      * @param teamId 车队ID
-     * @param body   包含 reason 字段
+     * @param dto    包含 reason 字段
      * @param user   当前登录用户
      * @return 操作结果
      */
@@ -331,7 +351,7 @@ public class PelotonTeamController {
      * 仅车队创建者可操作。将队长身份转让给指定成员后，原队长退出车队。
      *
      * @param teamId          车队ID
-     * @param body            包含 newCaptainUserId 字段
+     * @param dto             包含 newCaptainUserId 字段
      * @param user            当前登录用户（原队长）
      * @return 操作结果
      */
@@ -396,7 +416,7 @@ public class PelotonTeamController {
      *
      * @param teamId       车队ID
      * @param targetUserId 目标用户ID
-     * @param body         包含 tag 字段
+     * @param dto          包含 tag 字段
      * @param admin        当前登录用户
      * @return 操作结果
      */

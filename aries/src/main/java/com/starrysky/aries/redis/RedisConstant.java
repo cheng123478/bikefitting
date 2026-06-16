@@ -37,7 +37,33 @@ public class RedisConstant {
 
     /**
      * 跨高数据缓存 key（String结构，value=Map<String, List<BikeStandOverCacheItem>>的JSON）
-     * 纯静态几何数据，不设TTL，仅在车型数据更新时清除
+     * 纯静态几何数据，设7天TTL作为安全兜底，车型数据更新时主动清除
      */
     public static final String RECOMMEND_STAND_OVER_CACHE = "starrysky:aries:recommend:stand_over";
+    /**
+     * 跨高数据缓存过期时间（秒），7天安全兜底
+     */
+    public static final int RECOMMEND_STAND_OVER_CACHE_TTL = 60 * 60 * 24 * 7;
+
+    // 车队缓存相关常量
+    /**
+     * 车队列表缓存（Spring Cache，key=分页+筛选条件，TTL=60s自动过期）
+     */
+    public static final String PELOTON_TEAMS_LIST = "peloton:teams:list";
+    /**
+     * 我的车队缓存（Spring Cache，key=userId）
+     */
+    public static final String PELOTON_TEAMS_MY = "peloton:teams:my";
+    /**
+     * 车队详情缓存（Spring Cache，key=teamId）
+     */
+    public static final String PELOTON_TEAMS_DETAIL = "peloton:teams:detail";
+    /**
+     * 车队成员列表缓存（Spring Cache，key=teamId:page:size:keyword）
+     */
+    public static final String PELOTON_TEAMS_MEMBERS = "peloton:teams:members";
+    /**
+     * 车队车库缓存（Spring Cache，key=teamId）
+     */
+    public static final String PELOTON_TEAMS_GARAGE = "peloton:teams:garage";
 }

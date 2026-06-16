@@ -65,6 +65,13 @@ public interface TeamGarageRepository extends JpaRepository<TeamGarage, Long> {
     long countByTeamIdAndStatus(Long teamId, Integer status);
 
     /**
+     * 删除某用户在指定车队车库中的所有记录（W7: 队长退队时清理其车库数据）
+     */
+    @Modifying
+    @Query("DELETE FROM TeamGarage t WHERE t.teamId = :teamId AND t.userId = :userId")
+    void deleteByTeamIdAndUserId(@Param("teamId") Long teamId, @Param("userId") Long userId);
+
+    /**
      * 将车队车库中所有正常状态记录标记为已移除（解散车队时使用）
      *
      * @param teamId    车队ID
@@ -76,4 +83,11 @@ public interface TeamGarageRepository extends JpaRepository<TeamGarage, Long> {
     void updateStatusByTeamIdAndStatus(@Param("teamId") Long teamId,
                                        @Param("oldStatus") Integer oldStatus,
                                        @Param("newStatus") Integer newStatus);
+
+    /**
+     * 物理删除某车队所有车库记录（I6: 解散车队时使用）
+     */
+    @Modifying
+    @Query("DELETE FROM TeamGarage t WHERE t.teamId = :teamId")
+    void deleteByTeamId(@Param("teamId") Long teamId);
 }

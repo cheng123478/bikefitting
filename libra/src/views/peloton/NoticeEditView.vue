@@ -307,16 +307,16 @@ onMounted(async () => {
 }
 .btn-cancel:hover { background: rgba(0,0,0,0.08) }
 .btn-submit {
-  padding: 12px 32px; border-radius: 10px; border: none;
+  padding: 12px 32px; border-radius: 24px; border: none;
   background: var(--primary-color); color: #fff;
-  font-size: 0.92rem; font-weight: 700; cursor: pointer;
+  font-size: 0.92rem; font-weight: 600; cursor: pointer;
   display: inline-flex; align-items: center; gap: 8px;
-  transition: all 0.3s cubic-bezier(0.34,1.56,0.64,1);
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 8px rgba(92,110,88,0.25);
 }
 .btn-submit:hover:not(:disabled) {
-  background: var(--primary-dark);
-  transform: translateY(-2px);
-  box-shadow: 0 8px 20px rgba(92,110,88,0.3);
+  background: var(--primary-dark); transform: translateY(-1px);
+  box-shadow: 0 4px 16px rgba(92,110,88,0.35);
 }
 .btn-submit:disabled { opacity: 0.5; cursor: not-allowed; transform: none }
 .btn-submit i { font-size: 0.82rem }

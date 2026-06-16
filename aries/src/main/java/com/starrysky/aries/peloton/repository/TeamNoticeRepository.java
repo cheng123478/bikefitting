@@ -56,4 +56,11 @@ public interface TeamNoticeRepository extends JpaRepository<TeamNotice, Long> {
             @Param("teamId") Long teamId,
             @Param("status") Integer status,
             @Param("newStatus") Integer newStatus);
+
+    /**
+     * 物理删除某车队所有公告（I6: 解散车队时使用）
+     */
+    @Modifying
+    @Query("DELETE FROM TeamNotice n WHERE n.teamId = :teamId")
+    void deleteByTeamId(@Param("teamId") Long teamId);
 }

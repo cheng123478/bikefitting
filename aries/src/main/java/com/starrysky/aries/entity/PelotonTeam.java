@@ -10,6 +10,9 @@ import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
 import java.time.LocalDateTime;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
 
 /**
  * PelotonTeam
@@ -65,8 +68,12 @@ public class PelotonTeam {
     private String tags;
 
     @Column(name = "creator_id")
-    @Comment("当前队长用户ID（注意：队长转让后此值会变更，非原始创建者）")
+    @Comment("原始创建者用户ID（创建后不变，用于审计）")
     private Long creatorId;
+
+    @Column(name = "captain_id")
+    @Comment("当前队长用户ID（队长转让后此值会更新）")
+    private Long captainId;
 
     @CreationTimestamp
     @Comment("创建时间")
@@ -75,4 +82,24 @@ public class PelotonTeam {
     @UpdateTimestamp
     @Comment("更新时间")
     private LocalDateTime updateTime;
+
+    // ============================ 惰性缓存 ============================
+
+    /**
+     * I5: 按需惰性缓存 tags 解析结果，避免每次 convertToVO 都执行 split 产生临时数组
+     */
+    @Transient
+    private List<String> tagListCache;
+
+    /**
+     * 获取标签列表（惰性缓存），避免重复 split
+     *
+     * @return 标签列表，永不为 null
+     */
+    public List<String> getTagList() {
+        if (tagListCache == null && tags != null && !tags.isEmpty()) {
+            tagListCache = Arrays.asList(tags.split(","));
+        }
+        return tagListCache != null ? tagListCache : Collections.emptyList();
+    }
 }

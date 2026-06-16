@@ -30,6 +30,10 @@ spring:
     init:
       mode: never
       data-locations: classpath*:/db-init.sql
+  cache:
+    type: redis
+    redis:
+      time-to-live: 60000
   data:
     redis:
       host: ${REDIS_HOST}

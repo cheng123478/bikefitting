@@ -78,4 +78,11 @@ public interface TeamMemberRepository extends JpaRepository<TeamMember, Long> {
     @Modifying
     @Query("UPDATE TeamMember m SET m.status = :newStatus WHERE m.teamId = :teamId AND m.status = :status")
     void updateStatusByTeamIdAndStatus(@Param("teamId") Long teamId, @Param("status") Integer status, @Param("newStatus") Integer newStatus);
+
+    /**
+     * 物理删除某车队所有成员（I6: 解散车队时使用）
+     */
+    @Modifying
+    @Query("DELETE FROM TeamMember m WHERE m.teamId = :teamId")
+    void deleteByTeamId(@Param("teamId") Long teamId);
 }

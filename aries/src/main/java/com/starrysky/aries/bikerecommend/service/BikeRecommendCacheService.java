@@ -9,6 +9,7 @@ import com.starrysky.aries.entity.BikeModel;
 import com.starrysky.aries.entity.BikeModelStats;
 import com.starrysky.aries.redis.RedisConstant;
 import com.starrysky.aries.redis.RedisUtil;
+import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -175,17 +176,33 @@ public class BikeRecommendCacheService {
                     .add(new BikeStandOverCacheItem(variant.getSize(), variant.getStandOverHeight()));
         }
 
-        // 写入 Redis（无 TTL，纯静态数据）
+        // 写入 Redis（7天TTL作为安全兜底，车型数据更新时主动清除）
         if (!result.isEmpty()) {
             String json = JSONUtil.toJsonStr(result);
-            redisUtil.set(RedisConstant.RECOMMEND_STAND_OVER_CACHE, json);
-            log.info("跨高缓存已写入 Redis, 共 {} 个车型", result.size());
+            redisUtil.set(RedisConstant.RECOMMEND_STAND_OVER_CACHE, json, RedisConstant.RECOMMEND_STAND_OVER_CACHE_TTL);
+            log.info("跨高缓存已写入 Redis, 共 {} 个车型, TTL={}s", result.size(),
+                    RedisConstant.RECOMMEND_STAND_OVER_CACHE_TTL);
         }
 
         return result;
     }
 
     // ==================== 缓存管理 ====================
+
+    /**
+     * 应用启动后预热推荐缓存，避免首个用户触发冷加载
+     */
+    @PostConstruct
+    public void warmUp() {
+        try {
+            log.info("开始预热推荐缓存...");
+            loadRecommendCache();
+            loadStandOverCache();
+            log.info("推荐缓存预热完成");
+        } catch (Exception e) {
+            log.warn("推荐缓存预热失败（不影响启动），将在首次请求时懒加载", e);
+        }
+    }
 
     /**
      * 清除所有推荐缓存（热度分 + 跨高数据，统计数据或车型数据更新后调用）

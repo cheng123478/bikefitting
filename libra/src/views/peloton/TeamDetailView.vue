@@ -353,47 +353,89 @@
                   </div>
                 </div>
               </div>
+              <p v-else class="notice-empty">暂无公告</p>
+            </div>
+
+            <!-- 发布动态区 -->
+            <div v-if="isMember" class="feed-section">
+              <div class="feed-section-header notice-header post-section-header">
+                <i class="fas fa-stream"></i> 动态
+              </div>
+              <div class="post-compose">
+                <textarea v-model="publishPostText" class="post-compose-input"
+                  placeholder="分享车队动态…" maxlength="500"></textarea>
+                <!-- 图片预览网格 -->
+                <div v-if="publishPostImages.length > 0" class="compose-image-grid">
+                  <div v-for="(img, idx) in publishPostImages" :key="idx" class="compose-img-wrap">
+                    <img :src="img" class="compose-preview-img" alt="" />
+                    <button type="button" class="compose-img-remove" @click="removePostImage(idx)">
+                      <i class="fas fa-times"></i>
+                    </button>
+                  </div>
+                </div>
+                <div class="post-compose-footer">
+                  <div class="compose-footer-left">
+                    <button type="button" class="compose-img-btn" :disabled="publishPostImages.length >= 9 || uploadingPostImg"
+                      @click="triggerPostImage">
+                      <i class="fas fa-image"></i>
+                      <span v-if="uploadingPostImg">上传中…</span>
+                      <span v-else>{{ publishPostImages.length > 0 ? `${publishPostImages.length}/9` : '图片' }}</span>
+                    </button>
+                    <input ref="postFileInput" type="file" accept="image/*" multiple hidden @change="handlePostImageSelect" />
+                    <span class="post-compose-count">{{ publishPostText.length }}/500</span>
+                  </div>
+                  <button class="post-compose-btn" :disabled="(!publishPostText.trim() && publishPostImages.length === 0) || publishingPost"
+                    @click="handlePublishPost">
+                    <i class="fas fa-paper-plane"></i> {{ publishingPost ? '发布中…' : '发布' }}
+                  </button>
+                </div>
+              </div>
             </div>
 
             <div v-if="teamPosts.length > 0" class="feed-section">
-              <div class="feed-section-header" :class="{ 'mt-none': teamNotices.length === 0 }">
-                <i class="fas fa-stream"></i> 动态
-              </div>
               <div class="activity-list">
                 <div v-for="item in teamPosts" :key="item.id" class="activity-item">
-                  <div class="activity-icon checkin"><i class="fas fa-camera"></i></div>
+                  <img :src="item.authorAvatar || 'https://i.pravatar.cc/100?img=0'" class="post-avatar" alt="" />
                   <div class="activity-body">
                     <div class="activity-header">
-                      <span class="activity-user">{{ item.userName }}</span>
-                      <span class="activity-date">{{ item.date }}</span>
+                      <span class="activity-user">{{ item.authorName }}</span>
+                      <button v-if="isMember && userStore.userInfo && String(item.authorId) === String(userStore.userInfo.id)"
+                        class="post-del-btn" title="删除动态" @click.stop="handleDeletePost(item)">
+                        <i class="fas fa-trash-alt"></i>
+                      </button>
                     </div>
-                    <p v-if="item.desc" class="activity-desc">{{ item.desc }}</p>
                     <p v-if="item.content" class="activity-desc">{{ item.content }}</p>
-                    <img v-if="item.image" :src="item.image" class="activity-image" alt="打卡照片" />
-                    <div class="post-actions">
-                      <button type="button" class="post-action-btn" :class="{ liked: getPostInter(item.id).liked }"
-                        @click.stop="toggleLike(item.id)">
-                        <i :class="getPostInter(item.id).liked ? 'fas fa-heart' : 'far fa-heart'"></i>
-                        <span v-if="getPostInter(item.id).likeCount > 0">{{ getPostInter(item.id).likeCount }}</span>
-                      </button>
-                      <button type="button" class="post-action-btn" :class="{ active: getPostInter(item.id).showComment }"
-                        @click.stop="toggleCommentInput(item.id)">
-                        <i class="far fa-comment"></i>
-                        <span v-if="getPostInter(item.id).comments.length > 0">{{ getPostInter(item.id).comments.length }}</span>
-                      </button>
+                    <div v-if="item.images && item.images.length > 0" class="post-image-grid">
+                      <img v-for="(img, idx) in item.images.slice(0, 9)" :key="idx" :src="img" class="post-grid-img" alt="" />
                     </div>
-                    <div v-if="getPostInter(item.id).comments.length > 0" class="post-comments">
-                      <div v-for="(c, ci) in getPostInter(item.id).comments" :key="ci" class="comment-item">
+                    <div class="post-actions">
+                      <button type="button" class="post-action-btn" :class="{ liked: getPostInter(item).liked }"
+                        @click.stop="toggleLike(item)">
+                        <i :class="getPostInter(item).liked ? 'fas fa-heart' : 'far fa-heart'"></i>
+                        <span v-if="getPostInter(item).likeCount > 0">{{ getPostInter(item).likeCount }}</span>
+                      </button>
+                      <button type="button" class="post-action-btn" :class="{ active: getPostInter(item).showComment }"
+                        @click.stop="toggleCommentInput(item)">
+                        <i class="far fa-comment"></i>
+                        <span v-if="getPostInter(item).comments.length > 0">{{ getPostInter(item).comments.length }}</span>
+                      </button>
+                      <span class="post-time">{{ formatDateTime(item.createdAt) }}</span>
+                    </div>
+                    <div v-if="getPostInter(item).comments.length > 0" class="post-comments">
+                      <div v-for="(c, ci) in getPostInter(item).comments" :key="ci" class="comment-item">
                         <span class="comment-user">{{ c.user }}</span>
                         <span class="comment-text">{{ c.text }}</span>
-                        <button type="button" v-if="c.user === '我'" class="comment-del" title="删除"
-                          @click.stop="deleteComment(item.id, ci)"><i class="fas fa-times"></i></button>
+                        <button type="button"
+                          v-if="isMember && userStore.userInfo && c.userId === String(userStore.userInfo.id)"
+                          class="comment-del" title="删除" @click.stop="deleteComment(item, ci)">
+                          <i class="fas fa-times"></i>
+                        </button>
                       </div>
                     </div>
-                    <div v-if="getPostInter(item.id).showComment" class="comment-input-row">
-                      <input v-model="getPostInter(item.id).commentText" type="text" class="comment-input"
-                        placeholder="写评论..." @keyup.enter="submitComment(item.id)" />
-                      <button type="button" class="comment-submit" @click.stop="submitComment(item.id)">
+                    <div v-if="getPostInter(item).showComment" class="comment-input-row">
+                      <input v-model="getPostInter(item).commentText" type="text" class="comment-input"
+                        placeholder="写评论…" @keyup.enter="submitComment(item)" />
+                      <button type="button" class="comment-submit" @click.stop="submitComment(item)">
                         <i class="fas fa-paper-plane"></i>
                       </button>
                     </div>
@@ -402,7 +444,10 @@
               </div>
             </div>
 
-            <div v-if="teamNotices.length === 0 && teamPosts.length === 0" class="empty-tab">
+            <div v-if="postsLoading" class="empty-tab">
+              <i class="fas fa-spinner fa-spin"></i><p>加载动态中…</p>
+            </div>
+            <div v-else-if="teamNotices.length === 0 && teamPosts.length === 0" class="empty-tab">
               <i class="fas fa-inbox"></i><p>暂无动态</p>
             </div>
           </div>
@@ -462,6 +507,23 @@
           <div class="del-confirm-actions">
             <button type="button" class="del-confirm-btn del-confirm-btn-cancel" @click.stop="cancelDeleteNotice">取消</button>
             <button type="button" class="del-confirm-btn del-confirm-btn-confirm" @click.stop="confirmDeleteNotice">确定删除</button>
+          </div>
+        </div>
+      </div>
+    </Teleport>
+
+    <!-- 删除动态确认弹窗 -->
+    <Teleport to="body">
+      <div v-if="showDeletePostModal" class="del-confirm-overlay" @click.self="cancelDeletePost">
+        <div class="del-confirm-dialog">
+          <div class="del-confirm-icon">
+            <i class="fas fa-exclamation-triangle"></i>
+          </div>
+          <h3 class="del-confirm-title">确认删除</h3>
+          <p class="del-confirm-body">您确定删除该动态吗？删除后相关内容将不再显示。</p>
+          <div class="del-confirm-actions">
+            <button type="button" class="del-confirm-btn del-confirm-btn-cancel" @click.stop="cancelDeletePost">取消</button>
+            <button type="button" class="del-confirm-btn del-confirm-btn-confirm" @click.stop="confirmDeletePost">确定删除</button>
           </div>
         </div>
       </div>
@@ -630,7 +692,7 @@
 import { ref, reactive, computed, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useUserStore } from '@/stores/user'
-import { getTeamDetail, getTeamMembers, getTeamGarage, addBikeToTeamGarage, removeBikeFromTeamGarage, disbandTeam, joinTeam, getPendingApplications, approveJoin, rejectJoin, updateMemberTag, promoteAdmin, revokeAdmin, kickMember, captainLeaveTeam, getNoticeBoard, deleteNotice } from '@/api/team'
+import { getTeamDetail, getTeamMembers, getTeamGarage, addBikeToTeamGarage, removeBikeFromTeamGarage, disbandTeam, joinTeam, getPendingApplications, approveJoin, rejectJoin, updateMemberTag, promoteAdmin, revokeAdmin, kickMember, captainLeaveTeam, getNoticeBoard, deleteNotice, getPosts, publishPost, deletePost, toggleLike as toggleLikeApi, addComment as addCommentApi, deleteComment as deleteCommentApi, uploadTeamImage } from '@/api/team'
 import { getBikeByModel } from '@/api/bikeShowroom'
 import { getMyGarage } from '@/api/userBike'
 import { showToast } from '@/utils/toast'
@@ -680,28 +742,131 @@ const addingBikeId = ref(null)
 const removingBikeId = ref(null)
 
 const postInteractions = reactive({})
-const getPostInter = (postId) => {
-  if (!postInteractions[postId]) {
-    postInteractions[postId] = {
-      liked: false,
-      likeCount: Math.floor(Math.random() * 12),
+const getPostInter = (post) => {
+  if (!postInteractions[post.id]) {
+    postInteractions[post.id] = {
+      liked: post.liked || false,
+      likeCount: post.likeCount || 0,
       showComment: false,
       commentText: '',
-      comments: [
-        { user: '骑友A', text: '太强了！' },
-        { user: '骑友B', text: '今天天气真好' }
-      ].slice(0, Math.floor(Math.random() * 4))
+      comments: (post.comments || []).map(c => ({
+        id: c.id,
+        userId: String(c.userId),
+        user: c.userName || '未知用户',
+        text: c.content || ''
+      }))
     }
   }
-  return postInteractions[postId]
+  return postInteractions[post.id]
 }
-const toggleLike = (postId) => { const p = getPostInter(postId); p.liked = !p.liked; p.likeCount += p.liked ? 1 : -1 }
-const toggleCommentInput = (postId) => { const p = getPostInter(postId); p.showComment = !p.showComment }
-const submitComment = (postId) => {
-  const p = getPostInter(postId); const text = p.commentText.trim()
-  if (!text) return; p.comments.push({ user: '我', text }); p.commentText = ''
+const toggleLike = async (post) => {
+  const p = getPostInter(post)
+  try {
+    const res = await toggleLikeApi(team.value.id, post.id)
+    p.liked = res.liked
+    p.likeCount = res.liked ? p.likeCount + 1 : Math.max(0, p.likeCount - 1)
+  } catch (err) {
+    showToast(err.message || '操作失败', 'error')
+  }
 }
-const deleteComment = (postId, ci) => { const p = getPostInter(postId); p.comments.splice(ci, 1) }
+const toggleCommentInput = (post) => { const p = getPostInter(post); p.showComment = !p.showComment }
+const submitComment = async (post) => {
+  const p = getPostInter(post)
+  const text = p.commentText.trim()
+  if (!text) return
+  try {
+    const c = await addCommentApi(team.value.id, post.id, { content: text })
+    p.comments.push({ id: c.id, userId: String(c.userId), user: c.userName || '我', text: c.content })
+    p.commentText = ''
+    post.commentCount = (post.commentCount || 0) + 1
+  } catch (err) {
+    showToast(err.message || '评论失败', 'error')
+  }
+}
+const deleteComment = async (post, ci) => {
+  const p = getPostInter(post)
+  const c = p.comments[ci]
+  if (!c?.id) return
+  try {
+    await deleteCommentApi(team.value.id, post.id, c.id)
+    p.comments.splice(ci, 1)
+    post.commentCount = Math.max(0, (post.commentCount || 0) - 1)
+  } catch (err) {
+    showToast(err.message || '删除失败', 'error')
+  }
+}
+const showDeletePostModal = ref(false)
+const deletingPost = ref(null)
+const handleDeletePost = (post) => {
+  deletingPost.value = post
+  showDeletePostModal.value = true
+}
+const cancelDeletePost = () => {
+  showDeletePostModal.value = false
+  deletingPost.value = null
+}
+const confirmDeletePost = async () => {
+  const post = deletingPost.value
+  showDeletePostModal.value = false
+  deletingPost.value = null
+  if (!post) return
+  try {
+    await deletePost(team.value.id, post.id)
+    teamPosts.value = teamPosts.value.filter(p => p.id !== post.id)
+    showToast('动态已删除', 'success')
+  } catch (err) {
+    showToast(err.message || '删除失败', 'error')
+  }
+}
+const handlePublishPost = async () => {
+  const text = publishPostText.value.trim()
+  if (!text && publishPostImages.value.length === 0) return
+  publishingPost.value = true
+  try {
+    const payload = { content: text || '' }
+    if (publishPostImages.value.length > 0) payload.images = publishPostImages.value
+    const newPost = await publishPost(team.value.id, payload)
+    teamPosts.value.unshift(newPost)
+    publishPostText.value = ''
+    publishPostImages.value = []
+    showToast('动态发布成功', 'success')
+  } catch (err) {
+    showToast(err.message || '发布失败', 'error')
+  } finally {
+    publishingPost.value = false
+  }
+}
+const triggerPostImage = () => { postFileInput.value?.click() }
+const handlePostImageSelect = async (e) => {
+  const files = Array.from(e.target.files || [])
+  if (!files.length) return
+  const remaining = 9 - publishPostImages.value.length
+  const toUpload = files.slice(0, remaining)
+  uploadingPostImg.value = true
+  for (const file of toUpload) {
+    try {
+      const fd = new FormData()
+      fd.append('file', file)
+      const url = await uploadTeamImage(fd)
+      publishPostImages.value.push(url)
+    } catch {
+      showToast('图片上传失败，请重试', 'error')
+    }
+  }
+  uploadingPostImg.value = false
+  // 重置 input 以允许再次选择同一文件
+  if (postFileInput.value) postFileInput.value.value = ''
+}
+const removePostImage = (idx) => { publishPostImages.value.splice(idx, 1) }
+const fetchPosts = async () => {
+  if (!team.value?.id || !isMember.value) return
+  postsLoading.value = true
+  try {
+    const res = await getPosts(team.value.id, { page: 1, size: 30 })
+    teamPosts.value = res.records || []
+  } catch { teamPosts.value = [] }
+  finally { postsLoading.value = false }
+}
 
 const tabs = [
   { key: 'events', label: '车队活动', icon: 'fas fa-calendar-alt' },
@@ -713,7 +878,13 @@ const visibleTabs = computed(() => tabs.filter(t => !t.memberOnly || isMember.va
 
 const teamActivities = computed(() => (team.value?.activities || []).filter(a => a.type === 'activity'))
 const teamNotices = ref([])
-const teamPosts = computed(() => (team.value?.activities || []).filter(a => a.type === 'checkin'))
+const teamPosts = ref([])
+const postsLoading = ref(false)
+const publishPostText = ref('')
+const publishingPost = ref(false)
+const publishPostImages = ref([])
+const uploadingPostImg = ref(false)
+const postFileInput = ref(null)
 
 const isCreator = computed(() => {
   if (!userStore.isLoggedIn || !userStore.userInfo) return false
@@ -789,6 +960,13 @@ const formatDate = (dateStr) => {
   if (!dateStr) return ''
   // 兼容 "2025-03-15 00:00:00" 或 "2025-03-15T00:00:00" 或 "2025-03-15" 格式
   return String(dateStr).split(/[T ]/)[0]
+}
+const formatDateTime = (dateStr) => {
+  if (!dateStr) return ''
+  const d = new Date(String(dateStr).replace(' ', 'T'))
+  if (isNaN(d.getTime())) return String(dateStr)
+  const pad = (n) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`
 }
 const formatApplyTime = (dateStr) => {
   if (!dateStr) return ''
@@ -1210,6 +1388,8 @@ const fetchData = async () => {
     } catch { teamNotices.value = [] }
     // 单独加载成员列表（分页）
     await fetchMembers()
+    // 加载车队动态（仅队内成员）
+    if (isMember.value) { await fetchPosts() }
     // 不再使用 isMock 判断权限，权限始终基于真实数据校验
 
     // 仅登录的队长/管理员才加载待审核申请
@@ -1319,16 +1499,27 @@ onMounted(() => fetchData())
 .feed-section-header i { font-size: 0.82rem; color: var(--primary-color) }
 
 .notice-header { padding-bottom: 14px; margin-bottom: 14px !important; border-bottom: 1px solid rgba(0,0,0,0.06); display: flex; align-items: center; gap: 8px }
-.notice-header i { color: #0d6efd !important }
+.notice-header i { color: var(--primary-color) !important }
+.post-section-header { margin-top: 24px; padding-top: 18px; border-top: 1px solid rgba(0,0,0,0.06) }
+.post-section-header i { color: var(--primary-color) !important }
+.notice-empty { font-size: 0.82rem; color: var(--text-muted); opacity: 0.55; text-align: center; padding: 16px 0 8px; margin: 0 }
 .notice-publish-btn {
-  margin-left: auto; display: inline-flex; align-items: center; gap: 5px;
-  padding: 5px 14px; border-radius: 16px; border: none;
-  background: rgba(13,110,253,0.08); color: #0d6efd;
-  font-size: 0.76rem; font-weight: 600; cursor: pointer;
-  transition: all 0.25s ease;
+  margin-left: auto; display: inline-flex; align-items: center; gap: 7px;
+  padding: 8px 20px; border-radius: 24px;
+  border: 1px solid rgba(92,110,88,0.2); background: transparent;
+  color: var(--primary-color); font-size: 0.82rem; font-weight: 600;
+  cursor: pointer; transition: all 0.35s cubic-bezier(0.165,0.84,0.44,1);
 }
-.notice-publish-btn:hover { background: rgba(13,110,253,0.15); transform: translateY(-1px) }
-.notice-publish-btn i { font-size: 0.68rem }
+.notice-publish-btn:hover {
+  background: var(--primary-color); border-color: var(--primary-color);
+  color: #fff; transform: translateY(-1px);
+  box-shadow: 0 4px 16px rgba(92,110,88,0.3);
+}
+.notice-publish-btn i {
+  font-size: 0.72rem; color: inherit;
+  transition: transform 0.35s cubic-bezier(0.165,0.84,0.44,1);
+}
+.notice-publish-btn:hover i { transform: rotate(90deg) }
 .notice-list { display: flex; flex-direction: column; gap: 2px }
 .notice-item { border-radius: 8px; transition: background 0.2s ease; cursor: pointer }
 .notice-item:hover { background: rgba(0,0,0,0.02) }
@@ -1396,6 +1587,35 @@ onMounted(() => fetchData())
 .comment-submit { width: 36px; height: 36px; border-radius: 50%; border: none; background: var(--primary-color); color: #fff; font-size: 0.82rem; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: all 0.2s ease }
 .comment-submit:hover { background: var(--primary-dark); transform: scale(1.05) }
 .comment-submit:active { transform: scale(0.95) }
+
+/* ── 动态发布区 ── */
+.post-compose { background: #fff; border: 1px solid rgba(0,0,0,0.06); border-radius: 14px; padding: 16px 20px 12px; margin-bottom: 0 }
+.post-compose-input { width: 100%; min-height: 70px; border: none; font-size: 0.88rem; color: var(--text-main); resize: vertical; outline: none; font-family: inherit; line-height: 1.6 }
+.post-compose-input::placeholder { color: var(--text-muted); opacity: 0.5 }
+.post-compose-footer { display: flex; align-items: center; justify-content: space-between; margin-top: 8px }
+.post-compose-count { font-size: 0.75rem; color: var(--text-muted) }
+.post-compose-btn { padding: 7px 20px; border: none; border-radius: 20px; background: var(--primary-color); color: #fff; font-size: 0.82rem; font-weight: 600; cursor: pointer; transition: all 0.2s; display: inline-flex; align-items: center; gap: 6px }
+.post-compose-btn:hover:not(:disabled) { background: var(--primary-dark); transform: translateY(-1px) }
+.post-compose-btn:disabled { opacity: 0.4; cursor: not-allowed }
+.compose-footer-left { display: flex; align-items: center; gap: 12px }
+.compose-img-btn { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border: 1px solid rgba(0,0,0,0.1); border-radius: 18px; background: transparent; font-size: 0.8rem; color: var(--text-muted); cursor: pointer; transition: all 0.2s }
+.compose-img-btn:hover:not(:disabled) { border-color: var(--primary-color); color: var(--primary-color) }
+.compose-img-btn:disabled { opacity: 0.4; cursor: not-allowed }
+.compose-img-btn i { font-size: 0.85rem }
+.compose-image-grid { display: flex; flex-wrap: wrap; gap: 10px; margin: 10px 0 0 }
+.compose-img-wrap { position: relative; width: 90px; height: 90px; border-radius: 10px; overflow: hidden; border: 1px solid rgba(0,0,0,0.06) }
+.compose-preview-img { width: 100%; height: 100%; object-fit: cover; display: block }
+.compose-img-remove { position: absolute; top: 3px; right: 3px; width: 22px; height: 22px; border-radius: 50%; border: none; background: rgba(0,0,0,0.55); color: #fff; font-size: 0.65rem; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: background 0.2s }
+.compose-img-remove:hover { background: #e74c3c }
+
+/* ── 动态头像与图片网格 ── */
+.post-avatar { width: 44px; height: 44px; border-radius: 50%; object-fit: cover; flex-shrink: 0; border: 2px solid rgba(0,0,0,0.05) }
+.post-del-btn { margin-left: auto; border: none; background: transparent; color: var(--text-muted); cursor: pointer; font-size: 0.78rem; padding: 4px 8px; border-radius: 6px; transition: all 0.15s }
+.post-del-btn:hover { color: #e74c3c; background: rgba(231,76,60,0.08) }
+.post-image-grid { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px }
+.post-grid-img { width: 140px; height: 140px; object-fit: cover; border-radius: 10px; border: 1px solid rgba(0,0,0,0.04); cursor: pointer; transition: transform 0.2s }
+.post-grid-img:hover { transform: scale(1.03) }
+.post-time { margin-left: auto; font-size: 0.75rem; color: var(--text-muted); opacity: 0.75; flex-shrink: 0; padding-left: 8px }
 
 /* ── 成员搜索栏（tab-bar 右侧） ── */
 .tab-bar-search { display: flex; align-items: center; gap: 8px; margin-left: auto }

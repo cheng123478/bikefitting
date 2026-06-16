@@ -6,8 +6,11 @@ import com.starrysky.aries.entity.User;
 import com.starrysky.aries.exception.BizException;
 import com.starrysky.aries.peloton.repository.PelotonTeamRepository;
 import com.starrysky.aries.peloton.repository.TeamMemberRepository;
+import com.starrysky.aries.redis.RedisConstant;
 import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.Cache;
+import org.springframework.cache.CacheManager;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -32,6 +35,9 @@ public class TeamMemberService {
     @Resource
     private TeamMemberRepository teamMemberRepository;
 
+    @Resource
+    private CacheManager cacheManager;
+
     /**
      * 退出车队（队长不能退出，需先转让队长身份）
      *
@@ -54,6 +60,7 @@ public class TeamMemberService {
         teamMemberRepository.save(member);
 
         pelotonTeamRepository.decrementMemberCount(teamId);
+        evictMemberCaches(teamId, user.getId());
         log.info("用户 {} 退出车队 {}，当前成员数已原子递减", user.getId(), teamId);
     }
 
@@ -88,9 +95,12 @@ public class TeamMemberService {
         currentCaptainMember.setStatus(TeamMember.STATUS_LEFT);
         teamMemberRepository.save(currentCaptainMember);
 
-        team.setCreatorId(newCaptainUserId);
+        team.setCaptainId(newCaptainUserId);
         pelotonTeamRepository.save(team);
         pelotonTeamRepository.decrementMemberCount(teamId);
+
+        // 失效涉及的所有缓存：详情、成员列表、旧队长和新队长的"我的车队"
+        evictMemberCaches(teamId, user.getId(), newCaptainUserId);
         log.info("用户 {} 将队长身份转让给 {}（车队 {}），原队长已退出",
                 user.getId(), newCaptainUserId, teamId);
     }
@@ -167,6 +177,7 @@ public class TeamMemberService {
         teamMemberRepository.save(member);
 
         pelotonTeamRepository.decrementMemberCount(teamId);
+        evictMemberCaches(teamId, targetUserId);
         log.info("用户 {} 在车队 {} 中请离了成员 {}", admin.getId(), teamId, targetUserId);
     }
 
@@ -195,7 +206,7 @@ public class TeamMemberService {
         TeamMember targetMember = teamMemberRepository.findByTeamIdAndUserIdAndStatus(teamId, targetUserId, TeamMember.STATUS_ACTIVE)
                 .orElseThrow(() -> new BizException(404, "该成员不存在"));
 
-        boolean isCreator = Objects.equals(team.getCreatorId(), user.getId());
+        boolean isCreator = Objects.equals(team.getCaptainId(), user.getId());
         boolean isSelf = Objects.equals(user.getId(), targetUserId);
 
         if (!isCreator) {
@@ -213,7 +224,7 @@ public class TeamMemberService {
 
         String trimmedTag = tag.trim();
         if (trimmedTag.equals(targetMember.getTag())) {
-            return; // 标签未变化，跳过数据库写入
+            return;
         }
 
         targetMember.setTag(trimmedTag);
@@ -224,10 +235,10 @@ public class TeamMemberService {
     // ============================ 内部方法 ============================
 
     /**
-     * 校验当前用户是否为车队创建者，不是则抛出 403 异常
+     * 校验当前用户是否为车队队长（使用 captainId 判断）
      */
     void assertCreator(PelotonTeam team, User user, String message) {
-        if (!Objects.equals(team.getCreatorId(), user.getId())) {
+        if (!Objects.equals(team.getCaptainId(), user.getId())) {
             throw new BizException(403, message);
         }
     }
@@ -236,11 +247,11 @@ public class TeamMemberService {
      * 校验当前用户是否为车队管理员（队长或管理员）
      */
     void assertTeamAdmin(PelotonTeam team, User user) {
-        if (Objects.equals(team.getCreatorId(), user.getId())) {
+        if (Objects.equals(team.getCaptainId(), user.getId())) {
             return;
         }
         teamMemberRepository.findByTeamIdAndUserIdAndStatus(team.getId(), user.getId(), TeamMember.STATUS_ACTIVE)
-                .filter(m -> m.getRole() <= TeamMember.ROLE_ADMIN)
+                .filter(m -> m.getRole() == TeamMember.ROLE_CAPTAIN || m.getRole() == TeamMember.ROLE_ADMIN)
                 .orElseThrow(() -> new BizException(403, "仅队长或管理员可执行此操作"));
     }
 
@@ -256,5 +267,42 @@ public class TeamMemberService {
      */
     void incrementMemberCount(Long teamId) {
         pelotonTeamRepository.incrementMemberCount(teamId);
+    }
+
+    /**
+     * 成员变动时精确失效相关缓存
+     * <ul>
+     *   <li>{@code peloton:teams:detail::{teamId}} — 详情页 memberCount 已变</li>
+     *   <li>{@code peloton:teams:members::{teamId}:*} — 成员列表已变</li>
+     *   <li>{@code peloton:teams:my::{userId}} — 该用户的"我的车队"已变</li>
+     * </ul>
+     *
+     * @param teamId  车队ID
+     * @param userIds 受影响的用户ID（退出者、被请离者、新旧队长等）
+     */
+    private void evictMemberCaches(Long teamId, Long... userIds) {
+        if (cacheManager == null) return;
+
+        // 失效详情缓存
+        Cache detailCache = cacheManager.getCache(RedisConstant.PELOTON_TEAMS_DETAIL);
+        if (detailCache != null) {
+            detailCache.evict(teamId);
+        }
+
+        // 失效成员列表缓存（使用 allEntries 因为分页 key 无法精确枚举）
+        Cache membersCache = cacheManager.getCache(RedisConstant.PELOTON_TEAMS_MEMBERS);
+        if (membersCache != null) {
+            membersCache.clear();
+        }
+
+        // 失效受影响用户的"我的车队"缓存
+        Cache myCache = cacheManager.getCache(RedisConstant.PELOTON_TEAMS_MY);
+        if (myCache != null && userIds != null) {
+            for (Long uid : userIds) {
+                if (uid != null) {
+                    myCache.evict(uid);
+                }
+            }
+        }
     }
 }

@@ -97,13 +97,15 @@ public class TeamNoticeController {
      * @param teamId 车队ID
      * @param page   页码（从1开始，默认1）
      * @param size   每页条数（默认10，最大50）
+     * @param user   当前登录用户
      * @return 公告分页列表
      */
     @GetMapping("/{teamId}/notices")
     public ResponseResult<PelotonPageResponse<TeamNoticeVO>> getNoticeBoard(
             @PathVariable("teamId") Long teamId,
             @RequestParam(value = "page", required = false) Integer page,
-            @RequestParam(value = "size", required = false) Integer size) {
-        return ResponseResult.success(teamNoticeService.getNoticeBoard(teamId, page, size));
+            @RequestParam(value = "size", required = false) Integer size,
+            @AuthenticationPrincipal User user) {
+        return ResponseResult.success(teamNoticeService.getNoticeBoard(teamId, page, size, user));
     }
 }

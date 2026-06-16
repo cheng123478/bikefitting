@@ -12,11 +12,14 @@ import com.starrysky.aries.peloton.repository.TeamGarageRepository;
 import com.starrysky.aries.peloton.repository.TeamMemberRepository;
 import com.starrysky.aries.peloton.schema.PelotonPageResponse;
 import com.starrysky.aries.peloton.schema.TeamGarageVO;
+import com.starrysky.aries.redis.RedisConstant;
 import com.starrysky.aries.user.repository.UserRepository;
 import com.starrysky.aries.userbike.repository.UserBikeRepository;
 import com.starrysky.aries.util.BikeType;
 import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -73,6 +76,7 @@ public class TeamGarageService {
      * @param teamId 车队ID
      * @return 车库列表（含 total）
      */
+    @Cacheable(value = RedisConstant.PELOTON_TEAMS_GARAGE, key = "#teamId")
     public PelotonPageResponse<TeamGarageVO> getTeamGarage(Long teamId) {
         pelotonTeamRepository.findById(teamId)
                 .orElseThrow(() -> new BizException(404, "车队不存在"));
@@ -125,6 +129,7 @@ public class TeamGarageService {
      * @return 新增的车库记录
      */
     @Transactional(rollbackFor = Exception.class)
+    @CacheEvict(value = RedisConstant.PELOTON_TEAMS_GARAGE, key = "#teamId")
     public TeamGarageVO addBikeToGarage(Long teamId, Long bikeId, User user) {
         pelotonTeamRepository.findById(teamId)
                 .orElseThrow(() -> new BizException(404, "车队不存在"));
@@ -176,6 +181,7 @@ public class TeamGarageService {
      * @param user   当前登录用户
      */
     @Transactional(rollbackFor = Exception.class)
+    @CacheEvict(value = RedisConstant.PELOTON_TEAMS_GARAGE, key = "#teamId")
     public void removeBikeFromGarage(Long teamId, Long bikeId, User user) {
         PelotonTeam team = pelotonTeamRepository.findById(teamId)
                 .orElseThrow(() -> new BizException(404, "车队不存在"));
@@ -185,7 +191,8 @@ public class TeamGarageService {
                 .orElseThrow(() -> new BizException(404, "该单车不在车队车库中"));
 
         boolean isOwner = Objects.equals(tg.getUserId(), user.getId());
-        boolean isCreator = Objects.equals(team.getCreatorId(), user.getId());
+        // W8: 使用 captainId 判断是否为队长
+        boolean isCreator = Objects.equals(team.getCaptainId(), user.getId());
         if (!isOwner && !isCreator) {
             TeamMember operatorMember = teamMemberRepository
                     .findByTeamIdAndUserIdAndStatus(teamId, user.getId(), TeamMember.STATUS_ACTIVE)

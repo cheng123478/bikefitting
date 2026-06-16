@@ -1,12 +1,10 @@
 package com.starrysky.aries.peloton.service;
 
 import com.starrysky.aries.entity.PelotonTeam;
-import com.starrysky.aries.entity.TeamMember;
 import com.starrysky.aries.entity.TeamNotice;
 import com.starrysky.aries.entity.User;
 import com.starrysky.aries.exception.BizException;
 import com.starrysky.aries.peloton.repository.PelotonTeamRepository;
-import com.starrysky.aries.peloton.repository.TeamMemberRepository;
 import com.starrysky.aries.peloton.repository.TeamNoticeRepository;
 import com.starrysky.aries.peloton.schema.CreateNoticeDTO;
 import com.starrysky.aries.peloton.schema.PelotonPageResponse;
@@ -58,10 +56,10 @@ public class TeamNoticeService {
     private PelotonTeamRepository pelotonTeamRepository;
 
     @Resource
-    private TeamMemberRepository teamMemberRepository;
+    private UserRepository userRepository;
 
     @Resource
-    private UserRepository userRepository;
+    private TeamMemberService teamMemberService;
 
     /**
      * 发布公告
@@ -78,8 +76,8 @@ public class TeamNoticeService {
         PelotonTeam team = pelotonTeamRepository.findById(teamId)
                 .orElseThrow(() -> new BizException(404, "车队不存在"));
 
-        // 校验权限：队长或管理员
-        assertTeamAdmin(team, user, "仅队长或管理员可发布公告");
+        // 校验权限：队长或管理员（W4: 复用 TeamMemberService.assertTeamAdmin）
+        teamMemberService.assertTeamAdmin(team, user);
 
         // 组装公告实体（用户可见文本做 XSS 过滤）
         TeamNotice notice = TeamNotice.builder()
@@ -91,7 +89,7 @@ public class TeamNoticeService {
                 .build();
         notice = teamNoticeRepository.save(notice);
 
-        log.info("用户 {} 在车队 {} 中发布了公告（id={}）", user.getId(), teamId, notice.getId());
+        log.debug("用户 {} 在车队 {} 中发布了公告（id={}）", user.getId(), teamId, notice.getId());
         return convertToVO(notice, user);
     }
 
@@ -127,7 +125,7 @@ public class TeamNoticeService {
         notice.setContent(HtmlUtils.htmlEscape(dto.getContent().trim()));
         notice = teamNoticeRepository.save(notice);
 
-        log.info("用户 {} 在车队 {} 中编辑了公告（id={}）", user.getId(), teamId, noticeId);
+        log.debug("用户 {} 在车队 {} 中编辑了公告（id={}）", user.getId(), teamId, noticeId);
         User author = userRepository.findById(notice.getAuthorId()).orElse(null);
         return convertToVO(notice, author);
     }
@@ -160,7 +158,7 @@ public class TeamNoticeService {
         notice.setStatus(TeamNotice.STATUS_DELETED);
         teamNoticeRepository.save(notice);
 
-        log.info("用户 {} 在车队 {} 中删除了公告（id={}）", user.getId(), teamId, noticeId);
+        log.debug("用户 {} 在车队 {} 中删除了公告（id={}）", user.getId(), teamId, noticeId);
     }
 
     /**
@@ -171,10 +169,16 @@ public class TeamNoticeService {
      * @param teamId 车队ID
      * @param page   页码（从1开始）
      * @param size   每页条数（默认10）
+     * @param user   当前登录用户
      * @return 公告分页列表
      */
     @Transactional(readOnly = true)
-    public PelotonPageResponse<TeamNoticeVO> getNoticeBoard(Long teamId, Integer page, Integer size) {
+    public PelotonPageResponse<TeamNoticeVO> getNoticeBoard(Long teamId, Integer page, Integer size, User user) {
+        // C3: 添加成员身份校验，仅队内成员可查看公告栏
+        PelotonTeam team = pelotonTeamRepository.findById(teamId)
+                .orElseThrow(() -> new BizException(404, "车队不存在"));
+        teamMemberService.assertTeamAdmin(team, user);
+
         int currentPage = (page != null && page > 0) ? page : 1;
         int pageSize = (size != null && size > 0) ? Math.min(size, 50) : NOTICE_PAGE_SIZE;
         PageRequest pageRequest = PageRequest.of(currentPage - 1, pageSize);
@@ -243,23 +247,7 @@ public class TeamNoticeService {
         if (Objects.equals(notice.getAuthorId(), user.getId())) {
             return;
         }
-        // 队长或管理员
-        assertTeamAdmin(team, user, message);
-    }
-
-    /**
-     * 校验当前用户是否为车队管理员（队长或管理员角色）
-     *
-     * @param team    车队实体
-     * @param user    当前用户
-     * @param message 权限不足时的错误信息
-     */
-    private void assertTeamAdmin(PelotonTeam team, User user, String message) {
-        if (Objects.equals(team.getCreatorId(), user.getId())) {
-            return;
-        }
-        teamMemberRepository.findByTeamIdAndUserIdAndStatus(team.getId(), user.getId(), TeamMember.STATUS_ACTIVE)
-                .filter(m -> m.getRole() <= TeamMember.ROLE_ADMIN)
-                .orElseThrow(() -> new BizException(403, message));
+        // 队长或管理员（W4: 复用 TeamMemberService.assertTeamAdmin，避免重复代码）
+        teamMemberService.assertTeamAdmin(team, user);
     }
 }

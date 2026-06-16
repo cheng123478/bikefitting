@@ -9,12 +9,16 @@ import com.starrysky.aries.peloton.repository.PelotonTeamRepository;
 import com.starrysky.aries.peloton.repository.TeamJoinApplicationRepository;
 import com.starrysky.aries.peloton.repository.TeamMemberRepository;
 import com.starrysky.aries.peloton.schema.PelotonTeamMemberVO;
+import com.starrysky.aries.redis.RedisConstant;
 import com.starrysky.aries.util.PelotonTeamUtil;
 import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.Cache;
+import org.springframework.cache.CacheManager;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
+import org.springframework.web.util.HtmlUtils;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -47,6 +51,9 @@ public class TeamApplicationService {
 
     @Resource
     private com.starrysky.aries.user.repository.UserRepository userRepository;
+
+    @Resource
+    private CacheManager cacheManager;
 
     /**
      * 获取车队待审核申请列表（仅队长/管理员可查看）
@@ -99,7 +106,8 @@ public class TeamApplicationService {
         TeamJoinApplication application = TeamJoinApplication.builder()
                 .teamId(teamId)
                 .applicantId(user.getId())
-                .reason(trimmedReason)
+                // W6: 对用户输入的申请理由做 XSS 过滤
+                .reason(HtmlUtils.htmlEscape(trimmedReason))
                 .status(TeamJoinApplication.STATUS_PENDING)
                 .build();
         applicationRepository.save(application);
@@ -151,6 +159,7 @@ public class TeamApplicationService {
         teamMemberRepository.save(member);
 
         teamMemberService.incrementMemberCount(team.getId());
+        evictApprovalCaches(team.getId(), application.getApplicantId());
         log.info("用户 {} 审批通过申请 {}，申请人 {} 加入车队 {}",
                 admin.getId(), applicationId, application.getApplicantId(), team.getId());
     }
@@ -179,6 +188,31 @@ public class TeamApplicationService {
         log.info("用户 {} 拒绝了加入申请 {}（车队 {}）", admin.getId(), applicationId, team.getId());
     }
 
+
+    /**
+     * 审批通过后精确失效相关缓存
+     *
+     * @param teamId      车队ID
+     * @param applicantId 新成员用户ID
+     */
+    private void evictApprovalCaches(Long teamId, Long applicantId) {
+        if (cacheManager == null) return;
+
+        Cache detailCache = cacheManager.getCache(RedisConstant.PELOTON_TEAMS_DETAIL);
+        if (detailCache != null) {
+            detailCache.evict(teamId);
+        }
+
+        Cache membersCache = cacheManager.getCache(RedisConstant.PELOTON_TEAMS_MEMBERS);
+        if (membersCache != null) {
+            membersCache.clear();
+        }
+
+        Cache myCache = cacheManager.getCache(RedisConstant.PELOTON_TEAMS_MY);
+        if (myCache != null) {
+            myCache.evict(applicantId);
+        }
+    }
 
     private PelotonTeamMemberVO buildApplicationVO(TeamJoinApplication app, User user) {
         PelotonTeamMemberVO.PelotonTeamMemberVOBuilder builder = PelotonTeamMemberVO.builder()

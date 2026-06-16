@@ -27,7 +27,7 @@ public interface PelotonTeamRepository extends JpaRepository<PelotonTeam, Long> 
      * @param pageable      分页参数
      * @return 车队分页列表
      */
-    Page<PelotonTeam> findByActivityLevel(String activityLevel, Pageable pageable);
+    Page<PelotonTeam> findByActivityLevelOrderByCreateTimeDesc(String activityLevel, Pageable pageable);
 
     /**
      * 按关键词模糊搜索车队（匹配名称、所在地、简介、标签）
@@ -102,7 +102,7 @@ public interface PelotonTeamRepository extends JpaRepository<PelotonTeam, Long> 
      * @param userId 用户ID
      * @return 车队列表
      */
-    @Query("SELECT t FROM PelotonTeam t WHERE t.creatorId = :userId " +
+    @Query("SELECT t FROM PelotonTeam t WHERE t.creatorId = :userId OR t.captainId = :userId " +
             "OR t.id IN (SELECT m.teamId FROM TeamMember m WHERE m.userId = :userId AND m.status = 0)")
     List<PelotonTeam> findTeamsByUserId(@Param("userId") Long userId);
 
