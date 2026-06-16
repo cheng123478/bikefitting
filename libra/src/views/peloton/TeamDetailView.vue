@@ -17,10 +17,25 @@
           <div class="hero-cover">
             <img :src="team.coverImage" :alt="team.name" class="cover-img" />
             <div class="cover-gradient"></div>
-            <!-- 非队长：申请加入按钮 -->
-            <button v-if="!isCreator" class="hero-join-btn" @click="handleJoin()">
-              <i class="fas fa-plus"></i> 申请加入
-            </button>
+            <!-- 非队长：操作菜单 -->
+            <div v-if="!isCreator" class="hero-actions">
+              <div class="captain-menu-wrap" @click.stop>
+                <div v-if="showVisitorMenu" class="captain-menu-backdrop" @click="showVisitorMenu = false"></div>
+                <button class="hero-more-btn" @click="showVisitorMenu = !showVisitorMenu" title="更多操作">
+                  <i class="fas fa-ellipsis-v"></i>
+                </button>
+                <Transition name="menu-fade">
+                  <div v-if="showVisitorMenu" class="captain-dropdown">
+                    <button class="captain-dropdown-item join" @click="showVisitorMenu = false; handleJoin()">
+                      <i class="fas fa-plus"></i> 申请加入
+                    </button>
+                    <button class="captain-dropdown-item share" @click="showVisitorMenu = false; handleShare()">
+                      <i class="fas fa-share-alt"></i> 分享车队
+                    </button>
+                  </div>
+                </Transition>
+              </div>
+            </div>
             <!-- 队长：操作菜单 -->
             <div v-else class="hero-actions">
               <div class="captain-menu-wrap" @click.stop>
@@ -32,6 +47,9 @@
                   <div v-if="showCaptainMenu" class="captain-dropdown">
                     <button class="captain-dropdown-item edit" @click="showCaptainMenu = false; handleEdit()">
                       <i class="fas fa-pen"></i> 编辑车队
+                    </button>
+                    <button class="captain-dropdown-item share" @click="showCaptainMenu = false; handleShare()">
+                      <i class="fas fa-share-alt"></i> 分享车队
                     </button>
                     <button v-if="otherMembers.length > 0" class="captain-dropdown-item leave" @click="showCaptainMenu = false; showLeaveModal = true">
                       <i class="fas fa-sign-out-alt"></i> 退出车队
@@ -196,8 +214,31 @@
                     </span>
                     <!-- 标签选择下拉 -->
                     <div v-if="editingTagMember?.id === member.id" class="tag-dropdown" @click.stop>
-                      <div v-for="t in allTags" :key="t.name" class="tag-option" :class="[getTagClass(t.name), { 'is-current': t.name === member.tag }]" @click.stop="changeMemberTag(member, t.name)">
-                        <i :class="getTagIcon(t.name)"></i> {{ t.name }}
+                      <div class="tag-options-grid">
+                        <div v-for="t in allTags" :key="t.name" class="tag-option" :class="[getTagClass(t.name), { 'is-current': t.name === member.tag && !isCustomTagMode }]" @click.stop="changeMemberTag(member, t.name)">
+                          <i :class="getTagIcon(t.name)"></i> {{ t.name }}
+                        </div>
+                        <div class="tag-option tag-rookie tag-option-custom" :class="{ 'is-active': isCustomTagMode }" @click.stop="startCustomTagInput">
+                          <i class="fas fa-pen"></i> 自定义
+                        </div>
+                      </div>
+                      <div v-if="isCustomTagMode" class="tag-custom-input-area" @click.stop>
+                        <div class="tag-custom-input-row">
+                          <input
+                            v-model="customTagInput"
+                            type="text"
+                            class="tag-custom-input"
+                            placeholder="输入自定义标签"
+                            maxlength="5"
+                            ref="customTagInputRef"
+                            @click.stop
+                            @keydown.enter="saveCustomTag(member)"
+                          />
+                          <span class="tag-char-count">{{ customTagInput.length }}/5</span>
+                        </div>
+                        <button class="tag-custom-save-btn" :disabled="!customTagInput.trim()" @click.stop="saveCustomTag(member)">
+                          <i class="fas fa-check"></i> 保存
+                        </button>
                       </div>
                     </div>
                   </div>
@@ -689,7 +730,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted, nextTick } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import { getTeamDetail, getTeamMembers, getTeamGarage, addBikeToTeamGarage, removeBikeFromTeamGarage, disbandTeam, joinTeam, getPendingApplications, approveJoin, rejectJoin, updateMemberTag, promoteAdmin, revokeAdmin, kickMember, captainLeaveTeam, getNoticeBoard, deleteNotice, getPosts, publishPost, deletePost, toggleLike as toggleLikeApi, addComment as addCommentApi, deleteComment as deleteCommentApi, uploadTeamImage } from '@/api/team'
@@ -722,6 +763,8 @@ const deletingActivity = ref(null)
 const showKickModal = ref(false)
 const kickingMember = ref(null)
 const editingTagMember = ref(null)
+const customTagInput = ref('')
+const isCustomTagMode = ref(false)
 const allTags = [
   { name: '全能' }, { name: '破风手' }, { name: '爬坡手' },
   { name: '冲刺手' }, { name: '计时赛专家' }, { name: '铁三选手' },
@@ -990,6 +1033,43 @@ const handleJoin = () => {
 const handleEdit = () => {
   router.push(`/peloton/create?id=${team.value.id}`)
 }
+const handleShare = async () => {
+  const shareUrl = window.location.href
+  const shareData = {
+    title: `${team.value.name} - 破风社车队`,
+    text: `来看看「${team.value.name}」车队吧！`,
+    url: shareUrl
+  }
+  if (navigator.share && navigator.canShare && navigator.canShare(shareData)) {
+    try {
+      await navigator.share(shareData)
+    } catch (e) {
+      if (e.name !== 'AbortError') {
+        await copyToClipboard(shareUrl)
+      }
+    }
+  } else {
+    await copyToClipboard(shareUrl)
+  }
+}
+const copyToClipboard = async (text) => {
+  try {
+    if (navigator.clipboard && window.isSecureContext) {
+      await navigator.clipboard.writeText(text)
+    } else {
+      const ta = document.createElement('textarea')
+      ta.value = text
+      ta.style.cssText = 'position:fixed;left:-9999px;top:-9999px;opacity:0'
+      document.body.appendChild(ta)
+      ta.select()
+      document.execCommand('copy')
+      document.body.removeChild(ta)
+    }
+    showToast('已复制链接，快去分享给朋友们吧~', 'success')
+  } catch {
+    showToast('复制失败，请手动复制链接', 'error')
+  }
+}
 const cancelJoin = () => {
   showJoinModal.value = false
   joinReason.value = ''
@@ -1148,6 +1228,7 @@ const confirmLeave = async () => {
 
 // ── 解散车队 ──
 const showCaptainMenu = ref(false)
+const showVisitorMenu = ref(false)
 const showDisbandModal = ref(false)
 const showFarewell = ref(false)
 const disbanding = ref(false)
@@ -1183,12 +1264,43 @@ const handleTagClick = (member) => {
     }
   }
 }
+const resetCustomTagState = () => {
+  isCustomTagMode.value = false
+  customTagInput.value = ''
+}
 const toggleTagEdit = (member) => {
-  editingTagMember.value = editingTagMember.value?.id === member.id ? null : member
+  const closing = editingTagMember.value?.id === member.id
+  editingTagMember.value = closing ? null : member
+  resetCustomTagState()
+}
+const startCustomTagInput = () => {
+  isCustomTagMode.value = true
+  customTagInput.value = ''
+  nextTick(() => {
+    const el = document.querySelector('.tag-custom-input')
+    if (el) el.focus()
+  })
+}
+const saveCustomTag = async (member) => {
+  const tag = customTagInput.value.trim()
+  if (!tag) { showToast('请输入标签内容', 'warning'); return }
+  if (tag.length > 5) { showToast('标签最多5个字', 'warning'); return }
+  if (member.tag === tag) { editingTagMember.value = null; resetCustomTagState(); return }
+  try {
+    await updateMemberTag(team.value.id, member.userId, tag)
+    member.tag = tag
+    showToast(`已将 ${member.name} 的标签改为「${tag}」`, 'success')
+  } catch (err) {
+    showToast(err.message || '修改标签失败', 'error')
+  } finally {
+    editingTagMember.value = null
+    resetCustomTagState()
+  }
 }
 const changeMemberTag = async (member, newTag) => {
   if (member.tag === newTag) {
     editingTagMember.value = null
+    resetCustomTagState()
     return
   }
   try {
@@ -1199,6 +1311,7 @@ const changeMemberTag = async (member, newTag) => {
     showToast(err.message || '修改标签失败', 'error')
   } finally {
     editingTagMember.value = null
+    resetCustomTagState()
   }
 }
 
@@ -1437,6 +1550,8 @@ onMounted(() => fetchData())
 .captain-dropdown-item.edit:hover { background: rgba(92,110,88,0.08); color: var(--primary-color); }
 .captain-dropdown-item.leave:hover { background: rgba(255,152,0,0.08); color: #e68900; }
 .captain-dropdown-item.disband:hover { background: rgba(220,53,69,0.06); color: #dc3545; }
+.captain-dropdown-item.share:hover { background: rgba(59,130,246,0.08); color: #3b82f6; }
+.captain-dropdown-item.join:hover { background: rgba(92,110,88,0.08); color: var(--primary-color); }
 .menu-fade-enter-active { transition: opacity 0.18s ease, transform 0.18s ease; }
 .menu-fade-leave-active { transition: opacity 0.12s ease, transform 0.12s ease; }
 .menu-fade-enter-from, .menu-fade-leave-to { opacity: 0; transform: translateY(-6px); }
@@ -1756,10 +1871,13 @@ onMounted(() => fetchData())
   padding: 10px;
   background: #fff; border-radius: 14px;
   box-shadow: 0 12px 40px rgba(0,0,0,0.12), 0 2px 8px rgba(0,0,0,0.06);
-  display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px;
+  display: flex; flex-direction: column; gap: 8px;
   width: max-content; min-width: 220px;
   animation: tag-drop-in 0.22s cubic-bezier(0.34,1.56,0.64,1) both;
   border: 1px solid rgba(92,110,88,0.08);
+}
+.tag-options-grid {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px;
 }
 .tag-dropdown::before {
   content: ''; position: absolute; top: -6px; left: 50%;
@@ -1779,6 +1897,81 @@ onMounted(() => fetchData())
 .tag-option.is-current {
   outline: 2px solid var(--primary-color); outline-offset: 1px;
   box-shadow: 0 0 0 4px rgba(92,110,88,0.08);
+}
+.tag-option-custom.is-active {
+  outline: 2px solid var(--primary-color); outline-offset: 1px;
+  box-shadow: 0 0 0 4px rgba(92,110,88,0.08);
+}
+.tag-custom-input-area {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-top: 6px;
+  border-top: 1px solid rgba(0,0,0,0.06);
+  animation: tag-custom-in 0.2s ease both;
+}
+@keyframes tag-custom-in {
+  from { opacity: 0; transform: translateY(-4px) }
+  to   { opacity: 1; transform: translateY(0) }
+}
+.tag-custom-input-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.tag-custom-input {
+  flex: 1;
+  min-width: 0;
+  padding: 7px 10px;
+  border-radius: 8px;
+  border: 1.5px solid rgba(92,110,88,0.2);
+  font-size: 0.8rem;
+  font-weight: 500;
+  outline: none;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  background: #f8faf8;
+  color: var(--text-main);
+}
+.tag-custom-input::placeholder {
+  color: #b0b8b0;
+  font-weight: 400;
+}
+.tag-custom-input:focus {
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 3px rgba(92,110,88,0.08);
+  background: #fff;
+}
+.tag-char-count {
+  font-size: 0.68rem;
+  color: var(--text-muted);
+  white-space: nowrap;
+  min-width: 24px;
+  text-align: right;
+}
+.tag-custom-save-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  align-self: flex-end;
+  padding: 5px 16px;
+  border-radius: 8px;
+  border: none;
+  background: var(--primary-color);
+  color: #fff;
+  font-size: 0.76rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.tag-custom-save-btn i { font-size: 0.62rem; }
+.tag-custom-save-btn:hover:not(:disabled) {
+  filter: brightness(1.1);
+  transform: translateY(-1px);
+}
+.tag-custom-save-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
 }
 
 .tag-allround { background: linear-gradient(135deg, rgba(255,215,0,0.22), rgba(255,180,50,0.12)); color: #b8860b }
