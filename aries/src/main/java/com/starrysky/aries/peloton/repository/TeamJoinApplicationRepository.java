@@ -41,4 +41,13 @@ public interface TeamJoinApplicationRepository extends JpaRepository<TeamJoinApp
      * @param teamId 车队ID
      */
     void deleteByTeamId(Long teamId);
+
+    /**
+     * 查询某用户的所有待审核申请
+     *
+     * @param applicantId 申请人ID
+     * @param status      状态值
+     * @return 申请列表
+     */
+    List<TeamJoinApplication> findByApplicantIdAndStatus(Long applicantId, Integer status);
 }

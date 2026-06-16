@@ -133,7 +133,10 @@ public class PelotonTeamService {
      * @return 创建的车队信息
      */
     @Transactional(rollbackFor = Exception.class)
-    @CacheEvict(value = RedisConstant.PELOTON_TEAMS_MY, allEntries = true)
+    @Caching(evict = {
+            @CacheEvict(value = RedisConstant.PELOTON_TEAMS_MY, allEntries = true),
+            @CacheEvict(value = RedisConstant.PELOTON_TEAMS_LIST, allEntries = true)
+    })
     public PelotonTeamVO createTeam(CreateTeamDTO dto, User user) {
         String name = HtmlUtils.htmlEscape(dto.getName().trim());
         if (pelotonTeamRepository.existsByName(name)) {

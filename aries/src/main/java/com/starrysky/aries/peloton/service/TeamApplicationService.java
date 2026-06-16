@@ -23,6 +23,7 @@ import org.springframework.web.util.HtmlUtils;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
@@ -227,5 +228,19 @@ public class TeamApplicationService {
         }
 
         return builder.build();
+    }
+
+    /**
+     * 获取当前用户有待审核申请的车队ID列表
+     *
+     * @param user 当前登录用户
+     * @return 有待审核申请的车队ID集合
+     */
+    public Set<Long> getMyPendingTeamIds(User user) {
+        return applicationRepository
+                .findByApplicantIdAndStatus(user.getId(), TeamJoinApplication.STATUS_PENDING)
+                .stream()
+                .map(TeamJoinApplication::getTeamId)
+                .collect(Collectors.toSet());
     }
 }

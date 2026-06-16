@@ -178,6 +178,17 @@ export function getPendingApplications(teamId) {
 }
 
 /**
+ * 获取当前用户有待审核申请的车队ID列表
+ */
+export function getMyPendingApplications() {
+  return request({
+    url: '/team/my-pending-applications',
+    method: 'get',
+    silent: true
+  });
+}
+
+/**
  * 同意加入申请
  * @param {Number} applicationId - 申请记录ID
  */
@@ -420,5 +431,75 @@ export function deleteComment(teamId, postId, commentId) {
     url: `/team/${teamId}/posts/${postId}/comments/${commentId}`,
     method: 'delete',
     silent: true
+  });
+}
+
+// ============ 车队活动 API ============
+
+/**
+ * 发布活动
+ * @param {Number} teamId - 车队ID
+ * @param {Object} data - 活动信息
+ * @param {String} data.title - 活动标题
+ * @param {String} data.activityType - 活动类型: ride/race/training/social
+ * @param {String} data.eventDate - 活动日期 (yyyy-MM-dd)
+ * @param {String} data.eventTime - 开始时间 (HH:mm)
+ * @param {String} data.location - 活动地点
+ * @param {String} [data.route] - 骑行路线
+ * @param {String} [data.difficulty] - 难度等级
+ * @param {Number} [data.distance] - 预计里程(km)
+ * @param {Number} [data.maxParticipants] - 人数上限
+ * @param {String} data.description - 活动描述
+ * @param {String} [data.coverImage] - 封面图URL
+ */
+export function publishActivity(teamId, data) {
+  return request({
+    url: `/team/${teamId}/activities`,
+    method: 'post',
+    data,
+    silent: true
+  });
+}
+
+/**
+ * 编辑活动
+ * @param {Number} teamId - 车队ID
+ * @param {Number} activityId - 活动ID
+ * @param {Object} data - 活动信息（同 publishActivity）
+ */
+export function updateActivity(teamId, activityId, data) {
+  return request({
+    url: `/team/${teamId}/activities/${activityId}`,
+    method: 'put',
+    data,
+    silent: true
+  });
+}
+
+/**
+ * 删除活动（软删除）
+ * @param {Number} teamId - 车队ID
+ * @param {Number} activityId - 活动ID
+ */
+export function deleteActivity(teamId, activityId) {
+  return request({
+    url: `/team/${teamId}/activities/${activityId}`,
+    method: 'delete',
+    silent: true
+  });
+}
+
+/**
+ * 获取活动列表（分页）
+ * @param {Number} teamId - 车队ID
+ * @param {Object} [params] - 查询参数
+ * @param {Number} [params.page=1] - 页码
+ * @param {Number} [params.size=10] - 每页数量
+ */
+export function getActivities(teamId, params = {}) {
+  return request({
+    url: `/team/${teamId}/activities`,
+    method: 'get',
+    params
   });
 }

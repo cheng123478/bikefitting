@@ -26,7 +26,7 @@
                 </button>
                 <Transition name="menu-fade">
                   <div v-if="showVisitorMenu" class="captain-dropdown">
-                    <button class="captain-dropdown-item join" @click="showVisitorMenu = false; handleJoin()">
+                    <button v-if="!isMember" class="captain-dropdown-item join" @click="showVisitorMenu = false; handleJoin()">
                       <i class="fas fa-plus"></i> 申请加入
                     </button>
                     <button class="captain-dropdown-item share" @click="showVisitorMenu = false; handleShare()">
@@ -79,7 +79,7 @@
             <div class="hero-stats-side">
               <span class="side-stat"><i class="fas fa-user-friends"></i> {{ team.memberCount }} 成员</span>
               <span class="side-stat-sep">·</span>
-              <span class="side-stat"><i class="fas fa-flag-checkered"></i> {{ team.activities ? team.activities.length : 5 }} 活动</span>
+              <span class="side-stat"><i class="fas fa-flag-checkered"></i> {{ teamActivities.length }} 活动</span>
               <span class="side-stat-sep">·</span>
               <span class="side-stat"><i class="fas fa-road"></i> {{ formatDistance(totalDistance) }}</span>
             </div>
@@ -120,22 +120,27 @@
           <!-- 车队活动 -->
           <div v-if="activeTab === 'events'" class="tab-content">
             <div v-if="teamActivities.length > 0" class="events-grid">
-              <div v-for="item in teamActivities" :key="item.id" class="event-card">
+              <div v-for="item in teamActivities" :key="item.id" class="event-card" @click="openActivityDetail(item)">
                 <div class="event-card-header">
                   <div class="activity-icon activity"><i class="fas fa-calendar-check"></i></div>
                   <div class="event-meta">
-                    <span class="activity-date">{{ item.date }}</span>
-                    <span v-if="item.location" class="event-location">
-                      <i class="fas fa-map-marker-alt"></i> {{ item.location }}
-                    </span>
+                    <span class="activity-type-badge">{{ activityTypeLabel(item.activityType) }}</span>
+                    <span class="activity-date">{{ item.eventDate }}</span>
                   </div>
                 </div>
                 <h4 class="event-title">{{ item.title }}</h4>
-                <p v-if="item.desc" class="event-desc">{{ item.desc }}</p>
-                <p v-if="item.content" class="event-desc">{{ item.content }}</p>
-                <img v-if="item.image" :src="item.image" class="activity-image" alt="活动照片" />
-                <span v-if="item.participants" class="activity-participants">
-                  <i class="fas fa-user"></i> {{ item.participants }} 人已报名
+                <div class="event-card-meta" v-if="item.location">
+                  <i class="fas fa-map-marker-alt"></i> {{ item.location }}
+                </div>
+                <p v-if="item.description" class="event-desc">{{ item.description }}</p>
+                <img v-if="item.coverImage" :src="item.coverImage" class="activity-image" alt="活动照片" />
+                <div class="event-card-stats" v-if="item.difficulty || item.distance || item.maxParticipants">
+                  <span v-if="item.difficulty" class="event-stat">{{ difficultyLabel(item.difficulty) }}</span>
+                  <span v-if="item.distance" class="event-stat">{{ item.distance }} km</span>
+                  <span v-if="item.maxParticipants" class="event-stat">{{ item.maxParticipants }}人上限</span>
+                </div>
+                <span v-if="item.participantCount" class="activity-participants">
+                  <i class="fas fa-user"></i> {{ item.participantCount }} 人已报名
                 </span>
                 <div v-if="isManager" class="event-card-actions">
                   <button type="button" class="event-act-btn" title="编辑" @click.stop="handleEditActivity(item.id)">
@@ -589,6 +594,58 @@
       </div>
     </Teleport>
 
+    <!-- 活动详情浮层 -->
+    <Teleport to="body">
+      <Transition name="join-dialog-fade">
+        <div v-if="selectedActivity" class="activity-detail-overlay" @click.self="selectedActivity = null">
+          <div class="activity-detail-panel">
+            <button class="activity-detail-close" @click="selectedActivity = null"><i class="fas fa-times"></i></button>
+            <img v-if="selectedActivity.coverImage" :src="selectedActivity.coverImage" class="activity-detail-cover" alt="" />
+            <div class="activity-detail-body">
+              <div class="activity-detail-header">
+                <span class="activity-type-badge">{{ activityTypeLabel(selectedActivity.activityType) }}</span>
+                <span class="activity-date">{{ selectedActivity.eventDate }}</span>
+              </div>
+              <h2 class="activity-detail-title">{{ selectedActivity.title }}</h2>
+              <div class="activity-detail-meta">
+                <span v-if="selectedActivity.location"><i class="fas fa-map-marker-alt"></i> {{ selectedActivity.location }}</span>
+                <span v-if="selectedActivity.eventTime"><i class="fas fa-clock"></i> {{ selectedActivity.eventTime }}</span>
+                <span v-if="selectedActivity.route"><i class="fas fa-route"></i> {{ selectedActivity.route }}</span>
+              </div>
+              <div class="activity-detail-stats" v-if="selectedActivity.difficulty || selectedActivity.distance || selectedActivity.maxParticipants">
+                <span v-if="selectedActivity.difficulty" class="event-stat">{{ difficultyLabel(selectedActivity.difficulty) }}</span>
+                <span v-if="selectedActivity.distance" class="event-stat">{{ selectedActivity.distance }} km</span>
+                <span v-if="selectedActivity.maxParticipants" class="event-stat">{{ selectedActivity.maxParticipants }}人上限</span>
+              </div>
+              <p class="activity-detail-desc">{{ selectedActivity.description }}</p>
+              <div class="activity-detail-footer">
+                <span class="activity-participants" v-if="selectedActivity.participantCount">
+                  <i class="fas fa-user"></i> {{ selectedActivity.participantCount }} 人已报名
+                </span>
+                <span class="activity-author" v-if="selectedActivity.authorName">
+                  <i class="fas fa-pen-nib"></i> {{ selectedActivity.authorName }} 发布
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </Transition>
+    </Teleport>
+
+    <!-- 已申请提示弹窗 -->
+    <Teleport to="body">
+      <div v-if="showAlreadyApplied" class="del-confirm-overlay" @click.self="showAlreadyApplied = false">
+        <div class="join-modal-dialog">
+          <div class="join-modal-icon" style="color: #f59e0b"><i class="fas fa-hourglass-half"></i></div>
+          <h3 class="join-modal-title">申请已提交</h3>
+          <p class="join-modal-subtitle">您已向该车队发送过加入申请，请耐心等待车队管理员审核。</p>
+          <div class="join-modal-actions">
+            <button type="button" class="join-submit-btn" @click.stop="showAlreadyApplied = false">我知道了</button>
+          </div>
+        </div>
+      </div>
+    </Teleport>
+
     <!-- 退出车队 - 选择新队长弹窗 -->
     <Teleport to="body">
       <div v-if="showLeaveModal" class="del-confirm-overlay" @click.self="cancelLeave">
@@ -733,7 +790,7 @@
 import { ref, reactive, computed, onMounted, nextTick } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useUserStore } from '@/stores/user'
-import { getTeamDetail, getTeamMembers, getTeamGarage, addBikeToTeamGarage, removeBikeFromTeamGarage, disbandTeam, joinTeam, getPendingApplications, approveJoin, rejectJoin, updateMemberTag, promoteAdmin, revokeAdmin, kickMember, captainLeaveTeam, getNoticeBoard, deleteNotice, getPosts, publishPost, deletePost, toggleLike as toggleLikeApi, addComment as addCommentApi, deleteComment as deleteCommentApi, uploadTeamImage } from '@/api/team'
+import { getTeamDetail, getTeamMembers, getTeamGarage, addBikeToTeamGarage, removeBikeFromTeamGarage, disbandTeam, joinTeam, getPendingApplications, approveJoin, rejectJoin, updateMemberTag, promoteAdmin, revokeAdmin, kickMember, captainLeaveTeam, getNoticeBoard, deleteNotice, getPosts, publishPost, deletePost, toggleLike as toggleLikeApi, addComment as addCommentApi, deleteComment as deleteCommentApi, uploadTeamImage, getActivities, deleteActivity, getMyPendingApplications } from '@/api/team'
 import { getBikeByModel } from '@/api/bikeShowroom'
 import { getMyGarage } from '@/api/userBike'
 import { showToast } from '@/utils/toast'
@@ -774,6 +831,16 @@ const allTags = [
 const showDeleteNoticeModal = ref(false)
 const deletingNotice = ref(null)
 const showJoinModal = ref(false)
+const showAlreadyApplied = ref(false)
+const pendingTeamIds = ref(new Set())
+
+const loadPendingIds = async () => {
+  if (!userStore.isLoggedIn) { pendingTeamIds.value = new Set(); return }
+  try {
+    const ids = await getMyPendingApplications()
+    pendingTeamIds.value = new Set(ids || [])
+  } catch { pendingTeamIds.value = new Set() }
+}
 const joinReason = ref('')
 const pendingApplications = ref([])
 const garageBikes = ref([])
@@ -919,7 +986,14 @@ const tabs = [
 ]
 const visibleTabs = computed(() => tabs.filter(t => !t.memberOnly || isMember.value))
 
-const teamActivities = computed(() => (team.value?.activities || []).filter(a => a.type === 'activity'))
+const teamActivities = ref([])
+const fetchActivities = async () => {
+  if (!team.value?.id) return
+  try {
+    const res = await getActivities(team.value.id, { page: 1, size: 50 })
+    teamActivities.value = res.records || []
+  } catch { teamActivities.value = [] }
+}
 const teamNotices = ref([])
 const teamPosts = ref([])
 const postsLoading = ref(false)
@@ -931,19 +1005,19 @@ const postFileInput = ref(null)
 
 const isCreator = computed(() => {
   if (!userStore.isLoggedIn || !userStore.userInfo) return false
-  return String(team.value?.creatorId) === String(userStore.userInfo.id)
+  return String(team.value?.captainId) === String(userStore.userInfo.id)
 })
 
 const isCaptain = computed(() => {
   if (!userStore.isLoggedIn || !userStore.userInfo) return false
   const uid = String(userStore.userInfo.id)
-  // 创建者即为队长
-  return String(team.value?.creatorId) === uid
+  // 队长身份由 captainId 标识（非 creatorId）
+  return String(team.value?.captainId) === uid
 })
 const isManager = computed(() => {
   if (!userStore.isLoggedIn || !userStore.userInfo) return false
   const uid = String(userStore.userInfo.id)
-  if (String(team.value?.creatorId) === uid) return true
+  if (String(team.value?.captainId) === uid) return true
   return members.value.some(m =>
     (m.role === '队长' || m.role === '管理员') && String(m.userId || m.id) === uid
   )
@@ -1025,8 +1099,16 @@ const formatApplyTime = (dateStr) => {
 }
 const handleBack = () => router.push('/peloton')
 
-const handleJoin = () => {
+const handleJoin = async () => {
   if (!userStore.isLoggedIn) { showToast('请先登录', 'warning'); userStore.openAuthModal(); return }
+  // 如果还没加载过待审核列表，即时加载
+  if (pendingTeamIds.value.size === 0) {
+    await loadPendingIds()
+  }
+  if (pendingTeamIds.value.has(team.value.id)) {
+    showAlreadyApplied.value = true
+    return
+  }
   joinReason.value = ''
   showJoinModal.value = true
 }
@@ -1078,6 +1160,7 @@ const submitJoin = async () => {
   if (!joinReason.value.trim()) return
   try {
     await joinTeam(team.value.id, joinReason.value.trim())
+    pendingTeamIds.value.add(team.value.id)
     showToast('申请已提交，等待管理员审核', 'success')
   } catch (err) {
     showToast(err.message || '提交申请失败', 'error')
@@ -1116,6 +1199,16 @@ const handleReject = async (app) => {
 const handlePublishActivity = () => { router.push(`/peloton/${route.params.id}/activity/create`) }
 const handleEditActivity = (id) => { router.push(`/peloton/${route.params.id}/activity/edit/${id}`) }
 
+// 活动详情浮层
+const selectedActivity = ref(null)
+const openActivityDetail = (item) => { selectedActivity.value = item }
+
+const activityTypeMap = { ride: '骑行', race: '比赛', training: '训练', social: '社交' }
+const activityTypeLabel = (type) => activityTypeMap[type] || type || '活动'
+
+const difficultyMap = { easy: '轻松', medium: '中等', hard: '困难' }
+const difficultyLabel = (d) => difficultyMap[d] || d || ''
+
 const handleDeleteActivity = (e, item) => {
   e.stopPropagation()
   deletingActivity.value = { id: item.id, title: item.title }
@@ -1134,10 +1227,11 @@ const confirmDelete = async () => {
   deletingActivity.value = null
   if (!id) return
   try {
-    await new Promise(resolve => setTimeout(resolve, 500))
+    await deleteActivity(team.value.id, id)
+    teamActivities.value = teamActivities.value.filter(a => a.id !== id)
     showToast(`活动「${title}」已删除`, 'success')
   } catch (err) {
-    showToast('删除失败，请稍后重试', 'error')
+    showToast(err.message || '删除失败，请稍后重试', 'error')
   }
 }
 
@@ -1491,6 +1585,8 @@ const fetchData = async () => {
     ])
     team.value = teamData
     garageBikes.value = garageData.records || []
+    // 加载活动列表
+    await fetchActivities()
     // 加载公告栏
     try {
       const noticeRes = await getNoticeBoard(id, { page: 1, size: 20 })
@@ -1505,6 +1601,8 @@ const fetchData = async () => {
     if (isMember.value) { await fetchPosts() }
     // 不再使用 isMock 判断权限，权限始终基于真实数据校验
 
+    // 加载待审核申请
+    await loadPendingIds()
     // 仅登录的队长/管理员才加载待审核申请
     if (userStore.isLoggedIn && isManager.value) {
       try {
@@ -1677,6 +1775,75 @@ onMounted(() => fetchData())
 .activity-desc { font-size: 0.88rem; color: var(--text-muted); line-height: 1.65; margin: 0 0 10px 0 }
 .activity-image { width: 100%; max-width: 320px; border-radius: 8px; margin-top: 8px }
 .activity-participants { display: inline-flex; align-items: center; gap: 4px; font-size: 0.78rem; color: var(--primary-color); padding: 4px 10px; background: rgba(92,110,88,0.06); border-radius: 6px; margin-top: 8px }
+
+/* 活动卡片增强 */
+.event-card { cursor: pointer }
+.activity-type-badge {
+  font-size: 0.66rem; font-weight: 700; color: var(--primary-color);
+  background: rgba(92,110,88,0.1); padding: 2px 8px; border-radius: 12px;
+}
+.event-card-meta {
+  font-size: 0.76rem; color: var(--text-muted); display: flex; align-items: center; gap: 4px; margin-bottom: 6px;
+}
+.event-card-stats { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px }
+.event-stat {
+  font-size: 0.68rem; color: var(--text-muted); background: rgba(0,0,0,0.04);
+  padding: 2px 8px; border-radius: 10px;
+}
+
+/* 活动详情浮层 */
+.activity-detail-overlay {
+  position: fixed; inset: 0; z-index: 2000;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(0,0,0,0.45); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+  padding: 40px 20px;
+}
+.activity-detail-panel {
+  position: relative; width: 100%; max-width: 560px; max-height: 85vh;
+  background: #fff; border-radius: 18px; overflow: hidden;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.25);
+  display: flex; flex-direction: column;
+}
+.activity-detail-close {
+  position: absolute; top: 12px; right: 12px; z-index: 10;
+  width: 32px; height: 32px; border-radius: 50%; border: none;
+  background: rgba(0,0,0,0.35); color: #fff; font-size: 0.9rem;
+  cursor: pointer; display: flex; align-items: center; justify-content: center;
+  transition: background 0.2s;
+}
+.activity-detail-close:hover { background: rgba(0,0,0,0.6) }
+.activity-detail-cover {
+  width: 100%; max-height: 220px; object-fit: cover;
+}
+.activity-detail-body {
+  padding: 24px 28px 20px; overflow-y: auto; flex: 1;
+}
+.activity-detail-header {
+  display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;
+}
+.activity-detail-title {
+  font-size: 1.2rem; font-weight: 800; color: var(--text-main); margin: 0 0 12px 0;
+}
+.activity-detail-meta {
+  display: flex; flex-wrap: wrap; gap: 14px; font-size: 0.82rem; color: var(--text-muted);
+  margin-bottom: 12px;
+}
+.activity-detail-meta span { display: inline-flex; align-items: center; gap: 4px }
+.activity-detail-stats {
+  display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 16px;
+}
+.activity-detail-desc {
+  font-size: 0.88rem; color: var(--text-body); line-height: 1.75;
+  margin: 0 0 16px 0; white-space: pre-wrap;
+}
+.activity-detail-footer {
+  display: flex; gap: 16px; align-items: center; flex-wrap: wrap;
+  padding-top: 14px; border-top: 1px solid rgba(0,0,0,0.06);
+}
+.activity-author {
+  font-size: 0.78rem; color: var(--text-muted);
+  display: inline-flex; align-items: center; gap: 4px;
+}
 
 .post-actions { display: flex; align-items: center; gap: 4px; margin-top: 12px; padding-top: 10px; border-top: 1px solid rgba(0,0,0,0.04) }
 .post-action-btn { display: inline-flex; align-items: center; gap: 5px; padding: 6px 14px; border: none; border-radius: 18px; background: transparent; font-size: 0.8rem; color: var(--text-muted); cursor: pointer; transition: all 0.2s ease }

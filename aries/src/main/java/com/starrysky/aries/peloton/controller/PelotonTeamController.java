@@ -282,6 +282,17 @@ public class PelotonTeamController {
     }
 
     /**
+     * 获取当前用户有待审核申请的车队ID列表
+     *
+     * @param user 当前登录用户
+     * @return 车队ID集合
+     */
+    @GetMapping("/my-pending-applications")
+    public ResponseResult<Set<Long>> getMyPendingTeamIds(@AuthenticationPrincipal User user) {
+        return ResponseResult.success(teamApplicationService.getMyPendingTeamIds(user));
+    }
+
+    /**
      * 同意加入申请
      * <p>
      * 仅队长/管理员可操作。

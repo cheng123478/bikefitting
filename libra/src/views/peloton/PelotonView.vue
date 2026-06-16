@@ -82,6 +82,7 @@
                   </span>
                 </div>
                 <button
+                  v-if="isCreator(team) || !isMemberOf(team)"
                   class="card-join-btn"
                   :class="{ 'is-edit': isCreator(team) }"
                   @click.stop="isCreator(team) ? router.push(`/peloton/create?id=${team.id}`) : openJoinDialog(team)"
@@ -185,6 +186,24 @@
         </div>
       </Transition>
     </Teleport>
+
+    <!-- 已申请提示弹窗 -->
+    <Teleport to="body">
+      <Transition name="join-dialog-fade">
+        <div v-if="showAlreadyApplied" class="join-dialog-overlay" @click.self="showAlreadyApplied = false">
+          <div class="join-dialog-box">
+            <div class="join-dialog-icon" style="color: var(--accent, #f59e0b)">
+              <i class="fas fa-hourglass-half"></i>
+            </div>
+            <h3 class="join-dialog-title">申请已提交</h3>
+            <p class="join-dialog-subtitle">您已向该车队发送过加入申请，请耐心等待车队管理员审核。</p>
+            <div class="join-dialog-actions">
+              <button class="join-btn-confirm" @click="showAlreadyApplied = false">我知道了</button>
+            </div>
+          </div>
+        </div>
+      </Transition>
+    </Teleport>
   </div>
 </template>
 
@@ -192,14 +211,27 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { useUserStore } from '@/stores/user';
-import { getTeamList, getMyTeams, joinTeam } from '@/api/team';
+import { getTeamList, getMyTeams, joinTeam, getMyPendingApplications } from '@/api/team';
 import { showToast } from '@/utils/toast';
 
 const router = useRouter();
 const userStore = useUserStore();
 
 const isCreator = (team) => {
-  return userStore.isLoggedIn && userStore.userInfo && String(team.creatorId) === String(userStore.userInfo.id);
+  return userStore.isLoggedIn && userStore.userInfo && String(team.captainId) === String(userStore.userInfo.id);
+};
+
+// 用户已加入的车队ID集合（用于隐藏申请加入按钮）
+const myTeamIds = ref(new Set());
+const isMemberOf = (team) => myTeamIds.value.has(team.id);
+
+// 加载用户已加入的车队
+const loadMyTeamIds = async () => {
+  if (!userStore.isLoggedIn) { myTeamIds.value = new Set(); return; }
+  try {
+    const data = await getMyTeams();
+    myTeamIds.value = new Set((data || []).map(t => t.id));
+  } catch { myTeamIds.value = new Set(); }
 };
 
 // 分类
@@ -327,8 +359,27 @@ const goToDetail = (id) => {
 };
 
 // 申请加入弹窗
-const openJoinDialog = (team) => {
+const showAlreadyApplied = ref(false)
+const pendingTeamIds = ref(new Set())
+
+const loadPendingIds = async () => {
+  if (!userStore.isLoggedIn) { pendingTeamIds.value = new Set(); return }
+  try {
+    const ids = await getMyPendingApplications()
+    pendingTeamIds.value = new Set(ids || [])
+  } catch { pendingTeamIds.value = new Set() }
+}
+
+const openJoinDialog = async (team) => {
   if (!userStore.isLoggedIn) { showToast('请先登录', 'warning'); userStore.openAuthModal(); return }
+  // 如果还没加载过待审核列表，即时加载
+  if (pendingTeamIds.value.size === 0 && userStore.isLoggedIn) {
+    await loadPendingIds()
+  }
+  if (pendingTeamIds.value.has(team.id)) {
+    showAlreadyApplied.value = true
+    return
+  }
   joiningTeam.value = team;
   joinReason.value = '';
   showJoinDialog.value = true;
@@ -338,6 +389,7 @@ const submitJoin = async () => {
   if (!joinReason.value.trim()) return;
   try {
     await joinTeam(joiningTeam.value.id, joinReason.value.trim());
+    pendingTeamIds.value.add(joiningTeam.value.id)
     showToast('申请已提交，等待管理员审核', 'success');
   } catch (err) {
     showToast(err.message || '提交申请失败', 'error');
@@ -356,6 +408,8 @@ const cancelJoin = () => {
 
 onMounted(() => {
   fetchData();
+  loadMyTeamIds();
+  loadPendingIds();
 });
 
 onUnmounted(() => {
