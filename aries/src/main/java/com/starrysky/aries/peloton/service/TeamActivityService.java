@@ -101,7 +101,7 @@ public class TeamActivityService {
                 .distance(dto.getDistance())
                 .maxParticipants(dto.getMaxParticipants())
                 .description(HtmlUtils.htmlEscape(dto.getDescription().trim()))
-                .coverImage(dto.getCoverImage())
+                .coverImage(StringUtils.hasText(dto.getCoverImage()) ? HtmlUtils.htmlEscape(dto.getCoverImage().trim()) : null)
                 .participantCount(0)
                 .status(TeamActivity.STATUS_ACTIVE)
                 .build();
@@ -136,7 +136,7 @@ public class TeamActivityService {
         }
 
         // 校验权限：发布者本人、队长或管理员
-        assertActivityOperatorOrAdmin(team, activity, user, "仅活动发布者、队长或管理员可编辑活动");
+        assertActivityOperatorOrAdmin(team, activity, user);
 
         // 解析日期和时间
         LocalDate eventDate = LocalDate.parse(dto.getEventDate());
@@ -154,7 +154,7 @@ public class TeamActivityService {
         activity.setDistance(dto.getDistance());
         activity.setMaxParticipants(dto.getMaxParticipants());
         activity.setDescription(HtmlUtils.htmlEscape(dto.getDescription().trim()));
-        activity.setCoverImage(dto.getCoverImage());
+        activity.setCoverImage(StringUtils.hasText(dto.getCoverImage()) ? HtmlUtils.htmlEscape(dto.getCoverImage().trim()) : null);
         activity = teamActivityRepository.save(activity);
 
         log.debug("用户 {} 在车队 {} 中编辑了活动（id={}）", user.getId(), teamId, activityId);
@@ -185,7 +185,7 @@ public class TeamActivityService {
         }
 
         // 校验权限：发布者本人、队长或管理员
-        assertActivityOperatorOrAdmin(team, activity, user, "仅活动发布者、队长或管理员可删除活动");
+        assertActivityOperatorOrAdmin(team, activity, user);
 
         activity.setStatus(TeamActivity.STATUS_DELETED);
         teamActivityRepository.save(activity);
@@ -282,9 +282,8 @@ public class TeamActivityService {
      * @param team     车队实体
      * @param activity 活动实体
      * @param user     当前用户
-     * @param message  权限不足时的错误信息
      */
-    private void assertActivityOperatorOrAdmin(PelotonTeam team, TeamActivity activity, User user, String message) {
+    private void assertActivityOperatorOrAdmin(PelotonTeam team, TeamActivity activity, User user) {
         // 活动发布者本人
         if (Objects.equals(activity.getAuthorId(), user.getId())) {
             return;

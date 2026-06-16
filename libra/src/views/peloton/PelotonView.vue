@@ -237,7 +237,6 @@ const loadMyTeamIds = async () => {
 // 分类
 const categories = [
   { key: 'all', label: '全部车队', icon: 'fas fa-th-large' },
-  { key: 'hot', label: '热门车队', icon: 'fas fa-fire' },
   { key: 'mine', label: '我的车队', icon: 'fas fa-star' }
 ];
 

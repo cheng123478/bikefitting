@@ -29,10 +29,10 @@
           <router-link to="/showroom" class="nav-link" active-class="active-link">单车展厅</router-link>
         </li>
         <li @click="closeMobileMenu">
-          <router-link to="/lab" class="nav-link" :class="{ 'active-link': $route.path.startsWith('/lab') }">实验室</router-link>
+          <router-link to="/peloton" class="nav-link" active-class="active-link">破风社</router-link>
         </li>
         <li @click="closeMobileMenu">
-          <router-link to="/peloton" class="nav-link" active-class="active-link">破风社</router-link>
+          <router-link to="/lab" class="nav-link" :class="{ 'active-link': $route.path.startsWith('/lab') }">实验室</router-link>
         </li>
 
         <!-- 4. 登录/用户信息区域 (保持原逻辑，优化样式) -->
