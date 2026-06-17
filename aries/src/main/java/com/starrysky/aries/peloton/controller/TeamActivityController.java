@@ -2,7 +2,7 @@ package com.starrysky.aries.peloton.controller;
 
 import com.starrysky.aries.entity.User;
 import com.starrysky.aries.peloton.schema.CreateActivityDTO;
-import com.starrysky.aries.peloton.schema.PelotonPageResponse;
+import com.starrysky.aries.common.schema.PageResponse;
 import com.starrysky.aries.peloton.schema.TeamActivityVO;
 import com.starrysky.aries.peloton.service.TeamActivityService;
 import com.starrysky.aries.util.ResponseResult;
@@ -94,7 +94,7 @@ public class TeamActivityController {
      * @return 活动分页列表
      */
     @GetMapping("/{teamId}/activities")
-    public ResponseResult<PelotonPageResponse<TeamActivityVO>> getActivities(
+    public ResponseResult<PageResponse<TeamActivityVO>> getActivities(
             @PathVariable("teamId") Long teamId,
             @RequestParam(value = "page", required = false) Integer page,
             @RequestParam(value = "size", required = false) Integer size) {

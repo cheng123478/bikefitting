@@ -63,6 +63,7 @@
                   </li>
                   <li @click="handleMenuClick('/messages')">
                     <i class="fas fa-bell"></i> 消息中心
+                    <span v-if="unreadTotal > 0" class="unread-badge">{{ unreadTotal > 99 ? '99+' : unreadTotal }}</span>
                   </li>
                   <div class="divider"></div>
                   <li @click="handleLogout" class="logout-item">
@@ -83,6 +84,7 @@ import { ref, onMounted, onUnmounted } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import { useUserStore } from '@/stores/user';
 import { logout } from "@/api/auth.js";
+import { getUnreadCount } from '@/api/notification';
 import { showToast, showConfirm } from "@/utils/toast.js";
 import { PROJECT_CONFIG } from '@/config/constants';
 
@@ -95,6 +97,7 @@ const defaultAvatar = '/src/assets/image/default-avatar.png';
 const isMobileMenuOpen = ref(false);
 const isScrolled = ref(false);
 const isUserMenuOpen = ref(false);
+const unreadTotal = ref(0);
 
 const openAuthModal = () => { closeMobileMenu(); emit('open-auth'); };
 const toggleMobileMenu = () => isMobileMenuOpen.value = !isMobileMenuOpen.value;
@@ -129,7 +132,19 @@ onMounted(() => {
   document.addEventListener('click', (e) => {
     if (!e.target.closest('.user-dropdown-wrapper')) closeDropdown();
   });
+  // 登录后加载未读消息数
+  if (userStore.isLoggedIn) fetchUnread();
 });
+
+/** 获取未读消息总数 */
+const fetchUnread = async () => {
+  try {
+    const res = await getUnreadCount();
+    unreadTotal.value = res?.total || 0;
+  } catch {
+    // 静默失败
+  }
+};
 onUnmounted(() => window.removeEventListener('scroll', handleScroll));
 </script>
 
@@ -256,6 +271,14 @@ onUnmounted(() => window.removeEventListener('scroll', handleScroll));
   border-radius: var(--radius-sm); cursor: pointer; transition: 0.2s;
 }
 .menu-list li:hover { background: var(--bg-page); color: var(--primary-color); }
+.menu-list li { position: relative; }
+.unread-badge {
+  position: absolute; right: 12px; top: 50%; transform: translateY(-50%);
+  background: #e74c3c; color: #fff;
+  font-size: 0.62rem; font-weight: 700;
+  min-width: 18px; height: 18px; line-height: 18px;
+  padding: 0 5px; border-radius: 9px; text-align: center;
+}
 .divider { height: 1px; background: rgba(0, 0, 0, 0.05); margin: 6px 0; }
 .logout-item { color: var(--danger-color) !important; }
 

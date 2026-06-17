@@ -10,7 +10,7 @@ import com.starrysky.aries.exception.BizException;
 import com.starrysky.aries.peloton.repository.PelotonTeamRepository;
 import com.starrysky.aries.peloton.repository.TeamGarageRepository;
 import com.starrysky.aries.peloton.repository.TeamMemberRepository;
-import com.starrysky.aries.peloton.schema.PelotonPageResponse;
+import com.starrysky.aries.common.schema.PageResponse;
 import com.starrysky.aries.peloton.schema.TeamGarageVO;
 import com.starrysky.aries.redis.RedisConstant;
 import com.starrysky.aries.user.repository.UserRepository;
@@ -77,7 +77,7 @@ public class TeamGarageService {
      * @return 车库列表（含 total）
      */
     @Cacheable(value = RedisConstant.PELOTON_TEAMS_GARAGE, key = "#teamId")
-    public PelotonPageResponse<TeamGarageVO> getTeamGarage(Long teamId) {
+    public PageResponse<TeamGarageVO> getTeamGarage(Long teamId) {
         pelotonTeamRepository.findById(teamId)
                 .orElseThrow(() -> new BizException(404, "车队不存在"));
 
@@ -85,7 +85,7 @@ public class TeamGarageService {
                 .findByTeamIdAndStatusOrderByCreatedAtDesc(teamId, TeamGarage.STATUS_ACTIVE);
 
         if (records.isEmpty()) {
-            return PelotonPageResponse.<TeamGarageVO>builder()
+            return PageResponse.<TeamGarageVO>builder()
                     .records(Collections.emptyList())
                     .total(0L)
                     .page(1)
@@ -109,7 +109,7 @@ public class TeamGarageService {
                 .collect(Collectors.toList());
 
         int count = voList.size();
-        return PelotonPageResponse.<TeamGarageVO>builder()
+        return PageResponse.<TeamGarageVO>builder()
                 .records(voList)
                 .total((long) count)
                 .page(1)

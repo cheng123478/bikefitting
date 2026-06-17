@@ -1,13 +1,17 @@
 package com.starrysky.aries.peloton.service;
 
 import com.starrysky.aries.entity.PelotonTeam;
+import com.starrysky.aries.entity.TeamMember;
 import com.starrysky.aries.entity.TeamNotice;
 import com.starrysky.aries.entity.User;
 import com.starrysky.aries.exception.BizException;
+import com.starrysky.aries.notification.enums.NotificationType;
+import com.starrysky.aries.notification.service.NotificationService;
 import com.starrysky.aries.peloton.repository.PelotonTeamRepository;
+import com.starrysky.aries.peloton.repository.TeamMemberRepository;
 import com.starrysky.aries.peloton.repository.TeamNoticeRepository;
 import com.starrysky.aries.peloton.schema.CreateNoticeDTO;
-import com.starrysky.aries.peloton.schema.PelotonPageResponse;
+import com.starrysky.aries.common.schema.PageResponse;
 import com.starrysky.aries.peloton.schema.TeamNoticeVO;
 import com.starrysky.aries.user.repository.UserRepository;
 import jakarta.annotation.Resource;
@@ -56,10 +60,16 @@ public class TeamNoticeService {
     private PelotonTeamRepository pelotonTeamRepository;
 
     @Resource
+    private TeamMemberRepository teamMemberRepository;
+
+    @Resource
     private UserRepository userRepository;
 
     @Resource
     private TeamMemberService teamMemberService;
+
+    @Resource
+    private NotificationService notificationService;
 
     /**
      * 发布公告
@@ -88,6 +98,19 @@ public class TeamNoticeService {
                 .status(TeamNotice.STATUS_ACTIVE)
                 .build();
         notice = teamNoticeRepository.save(notice);
+
+        // 通知所有队内成员：新公告发布（排除发布者自己）
+        List<Long> memberIds = teamMemberRepository
+                .findByTeamIdAndStatusOrderByJoinDateAsc(teamId, TeamMember.STATUS_ACTIVE)
+                .stream()
+                .map(TeamMember::getUserId)
+                .filter(uid -> !uid.equals(user.getId()))
+                .collect(Collectors.toList());
+        notificationService.sendBatch(memberIds,
+                NotificationType.NEW_NOTICE,
+                "新公告发布",
+                "管理员发布了新公告「" + notice.getTitle() + "」",
+                teamId);
 
         log.debug("用户 {} 在车队 {} 中发布了公告（id={}）", user.getId(), teamId, notice.getId());
         return convertToVO(notice, user);
@@ -124,6 +147,19 @@ public class TeamNoticeService {
         notice.setTitle(HtmlUtils.htmlEscape(dto.getTitle().trim()));
         notice.setContent(HtmlUtils.htmlEscape(dto.getContent().trim()));
         notice = teamNoticeRepository.save(notice);
+
+        // 通知所有队内成员：公告已编辑（排除编辑者自己）
+        List<Long> memberIds = teamMemberRepository
+                .findByTeamIdAndStatusOrderByJoinDateAsc(teamId, TeamMember.STATUS_ACTIVE)
+                .stream()
+                .map(TeamMember::getUserId)
+                .filter(uid -> !uid.equals(user.getId()))
+                .collect(Collectors.toList());
+        notificationService.sendBatch(memberIds,
+                NotificationType.EDIT_NOTICE,
+                "公告已编辑",
+                "公告「" + notice.getTitle() + "」已更新内容",
+                teamId);
 
         log.debug("用户 {} 在车队 {} 中编辑了公告（id={}）", user.getId(), teamId, noticeId);
         User author = userRepository.findById(notice.getAuthorId()).orElse(null);
@@ -173,7 +209,7 @@ public class TeamNoticeService {
      * @return 公告分页列表
      */
     @Transactional(readOnly = true)
-    public PelotonPageResponse<TeamNoticeVO> getNoticeBoard(Long teamId, Integer page, Integer size, User user) {
+    public PageResponse<TeamNoticeVO> getNoticeBoard(Long teamId, Integer page, Integer size, User user) {
         // C3: 添加成员身份校验，仅队内成员可查看公告栏
         PelotonTeam team = pelotonTeamRepository.findById(teamId)
                 .orElseThrow(() -> new BizException(404, "车队不存在"));
@@ -198,7 +234,7 @@ public class TeamNoticeService {
                 .map(n -> convertToVO(n, userMap.get(n.getAuthorId())))
                 .collect(Collectors.toList());
 
-        return PelotonPageResponse.<TeamNoticeVO>builder()
+        return PageResponse.<TeamNoticeVO>builder()
                 .records(records)
                 .total(noticePage.getTotalElements())
                 .page(currentPage)

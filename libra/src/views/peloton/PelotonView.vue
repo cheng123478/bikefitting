@@ -211,7 +211,7 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { useUserStore } from '@/stores/user';
-import { getTeamList, getMyTeams, joinTeam, getMyPendingApplications } from '@/api/team';
+import { getTeamList, getMyTeams, joinTeam, getMyPendingApplications, getTeamStats } from '@/api/team';
 import { showToast } from '@/utils/toast';
 
 const router = useRouter();
@@ -250,10 +250,21 @@ const total = ref(0);
 
 let searchTimer = null;
 
-// 统计数据（模拟）
-const totalTeams = ref(2186);
-const totalMembers = ref(56840);
-const totalCities = ref(32);
+// 统计数据
+const totalTeams = ref(0);
+const totalMembers = ref(0);
+const totalCities = ref(0);
+
+const loadStats = async () => {
+  try {
+    const data = await getTeamStats();
+    if (data) {
+      totalTeams.value = data.totalTeams || 0;
+      totalMembers.value = data.totalMembers || 0;
+      totalCities.value = data.totalCities || 0;
+    }
+  } catch { /* 静默失败 */ }
+};
 
 // 加入车队弹窗
 const showJoinDialog = ref(false);
@@ -409,6 +420,7 @@ onMounted(() => {
   fetchData();
   loadMyTeamIds();
   loadPendingIds();
+  loadStats();
 });
 
 onUnmounted(() => {

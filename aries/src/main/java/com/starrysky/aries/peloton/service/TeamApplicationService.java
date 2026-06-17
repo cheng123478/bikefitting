@@ -5,6 +5,8 @@ import com.starrysky.aries.entity.TeamJoinApplication;
 import com.starrysky.aries.entity.TeamMember;
 import com.starrysky.aries.entity.User;
 import com.starrysky.aries.exception.BizException;
+import com.starrysky.aries.notification.enums.NotificationType;
+import com.starrysky.aries.notification.service.NotificationService;
 import com.starrysky.aries.peloton.repository.PelotonTeamRepository;
 import com.starrysky.aries.peloton.repository.TeamJoinApplicationRepository;
 import com.starrysky.aries.peloton.repository.TeamMemberRepository;
@@ -55,6 +57,9 @@ public class TeamApplicationService {
 
     @Resource
     private CacheManager cacheManager;
+
+    @Resource
+    private NotificationService notificationService;
 
     /**
      * 获取车队待审核申请列表（仅队长/管理员可查看）
@@ -112,6 +117,21 @@ public class TeamApplicationService {
                 .status(TeamJoinApplication.STATUS_PENDING)
                 .build();
         applicationRepository.save(application);
+
+        // 通知队长和管理员：有新的入队申请
+        List<Long> adminIds = teamMemberRepository
+                .findByTeamIdAndStatusOrderByJoinDateAsc(teamId, TeamMember.STATUS_ACTIVE)
+                .stream()
+                .filter(m -> m.getRole() == TeamMember.ROLE_CAPTAIN || m.getRole() == TeamMember.ROLE_ADMIN)
+                .map(TeamMember::getUserId)
+                .collect(Collectors.toList());
+        String applicantName = user.getName() != null ? user.getName() : "某用户";
+        log.info("入队申请通知: teamId={}, adminIds={}, applicantName={}", teamId, adminIds, applicantName);
+        notificationService.sendBatch(adminIds,
+                NotificationType.JOIN_APPLY,
+                "新入队申请",
+                "「" + applicantName + "」申请加入车队，请审核",
+                teamId);
     }
 
     /**
@@ -161,6 +181,29 @@ public class TeamApplicationService {
 
         teamMemberService.incrementMemberCount(team.getId());
         evictApprovalCaches(team.getId(), application.getApplicantId());
+
+        // 通知申请人：申请已通过
+        notificationService.send(application.getApplicantId(),
+                NotificationType.JOIN_APPROVED,
+                "申请已通过",
+                "您加入「" + team.getName() + "」的申请已通过，快去看看吧！",
+                team.getId());
+
+        // 通知所有队内成员：新成员加入（排除新成员自己）
+        User applicant = userRepository.findById(application.getApplicantId()).orElse(null);
+        String applicantName = applicant != null ? applicant.getName() : "新成员";
+        List<Long> memberIds = teamMemberRepository
+                .findByTeamIdAndStatusOrderByJoinDateAsc(team.getId(), TeamMember.STATUS_ACTIVE)
+                .stream()
+                .map(TeamMember::getUserId)
+                .filter(uid -> !uid.equals(application.getApplicantId()))
+                .collect(Collectors.toList());
+        notificationService.sendBatch(memberIds,
+                NotificationType.MEMBER_JOIN,
+                "新成员加入",
+                "「" + applicantName + "」已加入车队，一起骑行吧！",
+                team.getId());
+
         log.info("用户 {} 审批通过申请 {}，申请人 {} 加入车队 {}",
                 admin.getId(), applicationId, application.getApplicantId(), team.getId());
     }
@@ -186,6 +229,14 @@ public class TeamApplicationService {
         application.setStatus(TeamJoinApplication.STATUS_REJECTED);
         application.setReviewerId(admin.getId());
         applicationRepository.save(application);
+
+        // 通知申请人：申请已被拒绝
+        notificationService.send(application.getApplicantId(),
+                NotificationType.JOIN_REJECTED,
+                "申请被拒绝",
+                "您加入「" + team.getName() + "」的申请已被拒绝",
+                null);
+
         log.info("用户 {} 拒绝了加入申请 {}（车队 {}）", admin.getId(), applicationId, team.getId());
     }
 

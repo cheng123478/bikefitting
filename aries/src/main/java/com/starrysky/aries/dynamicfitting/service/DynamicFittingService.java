@@ -11,6 +11,8 @@ import com.starrysky.aries.dynamicfitting.repository.DynamicFittingSnapshotRepos
 import com.starrysky.aries.dynamicfitting.schema.*;
 import com.starrysky.aries.entity.*;
 import com.starrysky.aries.exception.BizException;
+import com.starrysky.aries.notification.enums.NotificationType;
+import com.starrysky.aries.notification.service.NotificationService;
 import com.starrysky.aries.userbike.repository.UserBikeRepository;
 import com.starrysky.aries.userbody.repository.UserBodyRepository;
 import com.starrysky.aries.util.FittingStatus;
@@ -64,6 +66,9 @@ public class DynamicFittingService {
     private DynamicFittingAlgorithm fittingAlgorithm;
     @Resource
     private PedalingSimulationAlgorithm pedalingSimulationAlgorithm;
+
+    @Resource
+    private NotificationService notificationService;
 
     /**
      * 保存Fitting会话
@@ -225,6 +230,15 @@ public class DynamicFittingService {
             session.setStatus(FittingStatus.COMPLETED.getCode());
             sessionRepository.save(session);
             log.info("会话分析完成: {}", sessionId);
+
+            // 5. 通知用户：Fitting报告已生成
+            String bikeName = session.getUserBike() != null && session.getUserBike().getBikeModel() != null
+                    ? session.getUserBike().getBikeModel().getModel() : "您的单车";
+            notificationService.send(userId,
+                    NotificationType.FITTING_COMPLETE,
+                    "Fitting报告已生成",
+                    "「" + bikeName + "」的动态Fitting报告已生成，请前往实验室查看",
+                    null);
 
         } catch (Exception e) {
             log.error("会话后台分析失败: {}", sessionId, e);

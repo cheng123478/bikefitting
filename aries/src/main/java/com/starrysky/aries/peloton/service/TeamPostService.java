@@ -1,7 +1,10 @@
 package com.starrysky.aries.peloton.service;
 
 import com.starrysky.aries.entity.*;
+import com.starrysky.aries.common.schema.PageResponse;
 import com.starrysky.aries.exception.BizException;
+import com.starrysky.aries.notification.enums.NotificationType;
+import com.starrysky.aries.notification.service.NotificationService;
 import com.starrysky.aries.peloton.repository.PelotonTeamRepository;
 import com.starrysky.aries.peloton.repository.TeamMemberRepository;
 import com.starrysky.aries.peloton.repository.TeamPostInteractionRepository;
@@ -61,6 +64,9 @@ public class TeamPostService {
 
     @Resource
     private UserRepository userRepository;
+
+    @Resource
+    private NotificationService notificationService;
 
     /**
      * 发布动态
@@ -122,7 +128,7 @@ public class TeamPostService {
      * @return 动态分页列表
      */
     @Transactional(readOnly = true)
-    public PelotonPageResponse<TeamPostVO> getPosts(Long teamId, Integer page, Integer size, User user) {
+    public PageResponse<TeamPostVO> getPosts(Long teamId, Integer page, Integer size, User user) {
         // 校验车队存在 & 当前用户是队内成员
         assertTeamMember(teamId, user, "仅队内成员可查看动态");
 
@@ -135,7 +141,7 @@ public class TeamPostService {
 
         List<TeamPost> posts = postPage.getContent();
         if (posts.isEmpty()) {
-            return PelotonPageResponse.<TeamPostVO>builder()
+            return PageResponse.<TeamPostVO>builder()
                     .records(Collections.emptyList())
                     .total(postPage.getTotalElements())
                     .page(currentPage)
@@ -190,7 +196,7 @@ public class TeamPostService {
                 })
                 .collect(Collectors.toList());
 
-        return PelotonPageResponse.<TeamPostVO>builder()
+        return PageResponse.<TeamPostVO>builder()
                 .records(records)
                 .total(postPage.getTotalElements())
                 .page(currentPage)
@@ -274,6 +280,19 @@ public class TeamPostService {
             interactionRepository.save(like);
             teamPostRepository.incrementLikeCount(postId);
             log.debug("用户 {} 对动态 {} 点赞", user.getId(), postId);
+
+            // 通知动态作者：获得点赞（排除自己给自己点赞的情况）
+            if (!Objects.equals(post.getAuthorId(), user.getId())) {
+                String likerName = user.getName() != null ? user.getName() : "某用户";
+                String postPreview = post.getContent() != null && post.getContent().length() > 20
+                        ? post.getContent().substring(0, 20) + "..." : (post.getContent() != null ? post.getContent() : "图片动态");
+                notificationService.send(post.getAuthorId(),
+                        NotificationType.LIKE,
+                        "获得点赞",
+                        "「" + likerName + "」赞了您的动态「" + postPreview + "」",
+                        post.getTeamId());
+            }
+
             return true;
         }
     }
@@ -316,6 +335,19 @@ public class TeamPostService {
         teamPostRepository.incrementCommentCount(postId);
 
         log.debug("用户 {} 在动态 {} 下发表了评论（id={}）", user.getId(), postId, comment.getId());
+
+        // 通知动态作者：新评论（排除自己评论自己的情况）
+        if (!Objects.equals(post.getAuthorId(), user.getId())) {
+            String commenterName = user.getName() != null ? user.getName() : "某用户";
+            String commentPreview = safeContent.length() > 20
+                    ? safeContent.substring(0, 20) + "..." : safeContent;
+            notificationService.send(post.getAuthorId(),
+                    NotificationType.COMMENT,
+                    "新评论",
+                    "「" + commenterName + "」评论了您的动态：「" + commentPreview + "」",
+                    post.getTeamId());
+        }
+
         return convertCommentToVO(comment, user);
     }
 

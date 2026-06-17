@@ -1,5 +1,6 @@
 package com.starrysky.aries.peloton.controller;
 
+import com.starrysky.aries.common.schema.PageResponse;
 import com.starrysky.aries.entity.User;
 import com.starrysky.aries.peloton.schema.*;
 import com.starrysky.aries.peloton.service.PelotonTeamService;
@@ -76,8 +77,20 @@ public class PelotonTeamController {
      * @return 分页车队列表
      */
     @GetMapping("/list")
-    public ResponseResult<PelotonPageResponse<PelotonTeamVO>> getTeamList(@Valid PelotonTeamQueryDTO queryDTO) {
+    public ResponseResult<PageResponse<PelotonTeamVO>> getTeamList(@Valid PelotonTeamQueryDTO queryDTO) {
         return ResponseResult.success(pelotonTeamService.getTeamList(queryDTO));
+    }
+
+    /**
+     * 获取破风社首页统计数据（车队总数、骑友总数、覆盖城市数）
+     * <p>
+     * 该接口无需登录即可访问。
+     *
+     * @return 统计数据
+     */
+    @GetMapping("/stats")
+    public ResponseResult<PelotonStatsVO> getStats() {
+        return ResponseResult.success(pelotonTeamService.getStats());
     }
 
     /**
@@ -191,7 +204,7 @@ public class PelotonTeamController {
      * @return 成员分页列表
      */
     @GetMapping("/{teamId}/members")
-    public ResponseResult<PelotonPageResponse<PelotonTeamMemberVO>> getTeamMembers(
+    public ResponseResult<PageResponse<PelotonTeamMemberVO>> getTeamMembers(
             @PathVariable("teamId") Long teamId,
             @Valid TeamMemberQueryDTO queryDTO) {
         return ResponseResult.success(pelotonTeamService.getTeamMembers(teamId, queryDTO));
@@ -206,7 +219,7 @@ public class PelotonTeamController {
      * @return 车库列表（含 records 和 total）
      */
     @GetMapping("/{teamId}/garage")
-    public ResponseResult<PelotonPageResponse<TeamGarageVO>> getTeamGarage(@PathVariable("teamId") Long teamId) {
+    public ResponseResult<PageResponse<TeamGarageVO>> getTeamGarage(@PathVariable("teamId") Long teamId) {
         return ResponseResult.success(teamGarageService.getTeamGarage(teamId));
     }
 

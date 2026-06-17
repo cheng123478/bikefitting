@@ -2,7 +2,7 @@ package com.starrysky.aries.peloton.controller;
 
 import com.starrysky.aries.entity.User;
 import com.starrysky.aries.peloton.schema.CreateNoticeDTO;
-import com.starrysky.aries.peloton.schema.PelotonPageResponse;
+import com.starrysky.aries.common.schema.PageResponse;
 import com.starrysky.aries.peloton.schema.TeamNoticeVO;
 import com.starrysky.aries.peloton.service.TeamNoticeService;
 import com.starrysky.aries.util.ResponseResult;
@@ -101,7 +101,7 @@ public class TeamNoticeController {
      * @return 公告分页列表
      */
     @GetMapping("/{teamId}/notices")
-    public ResponseResult<PelotonPageResponse<TeamNoticeVO>> getNoticeBoard(
+    public ResponseResult<PageResponse<TeamNoticeVO>> getNoticeBoard(
             @PathVariable("teamId") Long teamId,
             @RequestParam(value = "page", required = false) Integer page,
             @RequestParam(value = "size", required = false) Integer size,

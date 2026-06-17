@@ -30,7 +30,7 @@ public class CreateActivityDTO {
     private String eventDate;
 
     /** 开始时间（可选，格式: HH:mm） */
-    @Pattern(regexp = "\\d{2}:\\d{2}", message = "时间格式应为 HH:mm")
+    @Pattern(regexp = "\\d{2}:\\d{2}(:\\d{2})?", message = "时间格式应为 HH:mm")
     private String eventTime;
 
     /** 活动地点（必填） */

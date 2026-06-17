@@ -123,4 +123,15 @@ public interface PelotonTeamRepository extends JpaRepository<PelotonTeam, Long> 
     @Modifying
     @Query("UPDATE PelotonTeam t SET t.memberCount = GREATEST(t.memberCount - 1, 0) WHERE t.id = :teamId")
     void decrementMemberCount(@Param("teamId") Long teamId);
+
+    /**
+     * 统计车队总数
+     */
+    long count();
+
+    /**
+     * 统计不重复的城市数量（忽略 null 和空串）
+     */
+    @Query("SELECT COUNT(DISTINCT t.location) FROM PelotonTeam t WHERE t.location IS NOT NULL AND t.location <> ''")
+    long countDistinctCities();
 }

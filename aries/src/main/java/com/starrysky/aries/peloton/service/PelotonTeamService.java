@@ -4,6 +4,8 @@ import com.starrysky.aries.entity.PelotonTeam;
 import com.starrysky.aries.entity.TeamMember;
 import com.starrysky.aries.entity.User;
 import com.starrysky.aries.exception.BizException;
+import com.starrysky.aries.notification.enums.NotificationType;
+import com.starrysky.aries.notification.service.NotificationService;
 import com.starrysky.aries.peloton.repository.TeamMemberRepository;
 import com.starrysky.aries.peloton.repository.PelotonTeamRepository;
 import com.starrysky.aries.peloton.repository.TeamGarageRepository;
@@ -12,7 +14,8 @@ import com.starrysky.aries.peloton.repository.TeamNoticeRepository;
 import com.starrysky.aries.peloton.repository.TeamPostRepository;
 import com.starrysky.aries.peloton.repository.TeamPostInteractionRepository;
 import com.starrysky.aries.peloton.schema.CreateTeamDTO;
-import com.starrysky.aries.peloton.schema.PelotonPageResponse;
+import com.starrysky.aries.common.schema.PageResponse;
+import com.starrysky.aries.peloton.schema.PelotonStatsVO;
 import com.starrysky.aries.peloton.schema.PelotonTeamMemberVO;
 import com.starrysky.aries.peloton.schema.PelotonTeamQueryDTO;
 import com.starrysky.aries.peloton.schema.PelotonTeamVO;
@@ -83,6 +86,9 @@ public class PelotonTeamService {
     @Resource
     private TeamMemberService teamMemberService;
 
+    @Resource
+    private NotificationService notificationService;
+
     /**
      * 获取车队列表（支持分类筛选、关键词搜索、分页）
      *
@@ -90,7 +96,7 @@ public class PelotonTeamService {
      * @return 分页车队列表
      */
     @Cacheable(value = RedisConstant.PELOTON_TEAMS_LIST, key = "#queryDTO.page + ':' + #queryDTO.size + ':' + #queryDTO.keyword + ':' + #queryDTO.category")
-    public PelotonPageResponse<PelotonTeamVO> getTeamList(PelotonTeamQueryDTO queryDTO) {
+    public PageResponse<PelotonTeamVO> getTeamList(PelotonTeamQueryDTO queryDTO) {
         int page = queryDTO.getPage();
         int size = queryDTO.getSize();
         PageRequest pageRequest = PageRequest.of(Math.max(page - 1, 0), size);
@@ -114,12 +120,30 @@ public class PelotonTeamService {
                 .map(this::convertToVO)
                 .collect(Collectors.toList());
 
-        return PelotonPageResponse.<PelotonTeamVO>builder()
+        return PageResponse.<PelotonTeamVO>builder()
                 .records(records)
                 .total(teamPage.getTotalElements())
                 .page(page)
                 .size(size)
                 .pages(teamPage.getTotalPages())
+                .build();
+    }
+
+    /**
+     * 获取破风社首页统计数据（车队总数、骑友总数、覆盖城市数）
+     *
+     * @return 统计信息
+     */
+    @Transactional(readOnly = true)
+    public PelotonStatsVO getStats() {
+        long totalTeams = pelotonTeamRepository.count();
+        long totalMembers = teamMemberRepository.countDistinctActiveMembers(TeamMember.STATUS_ACTIVE);
+        long totalCities = pelotonTeamRepository.countDistinctCities();
+
+        return PelotonStatsVO.builder()
+                .totalTeams(totalTeams)
+                .totalMembers(totalMembers)
+                .totalCities(totalCities)
                 .build();
     }
 
@@ -188,7 +212,8 @@ public class PelotonTeamService {
     @Transactional(rollbackFor = Exception.class)
     @Caching(evict = {
             @CacheEvict(value = RedisConstant.PELOTON_TEAMS_DETAIL, key = "#teamId"),
-            @CacheEvict(value = RedisConstant.PELOTON_TEAMS_MY, allEntries = true)
+            @CacheEvict(value = RedisConstant.PELOTON_TEAMS_MY, allEntries = true),
+            @CacheEvict(value = RedisConstant.PELOTON_TEAMS_LIST, allEntries = true)
     })
     public PelotonTeamVO updateTeam(Long teamId, CreateTeamDTO dto, User user) {
         PelotonTeam team = pelotonTeamRepository.findById(teamId)
@@ -251,7 +276,7 @@ public class PelotonTeamService {
      * @return 成员分页列表
      */
     @Cacheable(value = RedisConstant.PELOTON_TEAMS_MEMBERS, key = "#teamId + ':' + #queryDTO.page + ':' + #queryDTO.size + ':' + #queryDTO.keyword")
-    public PelotonPageResponse<PelotonTeamMemberVO> getTeamMembers(Long teamId, TeamMemberQueryDTO queryDTO) {
+    public PageResponse<PelotonTeamMemberVO> getTeamMembers(Long teamId, TeamMemberQueryDTO queryDTO) {
         pelotonTeamRepository.findById(teamId)
                 .orElseThrow(() -> new BizException(404, "车队不存在"));
 
@@ -273,7 +298,7 @@ public class PelotonTeamService {
                 .map(m -> buildMemberVO(m, userMap.get(m.getUserId())))
                 .collect(Collectors.toList());
 
-        return PelotonPageResponse.<PelotonTeamMemberVO>builder()
+        return PageResponse.<PelotonTeamMemberVO>builder()
                 .records(records)
                 .total(memberPage.getTotalElements())
                 .page(page)
@@ -302,6 +327,13 @@ public class PelotonTeamService {
                 .orElseThrow(() -> new BizException(404, "车队不存在"));
         teamMemberService.assertCreator(team, user, "仅车队创建者可解散车队");
 
+        // 先查询所有成员ID（删除前获取，用于通知）
+        List<Long> memberIds = teamMemberRepository
+                .findByTeamIdAndStatusOrderByJoinDateAsc(teamId, TeamMember.STATUS_ACTIVE)
+                .stream()
+                .map(TeamMember::getUserId)
+                .collect(Collectors.toList());
+
         applicationRepository.deleteByTeamId(teamId);
         teamMemberRepository.deleteByTeamId(teamId);
         teamGarageRepository.deleteByTeamId(teamId);
@@ -309,6 +341,17 @@ public class PelotonTeamService {
         teamPostRepository.deleteByTeamId(teamId);
         teamPostInteractionRepository.deleteByTeamId(teamId);
         pelotonTeamRepository.delete(team);
+
+        // 通知所有成员：车队已解散（排除操作者自己）
+        List<Long> notifyIds = memberIds.stream()
+                .filter(uid -> !uid.equals(user.getId()))
+                .collect(Collectors.toList());
+        notificationService.sendBatch(notifyIds,
+                NotificationType.TEAM_DISBANDED,
+                "车队已解散",
+                "您所在的「" + team.getName() + "」车队已被队长解散",
+                null);
+
         log.info("用户 {} 解散了车队 {}（id={}）", user.getId(), team.getName(), teamId);
     }
 

@@ -73,6 +73,12 @@ public interface TeamMemberRepository extends JpaRepository<TeamMember, Long> {
     long countByTeamIdAndStatus(Long teamId, Integer status);
 
     /**
+     * 统计所有车队中不重复的活跃用户数（已加入车队的骑友总数）
+     */
+    @Query("SELECT COUNT(DISTINCT m.userId) FROM TeamMember m WHERE m.status = :status")
+    long countDistinctActiveMembers(@Param("status") Integer status);
+
+    /**
      * 批量将某车队所有活跃成员标记为已退出（解散车队时使用）
      */
     @Modifying

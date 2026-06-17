@@ -46,7 +46,7 @@
               <span class="msg-team" v-if="msg.teamName">
                 <i class="fas fa-flag"></i> {{ msg.teamName }}
               </span>
-              <span class="msg-time"><i class="far fa-clock"></i> {{ msg.time }}</span>
+              <span class="msg-time"><i class="far fa-clock"></i> {{ formatTime(msg.createdAt) }}</span>
             </div>
           </div>
           <div class="msg-actions">
@@ -68,9 +68,15 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { showToast } from '@/utils/toast'
+import {
+  getNotifications,
+  getUnreadCount,
+  markAsRead as markAsReadApi,
+  markAllAsRead as markAllAsReadApi
+} from '@/api/notification'
 
 const router = useRouter()
 
@@ -81,130 +87,113 @@ const categories = [
   { key: 'system', label: '系统通知', icon: 'fas fa-bell', count: 0 }
 ]
 const activeCategory = ref('all')
+const messages = ref([])
+const loading = ref(false)
 
-// Mock 消息数据
-const messages = ref([
-  {
-    id: 1, type: 'new-activity', category: 'team', read: false,
-    title: '新活动发布',
-    content: '队长「破风者」发布了新活动「周末环湖骑行」，快来报名吧！',
-    teamName: '破风骑行团', time: '10分钟前',
-    link: '/peloton/1'
-  },
-  {
-    id: 2, type: 'member-join', category: 'team', read: false,
-    title: '新成员加入',
-    content: '「追风少年」已加入车队，一起骑行吧！',
-    teamName: '破风骑行团', time: '30分钟前',
-    link: '/peloton/1'
-  },
-  {
-    id: 3, type: 'member-promote', category: 'team', read: false,
-    title: '管理员任命',
-    content: '您已被提升为「破风骑行团」管理员',
-    teamName: '破风骑行团', time: '1小时前',
-    link: '/peloton/1'
-  },
-  {
-    id: 4, type: 'member-leave', category: 'team', read: true,
-    title: '成员离开',
-    content: '「夜骑达人」已退出车队',
-    teamName: '破风骑行团', time: '2小时前',
-    link: '/peloton/1'
-  },
-  {
-    id: 5, type: 'new-notice', category: 'team', read: false,
-    title: '新公告发布',
-    content: '管理员发布了新公告「赛季训练计划调整通知」',
-    teamName: '破风骑行团', time: '3小时前',
-    link: '/peloton/1'
-  },
-  {
-    id: 6, type: 'edit-notice', category: 'team', read: true,
-    title: '公告已编辑',
-    content: '公告「周末活动安排」已更新内容',
-    teamName: '破风骑行团', time: '5小时前',
-    link: '/peloton/1'
-  },
-  {
-    id: 7, type: 'like', category: 'interact', read: false,
-    title: '获得点赞',
-    content: '「骑行狂人」赞了您的动态「今天完成了100公里挑战」',
-    teamName: '破风骑行团', time: '6小时前',
-    link: '/peloton/1'
-  },
-  {
-    id: 8, type: 'comment', category: 'interact', read: false,
-    title: '新评论',
-    content: '「爬坡手」评论了您的动态：「太厉害了，下次一起骑！」',
-    teamName: '破风骑行团', time: '8小时前',
-    link: '/peloton/1'
-  },
-  {
-    id: 9, type: 'system', category: 'system', read: true,
-    title: '系统通知',
-    content: '您的Fitting报告已生成，请前往实验室查看',
-    teamName: '', time: '1天前',
-    link: '/lab'
-  },
-  {
-    id: 10, type: 'member-demote', category: 'team', read: true,
-    title: '管理员撤销',
-    content: '「老队员」已被撤销管理员权限',
-    teamName: '夜骑小分队', time: '2天前',
-    link: '/peloton/2'
-  }
-])
-
-// 计算各分类未读数
-categories.forEach(cat => {
-  if (cat.key === 'all') {
-    cat.count = messages.value.filter(m => !m.read).length
-  } else {
-    cat.count = messages.value.filter(m => m.category === cat.key && !m.read).length
-  }
+// 切换分类时重新加载
+watch(activeCategory, () => {
+  fetchNotifications()
 })
 
-const filteredMessages = computed(() => {
-  if (activeCategory.value === 'all') return messages.value
-  return messages.value.filter(m => m.category === activeCategory.value)
+onMounted(() => {
+  fetchNotifications()
+  fetchUnreadCount()
 })
+
+/** 加载通知列表 */
+const fetchNotifications = async () => {
+  loading.value = true
+  try {
+    const params = { page: 1, size: 50 }
+    if (activeCategory.value !== 'all') {
+      params.category = activeCategory.value
+    }
+    const res = await getNotifications(params)
+    messages.value = res?.records || []
+  } catch {
+    messages.value = []
+  } finally {
+    loading.value = false
+  }
+}
+
+/** 加载各分类未读数 */
+const fetchUnreadCount = async () => {
+  try {
+    const res = await getUnreadCount()
+    const data = res || {}
+    categories[0].count = data.total || 0
+    categories[1].count = data.team || 0
+    categories[2].count = data.interact || 0
+    categories[3].count = data.system || 0
+  } catch {
+    // 未读数加载失败不阻断页面
+  }
+}
+
+const filteredMessages = computed(() => messages.value)
 
 const getTypeIcon = (type) => {
   const map = {
     'new-activity': 'fas fa-flag-checkered',
+    'edit-activity': 'fas fa-edit',
+    'delete-activity': 'fas fa-times-circle',
     'member-join': 'fas fa-user-plus',
     'member-leave': 'fas fa-user-minus',
+    'captain-leave': 'fas fa-exchange-alt',
+    'member-kicked': 'fas fa-user-times',
     'member-promote': 'fas fa-arrow-up',
     'member-demote': 'fas fa-arrow-down',
     'new-notice': 'fas fa-bullhorn',
     'edit-notice': 'fas fa-edit',
+    'join-apply': 'fas fa-file-signature',
+    'join-approved': 'fas fa-check-circle',
+    'join-rejected': 'fas fa-times-circle',
+    'team-disbanded': 'fas fa-flag',
     'like': 'fas fa-heart',
     'comment': 'fas fa-comment',
-    'system': 'fas fa-cog'
+    'fitting-complete': 'fas fa-microscope'
   }
   return map[type] || 'fas fa-bell'
 }
 
-const markRead = (msg) => {
+/** 格式化时间显示 */
+const formatTime = (createdAt) => {
+  if (!createdAt) return ''
+  const date = new Date(createdAt)
+  const now = new Date()
+  const diffMs = now - date
+  const diffMin = Math.floor(diffMs / 60000)
+  if (diffMin < 1) return '刚刚'
+  if (diffMin < 60) return diffMin + '分钟前'
+  const diffHour = Math.floor(diffMin / 60)
+  if (diffHour < 24) return diffHour + '小时前'
+  const diffDay = Math.floor(diffHour / 24)
+  if (diffDay < 30) return diffDay + '天前'
+  return date.toLocaleDateString('zh-CN')
+}
+
+/** 标记单条已读 */
+const markRead = async (msg) => {
   msg.read = true
-  updateCounts()
+  await fetchUnreadCount()
+  try {
+    await markAsReadApi(msg.id)
+  } catch {
+    // 乐观更新，失败不回滚
+  }
 }
 
-const markAllRead = () => {
-  messages.value.forEach(m => m.read = true)
-  updateCounts()
-  showToast('已全部标为已读', 'success')
-}
-
-const updateCounts = () => {
-  categories.forEach(cat => {
-    if (cat.key === 'all') {
-      cat.count = messages.value.filter(m => !m.read).length
-    } else {
-      cat.count = messages.value.filter(m => m.category === cat.key && !m.read).length
-    }
-  })
+/** 全部标记已读 */
+const markAllRead = async () => {
+  try {
+    await markAllAsReadApi()
+    messages.value.forEach(m => m.read = true)
+    categories.forEach(cat => cat.count = 0)
+    showToast('已全部标为已读', 'success')
+  } catch {
+    showToast('操作失败，请重试', 'error')
+  }
 }
 
 const handleMessageClick = (msg) => {
@@ -293,15 +282,23 @@ const handleMessageClick = (msg) => {
   font-size: 0.95rem;
 }
 .icon-new-activity { background: linear-gradient(135deg, rgba(255,140,0,0.12), rgba(255,180,50,0.08)); color: #e67e22 }
+.icon-edit-activity { background: linear-gradient(135deg, rgba(255,165,0,0.12), rgba(255,190,80,0.08)); color: #e68a00 }
+.icon-delete-activity { background: linear-gradient(135deg, rgba(200,60,60,0.12), rgba(230,100,100,0.08)); color: #c0392b }
 .icon-member-join { background: linear-gradient(135deg, rgba(46,204,113,0.12), rgba(80,220,140,0.08)); color: #27ae60 }
 .icon-member-leave { background: linear-gradient(135deg, rgba(231,76,60,0.12), rgba(255,120,100,0.08)); color: #e74c3c }
+.icon-captain-leave { background: linear-gradient(135deg, rgba(243,156,18,0.12), rgba(255,180,50,0.08)); color: #f39c12 }
+.icon-member-kicked { background: linear-gradient(135deg, rgba(192,57,43,0.12), rgba(220,90,80,0.08)); color: #c0392b }
 .icon-member-promote { background: linear-gradient(135deg, rgba(255,215,0,0.14), rgba(255,200,50,0.08)); color: #d4a017 }
 .icon-member-demote { background: linear-gradient(135deg, rgba(100,100,100,0.1), rgba(140,140,140,0.06)); color: #666 }
 .icon-new-notice { background: linear-gradient(135deg, rgba(0,180,255,0.12), rgba(80,200,255,0.08)); color: #1e90ff }
 .icon-edit-notice { background: linear-gradient(135deg, rgba(106,90,205,0.12), rgba(140,120,230,0.08)); color: #6a5acd }
+.icon-join-apply { background: linear-gradient(135deg, rgba(52,152,219,0.12), rgba(80,180,240,0.08)); color: #3498db }
+.icon-join-approved { background: linear-gradient(135deg, rgba(39,174,96,0.12), rgba(60,200,120,0.08)); color: #27ae60 }
+.icon-join-rejected { background: linear-gradient(135deg, rgba(231,76,60,0.12), rgba(255,110,100,0.08)); color: #e74c3c }
+.icon-team-disbanded { background: linear-gradient(135deg, rgba(142,68,173,0.12), rgba(170,100,200,0.08)); color: #8e44ad }
 .icon-like { background: linear-gradient(135deg, rgba(255,69,0,0.12), rgba(255,120,80,0.08)); color: #ff4500 }
 .icon-comment { background: linear-gradient(135deg, rgba(0,128,128,0.12), rgba(40,170,170,0.08)); color: #008080 }
-.icon-system { background: linear-gradient(135deg, rgba(100,100,100,0.1), rgba(150,150,150,0.06)); color: #555 }
+.icon-fitting-complete { background: linear-gradient(135deg, rgba(41,128,185,0.12), rgba(60,160,210,0.08)); color: #2980b9 }
 
 .msg-content { flex: 1; min-width: 0 }
 .msg-header { display: flex; align-items: center; gap: 8px; margin-bottom: 4px }

@@ -2,12 +2,16 @@ package com.starrysky.aries.peloton.service;
 
 import com.starrysky.aries.entity.PelotonTeam;
 import com.starrysky.aries.entity.TeamActivity;
+import com.starrysky.aries.entity.TeamMember;
 import com.starrysky.aries.entity.User;
 import com.starrysky.aries.exception.BizException;
+import com.starrysky.aries.notification.enums.NotificationType;
+import com.starrysky.aries.notification.service.NotificationService;
 import com.starrysky.aries.peloton.repository.PelotonTeamRepository;
 import com.starrysky.aries.peloton.repository.TeamActivityRepository;
+import com.starrysky.aries.peloton.repository.TeamMemberRepository;
 import com.starrysky.aries.peloton.schema.CreateActivityDTO;
-import com.starrysky.aries.peloton.schema.PelotonPageResponse;
+import com.starrysky.aries.common.schema.PageResponse;
 import com.starrysky.aries.peloton.schema.TeamActivityVO;
 import com.starrysky.aries.user.repository.UserRepository;
 import jakarta.annotation.Resource;
@@ -59,10 +63,16 @@ public class TeamActivityService {
     private PelotonTeamRepository pelotonTeamRepository;
 
     @Resource
+    private TeamMemberRepository teamMemberRepository;
+
+    @Resource
     private UserRepository userRepository;
 
     @Resource
     private TeamMemberService teamMemberService;
+
+    @Resource
+    private NotificationService notificationService;
 
     /**
      * 发布活动
@@ -106,6 +116,19 @@ public class TeamActivityService {
                 .status(TeamActivity.STATUS_ACTIVE)
                 .build();
         activity = teamActivityRepository.save(activity);
+
+        // 通知所有队内成员：新活动发布（排除发布者自己）
+        List<Long> memberIds = teamMemberRepository
+                .findByTeamIdAndStatusOrderByJoinDateAsc(teamId, TeamMember.STATUS_ACTIVE)
+                .stream()
+                .map(TeamMember::getUserId)
+                .filter(uid -> !uid.equals(user.getId()))
+                .collect(Collectors.toList());
+        notificationService.sendBatch(memberIds,
+                NotificationType.NEW_ACTIVITY,
+                "新活动发布",
+                "队长「" + user.getName() + "」发布了新活动「" + activity.getTitle() + "」，快来报名吧！",
+                teamId);
 
         log.debug("用户 {} 在车队 {} 中发布了活动（id={}）", user.getId(), teamId, activity.getId());
         return convertToVO(activity, user);
@@ -157,6 +180,19 @@ public class TeamActivityService {
         activity.setCoverImage(StringUtils.hasText(dto.getCoverImage()) ? HtmlUtils.htmlEscape(dto.getCoverImage().trim()) : null);
         activity = teamActivityRepository.save(activity);
 
+        // 通知所有队内成员：活动已编辑（排除操作者自己）
+        List<Long> memberIds = teamMemberRepository
+                .findByTeamIdAndStatusOrderByJoinDateAsc(teamId, TeamMember.STATUS_ACTIVE)
+                .stream()
+                .map(TeamMember::getUserId)
+                .filter(uid -> !uid.equals(user.getId()))
+                .collect(Collectors.toList());
+        notificationService.sendBatch(memberIds,
+                NotificationType.EDIT_ACTIVITY,
+                "活动已更新",
+                "「" + activity.getTitle() + "」活动信息已更新",
+                teamId);
+
         log.debug("用户 {} 在车队 {} 中编辑了活动（id={}）", user.getId(), teamId, activityId);
         User author = userRepository.findById(activity.getAuthorId()).orElse(null);
         return convertToVO(activity, author);
@@ -190,6 +226,19 @@ public class TeamActivityService {
         activity.setStatus(TeamActivity.STATUS_DELETED);
         teamActivityRepository.save(activity);
 
+        // 通知所有队内成员：活动已删除（排除操作者自己）
+        List<Long> memberIds = teamMemberRepository
+                .findByTeamIdAndStatusOrderByJoinDateAsc(teamId, TeamMember.STATUS_ACTIVE)
+                .stream()
+                .map(TeamMember::getUserId)
+                .filter(uid -> !uid.equals(user.getId()))
+                .collect(Collectors.toList());
+        notificationService.sendBatch(memberIds,
+                NotificationType.DELETE_ACTIVITY,
+                "活动已取消",
+                "「" + activity.getTitle() + "」活动已被取消",
+                teamId);
+
         log.debug("用户 {} 在车队 {} 中删除了活动（id={}）", user.getId(), teamId, activityId);
     }
 
@@ -204,7 +253,7 @@ public class TeamActivityService {
      * @return 活动分页列表
      */
     @Transactional(readOnly = true)
-    public PelotonPageResponse<TeamActivityVO> getActivities(Long teamId, Integer page, Integer size) {
+    public PageResponse<TeamActivityVO> getActivities(Long teamId, Integer page, Integer size) {
         // 校验车队存在
         if (!pelotonTeamRepository.existsById(teamId)) {
             throw new BizException(404, "车队不存在");
@@ -229,7 +278,7 @@ public class TeamActivityService {
                 .map(a -> convertToVO(a, userMap.get(a.getAuthorId())))
                 .collect(Collectors.toList());
 
-        return PelotonPageResponse.<TeamActivityVO>builder()
+        return PageResponse.<TeamActivityVO>builder()
                 .records(records)
                 .total(activityPage.getTotalElements())
                 .page(currentPage)

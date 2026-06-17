@@ -105,7 +105,7 @@ public class SecurityConfig {
                         .requestMatchers("/user/login", "/user/login/sms", "/user/login/wechat", "/user/refresh",
                                 "/error", "/sms/send", "/resource/**", 
                                 "/bike-model/showroom", "/bike-model/{id}", "/bike-model/model/**",
-                                "/team/list", "/team/{teamId}/members", "/team/{teamId}/garage").permitAll()
+                                "/team/list", "/team/stats", "/team/{teamId}/members", "/team/{teamId}/garage").permitAll()
                         .requestMatchers(HttpMethod.GET, "/team/{teamId}").permitAll()
                         .requestMatchers("/user/logout").authenticated()
                         .anyRequest().authenticated()

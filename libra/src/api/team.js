@@ -55,6 +55,16 @@ export function getTeamList(params = {}) {
 }
 
 /**
+ * 获取破风社首页统计数据（车队总数、骑友总数、覆盖城市数）
+ */
+export function getTeamStats() {
+  return request({
+    url: '/team/stats',
+    method: 'get'
+  });
+}
+
+/**
  * 获取车队详情
  * @param {Number} id - 车队ID
  */

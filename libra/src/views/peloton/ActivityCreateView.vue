@@ -54,7 +54,7 @@
               <label class="form-label">活动日期</label>
               <div class="input-wrap">
                 <i class="input-icon far fa-calendar-alt"></i>
-                <input v-model="form.eventDate" type="date" class="form-input" />
+                <input v-model="form.eventDate" type="date" class="form-input" min="2024-01-01" max="2099-12-31" />
               </div>
             </div>
             <div class="form-group flex-1">
@@ -101,7 +101,7 @@
               <label class="form-label">预计里程 (km)</label>
               <div class="input-wrap">
                 <i class="input-icon fas fa-road"></i>
-                <input v-model.number="form.distance" type="number" class="form-input" placeholder="如：50" min="0" step="1" />
+                <input v-model.number="form.distance" type="number" class="form-input" placeholder="如：50" min="0" step="1" @wheel="$event.target.blur" />
               </div>
             </div>
           </div>
@@ -111,7 +111,7 @@
             <label class="form-label">人数上限</label>
             <div class="input-wrap">
               <i class="input-icon fas fa-users"></i>
-              <input v-model.number="form.maxParticipants" type="number" class="form-input" placeholder="不填则不限人数" min="1" />
+              <input v-model.number="form.maxParticipants" type="number" class="form-input" placeholder="不填则不限人数" min="1" @wheel="$event.target.blur" />
             </div>
           </div>
 
@@ -226,7 +226,10 @@ const form = reactive({
 })
 
 const isFormValid = computed(() => {
-  return form.title.trim() && form.eventDate && form.location.trim() && form.description.trim()
+  if (!form.title.trim() || !form.eventDate || !form.location.trim() || !form.description.trim()) return false
+  // 限制年份范围 2024-2099，防止五位数年份
+  const year = parseInt(form.eventDate.substring(0, 4), 10)
+  return year >= 2024 && year <= 2099
 })
 
 const activityTypeLabel = computed(() => {

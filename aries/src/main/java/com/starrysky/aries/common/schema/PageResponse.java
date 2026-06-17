@@ -1,4 +1,4 @@
-package com.starrysky.aries.peloton.schema;
+package com.starrysky.aries.common.schema;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -9,18 +9,18 @@ import java.io.Serializable;
 import java.util.List;
 
 /**
- * PelotonPageResponse
- * 破风社模块分页响应DTO
+ * PageResponse
+ * 通用分页响应DTO
  *
  * @author adi
  * @version 1.0
- * @since 2026/06/12
+ * @since 2026/06/17
  */
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class PelotonPageResponse<T> implements Serializable {
+public class PageResponse<T> implements Serializable {
 
     private static final long serialVersionUID = 1L;
 

@@ -3,7 +3,7 @@ package com.starrysky.aries.peloton.controller;
 import com.starrysky.aries.entity.User;
 import com.starrysky.aries.peloton.schema.CreateCommentDTO;
 import com.starrysky.aries.peloton.schema.CreatePostDTO;
-import com.starrysky.aries.peloton.schema.PelotonPageResponse;
+import com.starrysky.aries.common.schema.PageResponse;
 import com.starrysky.aries.peloton.schema.TeamPostCommentVO;
 import com.starrysky.aries.peloton.schema.TeamPostVO;
 import com.starrysky.aries.peloton.service.TeamPostService;
@@ -75,7 +75,7 @@ public class TeamPostController {
      * @return 动态分页列表
      */
     @GetMapping("/{teamId}/posts")
-    public ResponseResult<PelotonPageResponse<TeamPostVO>> getPosts(
+    public ResponseResult<PageResponse<TeamPostVO>> getPosts(
             @PathVariable("teamId") Long teamId,
             @RequestParam(value = "page", required = false) Integer page,
             @RequestParam(value = "size", required = false) Integer size,
