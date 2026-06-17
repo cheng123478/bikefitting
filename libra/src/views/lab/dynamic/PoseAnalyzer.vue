@@ -67,10 +67,10 @@
         <div class="hud-metrics" v-if="isReady || isFileLoaded">
           <!-- 侧面模式 -->
           <template v-if="viewType === 'side'">
-            <div class="metric-card" :class="{ 'in-range': metrics.sideMaxKnee >= 140 && metrics.sideMaxKnee <= 150 }">
+            <div class="metric-card" :class="{ 'in-range': metrics.sideMaxKnee >= 145 && metrics.sideMaxKnee <= 155 }">
               <div class="card-header">
                 <label>膝角 (伸展度)</label>
-                <div class="target-tag">目标: 140°-150°</div>
+                <div class="target-tag">目标: 145°-155°</div>
               </div>
               <div class="dual-vals">
                 <div class="val-item">
@@ -127,10 +127,10 @@
               <div class="desc">躯干与手臂夹角</div>
             </div>
 
-            <div class="metric-card" :class="{ 'in-range': metrics.ankleAtBdc >= 10 && metrics.ankleAtBdc <= 25 }">
+            <div class="metric-card" :class="{ 'in-range': metrics.ankleAtBdc >= 0 && metrics.ankleAtBdc <= 30 }">
               <div class="card-header">
                 <label>下死点跖屈代理 (Ankling / BDC)</label>
-                <div class="target-tag">目标: 10°-25°</div>
+                <div class="target-tag">参考: 0°-30°</div>
               </div>
               <div class="val-wrapper">
                 <span class="val">{{ metrics.sideMaxKnee > 0 ? metrics.ankleAtBdc : '--' }}°</span>
@@ -139,10 +139,10 @@
               <div class="desc">2D 跖屈代理 = 踝内角 - 90°；负值代表脚跟更低/背屈趋势，需结合锁片与实际脚感复核</div>
             </div>
 
-            <div class="metric-card" :class="{ 'in-range': Math.abs(metrics.kopsOffset) < 10 }">
+            <div class="metric-card" :class="{ 'in-range': Math.abs(metrics.kopsOffset) <= 15 }">
               <div class="card-header">
                 <label>膝前后偏移代理 (KOPS Proxy)</label>
-                <div class="target-tag">理想偏移 &lt; 10%</div>
+                <div class="target-tag">参考偏移 ≤ 15%</div>
               </div>
               <div class="val-wrapper">
                 <span class="val" :class="{ warning: Math.abs(metrics.kopsOffset) > 15 }">

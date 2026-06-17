@@ -92,7 +92,7 @@ export function usePoseDetection(options = {}) {
 
         // Knee Extension Logic
         if (knee > 120) {
-            if (knee < 135) {
+            if (knee < 145) {
                 setFeedback('warning', 'Saddle too low', 'fas fa-arrow-up');
                 return;
             } else if (knee > 155) {

@@ -112,11 +112,11 @@
 
           <div class="idx-card" v-if="data.cadenceRpm">
             <span class="idx-lbl">踏频 (Cadence)</span>
-            <span class="idx-v" :class="data.cadenceRpm >= 80 && data.cadenceRpm <= 100 ? 'text-success' : 'text-warning'">
+            <span class="idx-v" :class="data.cadenceRpm >= 70 && data.cadenceRpm <= 110 ? 'text-success' : 'text-warning'">
               {{ data.cadenceRpm }} <small style="font-size:1rem">RPM</small>
             </span>
-            <span class="idx-eval" :class="data.cadenceRpm >= 80 && data.cadenceRpm <= 100 ? 'text-success' : 'text-warning'">
-              {{ data.cadenceRpm >= 80 && data.cadenceRpm <= 100 ? '✓ 节奏理想 (80–100 RPM)' : data.cadenceRpm < 80 ? '偏低 (建议加快节奏)' : '偏高 (建议确认牙盘配比)' }}
+            <span class="idx-eval" :class="data.cadenceRpm >= 70 && data.cadenceRpm <= 110 ? 'text-success' : 'text-warning'">
+              {{ data.cadenceRpm >= 70 && data.cadenceRpm <= 110 ? '节奏处于常见巡航范围 (70-110 RPM)' : data.cadenceRpm < 70 ? '偏低，建议确认齿比和踩踏节奏' : '偏高，建议确认齿比和骨盆稳定性' }}
             </span>
           </div>
 

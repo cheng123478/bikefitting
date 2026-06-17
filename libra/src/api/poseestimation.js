@@ -168,7 +168,7 @@ export function usePoseEstimation(viewModeRef = 'side') {
                 // 参考点说明：MediaPipe 无踏板轴/锁片轴点，这里用脚跟→脚尖 70% 处近似前足/锁片区域，
                 //            比直接使用脚尖更不受鞋码和脚尖姿态影响，但仍只能作为 2D 视觉代理。
                 // 正值 = 膝过偏前（Knee Over）；负值 = 膝偏后（Knee Behind）
-                // 理想范围：|kopsOffset| < 10%（约对应真实偏移 < 4 cm，胫骨按 40 cm 计算）
+                // 参考范围：|kopsOffset| <= 15%。KOPS 在 2D 视频里只能作为前后位置代理，不能单独决定坐垫前后。
                 const isFacingRight = lm[idx.shoulder].x > lm[idx.hip].x;
                 const footRefX = (lm[idx.heel].x * 0.3) + (lm[idx.toe].x * 0.7);
 

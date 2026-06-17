@@ -291,7 +291,7 @@ const getMetricsForView = (vt) => {
 const getMetricGroups = (vt) => {
   const metrics = getMetricsForView(vt);
   if (vt === 'front') {
-    // 彻底过滤掉正面视图中的“膝部伸展角度”（存在严重透视畸变缺失参考意义且会误导买家）
+    // 正面视图不展示膝角伸展值：2D 正面透视缺少深度，容易误导。
     const cleanMetrics = metrics.filter(m => !m.label.includes('伸展度') && !m.label.includes('双膝平均') && !m.label.toLowerCase().includes('kneeangle'));
     
     const groupA = cleanMetrics.filter(m => m.label.includes('肩') || m.label.includes('骨盆') || m.label.includes('脊柱') || m.label.includes('躯干') || m.label.includes('Tilt'));
@@ -300,10 +300,10 @@ const getMetricGroups = (vt) => {
     const other = cleanMetrics.filter(m => !groupA.includes(m) && !groupB.includes(m) && !groupC.includes(m));
     
     const res = [];
-    if (groupA.length) res.push({ title: '🎯 身体中轴稳定分析', metrics: groupA });
-    if (groupB.length) res.push({ title: '🦵 下肢力线及控制分析', metrics: groupB });
-    if (groupC.length) res.push({ title: '💪 上肢操控及气动分析', metrics: groupC });
-    if (other.length) res.push({ title: '📌 其他特征参数', metrics: other });
+    if (groupA.length) res.push({ title: '身体中轴稳定分析', metrics: groupA });
+    if (groupB.length) res.push({ title: '下肢力线及控制分析', metrics: groupB });
+    if (groupC.length) res.push({ title: '上肢操控及气动分析', metrics: groupC });
+    if (other.length) res.push({ title: '其他特征参数', metrics: other });
     return res.length > 0 ? res : [{ title: '', metrics: cleanMetrics }];
   }
   
@@ -324,6 +324,7 @@ const getReadableLabel = (tag) => {
 };
 
 const getUnit = (label, viewType) => {
+  if (label.includes('踏频')) return 'RPM';
   if (label.includes('角') || label.includes('倾') || label.includes('Tilt') || label.includes('度')) return '\u00B0';
   // 【修复 P13】以下三项均为归一化百分比值（已除以人体参照物尺寸），单位应为 % 而非 px/mm
   if (label.includes('KOPS') || label.includes('横摆') || label.includes('外张') || label.includes('摇摆') || label.includes('下坠') || label.includes('Flare')) return '%';

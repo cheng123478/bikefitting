@@ -396,11 +396,11 @@ public class DynamicFittingService {
 
         if (overallSummary != null) {
             reportVO.setSideData(
-                    new DynamicFittingReportVO.ViewData(mapToMetricVO(overallSummary.get("side"), advices, standardRanges)));
+                    new DynamicFittingReportVO.ViewData(mapToMetricVO("side", overallSummary.get("side"), advices, standardRanges)));
             reportVO.setFrontData(
-                    new DynamicFittingReportVO.ViewData(mapToMetricVO(overallSummary.get("front"), advices, standardRanges)));
+                    new DynamicFittingReportVO.ViewData(mapToMetricVO("front", overallSummary.get("front"), advices, standardRanges)));
             reportVO.setBackData(
-                    new DynamicFittingReportVO.ViewData(mapToMetricVO(overallSummary.get("back"), advices, standardRanges)));
+                    new DynamicFittingReportVO.ViewData(mapToMetricVO("back", overallSummary.get("back"), advices, standardRanges)));
 
             // 提取被合成好的 PedalingData 数据并装配给前端
             if (overallSummary.containsKey("pedalingData")) {
@@ -439,22 +439,22 @@ public class DynamicFittingService {
         LITERATURE_IDEAL_RANGES.put("avgTorso", "40.0-50.0");
         LITERATURE_IDEAL_RANGES.put("minHip", "40.0-55.0");
         LITERATURE_IDEAL_RANGES.put("maxHip", "70.0-80.0");
-        LITERATURE_IDEAL_RANGES.put("kopsOffset", "-10.0-10.0");
-        LITERATURE_IDEAL_RANGES.put("cadenceRpm", "80.0-100.0");
-        LITERATURE_IDEAL_RANGES.put("ankleAtBdc", "10.0-25.0");
+        LITERATURE_IDEAL_RANGES.put("kopsOffset", "-15.0-15.0");
+        LITERATURE_IDEAL_RANGES.put("cadenceRpm", "70.0-110.0");
+        LITERATURE_IDEAL_RANGES.put("ankleAtBdc", "0.0-30.0");
         LITERATURE_IDEAL_RANGES.put("ankleY", "0.0-15.0");
-        LITERATURE_IDEAL_RANGES.put("maxKnee", "140.0-150.0");
+        LITERATURE_IDEAL_RANGES.put("maxKnee", "145.0-155.0");
         LITERATURE_IDEAL_RANGES.put("maxShoulder", "80.0-95.0");
         // 正面视角
         LITERATURE_IDEAL_RANGES.put("maxWobble", "0.0-15.0");
         LITERATURE_IDEAL_RANGES.put("maxTilt", "0.0-5.0");
         LITERATURE_IDEAL_RANGES.put("maxElbowFlare", "0.0-15.0");
-        LITERATURE_IDEAL_RANGES.put("maxShoulderTilt", "0.0-5.0");
-        LITERATURE_IDEAL_RANGES.put("maxHipTilt", "0.0-5.0");
+        LITERATURE_IDEAL_RANGES.put("maxShoulderTilt", "0.0-7.0");
+        LITERATURE_IDEAL_RANGES.put("maxHipTilt", "0.0-7.0");
         // 背面视角
         LITERATURE_IDEAL_RANGES.put("maxPelvisSway", "0.0-10.0");
-        LITERATURE_IDEAL_RANGES.put("maxSpineTilt", "0.0-5.0");
-        LITERATURE_IDEAL_RANGES.put("spineRockingVar", "0.0-3.0");
+        LITERATURE_IDEAL_RANGES.put("maxSpineTilt", "0.0-7.0");
+        LITERATURE_IDEAL_RANGES.put("spineRockingVar", "0.0-5.0");
         LITERATURE_IDEAL_RANGES.put("maxHipDrop", "0.0-8.0");
         // 稳定性指标：侧面周期性关节角使用相位一致性，姿态/横摆类指标使用原始标准差。
         LITERATURE_IDEAL_RANGES.put("kneeAnglePhaseStdDev", "0.0-4.0");
@@ -471,6 +471,31 @@ public class DynamicFittingService {
         LITERATURE_IDEAL_RANGES.put("spineTiltStdDev", "0.0-3.0");
         LITERATURE_IDEAL_RANGES.put("leftHipDropStdDev", "0.0-5.0");
         LITERATURE_IDEAL_RANGES.put("rightHipDropStdDev", "0.0-5.0");
+    }
+
+    private static final Map<String, List<String>> REPORT_METRIC_ORDER = new HashMap<>();
+    static {
+        REPORT_METRIC_ORDER.put("side", List.of(
+                "avgTorso",
+                "maxKnee",
+                "ankleAtBdc",
+                "minHip",
+                "cadenceRpm",
+                "kopsOffset"
+        ));
+        REPORT_METRIC_ORDER.put("front", List.of(
+                "maxHipTilt",
+                "maxShoulderTilt",
+                "maxWobble",
+                "maxElbowFlare"
+        ));
+        REPORT_METRIC_ORDER.put("back", List.of(
+                "spineRockingVar",
+                "maxPelvisSway",
+                "maxShoulderTilt",
+                "maxSpineTilt",
+                "maxHipDrop"
+        ));
     }
 
     /**
@@ -532,8 +557,8 @@ public class DynamicFittingService {
                         : "收紧核心、适当增齿比，稳定骨盆不跳动。";
                 case "ankleAtBdc":
                     return isLow
-                        ? "下死点微微勾起脚尖，用脚后跟「刮」过底部。"
-                        : "保持脚掌平放，不要过度勾脚尖。";
+                        ? "保持脚掌稳定，避免下死点脚跟过度下坠。"
+                        : "减少脚尖下压，保持脚掌更平稳地通过下死点。";
                 case "ankleY":
                     return isLow
                         ? "练习单腿踩踏，保持脚踝平滑过渡。"
@@ -671,79 +696,107 @@ public class DynamicFittingService {
     private List<DynamicFittingMetricVO> mapToMetricVO(Map<String, Object> metrics,
                                                        List<DynamicFittingAdviceVO> advices,
                                                        Map<String, String> standardRanges) {
-        if (metrics == null)
+        return mapToMetricVO(null, metrics, advices, standardRanges);
+    }
+
+    private List<DynamicFittingMetricVO> mapToMetricVO(String viewType,
+                                                       Map<String, Object> metrics,
+                                                       List<DynamicFittingAdviceVO> advices,
+                                                       Map<String, String> standardRanges) {
+        if (metrics == null) {
             return Collections.emptyList();
+        }
 
+        List<DynamicFittingAdviceVO> safeAdvices = advices != null ? advices : Collections.emptyList();
         List<DynamicFittingMetricVO> vos = new ArrayList<>();
-        metrics.forEach((key, val) -> {
-            if (key.equals("maxHipDrop_L") || key.equals("maxHipDrop_R")) {
-                return; // Skip individual processing, will combine below
+        for (String key : resolveReportMetricOrder(viewType)) {
+            if ("maxHipDrop".equals(key)) {
+                addHipDropMetricVO(vos, metrics, safeAdvices, standardRanges);
+                continue;
             }
-            
-            if (
-                // 原始极值/均值指标
-                key.equals("avgTorso") || key.equals("minHip") || key.equals("maxSpineTilt") || key.equals("maxPelvisSway")
-                    || key.equals("kopsOffset") || key.equals("cadenceRpm") || key.equals("ankleAtBdc") || key.equals("ankleY") || key.equals("maxHip")
-                    || key.equals("maxKnee") || key.equals("maxShoulder") || key.equals("maxWobble") || key.equals("maxTilt") || key.equals("maxElbowFlare")
-                    || key.equals("maxShoulderTilt") || key.equals("spineRockingVar")
-                    || key.equals("maxHipTilt")
-                // 【修复 P14】稳定性指标：StdDev / CV / Variance
-                    || key.endsWith("StdDev") || key.endsWith("CV") || key.endsWith("Variance")) {
-                
-                DynamicFittingAdviceVO advice = advices.stream()
-                        .filter(a -> a.getMetric().equalsIgnoreCase(key))
-                        .findFirst().orElse(null);
-
-                String range = resolveIdealRange(key, advice, standardRanges);
-                double currentVal = normalizeMetricValueForRange(key, convertToDouble(val), range);
-                String status = advice != null ? "ADJUST" : resolveStatusFromRange(currentVal, range);
-                String riderAdvice = getRiderAdvice(key, currentVal, range);
-                String adviceText = advice != null
-                        ? (advice.getAdviceContent() != null ? advice.getAdviceContent() : advice.getCode())
-                        : ("OK".equals(status) ? "处于理想范围" : getRangeDerivedAdvice(key, currentVal, range));
-
-                vos.add(DynamicFittingMetricVO.builder()
-                        .label(getMetricLabel(key))
-                        .currentValue(String.format("%.1f", currentVal))
-                        .status(status)
-                        .idealRange(range)
-                        .advice(adviceText)
-                        .riderAdvice(riderAdvice)
-                        .build());
+            if (!metrics.containsKey(key)) {
+                continue;
             }
-        });
-
-        // 合并左右骨盆下坠 (Hip Drop) 到一张卡片
-        if (metrics.containsKey("maxHipDrop_L") || metrics.containsKey("maxHipDrop_R")) {
-            Double lVal = convertToDouble(metrics.get("maxHipDrop_L"));
-            Double rVal = convertToDouble(metrics.get("maxHipDrop_R"));
-            if (lVal == null) lVal = 0.0;
-            if (rVal == null) rVal = 0.0;
-
-            DynamicFittingAdviceVO adviceL = advices.stream().filter(a -> "maxHipDrop_L".equalsIgnoreCase(a.getMetric())).findFirst().orElse(null);
-            DynamicFittingAdviceVO adviceR = advices.stream().filter(a -> "maxHipDrop_R".equalsIgnoreCase(a.getMetric())).findFirst().orElse(null);
-            DynamicFittingAdviceVO adviceAsym = advices.stream().filter(a -> "maxHipDrop".equalsIgnoreCase(a.getMetric())).findFirst().orElse(null);
-
-            DynamicFittingAdviceVO finalAdvice = adviceAsym != null ? adviceAsym : (adviceL != null ? adviceL : adviceR);
-            String range = resolveIdealRange("maxHipDrop", finalAdvice, standardRanges);
-            double maxDrop = Math.max(lVal, rVal);
-            String status = finalAdvice != null ? "ADJUST" : resolveStatusFromRange(maxDrop, range);
-            String adviceText = finalAdvice != null
-                    ? (finalAdvice.getAdviceContent() != null ? finalAdvice.getAdviceContent() : finalAdvice.getCode())
-                    : ("OK".equals(status) ? "根据生物力学模型对您的身体关键特征进行追踪量化。"
-                    : getRangeDerivedAdvice("maxHipDrop", maxDrop, range));
-            String riderAdvice = getRiderAdvice("maxHipDrop", maxDrop, range);
-
-            vos.add(DynamicFittingMetricVO.builder()
-                    .label("左右侧骨盆下坠")
-                    .currentValue(String.format("L:%.1f R:%.1f", lVal, rVal))
-                    .status(status)
-                    .idealRange(range)
-                    .advice(adviceText)
-                    .riderAdvice(riderAdvice)
-                    .build());
+            addSingleMetricVO(vos, key, metrics.get(key), safeAdvices, standardRanges);
         }
         return vos;
+    }
+
+    private List<String> resolveReportMetricOrder(String viewType) {
+        if (StringUtils.hasText(viewType)) {
+            List<String> keys = REPORT_METRIC_ORDER.get(viewType.toLowerCase());
+            if (keys != null) {
+                return keys;
+            }
+        }
+
+        LinkedHashSet<String> allKeys = new LinkedHashSet<>();
+        REPORT_METRIC_ORDER.values().forEach(allKeys::addAll);
+        return new ArrayList<>(allKeys);
+    }
+
+    private void addSingleMetricVO(List<DynamicFittingMetricVO> vos,
+                                   String key,
+                                   Object val,
+                                   List<DynamicFittingAdviceVO> advices,
+                                   Map<String, String> standardRanges) {
+        DynamicFittingAdviceVO advice = advices.stream()
+                .filter(a -> key.equalsIgnoreCase(a.getMetric()))
+                .findFirst().orElse(null);
+
+        String range = resolveIdealRange(key, advice, standardRanges);
+        double currentVal = normalizeMetricValueForRange(key, convertToDouble(val), range);
+        String status = advice != null ? "ADJUST" : resolveStatusFromRange(currentVal, range);
+        String riderAdvice = getRiderAdvice(key, currentVal, range);
+        String adviceText = advice != null
+                ? (advice.getAdviceContent() != null ? advice.getAdviceContent() : advice.getCode())
+                : ("OK".equals(status) ? "处于理想范围" : getRangeDerivedAdvice(key, currentVal, range));
+
+        vos.add(DynamicFittingMetricVO.builder()
+                .label(getMetricLabel(key))
+                .currentValue(String.format("%.1f", currentVal))
+                .status(status)
+                .idealRange(range)
+                .advice(adviceText)
+                .riderAdvice(riderAdvice)
+                .build());
+    }
+
+    private void addHipDropMetricVO(List<DynamicFittingMetricVO> vos,
+                                    Map<String, Object> metrics,
+                                    List<DynamicFittingAdviceVO> advices,
+                                    Map<String, String> standardRanges) {
+        if (!metrics.containsKey("maxHipDrop_L") && !metrics.containsKey("maxHipDrop_R")) {
+            return;
+        }
+
+        Double lVal = convertToDouble(metrics.get("maxHipDrop_L"));
+        Double rVal = convertToDouble(metrics.get("maxHipDrop_R"));
+        if (lVal == null) lVal = 0.0;
+        if (rVal == null) rVal = 0.0;
+
+        DynamicFittingAdviceVO adviceL = advices.stream().filter(a -> "maxHipDrop_L".equalsIgnoreCase(a.getMetric())).findFirst().orElse(null);
+        DynamicFittingAdviceVO adviceR = advices.stream().filter(a -> "maxHipDrop_R".equalsIgnoreCase(a.getMetric())).findFirst().orElse(null);
+        DynamicFittingAdviceVO adviceAsym = advices.stream().filter(a -> "maxHipDrop".equalsIgnoreCase(a.getMetric())).findFirst().orElse(null);
+
+        DynamicFittingAdviceVO finalAdvice = adviceAsym != null ? adviceAsym : (adviceL != null ? adviceL : adviceR);
+        String range = resolveIdealRange("maxHipDrop", finalAdvice, standardRanges);
+        double maxDrop = Math.max(lVal, rVal);
+        String status = finalAdvice != null ? "ADJUST" : resolveStatusFromRange(maxDrop, range);
+        String adviceText = finalAdvice != null
+                ? (finalAdvice.getAdviceContent() != null ? finalAdvice.getAdviceContent() : finalAdvice.getCode())
+                : ("OK".equals(status) ? "处于理想范围"
+                : getRangeDerivedAdvice("maxHipDrop", maxDrop, range));
+        String riderAdvice = getRiderAdvice("maxHipDrop", maxDrop, range);
+
+        vos.add(DynamicFittingMetricVO.builder()
+                .label("左右侧骨盆下坠")
+                .currentValue(String.format("L:%.1f R:%.1f", lVal, rVal))
+                .status(status)
+                .idealRange(range)
+                .advice(adviceText)
+                .riderAdvice(riderAdvice)
+                .build());
     }
 
     /**
@@ -760,9 +813,9 @@ public class DynamicFittingService {
         labels.put("torsoAngle", "躯干夹角");
         labels.put("ankleAngle", "踝角");
         labels.put("elbowAngle", "肘部角度");
-        labels.put("ankleAtBdc", "下死点跖屈代理");
+        labels.put("ankleAtBdc", "下死点踝角");
         labels.put("cadenceRpm", "实时踏频");
-        labels.put("kopsOffset", "膝前后偏移代理(KOPS)");
+        labels.put("kopsOffset", "膝盖前移量(KOPS)");
         
         // 正面
         labels.put("avgKnee", "双膝平均角度");
@@ -787,7 +840,7 @@ public class DynamicFittingService {
         labels.put("minHip", "上死点最小髋角");
         labels.put("maxHip", "曲柄底端最大髋角");
         labels.put("avgKneeLateral", "膝盖横向偏移均值");
-        labels.put("maxKnee", "最大膝角 (伸展度)");
+        labels.put("maxKnee", "下死点最大膝伸展角");
         labels.put("maxShoulder", "最大肩角 (前伸量)");
 
         // 背面

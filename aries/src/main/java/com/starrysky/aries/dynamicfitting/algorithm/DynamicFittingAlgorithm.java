@@ -16,6 +16,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * 动态 Fitting 诊断算法引擎 - 数据库驱动扩展版
@@ -55,6 +56,7 @@ public class DynamicFittingAlgorithm {
     }
     /** 未知车型的双侧对称性告警阈值默认值（°） */
     private static final double DEFAULT_BILATERAL_THRESHOLD = 8.0;
+    private static final Set<String> OBSERVATION_ONLY_METRICS = Set.of("cadenceRpm");
 
     /**
      * 核心诊断逻辑
@@ -76,6 +78,7 @@ public class DynamicFittingAlgorithm {
         Map<String, String> standardRanges = new java.util.HashMap<>();
 
         for (DynamicFittingStandard std : standards) {
+            std = normalizeBusinessStandard(std);
             String metricKey = std.getMetricKey();
             String viewType = std.getViewType();
 
@@ -91,6 +94,10 @@ public class DynamicFittingAlgorithm {
                 val = normalizeMetricValueForStandard(metricKey, val, std);
                 detectedMetrics.put(metricKey, val);
                 standardRanges.put(metricKey, String.format("%.1f-%.1f", std.getMinVal(), std.getMaxVal()));
+
+                if (OBSERVATION_ONLY_METRICS.contains(metricKey)) {
+                    continue;
+                }
 
                 // 计算该指标得分 (非对称)
                 double score = calculateAsymmetricScore(val, std);
@@ -207,6 +214,72 @@ public class DynamicFittingAlgorithm {
         return viewType + ":" + std.getMetricKey();
     }
 
+    private DynamicFittingStandard normalizeBusinessStandard(DynamicFittingStandard std) {
+        if (std == null || std.getMetricKey() == null) {
+            return std;
+        }
+
+        DynamicFittingStandard normalized = copyStandard(std);
+        switch (std.getMetricKey()) {
+            case "maxKnee":
+                normalized.setMinVal(145.0);
+                normalized.setMaxVal(155.0);
+                break;
+            case "ankleAtBdc":
+                normalized.setMinVal(0.0);
+                normalized.setMaxVal(30.0);
+                normalized.setWeight(Math.min(defaultDouble(std.getWeight(), 0.04), 0.04));
+                break;
+            case "kopsOffset":
+                normalized.setMinVal(-15.0);
+                normalized.setMaxVal(15.0);
+                normalized.setWeight(Math.min(defaultDouble(std.getWeight(), 0.05), 0.05));
+                break;
+            case "cadenceRpm":
+                normalized.setMinVal(70.0);
+                normalized.setMaxVal(110.0);
+                normalized.setWeight(0.0);
+                break;
+            case "maxHipTilt":
+            case "maxShoulderTilt":
+            case "maxSpineTilt":
+                normalized.setMinVal(0.0);
+                normalized.setMaxVal(7.0);
+                break;
+            case "spineRockingVar":
+                normalized.setMinVal(0.0);
+                normalized.setMaxVal(5.0);
+                break;
+            default:
+                return std;
+        }
+        return normalized;
+    }
+
+    private DynamicFittingStandard copyStandard(DynamicFittingStandard std) {
+        DynamicFittingStandard copy = new DynamicFittingStandard();
+        copy.setId(std.getId());
+        copy.setBikeType(std.getBikeType());
+        copy.setViewType(std.getViewType());
+        copy.setMetricKey(std.getMetricKey());
+        copy.setMinVal(std.getMinVal());
+        copy.setMaxVal(std.getMaxVal());
+        copy.setWeight(std.getWeight());
+        copy.setSensitivity(std.getSensitivity());
+        copy.setLowSensitivity(std.getLowSensitivity());
+        copy.setHighSensitivity(std.getHighSensitivity());
+        copy.setPart(std.getPart());
+        copy.setLowAdvice(std.getLowAdvice());
+        copy.setHighAdvice(std.getHighAdvice());
+        copy.setLowAdviceContent(std.getLowAdviceContent());
+        copy.setHighAdviceContent(std.getHighAdviceContent());
+        return copy;
+    }
+
+    private double defaultDouble(Double value, double defaultValue) {
+        return value != null ? value : defaultValue;
+    }
+
     private static List<DynamicFittingStandard> fallbackStandards() {
         List<DynamicFittingStandard> standards = new ArrayList<>();
         standards.add(standard("side", "avgTorso", 40.0, 50.0, 0.10, "handlebar",
@@ -218,16 +291,16 @@ public class DynamicFittingAlgorithm {
         standards.add(standard("side", "maxHip", 70.0, 80.0, 0.06, "seat",
                 "下压阶段髋部伸展不足，建议复核坐垫高度和髋部活动范围。",
                 "髋角偏大，建议复核坐垫高度并观察骨盆是否下沉。"));
-        standards.add(standard("side", "maxKnee", 140.0, 150.0, 0.16, "seat",
+        standards.add(standard("side", "maxKnee", 145.0, 155.0, 0.16, "seat",
                 "膝部伸展不足，建议优先复核座高。",
                 "膝部伸展角偏大，建议优先复核座高并关注膝后侧反馈。"));
-        standards.add(standard("side", "ankleAtBdc", 10.0, 25.0, 0.06, "cleat",
+        standards.add(standard("side", "ankleAtBdc", 0.0, 30.0, 0.04, "cleat",
                 "下死点跖屈代理角偏小，建议复核锁片前后、鞋底支撑和脚跟下坠习惯。",
                 "下死点跖屈代理角偏大，建议复核锁片位置、鞋底支撑和脚尖下压习惯。"));
-        standards.add(standard("side", "kopsOffset", -10.0, 10.0, 0.08, "seat",
+        standards.add(standard("side", "kopsOffset", -15.0, 15.0, 0.05, "seat",
                 "KOPS 代理值偏后，建议结合曲柄相位和踏板轴复核坐垫前后位置。",
                 "KOPS 代理值偏前，建议结合曲柄相位和踏板轴复核坐垫前后位置。"));
-        standards.add(standard("side", "cadenceRpm", 80.0, 100.0, 0.04, "crank",
+        standards.add(standard("side", "cadenceRpm", 70.0, 110.0, 0.00, "crank",
                 "踏频偏低，建议尝试更轻齿比与稳定节奏训练。",
                 "踏频偏高，建议复核齿比与骨盆稳定性。"));
         standards.add(standard("front", "maxWobble", 0.0, 15.0, 0.10, "cleat",
@@ -236,18 +309,24 @@ public class DynamicFittingAlgorithm {
         standards.add(standard("front", "maxElbowFlare", 0.0, 15.0, 0.05, "handlebar",
                 "手肘外张在参考范围内。",
                 "手肘外张偏大，建议复核车把宽度和上身紧张度。"));
-        standards.add(standard("front", "maxShoulderTilt", 0.0, 5.0, 0.05, "handlebar",
+        standards.add(standard("front", "maxShoulderTilt", 0.0, 7.0, 0.04, "handlebar",
                 "肩部偏角在参考范围内。",
                 "肩部偏角偏大，建议复核握把压力和躯干稳定性。"));
-        standards.add(standard("front", "maxHipTilt", 0.0, 5.0, 0.06, "seat",
+        standards.add(standard("front", "maxHipTilt", 0.0, 7.0, 0.05, "seat",
                 "骨盆侧倾在参考范围内。",
                 "骨盆侧倾偏大，建议复核座高、坐垫支撑和核心稳定性。"));
         standards.add(standard("back", "maxPelvisSway", 0.0, 10.0, 0.06, "seat",
                 "骨盆横摆在参考范围内。",
                 "骨盆横摆偏大，建议复核座高和核心稳定性。"));
-        standards.add(standard("back", "maxSpineTilt", 0.0, 5.0, 0.05, "handlebar",
+        standards.add(standard("back", "maxSpineTilt", 0.0, 7.0, 0.04, "handlebar",
                 "脊柱侧向偏移在参考范围内。",
                 "脊柱侧向偏移偏大，建议复核坐姿对称性和拍摄角度。"));
+        standards.add(standard("back", "spineRockingVar", 0.0, 5.0, 0.04, "handlebar",
+                "脊柱侧偏波动在参考范围内。",
+                "脊柱侧偏波动偏大，建议复核核心稳定性、坐姿对称性和拍摄角度。"));
+        standards.add(standard("back", "maxShoulderTilt", 0.0, 7.0, 0.04, "handlebar",
+                "高低肩偏角在参考范围内。",
+                "高低肩偏角偏大，建议复核握把压力、肩胛稳定性和拍摄水平。"));
         standards.add(standard("back", "maxHipDrop_L", 0.0, 8.0, 0.04, "seat",
                 "左侧骨盆下坠在参考范围内。",
                 "左侧骨盆下坠偏大，建议复核座高和单侧髋部控制。"));
@@ -386,11 +465,14 @@ public class DynamicFittingAlgorithm {
         if (key.contains("stddev")) {
             return new MetricDescriptor("双侧控制稳定性", 3.0, "°");
         }
+        if (key.contains("avgknee") || key.contains("kneevariance")) {
+            return null;
+        }
         if (key.contains("wobble")) {
-            return new MetricDescriptor("膝部横向偏移", 5.0, "%");
+            return new MetricDescriptor("膝部横向偏移", 8.0, "%");
         }
         if (key.contains("hipdrop")) {
-            return new MetricDescriptor("骨盆下坠幅度", 5.0, "%");
+            return new MetricDescriptor("骨盆下坠幅度", 8.0, "%");
         }
         double angleThreshold = BILATERAL_ASYMMETRY_THRESHOLDS.getOrDefault(
                 bikeType, DEFAULT_BILATERAL_THRESHOLD);
@@ -398,7 +480,7 @@ public class DynamicFittingAlgorithm {
             return new MetricDescriptor("膝部伸展角度", angleThreshold, "°");
         }
         if (key.contains("elbow")) {
-            return new MetricDescriptor("手肘外张角度", 5.0, "%");
+            return new MetricDescriptor("手肘外张角度", 8.0, "%");
         }
         return null;
     }

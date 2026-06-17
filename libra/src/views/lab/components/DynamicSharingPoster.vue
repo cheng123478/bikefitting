@@ -395,13 +395,14 @@ const injuryWarning = computed(() => {
     const rWobble = safePedaling.value.lateralWobbleRight || 0;
     const maxWobble = Math.max(lWobble, rWobble);
     const badLeg = maxWobble === rWobble ? '右膝' : '左膝';
-    if (maxWobble > 5.0) {
+    if (maxWobble > 15.0) {
       return `检测到${badLeg}存在 ${maxWobble.toFixed(1)}% 侧向晃动（骨盆宽占比），建议复核锁片角度、鞋垫支撑与髋部稳定性。`;
     }
   } else {
-     const ext = fallbackMetrics.value.find(m => m.label.includes('伸展度'));
-     if (ext && ext.currentValue > 150) return `膝关节伸展度 ${ext.currentValue}° 偏大，建议复核座高并关注膝后侧不适反馈。`;
-     if (ext && ext.currentValue < 130) return `膝关节伸展度 ${ext.currentValue}° 偏小，建议复核座高并关注膝前侧压力感。`;
+     const ext = fallbackMetrics.value.find(m => m.label.includes('伸展'));
+     const extValue = ext ? Number.parseFloat(ext.currentValue) : null;
+     if (extValue != null && extValue > 155) return `膝关节伸展度 ${ext.currentValue}° 偏大，建议复核座高并关注膝后侧不适反馈。`;
+     if (extValue != null && extValue < 145) return `膝关节伸展度 ${ext.currentValue}° 偏小，建议复核座高并关注膝前侧压力感。`;
   }
   return null;
 });

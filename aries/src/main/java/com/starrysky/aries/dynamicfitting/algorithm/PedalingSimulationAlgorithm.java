@@ -154,9 +154,9 @@ public class PedalingSimulationAlgorithm {
         }
         int rightRatio = 100 - leftRatio;
 
-        // 上提不平顺代理指数：谷底越深（相对峰值）→ 上提阶段轨迹越不连续
-        double valleyRatio = calculateMeanValleyRatio(leftKneeY, leftPeaks);
-        int upstrokeDrag = Math.max(0, Math.min(100, (int) Math.round((1.0 - valleyRatio) * 100)));
+        // 上提不平顺代理指数：使用跨周期振幅一致性，而不是峰/谷绝对比例。
+        // 正常平滑踩踏的膝/膝点轨迹本来就有大幅峰谷差，不能因此判为“不平顺”。
+        int upstrokeDrag = calculateBilateralAmplitudeConsistencyIndex(leftKneeY, leftPeaks, rightKneeY, rightPeaks);
 
         // 构建结果
         Map<String, Object> result = new HashMap<>();
@@ -223,12 +223,11 @@ public class PedalingSimulationAlgorithm {
         result.put("rightPeakAngle", 270);
 
         if (kneeAngles.size() >= 15) {
-            // 从膝角峰谷估算上提不平顺代理指数
+            // 从膝角跨周期振幅一致性估算上提不平顺代理指数
             List<Integer> peaks = findPeaks(kneeAngles, 4);
             int drag = 20;
             if (peaks.size() >= 2) {
-                double valleyRatio = calculateMeanValleyRatio(kneeAngles, peaks);
-                drag = Math.max(0, Math.min(100, (int) Math.round((1.0 - valleyRatio) * 100)));
+                drag = calculateAmplitudeConsistencyIndex(kneeAngles, peaks);
             }
             result.put("upstrokeDragIndex", drag);
             result.put("forceCurvePoints", generateSymmetricCurveFromAngles(kneeAngles));
@@ -385,6 +384,48 @@ public class PedalingSimulationAlgorithm {
             }
         }
         return count > 0 ? sumRatio / count : 0.5;
+    }
+
+    private int calculateBilateralAmplitudeConsistencyIndex(List<Double> leftData,
+                                                            List<Integer> leftPeaks,
+                                                            List<Double> rightData,
+                                                            List<Integer> rightPeaks) {
+        int left = calculateAmplitudeConsistencyIndex(leftData, leftPeaks);
+        int right = calculateAmplitudeConsistencyIndex(rightData, rightPeaks);
+        return Math.max(0, Math.min(100, (left + right) / 2));
+    }
+
+    private int calculateAmplitudeConsistencyIndex(List<Double> data, List<Integer> peaks) {
+        List<Double> amplitudes = calculateCycleAmplitudes(data, peaks);
+        if (amplitudes.size() < 2) return 20;
+
+        double mean = amplitudes.stream().mapToDouble(Double::doubleValue).average().orElse(0.0);
+        if (mean <= 0.001) return 20;
+
+        double variance = 0.0;
+        for (Double amp : amplitudes) {
+            variance += Math.pow(amp - mean, 2);
+        }
+        variance /= amplitudes.size();
+        double cv = Math.sqrt(variance) / mean * 100.0;
+        return Math.max(0, Math.min(100, (int) Math.round(cv)));
+    }
+
+    private List<Double> calculateCycleAmplitudes(List<Double> data, List<Integer> peaks) {
+        List<Double> amplitudes = new ArrayList<>();
+        if (peaks.size() < 2) return amplitudes;
+        for (int i = 0; i < peaks.size() - 1; i++) {
+            int start = peaks.get(i);
+            int end = peaks.get(i + 1);
+            double peakVal = data.get(start);
+            double valleyVal = data.subList(start, end).stream()
+                    .mapToDouble(Double::doubleValue).min().orElse(peakVal);
+            double amplitude = peakVal - valleyVal;
+            if (amplitude > 0.001) {
+                amplitudes.add(amplitude);
+            }
+        }
+        return amplitudes;
     }
 
     // ══════════════════════════════════════════════════════════════════════════
