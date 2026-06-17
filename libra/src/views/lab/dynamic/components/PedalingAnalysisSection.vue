@@ -3,9 +3,9 @@
     <div class="view-header">
       <h2>
         <i class="fas fa-bolt"></i>
-        高阶踩踏动力学分析 (Pedaling Pro)
+        踩踏运动学代理分析 (Pedaling Pro)
       </h2>
-      <span class="badge" style="background: rgba(212, 175, 55, 0.1); color: var(--accent-gold);">KINETICS</span>
+      <span class="badge" style="background: rgba(212, 175, 55, 0.1); color: var(--accent-gold);">KINEMATICS</span>
       <!-- 数据可信度标签 -->
       <span v-if="data.bilateralConfidence === 'HIGH'" class="badge confidence-high">
         <i class="fas fa-check-circle"></i> 正面双侧实测
@@ -20,10 +20,10 @@
       <i class="fas fa-info-circle"></i> {{ data.analysisNote }}
     </div>
 
-    <!-- 1. Left/Right Power Balance -->
+    <!-- 1. Left/Right motion balance proxy -->
     <div class="balance-card">
       <div class="balance-header">
-        <h4 class="sub-label">双侧发力平衡 (Power Balance)</h4>
+        <h4 class="sub-label">双侧运动幅度占比 (Motion Balance Proxy)</h4>
       </div>
       <div class="balance-track">
         <div class="balance-fill left-fill" :style="{ width: data.leftPowerRatio + '%' }">
@@ -38,30 +38,30 @@
         <div class="center-mark"></div>
       </div>
       <p class="balance-desc" v-if="Math.abs(data.leftPowerRatio - 50) > 3">
-        检测到发力偏移：右腿输出 <template v-if="data.rightPowerRatio > 50">较强</template><template v-else>较弱</template>。建议检查是否具有长短腿差异、坐垫偏移或单侧代偿习惯。
+        检测到双侧运动幅度偏移：右侧轨迹振幅 <template v-if="data.rightPowerRatio > 50">较大</template><template v-else>较小</template>。该值来自 2D 运动轨迹代理，不等同于功率计或压力设备数据；建议结合长短腿差异、坐垫偏移或单侧代偿习惯复核。
       </p>
       <p class="balance-desc" v-else>
-        发力极具对称性，双侧输出均衡。
+        双侧运动轨迹较对称。
       </p>
     </div>
 
-    <div class="kinetics-grid">
-      <!-- 2. Force Curve Chart -->
+    <div class="kinematics-grid">
+      <!-- 2. Motion proxy curve chart -->
       <div class="chart-box">
-        <h4 class="sub-label">360° 发力平顺度概览 (Force Curve)</h4>
+        <h4 class="sub-label">360° 运动代理平顺度概览 (Motion Proxy Curve)</h4>
         <div class="layman-desc">
           <strong>怎么看懂这幅图？</strong><br/>
-          蓝色曲线代表左腿，红色代表右腿。当您向下踩踏到底时，曲线会到达最高峰。理想情况下，波峰越圆润宽广、两波交接的波谷越浅，说明您踩得越“圆”、发力越连贯没有死角。
+          蓝色曲线代表左侧运动轨迹代理，红色代表右侧。曲线由视觉关键点时序生成，用来观察节奏和平顺度趋势，不代表功率计或压力设备数据。
         </div>
         <div ref="curveChartDom" class="echarts-dom"></div>
       </div>
 
       <!-- 2.5 360 Radar/Polar Chart -->
       <div class="chart-box">
-        <h4 class="sub-label">360° 发力极坐标圆周盘 (Polar Phase)</h4>
+        <h4 class="sub-label">360° 运动相位极坐标盘 (Polar Phase)</h4>
         <div class="layman-desc">
           <strong>图里的“花瓣”代表什么？</strong><br/>
-          这就像是把您的发力画在了自行车的牙盘上。最饱满、鼓出的方向指明了您发力最猛的阶段（通常应指向右下方 3点~4点钟方向）。如果左右颜色覆盖面积相差很大，说明存在偏科发力。
+          这张图把视觉轨迹代理映射到参考相位。左右面积差异提示轨迹节奏不对称，但不能单独判断哪条腿真实输出更高。
         </div>
         <div ref="radarChartDom" class="echarts-dom"></div>
       </div>
@@ -71,17 +71,17 @@
         <h4 class="sub-label">踩踏工况诊断</h4>
         <div class="index-grid">
           <div class="idx-card">
-            <span class="idx-lbl">左发力峰值相角</span>
+            <span class="idx-lbl">左侧代理峰值参考相位</span>
             <span class="idx-v">{{ data.leftPeakAngle }}°</span>
             <span class="idx-eval" :class="getAngleClass(data.leftPeakAngle)">{{ getAngleDesc(data.leftPeakAngle) }}</span>
           </div>
           <div class="idx-card">
-            <span class="idx-lbl">右发力峰值相角</span>
+            <span class="idx-lbl">右侧代理峰值参考相位</span>
             <span class="idx-v">{{ data.rightPeakAngle }}°</span>
             <span class="idx-eval" :class="getAngleClass(data.rightPeakAngle)">{{ getAngleDesc(data.rightPeakAngle) }}</span>
           </div>
           <div class="idx-card">
-            <span class="idx-lbl">上提阻滞系数 (Brake Drag)</span>
+            <span class="idx-lbl">上提不平顺代理指数</span>
             <div class="drag-meter mt-2">
               <span class="idx-v" :class="data.upstrokeDragIndex > 30 ? 'text-danger' : 'text-success'">
                 {{ data.upstrokeDragIndex }}
@@ -89,7 +89,7 @@
               <span class="text-sm ml-2" style="color:var(--text-muted)"> (越小越平顺) </span>
             </div>
             <span class="idx-eval" style="color:var(--text-muted); font-size: 0.75rem; margin-top: 5px;">
-              数值偏大意味着脚踏处于上拉阶段时存在卡顿或对抗。
+              数值偏大意味着视觉轨迹在上提阶段不够平顺，需结合实际脚感复核。
             </span>
           </div>
           
@@ -106,7 +106,7 @@
               </div>
             </div>
             <span class="idx-eval" style="color:var(--text-muted); font-size: 0.75rem; margin-top: 8px;">
-              代替脚踏中心偏离仪，从正面视角测量膝关节踩踏时的画圆跑偏量（% 骨盆宽）。越小说明力量传导越笔直无损耗。
+              从正面视角测量膝关节踩踏时的横向轨迹偏移（% 骨盆宽）。数值越小，说明膝部轨迹越稳定；仍需结合锁片、鞋垫和髋部控制复核。
             </span>
           </div>
 
@@ -151,9 +151,9 @@ const getAngleClass = (angle) => {
 
 const getAngleDesc = (angle) => {
   const relativeAngle = angle % 180;
-  if (relativeAngle < 85) return '发力过早 (坐垫偏前)';
-  if (relativeAngle > 105) return '发力滞后 (坐垫偏后)';
-  return '相对标准 (3点方向)';
+  if (relativeAngle < 85) return '代理峰值偏早';
+  if (relativeAngle > 105) return '代理峰值偏后';
+  return '参考相位正常';
 };
 
 const renderChart = () => {
@@ -174,7 +174,7 @@ const renderChart = () => {
       color: ['#007BFF', '#DC3545', '#888888'],
       tooltip: { trigger: 'axis' },
       legend: {
-        data: ['左腿相对输出', '右腿相对输出', '合力'],
+        data: ['左侧代理值', '右侧代理值', '合成代理值'],
         bottom: 0,
         icon: 'roundRect'
       },
@@ -187,12 +187,12 @@ const renderChart = () => {
       },
       yAxis: {
         type: 'value',
-        name: '输出指数',
+        name: '代理指数',
         nameTextStyle: { color: 'rgba(0,0,0,0.3)', align: 'right' }
       },
       series: [
         {
-          name: '左腿相对输出',
+          name: '左侧代理值',
           type: 'line',
           data: leftValues,
           smooth: true,
@@ -206,7 +206,7 @@ const renderChart = () => {
           }
         },
         {
-          name: '右腿相对输出',
+          name: '右侧代理值',
           type: 'line',
           data: rightValues,
           smooth: true,
@@ -220,7 +220,7 @@ const renderChart = () => {
           }
         },
         {
-          name: '合力',
+          name: '合成代理值',
           type: 'line',
           data: totalValues,
           smooth: true,
@@ -273,7 +273,7 @@ const renderChart = () => {
       series: [
         {
           coordinateSystem: 'polar',
-          name: '左腿输出',
+          name: '左侧代理值',
           type: 'line',
           data: leftPolar,
           showSymbol: false,
@@ -282,7 +282,7 @@ const renderChart = () => {
         },
         {
           coordinateSystem: 'polar',
-          name: '右腿输出',
+          name: '右侧代理值',
           type: 'line',
           data: rightPolar,
           showSymbol: false,
@@ -380,9 +380,9 @@ onUnmounted(() => {
 .balance-fill .lbl { font-size: 0.8rem; font-weight: 500; opacity: 0.8; font-family: sans-serif; }
 .balance-desc { font-size: 0.9rem; color: var(--text-muted); margin-top: 15px; }
 
-.kinetics-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 25px; }
+.kinematics-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 25px; }
 @media (max-width: 900px) {
-  .kinetics-grid { grid-template-columns: 1fr; }
+  .kinematics-grid { grid-template-columns: 1fr; }
 }
 
 .chart-box { background: var(--bg-surface); padding: 20px; border-radius: 12px; border: 1px solid rgba(0,0,0,0.05); }

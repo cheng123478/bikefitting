@@ -78,6 +78,7 @@ export function usePoseEstimation(viewModeRef = 'side') {
         triggerMetrics: {
             // Standardized keys: [tag]Val
             bdcVal: -1,
+            ankleAtBdc: 0,
             tdcVal: 999,
             k_extVal: -1,
             max_wobbleVal: 0,
@@ -86,6 +87,11 @@ export function usePoseEstimation(viewModeRef = 'side') {
             max_dropVal: 0
         }
     });
+
+    function toBdcPlantarflexionProxy(rawAnkle) {
+        if (!Number.isFinite(rawAnkle)) return 0;
+        return Number((rawAnkle - 90).toFixed(1));
+    }
 
     // 2. 数据处理回调
     const onResults = (results) => {
@@ -145,22 +151,26 @@ export function usePoseEstimation(viewModeRef = 'side') {
             // --- 极限捕获 (Peak Hold) & 专业动态捕获 ---
             if (rawKnee > metrics.value.sideMaxKnee) {
                 metrics.value.sideMaxKnee = Number(rawKnee.toFixed(1));
-                metrics.value.ankleAtBdc = Number(rawAnkle.toFixed(1)); // 侧面：踝关节动态跖屈极限抓取
+                // MediaPipe 原始踝角为 ∠KNEE-ANKLE-TOE 内角；业务展示使用跖屈代理角。
+                // 约 90° 表示脚掌接近中立位，因此 rawAnkle 109° 会转成约 19° 跖屈量。
+                metrics.value.ankleAtBdc = toBdcPlantarflexionProxy(rawAnkle);
             }
             if (rawHip < metrics.value.sideMinHip) {
                 metrics.value.sideMinHip = Number(rawHip.toFixed(1));
             }
 
             if (isCollecting.value) {
-                // 侧面：KOPS 捕获 - 找到脚尖（toe）最靠前瞬间，计算膝盖与其水平偏移量
+                // 侧面：KOPS proxy 捕获 - 找到前足代理点最靠前瞬间，计算膝盖与其水平偏移量
                 // ── 单位修正 ──────────────────────────────────────────────────────
                 // 旧方案：直接用像素差（× w），受拍摄距离和设备分辨率影响，无法跨设备比较。
                 // 新方案：将像素差除以「胫骨长度（膝→踝）的像素长度」，得到不受设备影响的百分比。
                 //         胫骨在同一拍摄场景下与整体画面等比缩放，商值（%）始终保持一致。
+                // 参考点说明：MediaPipe 无踏板轴/锁片轴点，这里用脚跟→脚尖 70% 处近似前足/锁片区域，
+                //            比直接使用脚尖更不受鞋码和脚尖姿态影响，但仍只能作为 2D 视觉代理。
                 // 正值 = 膝过偏前（Knee Over）；负值 = 膝偏后（Knee Behind）
                 // 理想范围：|kopsOffset| < 10%（约对应真实偏移 < 4 cm，胫骨按 40 cm 计算）
                 const isFacingRight = lm[idx.shoulder].x > lm[idx.hip].x;
-                const toeX = lm[idx.toe].x;
+                const footRefX = (lm[idx.heel].x * 0.3) + (lm[idx.toe].x * 0.7);
 
                 // 计算胫骨参考长度（像素）：保留画面比例畸变校正
                 const tibiaLenPx = Math.sqrt(
@@ -169,17 +179,17 @@ export function usePoseEstimation(viewModeRef = 'side') {
                 );
 
                 if (isFacingRight) {
-                    if (toeX > collectedData.value.triggerMetrics.max_toe_x) {
-                        collectedData.value.triggerMetrics.max_toe_x = toeX;
-                        const rawPx = (lm[idx.knee].x - toeX) * w; // 正数：膝在脚尖前方
+                    if (footRefX > collectedData.value.triggerMetrics.max_foot_ref_x) {
+                        collectedData.value.triggerMetrics.max_foot_ref_x = footRefX;
+                        const rawPx = (lm[idx.knee].x - footRefX) * w; // 正数：膝在前足参考点前方
                         metrics.value.kopsOffset = tibiaLenPx > 5
                             ? Math.round(rawPx / tibiaLenPx * 100 * 10) / 10
                             : 0;
                     }
                 } else {
-                    if (toeX < collectedData.value.triggerMetrics.min_toe_x) {
-                        collectedData.value.triggerMetrics.min_toe_x = toeX;
-                        const rawPx = (toeX - lm[idx.knee].x) * w; // 正数：膝在脚尖前方
+                    if (footRefX < collectedData.value.triggerMetrics.min_foot_ref_x) {
+                        collectedData.value.triggerMetrics.min_foot_ref_x = footRefX;
+                        const rawPx = (footRefX - lm[idx.knee].x) * w; // 正数：膝在前足参考点前方
                         metrics.value.kopsOffset = tibiaLenPx > 5
                             ? Math.round(rawPx / tibiaLenPx * 100 * 10) / 10
                             : 0;
@@ -468,6 +478,7 @@ export function usePoseEstimation(viewModeRef = 'side') {
         // BDC 抓拍
         if (knee > collectedData.value.triggerMetrics.bdcVal) {
             collectedData.value.triggerMetrics.bdcVal = knee;
+            collectedData.value.triggerMetrics.ankleAtBdc = toBdcPlantarflexionProxy(ankle);
             if (onSnapshotNeeded) onSnapshotNeeded('bdc');
         }
 
@@ -531,7 +542,7 @@ export function usePoseEstimation(viewModeRef = 'side') {
             startTime: Date.now(),
             frameData: [],
             triggerMetrics: {
-                bdcVal: -1, tdcVal: 999, max_toe_x: -999, min_toe_x: 999,
+                bdcVal: -1, ankleAtBdc: 0, tdcVal: 999, max_foot_ref_x: -999, min_foot_ref_x: 999,
                 k_extVal: -1, max_wobbleVal: 0, max_tiltVal: 0,
                 max_swayVal: 0, max_dropVal: 0
             }

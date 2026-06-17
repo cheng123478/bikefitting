@@ -57,7 +57,7 @@
             <div class="card-icon"><i class="fas fa-heartbeat"></i></div>
             <div class="header-text">
               <h3 class="panel-title">身体状态映射</h3>
-              <p class="desc-text-sm">勾选不适部位，{{ PROJECT_CONFIG.MASCOT }} 将引入医疗级修正参数以优化动态建议。</p>
+              <p class="desc-text-sm">勾选不适部位，{{ PROJECT_CONFIG.MASCOT }} 将把疼痛反馈纳入动态建议权重。</p>
             </div>
           </div>
           <div class="card-body">
@@ -130,7 +130,7 @@
               </div>
               <p v-else class="view-help-text">
                 <strong>膝盖轨迹与风阻分析</strong><br>
-                <span>追踪发力期膝盖内扣或外翻轨迹，预防髂胫束摩擦，提供锁片与鞋垫调整建议。</span>
+                <span>追踪膝盖内扣或外翻轨迹，提示锁片、鞋垫与核心控制的复核方向。</span>
               </p>
             </div>
             <div class="check-circle" v-if="selectedView === 'front'"><i class="fas fa-check"></i></div>
@@ -145,7 +145,7 @@
                 <div class="mini-dashboard">
                   <div class="m-item">
                       <span class="l">最大骨盆晃动</span>
-                    <span class="v">{{ session.back.summary?.maxPelvisSway || '--' }}px</span>
+                    <span class="v">{{ session.back.summary?.maxPelvisSway || '--' }}<span style="font-size:0.7rem">%</span></span>
                   </div>
                   <div class="m-item">
                       <span class="l">最大脊柱侧偏</span>
@@ -172,7 +172,7 @@
               准备{{ session[selectedView] ? '重录' : '启动' }}: <strong class="highlight">{{ getViewName(selectedView) }}</strong>
             </div>
             <p class="desc-text" v-if="session.painLevels.length > 0">
-              已搭载 <strong class="highlight">{{ session.painLevels.length }}</strong> 项医疗修正参数。
+              已纳入 <strong class="highlight">{{ session.painLevels.length }}</strong> 项疼痛反馈。
             </p>
             <p class="desc-text" v-else>{{ getViewDesc(selectedView) }}</p>
           </div>
@@ -304,7 +304,7 @@ const submitAnalysis = async () => {
 
   if (!session.value.side) {
       const isConfirmed = await showConfirm(
-        `未检测到侧面视角数据。${PROJECT_CONFIG.MASCOT} 将无法生成关于座垫高度和前伸量的精准建议。是否继续提交已有的视角分析？`,
+        `未检测到侧面视角数据。${PROJECT_CONFIG.MASCOT} 将无法生成关于座垫高度和前伸量的完整几何建议。是否继续提交已有的视角分析？`,
         '视角缺失确认'
       );
     if (!isConfirmed) return;
@@ -436,6 +436,17 @@ const getViewDesc = (v) => {
   display: flex;
   flex-direction: column;
   gap: 12px;
+  max-height: 240px;
+  overflow-y: auto;
+  padding-right: 5px;
+}
+
+.bike-selection-list::-webkit-scrollbar {
+  width: 4px;
+}
+.bike-selection-list::-webkit-scrollbar-thumb {
+  background: rgba(0,0,0,0.05);
+  border-radius: 4px;
 }
 
 .bike-selection-item {
@@ -443,12 +454,19 @@ const getViewDesc = (v) => {
   display: flex;
   align-items: center;
   gap: 15px;
-  padding: 14px 18px;
+  padding: 12px 16px;
+  padding-right: 45px;
   background: rgba(255,255,255,0.5);
   border: 1px solid rgba(92, 110, 88, 0.12);
   border-radius: 14px;
   cursor: pointer;
   transition: all 0.3s;
+}
+
+.bike-selection-item:hover {
+  background: #fff;
+  border-color: var(--primary-color);
+  transform: translateX(5px);
 }
 
 .bike-selection-item.active {
@@ -457,12 +475,42 @@ const getViewDesc = (v) => {
   box-shadow: 0 5px 15px rgba(0,0,0,0.05);
 }
 
-.bike-main-info { display: flex; flex-direction: column; }
-.bike-name { font-weight: 700; color: var(--text-main); font-size: 0.95rem; }
-.bike-remark { font-size: 0.75rem; color: var(--text-muted); }
+.bike-status-dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: #ccc;
+  flex-shrink: 0;
+}
+.bike-status-dot.has-report {
+  background: #52c41a;
+  box-shadow: 0 0 8px rgba(82, 196, 26, 0.4);
+}
+
+.bike-main-info { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+.bike-name { font-weight: 700; color: var(--text-main); font-size: 0.95rem; line-height: 1.2; }
+.bike-remark {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin-top: 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 180px;
+}
 
 .active-check { position: absolute; right: 15px; color: var(--primary-color); opacity: 0; transform: scale(0.5); transition: 0.3s; }
 .active-check.is-visible { opacity: 1; transform: scale(1); }
+
+.empty-bikes {
+  text-align: center;
+  padding: 20px;
+  color: var(--text-muted);
+}
+.empty-bikes .btn-text {
+  color: var(--primary-color);
+  margin-top: 5px;
+  font-weight: 600;
+}
 
 /* Middle: Views */
 .middle-selection-section {

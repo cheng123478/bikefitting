@@ -57,15 +57,19 @@ public class DynamicFittingReportVO {
     @AllArgsConstructor
     @NoArgsConstructor
     public static class PedalingData {
-        private Integer leftPowerRatio; // 左腿发力占比(百分比)
-        private Integer rightPowerRatio; // 右腿发力占比(百分比)
-        private Integer leftPeakAngle; // 左腿发力峰值角度
-        private Integer rightPeakAngle; // 右腿发力峰值角度
-        private Integer upstrokeDragIndex; // 提拉阶段不平顺指数 (0-100)
-        private Double lateralWobbleLeft; // 左膝横向摆动量(mm) - 可选
-        private Double lateralWobbleRight; // 右膝横向摆动量(mm) - 可选
+        private Integer leftPowerRatio; // 左腿运动幅度占比代理值(百分比)，非功率计实测功率
+        private Integer rightPowerRatio; // 右腿运动幅度占比代理值(百分比)，非功率计实测功率
+        private Integer leftPeakAngle; // 左腿运动代理曲线峰值参考相位
+        private Integer rightPeakAngle; // 右腿运动代理曲线峰值参考相位
+        private Integer upstrokeDragIndex; // 上提阶段不平顺代理指数 (0-100)
+        private Integer cadenceRpm; // 踏频(RPM)，来自前端按真实视频时长修正后的估算
+        private Double lateralWobbleLeft; // 左膝横向摆动量(% 骨盆宽) - 可选
+        private Double lateralWobbleRight; // 右膝横向摆动量(% 骨盆宽) - 可选
+        private String bilateralConfidence; // HIGH: 正面双侧运动学代理; LOW: 侧面对称假设
+        private String dataSource; // front / side
+        private String analysisNote; // 数据可信度说明
 
-        // 连续曲滑线数据，用于 echarts 渲染
+        // 连续曲线数据，用于 echarts 渲染；数值为运动学代理输出指数
         // 每个元素包含：{"angle": 0, "leftVelocity": 85, "rightVelocity": 20, "totalVelocity": 105}
         private List<Map<String, Object>> forceCurvePoints;
     }
