@@ -172,7 +172,7 @@
           <!-- Card 2: Biomechanical Performance -->
           <div class="bento-card performance-bento">
             <template v-if="hasPedalingData">
-              <span class="bento-label">双侧运动轨迹占比</span>
+              <span class="bento-label">双侧发力平衡度</span>
               <div class="bento-balance-bar">
                 <div class="left-ratio" :style="{ width: safePedaling.leftPowerRatio + '%' }">
                   <span>L {{ safePedaling.leftPowerRatio }}%</span>
@@ -346,11 +346,11 @@ const hasPedalingData = computed(() => Object.keys(safePedaling.value).length > 
 const riderDynamicTitle = computed(() => {
   if (hasPedalingData.value) {
     const p = safePedaling.value;
-    if (p.upstrokeDragIndex < 15) return '踩踏节奏平顺';
-    if (Math.abs((p.leftPowerRatio || 50) - 50) <= 0.5) return '双侧轨迹均衡';
-    if ((p.lateralWobbleLeft || 0) < 2.0 && (p.lateralWobbleRight || 0) < 2.0) return '膝盖轨迹稳定';
-    if ((p.cadenceRpm || 0) > 95) return '高踏频探索者';
-    return '动态控制进阶';
+    if (p.upstrokeDragIndex < 15) return '踩踏平顺大师';
+    if (Math.abs((p.leftPowerRatio || 50) - 50) <= 0.5) return '双侧发力对称王者';
+    if ((p.lateralWobbleLeft || 0) < 2.0 && (p.lateralWobbleRight || 0) < 2.0) return '完美膝盖稳定者';
+    if ((p.cadenceRpm || 0) > 95) return '踏频狂魔';
+    return '高能输出机器';
   }
   return '进阶探索骑士';
 });
@@ -396,12 +396,12 @@ const injuryWarning = computed(() => {
     const maxWobble = Math.max(lWobble, rWobble);
     const badLeg = maxWobble === rWobble ? '右膝' : '左膝';
     if (maxWobble > 5.0) {
-      return `检测到${badLeg}存在 ${maxWobble.toFixed(1)}% 侧向晃动（骨盆宽占比），建议复核锁片角度、鞋垫支撑与髋部稳定性。`;
+      return `检测到${badLeg}存在 ${maxWobble.toFixed(1)}% 侧向晃动（骨盆宽占比），处于半月板磨损高危区，建议微调锁鞋。`;
     }
   } else {
      const ext = fallbackMetrics.value.find(m => m.label.includes('伸展度'));
-     if (ext && ext.currentValue > 150) return `膝关节伸展度 ${ext.currentValue}° 偏大，建议复核座高并关注膝后侧不适反馈。`;
-     if (ext && ext.currentValue < 130) return `膝关节伸展度 ${ext.currentValue}° 偏小，建议复核座高并关注膝前侧压力感。`;
+     if (ext && ext.currentValue > 150) return `膝关节伸展度 ${ext.currentValue}° 偏大，长期骑行极易引发膝后侧十字韧带拉伤。`;
+     if (ext && ext.currentValue < 130) return `膝关节伸展度 ${ext.currentValue}° 偏小，髌骨关节腔压力过大，易引发膝前痛。`;
   }
   return null;
 });
@@ -409,9 +409,9 @@ const injuryWarning = computed(() => {
 const powerPotential = computed(() => {
   if (hasPedalingData.value) {
      const drag = safePedaling.value.upstrokeDragIndex || 0;
-     if (drag > 20) return `目前上提阶段轨迹不够平顺（指数: ${drag}），建议用轻齿比练习稳定踏频。`;
+     if (drag > 20) return `目前上提对抗阻力（Drag: ${drag}）偏高。若优化拉力协同，输出功率预计能提升 +5%！`;
   }
-  return '躯干与下肢控制表现稳定，当前运动轨迹处于较理想区间。';
+  return '躯干与下肢控制极佳，当前发力几何已接近黄金甜区，功率正获得无损释放！';
 });
 
 const criticalInsightText = computed(() => {

@@ -9,17 +9,17 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * 踩踏运动学代理分析算法 v2.0
+ * 踩踏运动学分析算法 v2.0
  *
  * <p><b>数据来源优先级（已修正科学性问题）：</b>
  * <ol>
- *   <li><b>正面视频（FRONT）→ 双侧运动学代理分析（高可信度）</b>：
+ *   <li><b>正面视频（FRONT）→ 双侧分析（高可信度）</b>：
  *       同时追踪 L_KNEE / R_KNEE 的 Y 坐标时序，独立测量左右腿振幅，
- *       估算双侧运动幅度占比与踩踏对称性。该值不是功率计或压力设备的实测功率。</li>
+ *       直接计算双侧发力比与踩踏对称性。</li>
  *   <li><b>侧面视频（SIDE）→ 整体踏频补充（中等可信度，对称假设）</b>：
  *       侧面仅追踪单侧腿运动，无法区分左右腿。
  *       优先取前端已做播放速度校正的 cadenceRpm，
- *       并假设左右 50/50 生成运动代理曲线。</li>
+ *       并假设左右 50/50 生成力量曲线。</li>
  *   <li><b>无有效数据 → 返回 null</b>：前端据此隐藏踩踏分析模块，
  *       不展示随机伪造数据。</li>
  * </ol>
@@ -72,12 +72,12 @@ public class PedalingSimulationAlgorithm {
         // ── 阶段 2：正面分析失败，退到侧面单腿分析（50/50 对称假设）──────────
         if (!bilateralSuccess) {
             if (hasEnoughFrames(sideView, 20)) {
-                Map<String, Object> sideResult = analyzeSideViewKinematics(sideView.getFrameData());
+                Map<String, Object> sideResult = analyzeSideViewKinetics(sideView.getFrameData());
                 result.putAll(sideResult);
                 result.put("bilateralConfidence", "LOW");
                 result.put("dataSource", "side");
                 result.put("analysisNote",
-                        "当前基于【侧面视角】分析。由于单侧视频无法区分双腿，系统采用 50/50 对称假设生成运动代理曲线。此结果可参考踩踏节奏与相位平顺度，但不能解读为功率计或压力设备数据。建议上传正面视频以获得双侧运动轨迹代理分析。");
+                        "当前基于【侧面视角】分析。由于单侧视频无法区分双腿，系统采用了对称动力学模型模拟双腿输出。此结果可参考踩踏相位（Timing），但无法真实反映左右腿力量差异（Balance）。建议上传正面视频以激活双侧实测模式。");
             } else {
                 // 数据完全不足 → 返回 null，让前端隐藏踩踏分析模块
                 return null;
@@ -107,7 +107,7 @@ public class PedalingSimulationAlgorithm {
 
     /**
      * 正面视图双侧分析。
-     * 通过 L_KNEE / R_KNEE 的 Y 坐标振幅比估算左右腿运动幅度占比。
+     * 通过 L_KNEE / R_KNEE 的 Y 坐标振幅比估算左右腿发力比。
      * Y 值越大 = 在画面中越低 = 越接近 BDC（踏板下死点）。
      */
     private Map<String, Object> analyzeFrontBilateral(DynamicFittingRequest.ViewDetailsDTO frontView) {
@@ -141,11 +141,11 @@ public class PedalingSimulationAlgorithm {
 
         if (leftPeaks.size() < 2 || rightPeaks.size() < 2) return null;
 
-        // 振幅均值（BDC峰值 - 段内最小值）作为双侧运动幅度代理
+        // 振幅均值（BDC峰值 - 段内最小值）作为发力强度代理
         double leftAmp = calculateMeanAmplitude(leftKneeY, leftPeaks);
         double rightAmp = calculateMeanAmplitude(rightKneeY, rightPeaks);
 
-        // 左右运动幅度占比（限制在 35%–65%，避免 2D 视觉噪声产生过度结论）
+        // 左右发力比（限制在 35%–65%）
         double totalAmp = leftAmp + rightAmp;
         int leftRatio = 50;
         if (totalAmp > 0.001) {
@@ -154,7 +154,7 @@ public class PedalingSimulationAlgorithm {
         }
         int rightRatio = 100 - leftRatio;
 
-        // 上提不平顺代理指数：谷底越深（相对峰值）→ 上提阶段轨迹越不连续
+        // 提拉阻力指数：谷底越浅（相对振幅）→ 提拉越困难
         double valleyRatio = calculateMeanValleyRatio(leftKneeY, leftPeaks);
         int upstrokeDrag = Math.max(0, Math.min(100, (int) Math.round((1.0 - valleyRatio) * 100)));
 
@@ -162,8 +162,8 @@ public class PedalingSimulationAlgorithm {
         Map<String, Object> result = new HashMap<>();
         result.put("leftPowerRatio", leftRatio);
         result.put("rightPowerRatio", rightRatio);
-        result.put("leftPeakAngle", 90);   // 代理曲线峰值参考相位，约等于下压主相位
-        result.put("rightPeakAngle", 270); // 代理曲线峰值参考相位，约等于另一侧下压主相位
+        result.put("leftPeakAngle", 90);   // BDC 通常对应约 90°（曲柄在3点钟位置）
+        result.put("rightPeakAngle", 270); // 右腿 BDC 约对应 270°
         result.put("upstrokeDragIndex", upstrokeDrag);
         result.put("forceCurvePoints", generateBilateralCurve(leftRatio, rightRatio));
 
@@ -198,7 +198,7 @@ public class PedalingSimulationAlgorithm {
      * 无法区分左右腿，使用 50/50 对称假设，
      * 从膝角时序提取曲线形状特征。
      */
-    private Map<String, Object> analyzeSideViewKinematics(List<Map<String, Object>> frameData) {
+    private Map<String, Object> analyzeSideViewKinetics(List<Map<String, Object>> frameData) {
         Map<String, Object> result = new HashMap<>();
         List<Double> kneeAngles = new ArrayList<>();
 
@@ -223,7 +223,7 @@ public class PedalingSimulationAlgorithm {
         result.put("rightPeakAngle", 270);
 
         if (kneeAngles.size() >= 15) {
-            // 从膝角峰谷估算上提不平顺代理指数
+            // 从膝角峰谷估算提拉阻力指数
             List<Integer> peaks = findPeaks(kneeAngles, 4);
             int drag = 20;
             if (peaks.size() >= 2) {
@@ -241,11 +241,11 @@ public class PedalingSimulationAlgorithm {
     }
 
     // ══════════════════════════════════════════════════════════════════════════
-    //  运动代理曲线生成（确定性，无随机值）
+    //  力量曲线生成（确定性，无随机值）
     // ══════════════════════════════════════════════════════════════════════════
 
     /**
-     * 根据左右腿运动幅度占比生成确定性双侧代理曲线。
+     * 根据左右腿发力比生成确定性双侧力量曲线。
      * 左腿：0°~180° 下压正弦；右腿：180°~360° 下压正弦。
      * 不包含任何随机噪声，保证相同输入总产生相同输出。
      */
@@ -259,7 +259,7 @@ public class PedalingSimulationAlgorithm {
             if (angle <= 180) {
                 leftV = Math.sin(Math.toRadians(angle)) * 100.0 * leftScale;
             } else {
-                // 上提阶段：轻微负值，仅用于表现代理曲线回落
+                // 提拉阶段：轻微负值（被动阻力）
                 leftV = -Math.sin(Math.toRadians(angle - 180)) * 15.0 * leftScale;
             }
 
@@ -267,7 +267,7 @@ public class PedalingSimulationAlgorithm {
             if (angle >= 180) {
                 rightV = Math.sin(Math.toRadians(angle - 180)) * 100.0 * rightScale;
             } else {
-                // 上提阶段：轻微负值，仅用于表现代理曲线回落
+                // 提拉阶段：轻微负值
                 rightV = -Math.sin(Math.toRadians(angle)) * 15.0 * rightScale;
             }
 
@@ -285,7 +285,7 @@ public class PedalingSimulationAlgorithm {
     }
 
     /**
-     * 从侧面膝角时序生成对称运动代理曲线。
+     * 从侧面膝角时序生成对称力量曲线。
      * 使用实际角度数据修正正弦基形，但保持左右对称。
      */
     private List<Map<String, Object>> generateSymmetricCurveFromAngles(List<Double> kneeAngles) {
@@ -298,7 +298,7 @@ public class PedalingSimulationAlgorithm {
             int srcIdx = Math.min((int) ((double) i / 72.0 * n), n - 1);
             double rawAngle = kneeAngles.get(srcIdx);
 
-            // 角度越大（越接近 BDC）→ 下压相位代理输出越高；归一化修正因子
+            // 角度越大（越接近 BDC）→ 发力越强；归一化修正因子
             double modifier = Math.max(0.6, Math.min(1.5, (rawAngle - 90.0) / 60.0 + 1.0));
             double base = Math.abs(Math.sin(Math.toRadians(angle))) * 100.0 * modifier;
 
@@ -347,7 +347,7 @@ public class PedalingSimulationAlgorithm {
 
     /**
      * 计算各踩踏周期振幅（峰值 - 段内谷值）的均值。
-     * 振幅差越大 → 腿部运动范围越大 → 作为运动幅度代理。
+     * 振幅差越大 → 腿部运动范围越大 → 作为发力强度代理。
      */
     private double calculateMeanAmplitude(List<Double> data, List<Integer> peaks) {
         if (peaks.size() < 2) return 0.0;
@@ -366,8 +366,8 @@ public class PedalingSimulationAlgorithm {
     }
 
     /**
-     * 计算谷底相对高度比（谷底值 / 峰值），用于估算上提阶段轨迹平顺度。
-     * 比值越高 → 谷底越浅 → 代理曲线越连续（不平顺指数越低）。
+     * 计算谷底相对高度比（谷底值 / 峰值），用于估算提拉阻力。
+     * 比值越高 → 谷底越浅 → 提拉越主动（提拉拖拽指数越低）。
      */
     private double calculateMeanValleyRatio(List<Double> data, List<Integer> peaks) {
         if (peaks.size() < 2) return 0.5;

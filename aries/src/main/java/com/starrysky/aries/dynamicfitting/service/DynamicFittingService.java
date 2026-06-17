@@ -31,8 +31,6 @@ import java.io.ByteArrayInputStream;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.*;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 /**
@@ -45,17 +43,6 @@ import java.util.stream.Collectors;
 @Service
 @Slf4j
 public class DynamicFittingService {
-
-    private static final Pattern RANGE_NUMBER_PATTERN = Pattern.compile("-?\\d+(?:\\.\\d+)?");
-    private static final Set<String> CYCLIC_SIDE_METRICS = Set.of("kneeAngle", "hipAngle", "ankleAngle");
-    private static final Set<String> POSTURE_STABILITY_METRICS = Set.of(
-            "torsoAngle",
-            "leftKneeWobble", "rightKneeWobble",
-            "leftElbowFlare", "rightElbowFlare",
-            "shoulderTilt", "hipTilt",
-            "pelvisSway", "spineTilt",
-            "leftHipDrop", "rightHipDrop"
-    );
 
     @Resource
     private DynamicFittingSessionRepository sessionRepository;
@@ -456,21 +443,6 @@ public class DynamicFittingService {
         LITERATURE_IDEAL_RANGES.put("maxSpineTilt", "0.0-5.0");
         LITERATURE_IDEAL_RANGES.put("spineRockingVar", "0.0-3.0");
         LITERATURE_IDEAL_RANGES.put("maxHipDrop", "0.0-8.0");
-        // 稳定性指标：侧面周期性关节角使用相位一致性，姿态/横摆类指标使用原始标准差。
-        LITERATURE_IDEAL_RANGES.put("kneeAnglePhaseStdDev", "0.0-4.0");
-        LITERATURE_IDEAL_RANGES.put("hipAnglePhaseStdDev", "0.0-4.0");
-        LITERATURE_IDEAL_RANGES.put("ankleAnglePhaseStdDev", "0.0-5.0");
-        LITERATURE_IDEAL_RANGES.put("torsoAngleStdDev", "0.0-3.0");
-        LITERATURE_IDEAL_RANGES.put("shoulderTiltStdDev", "0.0-3.0");
-        LITERATURE_IDEAL_RANGES.put("hipTiltStdDev", "0.0-3.0");
-        LITERATURE_IDEAL_RANGES.put("leftKneeWobbleStdDev", "0.0-5.0");
-        LITERATURE_IDEAL_RANGES.put("rightKneeWobbleStdDev", "0.0-5.0");
-        LITERATURE_IDEAL_RANGES.put("leftElbowFlareStdDev", "0.0-5.0");
-        LITERATURE_IDEAL_RANGES.put("rightElbowFlareStdDev", "0.0-5.0");
-        LITERATURE_IDEAL_RANGES.put("pelvisSwayStdDev", "0.0-5.0");
-        LITERATURE_IDEAL_RANGES.put("spineTiltStdDev", "0.0-3.0");
-        LITERATURE_IDEAL_RANGES.put("leftHipDropStdDev", "0.0-5.0");
-        LITERATURE_IDEAL_RANGES.put("rightHipDropStdDev", "0.0-5.0");
     }
 
     /**
@@ -491,12 +463,11 @@ public class DynamicFittingService {
      * 参考主流 Bike Fitting 平台（Retul, GebioMized）的 rider education 思路
      */
     private String getRiderAdvice(String metricKey, double currentVal, String idealRange) {
-        if (!StringUtils.hasText(idealRange) || idealRange.equals("--")) return null;
+        if (idealRange.equals("--")) return null;
         try {
-            double[] range = parseRange(idealRange);
-            if (range == null) return null;
-            double min = range[0];
-            double max = range[1];
+            String[] parts = idealRange.split("-");
+            double min = Double.parseDouble(parts[0].trim());
+            double max = Double.parseDouble(parts[1].trim());
             if (currentVal >= min && currentVal <= max) return null; // 在理想范围内，无需纠正
 
             boolean isLow = currentVal < min;
@@ -504,160 +475,81 @@ public class DynamicFittingService {
             switch (metricKey) {
                 case "avgTorso":
                     return isLow
-                        ? "骑行时收紧核心、挺胸收腹，避免塌腰。"
-                        : "增强胸椎灵活性，趴低时注意不要耸肩。";
+                        ? "骑行时尝试微微抬高上半身，收紧核心肌群（腹横肌），想象「肚脐向脊柱靠拢」。可尝试在骑行时每5分钟提醒自己「挺胸收腹」，避免塌腰。"
+                        : "尝试降低躯干，但需确保核心稳定。练习：下车后做猫牛式（Cat-Cow）拉伸，增强胸椎灵活性，让趴低时不会耸肩。";
                 case "minHip":
                     return isLow
-                        ? "踩踏顶部主动「提膝」，锻炼髋屈肌灵活性。"
-                        : "练习单腿踩踏，改善髋关节在顶部的控制力。";
+                        ? "上死点时髋角过小（大腿贴近腹部），建议在踩踏顶部主动「提膝」而非挤压腹部，同时锻炼髋屈肌灵活性。"
+                        : "上死点髋角偏大，通常意味着坐垫过高。除调整车辆外，可以尝试单腿踩踏训练（Single Leg Drill）来改善髋关节在顶部的控制力。";
                 case "maxHip":
                     return isLow
-                        ? "骑行前做髋屈肌拉伸，改善髋关节活动度。"
-                        : "踩踏时保持骨盆水平，不要过度下沉。";
+                        ? "踩踏底部髋角偏小，说明伸展受限。建议在骑行前做髋屈肌拉伸（如弓步髋屈肌拉伸），改善髋关节活动度。"
+                        : "髋角偏大，注意踩踏时不要过度下沉骨盆，保持骨盆水平稳定。";
                 case "maxKnee":
                     return isLow
-                        ? "练习「画圆」踩踏，避免单纯下踩发力。"
-                        : "膝盖保持微曲、不锁死，练习高踏频改善平顺度。";
+                        ? "膝部伸展不足，除了车辆调整外，建议做股四头肌和腘绳肌的动态拉伸（如Leg Swings），并注意踩踏时尽量「画圆」而非「踩踏」。"
+                        : "膝盖过度伸展（超伸），存在膝关节后侧韧带损伤风险。骑车时注意保持膝盖微曲，避免完全锁死。可以练习高踏频（90-100 RPM）来改善踩踏平顺度。";
                 case "maxShoulder":
                     return isLow
-                        ? "肘部微曲、肩胛骨后收下沉，避免耸肩。"
-                        : "保持肘部弯曲约 15-20°，用臂肌吸收震动。";
+                        ? "肩角偏小，说明上肢过于蜷缩。建议在骑行时保持肘部微曲、肩胛骨微微后收下沉，避免耸肩。"
+                        : "肩角偏大，关注是否过度伸展手臂导致重心前移。建议保持肘部弯曲约15-20度，用手臂肌肉吸收震动。";
                 case "kopsOffset":
                     return isLow
-                        ? "踩踏时让膝盖主动「追踪」脚尖方向，感受股四头肌更早发力。"
-                        : "膝盖不要过度超过脚尖，感受臀大肌主导发力。";
+                        ? "膝盖前移量不足，踩踏时膝部在踏板轴后方。可以尝试在踩踏时主动让膝盖向前「追踪」脚尖方向，感受股四头肌更早介入发力。"
+                        : "膝盖前移量过大，增加髌骨压力。注意踩踏时膝盖不要过度超过脚尖，感受臀大肌主导发力。";
                 case "cadenceRpm":
                     return isLow
-                        ? "换更轻齿比，目标踏频 80-90 RPM，平顺踩踏。"
-                        : "收紧核心、适当增齿比，稳定骨盆不跳动。";
+                        ? "踏频偏低（大齿比踩踏），长期如此对膝关节压力较大。建议切换到更轻的齿比，目标踏频80-90 RPM，练习「画圆」式的平顺踩踏。"
+                        : "踏频偏高，可能导致身体在车座上跳动。建议配合核心收紧，并且适当增加齿比，找到能稳定骨盆的节奏。";
                 case "ankleAtBdc":
                     return isLow
-                        ? "下死点微微勾起脚尖，用脚后跟「刮」过底部。"
-                        : "保持脚掌平放，不要过度勾脚尖。";
+                        ? "下死点踝角偏小（足尖下垂），说明踩踏时过度「垫脚尖」。建议练习在踩踏底部时微微勾起脚尖（dorsiflexion），想象用脚后跟「刮」过底部。"
+                        : "踝角过大，可能与锁片位置有关。踩踏时注意保持脚掌平放，不要过度勾脚尖。";
                 case "ankleY":
                     return isLow
-                        ? "练习单腿踩踏，保持脚踝平滑过渡。"
-                        : "收紧核心，脚掌始终贴合踏板，避免抖动。";
+                        ? "脚踝垂直轨迹较低，可能导致踩踏不连贯。可以练习单腿踩踏训练（Single Leg Drill），专注于脚踝的平滑过渡。"
+                        : "脚踝波动过大，可能踩踏时不稳定。建议收紧核心，感受脚掌始终与踏板保持接触，避免「抖动式」踩踏。";
                 case "maxWobble":
-                    return isLow ? null
-                        : "膝盖保持「上下」直线运动，避免外翻或内扣。多做臀中肌激活训练。";
+                    return isLow
+                        ? null
+                        : "膝盖横向偏移过大，会损耗功率并增加髂胫束（ITB）损伤风险。建议练习：骑行时有意识地保持膝盖「向上、向下」运动（平行于车架），避免膝盖外翻或内扣。可以多做臀中肌激活训练（如蚌式开合、侧卧抬腿）。";
                 case "maxTilt":
-                    return isLow ? null
-                        : "加强核心抗旋转训练，骑行时骨盆保持水平。";
+                    return isLow
+                        ? null
+                        : "身体侧倾过大，说明核心稳定性不足。建议加强核心抗旋转训练（如Pallof Press、侧平板支撑），骑行时注意骨盆保持水平。";
                 case "maxElbowFlare":
-                    return isLow ? null
-                        : "肘部「内收」靠近身体，感受前臂自然下垂。";
+                    return isLow
+                        ? null
+                        : "手肘外张过大，增加风阻且易导致肩部疲劳。骑行时注意保持肘部「内收」（肘部靠近身体，而非向外张开），感受前臂自然下垂。";
                 case "maxShoulderTilt":
-                    return isLow ? null
-                        : "加强弱侧肩胛稳定训练，日常注意左右对称发力。";
+                    return isLow
+                        ? null
+                        : "高低肩偏角明显，可能由单侧肌力不均衡或脊柱侧弯趋势引起。建议：加强弱侧斜方肌中下束训练，日常注意左右对称发力。";
                 case "maxHipTilt":
-                    return isLow ? null
-                        : "练习单腿踩踏，加强臀中肌和核心抗侧倾能力。";
+                    return isLow
+                        ? null
+                        : "骨盆侧倾过大，通常暗示坐垫过高或双腿发力不均衡。建议：练习单腿踩踏，并加强臀中肌和核心的抗侧倾能力。";
                 case "maxPelvisSway":
-                    return isLow ? null
-                        : "加强核心训练（平板支撑），骑行时骨盆「坐稳」。";
+                    return isLow
+                        ? null
+                        : "骨盆横摆位移过大，说明核心稳定性不足或坐垫过高。建议加强核心训练（平板支撑、死虫式），并尝试在骑行时保持骨盆「坐稳」的感觉。";
                 case "maxSpineTilt":
-                    return isLow ? null
-                        : "加强核心对称性训练，必要时咨询物理治疗师。";
+                    return isLow
+                        ? null
+                        : "脊柱侧向偏移明显，可能存在结构性或功能性脊柱侧弯趋势。建议咨询物理治疗师，同时加强核心肌群对称性训练。";
                 case "spineRockingVar":
-                    return isLow ? null
-                        : "稳定踏频匀速踩踏，避免身体左右晃动。";
+                    return isLow
+                        ? null
+                        : "脊柱侧偏波动大，说明踩踏时身体不稳定。建议练习稳定踏频下的匀速踩踏，避免身体左右晃动。可以尝试在骑行台上闭眼骑行（安全环境），训练本体感觉。";
                 case "maxHipDrop":
-                    return isLow ? null
-                        : "加强弱侧臀中肌力量，踩踏时保持骨盆水平。";
-                // 【修复 P14】稳定性指标
-                case "kneeAnglePhaseStdDev":
-                    return isLow ? null
-                        : "踩踏节奏不稳，练习「画圆」踩踏和单腿训练。";
-                case "hipAnglePhaseStdDev":
-                    return isLow ? null
-                        : "稳定踏频匀速骑行，配合髋屈肌拉伸。";
-                case "ankleAnglePhaseStdDev":
-                    return isLow ? null
-                        : "用轻齿比练高踏频，脚掌与踏板保持稳定接触。";
-                case "torsoAngleStdDev":
-                    return isLow ? null
-                        : "加强核心肌群训练，骑行时保持「肚脐贴脊柱」。";
-                case "shoulderTiltStdDev":
-                    return isLow ? null
-                        : "放松握把、肘部微曲，让下肢节奏主导踩踏。";
-                case "hipTiltStdDev":
-                    return isLow ? null
-                        : "降低坐垫 2-3mm 测试，加强侧平板支撑训练。";
-                case "pelvisSwayStdDev":
-                    return isLow ? null
-                        : "练习高踏频稳定训练，加强核心抗旋转能力。";
+                    return isLow
+                        ? null
+                        : "骨盆下坠明显，说明踩踏时一侧髋关节支撑不足。建议加强弱侧臀中肌力量（如单腿站立、侧卧抬腿），并注意踩踏时保持骨盆水平。";
                 default:
-                    // 兜底：尝试匹配带 StdDev/CV/PhaseStdDev 后缀的稳定性指标
-                    if (metricKey.endsWith("PhaseStdDev") || metricKey.endsWith("StdDev") || metricKey.endsWith("CV")) {
-                        return isLow ? null
-                            : "该项稳定性不足，建议通过稳定踏频和核心练习改善。";
-                    }
                     return null;
             }
         } catch (NumberFormatException e) {
             return null;
-        }
-    }
-
-    private double[] parseRange(String rangeText) {
-        if (!StringUtils.hasText(rangeText)) return null;
-        String compact = rangeText.replace(" ", "");
-        Matcher firstMatcher = RANGE_NUMBER_PATTERN.matcher(compact);
-        if (!firstMatcher.find()) return null;
-        double first = Double.parseDouble(firstMatcher.group());
-
-        int secondStart = firstMatcher.end();
-        if (secondStart < compact.length() && compact.charAt(secondStart) == '-') {
-            secondStart++;
-        }
-
-        Matcher secondMatcher = RANGE_NUMBER_PATTERN.matcher(compact);
-        if (!secondMatcher.find(secondStart)) return null;
-        double second = Double.parseDouble(secondMatcher.group());
-
-        return new double[]{Math.min(first, second), Math.max(first, second)};
-    }
-
-    private double normalizeMetricValueForRange(String metricKey, double value, String rangeText) {
-        if (!"ankleAtBdc".equals(metricKey)) return value;
-        double[] range = parseRange(rangeText);
-        if (range == null) return value;
-
-        // 兼容历史报告：旧采集值是 ∠KNEE-ANKLE-TOE 内角（约 90-120°），
-        // 新业务口径是跖屈代理角（约 10-25°）。显示/判定时按标准区间自动换算。
-        if (range[1] <= 45.0 && value > 60.0) {
-            return value - 90.0;
-        }
-        if (range[0] >= 60.0 && value <= 45.0) {
-            return value + 90.0;
-        }
-        return value;
-    }
-
-    private String resolveStatusFromRange(double currentVal, String rangeText) {
-        double[] range = parseRange(rangeText);
-        if (range == null) return "OK";
-        return currentVal < range[0] || currentVal > range[1] ? "ADJUST" : "OK";
-    }
-
-    private String getRangeDerivedAdvice(String metricKey, double currentVal, String rangeText) {
-        double[] range = parseRange(rangeText);
-        if (range == null) return "该项超出参考范围，建议复核采集质量并结合实际骑行反馈判断。";
-        boolean isLow = currentVal < range[0];
-
-        switch (metricKey) {
-            case "maxHipTilt":
-                return "骨盆最大侧倾略超参考范围。正面 2D 骨盆点会受到镜头水平、衣物遮挡和关键点识别误差影响；建议复核拍摄角度，若重复超过范围，再检查座高、坐垫支撑与核心/臀中肌控制。";
-            case "ankleAtBdc":
-                return isLow
-                        ? "下死点跖屈代理角低于参考范围。建议复核锁片前后、鞋底支撑和脚跟下坠习惯。"
-                        : "下死点跖屈代理角高于参考范围。建议复核锁片位置、鞋底支撑和脚尖下压代偿。";
-            case "maxShoulderTilt":
-            case "maxTilt":
-                return "上身侧倾超出参考范围。建议先确认摄像头水平和正面站位，再结合握把压力、肩胛稳定性和核心控制复核。";
-            default:
-                return "该项超出当前参考范围。建议先复核拍摄角度和关键点识别质量，再结合疼痛反馈与专业 fitting 检查。";
         }
     }
 
@@ -680,34 +572,26 @@ public class DynamicFittingService {
                 return; // Skip individual processing, will combine below
             }
             
-            if (
-                // 原始极值/均值指标
-                key.equals("avgTorso") || key.equals("minHip") || key.equals("maxSpineTilt") || key.equals("maxPelvisSway")
+            if (key.equals("avgTorso") || key.equals("minHip") || key.equals("maxSpineTilt") || key.equals("maxPelvisSway")
                     || key.equals("kopsOffset") || key.equals("cadenceRpm") || key.equals("ankleAtBdc") || key.equals("ankleY") || key.equals("maxHip")
                     || key.equals("maxKnee") || key.equals("maxShoulder") || key.equals("maxWobble") || key.equals("maxTilt") || key.equals("maxElbowFlare")
                     || key.equals("maxShoulderTilt") || key.equals("spineRockingVar")
-                    || key.equals("maxHipTilt")
-                // 【修复 P14】稳定性指标：StdDev / CV / Variance
-                    || key.endsWith("StdDev") || key.endsWith("CV") || key.endsWith("Variance")) {
+                    || key.equals("maxHipTilt")) {
                 
                 DynamicFittingAdviceVO advice = advices.stream()
                         .filter(a -> a.getMetric().equalsIgnoreCase(key))
                         .findFirst().orElse(null);
 
                 String range = resolveIdealRange(key, advice, standardRanges);
-                double currentVal = normalizeMetricValueForRange(key, convertToDouble(val), range);
-                String status = advice != null ? "ADJUST" : resolveStatusFromRange(currentVal, range);
+                double currentVal = convertToDouble(val);
                 String riderAdvice = getRiderAdvice(key, currentVal, range);
-                String adviceText = advice != null
-                        ? (advice.getAdviceContent() != null ? advice.getAdviceContent() : advice.getCode())
-                        : ("OK".equals(status) ? "处于理想范围" : getRangeDerivedAdvice(key, currentVal, range));
 
                 vos.add(DynamicFittingMetricVO.builder()
                         .label(getMetricLabel(key))
                         .currentValue(String.format("%.1f", currentVal))
-                        .status(status)
+                        .status(advice != null ? "ADJUST" : "OK")
                         .idealRange(range)
-                        .advice(adviceText)
+                        .advice(advice != null ? (advice.getAdviceContent() != null ? advice.getAdviceContent() : advice.getCode()) : "处于理想范围")
                         .riderAdvice(riderAdvice)
                         .build());
             }
@@ -725,13 +609,10 @@ public class DynamicFittingService {
             DynamicFittingAdviceVO adviceAsym = advices.stream().filter(a -> "maxHipDrop".equalsIgnoreCase(a.getMetric())).findFirst().orElse(null);
 
             DynamicFittingAdviceVO finalAdvice = adviceAsym != null ? adviceAsym : (adviceL != null ? adviceL : adviceR);
+            String status = finalAdvice != null ? "ADJUST" : "OK";
+            String adviceText = finalAdvice != null ? (finalAdvice.getAdviceContent() != null ? finalAdvice.getAdviceContent() : finalAdvice.getCode()) : "根据生物力学模型对您的身体关键特征进行追踪量化。";
             String range = resolveIdealRange("maxHipDrop", finalAdvice, standardRanges);
             double maxDrop = Math.max(lVal, rVal);
-            String status = finalAdvice != null ? "ADJUST" : resolveStatusFromRange(maxDrop, range);
-            String adviceText = finalAdvice != null
-                    ? (finalAdvice.getAdviceContent() != null ? finalAdvice.getAdviceContent() : finalAdvice.getCode())
-                    : ("OK".equals(status) ? "根据生物力学模型对您的身体关键特征进行追踪量化。"
-                    : getRangeDerivedAdvice("maxHipDrop", maxDrop, range));
             String riderAdvice = getRiderAdvice("maxHipDrop", maxDrop, range);
 
             vos.add(DynamicFittingMetricVO.builder()
@@ -760,9 +641,9 @@ public class DynamicFittingService {
         labels.put("torsoAngle", "躯干夹角");
         labels.put("ankleAngle", "踝角");
         labels.put("elbowAngle", "肘部角度");
-        labels.put("ankleAtBdc", "下死点跖屈代理");
+        labels.put("ankleAtBdc", "下死点踝角");
         labels.put("cadenceRpm", "实时踏频");
-        labels.put("kopsOffset", "膝前后偏移代理(KOPS)");
+        labels.put("kopsOffset", "膝盖前移量(KOPS)");
         
         // 正面
         labels.put("avgKnee", "双膝平均角度");
@@ -796,41 +677,6 @@ public class DynamicFittingService {
         labels.put("spineRockingVar", "脊柱侧偏波动极差");
         labels.put("maxHipDrop_L", "左侧骨盆下坠");
         labels.put("maxHipDrop_R", "右侧骨盆下坠");
-
-        // 【修复 P14】稳定性指标（StdDev / CV / Variance）
-        labels.put("kneeAnglePhaseStdDev", "膝角相位一致性");
-        labels.put("hipAnglePhaseStdDev", "髋角相位一致性");
-        labels.put("ankleAnglePhaseStdDev", "踝角相位一致性");
-        labels.put("torsoAngleStdDev", "躯干稳定性");
-        labels.put("leftKneeAngleStdDev", "左膝角稳定性");
-        labels.put("rightKneeAngleStdDev", "右膝角稳定性");
-        labels.put("shoulderTiltStdDev", "肩膀稳定性");
-        labels.put("hipTiltStdDev", "骨盆侧倾稳定性");
-        labels.put("leftKneeWobbleStdDev", "左膝横摆稳定性");
-        labels.put("rightKneeWobbleStdDev", "右膝横摆稳定性");
-        labels.put("leftElbowFlareStdDev", "左肘外张稳定性");
-        labels.put("rightElbowFlareStdDev", "右肘外张稳定性");
-        labels.put("pelvisSwayStdDev", "骨盆摇摆稳定性");
-        labels.put("spineTiltStdDev", "脊柱偏斜稳定性");
-        labels.put("leftHipDropStdDev", "左髋下坠稳定性");
-        labels.put("rightHipDropStdDev", "右髋下坠稳定性");
-
-        // 兜底：对未知的 StdDev/CV/Variance 后缀，尝试去掉后缀从已有标签推断
-        if (!labels.containsKey(key)) {
-            if (key.endsWith("PhaseStdDev")) {
-                String base = labels.get(key.replace("PhaseStdDev", ""));
-                if (base != null) return base + "相位一致性";
-            } else if (key.endsWith("StdDev")) {
-                String base = labels.get(key.replace("StdDev", ""));
-                if (base != null) return base + "稳定性";
-            } else if (key.endsWith("CV")) {
-                String base = labels.get(key.replace("CV", ""));
-                if (base != null) return base + "变异系数";
-            } else if (key.endsWith("Variance")) {
-                String base = labels.get(key.replace("Variance", ""));
-                if (base != null) return base + "波动方差";
-            }
-        }
 
         return labels.getOrDefault(key, key);
     }
@@ -987,9 +833,8 @@ public class DynamicFittingService {
     }
 
     /**
-     * 计算时序数据的稳定性指标。
-     * 周期性关节角（膝/髋/踝）按踩踏相位重采样后计算跨周期一致性，
-     * 姿态和横向控制指标直接计算原始波动，避免把正常踩踏周期误判为不稳定。
+     * 计算时序数据的稳定性指标 (均值、标准差、变异系数)
+     * P11 修复核心逻辑
      *
      * @param frameData 帧数据列表
      * @return 统计指标 Map
@@ -1018,99 +863,30 @@ public class DynamicFittingService {
         // 2. 计算统计学指标
         Map<String, Object> stats = new HashMap<>();
         seriesMap.forEach((metric, values) -> {
-            if (CYCLIC_SIDE_METRICS.contains(metric)) {
-                Double phaseStdDev = calculatePhaseConsistencyStdDev(values);
-                if (phaseStdDev != null) {
-                    stats.put(metric + "PhaseStdDev", round2(phaseStdDev));
-                }
-                stats.put(metric + "Mean", round2(mean(values)));
-                return;
+            int n = values.size();
+            if (n < 5) return; // 数据点太少不计算统计性指标
+
+            double sum = 0;
+            for (Double v : values) sum += v;
+            double mean = sum / n;
+
+            double sumSqDiff = 0;
+            for (Double v : values) {
+                sumSqDiff += Math.pow(v - mean, 2);
             }
-
-            if (!POSTURE_STABILITY_METRICS.contains(metric)) return;
-            if (values.size() < 5) return;
-
-            double mean = mean(values);
-            double variance = variance(values, mean);
+            double variance = sumSqDiff / n;
             double stdDev = Math.sqrt(variance);
+            // CV (变异系数) = 标准差 / 均值 * 100%
             double cv = (Math.abs(mean) > 0.001) ? (stdDev / Math.abs(mean)) * 100 : 0;
 
-            stats.put(metric + "Mean", round2(mean));
-            stats.put(metric + "StdDev", round2(stdDev));
-            stats.put(metric + "CV", round2(cv));
-            stats.put(metric + "Variance", round2(variance));
+            // 保留两位小数
+            stats.put(metric + "Mean", Math.round(mean * 100.0) / 100.0);
+            stats.put(metric + "StdDev", Math.round(stdDev * 100.0) / 100.0);
+            stats.put(metric + "CV", Math.round(cv * 100.0) / 100.0);
+            stats.put(metric + "Variance", Math.round(variance * 100.0) / 100.0);
         });
 
         return stats;
-    }
-
-    private Double calculatePhaseConsistencyStdDev(List<Double> values) {
-        if (values == null || values.size() < 30) return null;
-        List<Integer> peaks = findPeaks(values, 4);
-        if (peaks.size() < 3) return null;
-
-        int phaseBins = 24;
-        List<List<Double>> bins = new ArrayList<>(phaseBins);
-        for (int i = 0; i < phaseBins; i++) bins.add(new ArrayList<>());
-
-        for (int p = 0; p < peaks.size() - 1; p++) {
-            int start = peaks.get(p);
-            int end = peaks.get(p + 1);
-            if (end <= start + 4) continue;
-            for (int b = 0; b < phaseBins; b++) {
-                int idx = start + (int) Math.round((end - start) * (b / (double) phaseBins));
-                idx = Math.min(idx, values.size() - 1);
-                bins.get(b).add(values.get(idx));
-            }
-        }
-
-        double sumStd = 0;
-        int validBins = 0;
-        for (List<Double> bin : bins) {
-            if (bin.size() < 2) continue;
-            double m = mean(bin);
-            sumStd += Math.sqrt(variance(bin, m));
-            validBins++;
-        }
-        return validBins > 0 ? sumStd / validBins : null;
-    }
-
-    private List<Integer> findPeaks(List<Double> data, int windowSize) {
-        List<Integer> peaks = new ArrayList<>();
-        if (data == null || data.size() < windowSize * 2 + 1) return peaks;
-
-        for (int i = windowSize; i < data.size() - windowSize; i++) {
-            double val = data.get(i);
-            boolean isPeak = true;
-            for (int j = i - windowSize; j <= i + windowSize; j++) {
-                if (j != i && data.get(j) >= val) {
-                    isPeak = false;
-                    break;
-                }
-            }
-            if (isPeak && (peaks.isEmpty() || i - peaks.get(peaks.size() - 1) > windowSize)) {
-                peaks.add(i);
-            }
-        }
-        return peaks;
-    }
-
-    private double mean(List<Double> values) {
-        double sum = 0;
-        for (Double v : values) sum += v;
-        return sum / values.size();
-    }
-
-    private double variance(List<Double> values, double mean) {
-        double sumSqDiff = 0;
-        for (Double v : values) {
-            sumSqDiff += Math.pow(v - mean, 2);
-        }
-        return sumSqDiff / values.size();
-    }
-
-    private double round2(double val) {
-        return Math.round(val * 100.0) / 100.0;
     }
 
     private String uploadBase64Image(String base64, Long userId, String viewType, String tag) {

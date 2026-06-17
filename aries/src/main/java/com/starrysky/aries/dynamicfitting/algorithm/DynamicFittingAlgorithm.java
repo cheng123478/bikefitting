@@ -32,8 +32,8 @@ public class DynamicFittingAlgorithm {
     private DynamicFittingStandardRepository standardRepository;
 
     /**
-     * 各车型双侧角度类对称性偏差阈值（°）。
-     * 车型越追求运动控制效率，容忍的双侧角度不对称程度越小。
+     * 各车型双侧对称性偏差阈值（°）。
+     * 车型越追求功率输出效率，容忍的双侧不对称程度越小。
      *
      * <p>
      * <b>Key</b>: {@link com.starrysky.aries.util.BikeType#code}（与
@@ -50,7 +50,7 @@ public class DynamicFittingAlgorithm {
         m.put(BikeType.MOUNTAIN_BIKE.code, 8.0); // MOUNTAIN_BIKE(山地车) : 地形崎岖，阈值宽松
         m.put(BikeType.GRAVEL_BIKE.code, 7.0); // GRAVEL_BIKE (全地形公路车): 综合用途，适中
         m.put(BikeType.CITY_BIKE.code, 10.0); // CITY_BIKE (城市通勤车) : 舒适优先，最宽松
-        m.put(BikeType.TT_BIKE.code, 3.0); // TT_BIKE (铁三/计时车): 对称性要求高，最严格
+        m.put(BikeType.TT_BIKE.code, 3.0); // TT_BIKE (铁三/计时车): 极度追求功率对称，最严格
         BILATERAL_ASYMMETRY_THRESHOLDS = Collections.unmodifiableMap(m);
     }
     /** 未知车型的双侧对称性告警阈值默认值（°） */
@@ -63,9 +63,8 @@ public class DynamicFittingAlgorithm {
      * @param summary  汇总数据 (包含各视角的统计中值)
      */
     public DynamicFittingResultVO analyze(Integer bikeType, Map<String, Object> summary) {
-        Map<String, Object> safeSummary = summary != null ? summary : Collections.emptyMap();
-        // 从数据库检索该车型的所有指标标准；缺失项使用保守的文献/主流平台兜底范围，避免空配置直接满分。
-        List<DynamicFittingStandard> standards = resolveStandards(bikeType);
+        // 从数据库检索该车型的所有指标标准 (带缓存)
+        List<DynamicFittingStandard> standards = standardRepository.findByBikeType(bikeType);
 
         List<DynamicFittingAdviceVO> advices = new ArrayList<>();
         double totalWeightedScore = 0;
@@ -82,13 +81,12 @@ public class DynamicFittingAlgorithm {
             // 视角感知检索指标值
             Double val;
             if (viewType != null && !viewType.isEmpty()) {
-                val = findMetricInView(safeSummary, viewType.toLowerCase(), metricKey);
+                val = findMetricInView(summary, viewType.toLowerCase(), metricKey);
             } else {
-                val = findMetricInSummary(safeSummary, metricKey);
+                val = findMetricInSummary(summary, metricKey);
             }
 
             if (val != null) {
-                val = normalizeMetricValueForStandard(metricKey, val, std);
                 detectedMetrics.put(metricKey, val);
                 standardRanges.put(metricKey, String.format("%.1f-%.1f", std.getMinVal(), std.getMaxVal()));
 
@@ -113,7 +111,7 @@ public class DynamicFittingAlgorithm {
         // --- 2. 双侧对称性分析 (Bilateral Asymmetry) ---
         // 展平所有视角的指标以供双侧对比，不局限于数据库中配置的指标
         Map<String, Double> allMetrics = new HashMap<>();
-        for (Object viewSum : safeSummary.values()) {
+        for (Object viewSum : summary.values()) {
             if (viewSum instanceof Map) {
                 @SuppressWarnings("unchecked")
                 Map<String, Object> map = (Map<String, Object>) viewSum;
@@ -179,124 +177,6 @@ public class DynamicFittingAlgorithm {
                 .build();
     }
 
-    private List<DynamicFittingStandard> resolveStandards(Integer bikeType) {
-        List<DynamicFittingStandard> dbStandards = standardRepository != null
-                ? standardRepository.findByBikeType(bikeType)
-                : Collections.emptyList();
-
-        List<DynamicFittingStandard> fallback = fallbackStandards();
-        if (dbStandards == null || dbStandards.isEmpty()) {
-            return fallback;
-        }
-
-        List<DynamicFittingStandard> merged = new ArrayList<>(dbStandards);
-        java.util.Set<String> configuredKeys = new java.util.HashSet<>();
-        for (DynamicFittingStandard std : dbStandards) {
-            configuredKeys.add(standardIdentity(std));
-        }
-        for (DynamicFittingStandard std : fallback) {
-            if (!configuredKeys.contains(standardIdentity(std))) {
-                merged.add(std);
-            }
-        }
-        return merged;
-    }
-
-    private static String standardIdentity(DynamicFittingStandard std) {
-        String viewType = std.getViewType() != null ? std.getViewType().toLowerCase() : "";
-        return viewType + ":" + std.getMetricKey();
-    }
-
-    private static List<DynamicFittingStandard> fallbackStandards() {
-        List<DynamicFittingStandard> standards = new ArrayList<>();
-        standards.add(standard("side", "avgTorso", 40.0, 50.0, 0.10, "handlebar",
-                "躯干角偏小，建议复核把位落差、把立长度与核心稳定性。",
-                "躯干角偏大，建议复核把位高度与骑行姿态目标。"));
-        standards.add(standard("side", "minHip", 40.0, 55.0, 0.08, "seat",
-                "上死点髋角偏小，建议复核坐垫高度、曲柄长度与髋部活动度。",
-                "上死点髋角偏大，建议复核坐垫高度和踩踏顶部控制。"));
-        standards.add(standard("side", "maxHip", 70.0, 80.0, 0.06, "seat",
-                "下压阶段髋部伸展不足，建议复核坐垫高度和髋部活动范围。",
-                "髋角偏大，建议复核坐垫高度并观察骨盆是否下沉。"));
-        standards.add(standard("side", "maxKnee", 140.0, 150.0, 0.16, "seat",
-                "膝部伸展不足，建议优先复核座高。",
-                "膝部伸展角偏大，建议优先复核座高并关注膝后侧反馈。"));
-        standards.add(standard("side", "ankleAtBdc", 10.0, 25.0, 0.06, "cleat",
-                "下死点跖屈代理角偏小，建议复核锁片前后、鞋底支撑和脚跟下坠习惯。",
-                "下死点跖屈代理角偏大，建议复核锁片位置、鞋底支撑和脚尖下压习惯。"));
-        standards.add(standard("side", "kopsOffset", -10.0, 10.0, 0.08, "seat",
-                "KOPS 代理值偏后，建议结合曲柄相位和踏板轴复核坐垫前后位置。",
-                "KOPS 代理值偏前，建议结合曲柄相位和踏板轴复核坐垫前后位置。"));
-        standards.add(standard("side", "cadenceRpm", 80.0, 100.0, 0.04, "crank",
-                "踏频偏低，建议尝试更轻齿比与稳定节奏训练。",
-                "踏频偏高，建议复核齿比与骨盆稳定性。"));
-        standards.add(standard("front", "maxWobble", 0.0, 15.0, 0.10, "cleat",
-                "膝部横向偏移在参考范围内。",
-                "膝部横向偏移偏大，建议复核锁片角度、鞋垫支撑与髋部控制。"));
-        standards.add(standard("front", "maxElbowFlare", 0.0, 15.0, 0.05, "handlebar",
-                "手肘外张在参考范围内。",
-                "手肘外张偏大，建议复核车把宽度和上身紧张度。"));
-        standards.add(standard("front", "maxShoulderTilt", 0.0, 5.0, 0.05, "handlebar",
-                "肩部偏角在参考范围内。",
-                "肩部偏角偏大，建议复核握把压力和躯干稳定性。"));
-        standards.add(standard("front", "maxHipTilt", 0.0, 5.0, 0.06, "seat",
-                "骨盆侧倾在参考范围内。",
-                "骨盆侧倾偏大，建议复核座高、坐垫支撑和核心稳定性。"));
-        standards.add(standard("back", "maxPelvisSway", 0.0, 10.0, 0.06, "seat",
-                "骨盆横摆在参考范围内。",
-                "骨盆横摆偏大，建议复核座高和核心稳定性。"));
-        standards.add(standard("back", "maxSpineTilt", 0.0, 5.0, 0.05, "handlebar",
-                "脊柱侧向偏移在参考范围内。",
-                "脊柱侧向偏移偏大，建议复核坐姿对称性和拍摄角度。"));
-        standards.add(standard("back", "maxHipDrop_L", 0.0, 8.0, 0.04, "seat",
-                "左侧骨盆下坠在参考范围内。",
-                "左侧骨盆下坠偏大，建议复核座高和单侧髋部控制。"));
-        standards.add(standard("back", "maxHipDrop_R", 0.0, 8.0, 0.04, "seat",
-                "右侧骨盆下坠在参考范围内。",
-                "右侧骨盆下坠偏大，建议复核座高和单侧髋部控制。"));
-        standards.add(standard("side", "kneeAnglePhaseStdDev", 0.0, 4.0, 0.04, "crank",
-                "膝角相位一致性在参考范围内。",
-                "膝角相位一致性不足，建议练习稳定踏频和圆踩。"));
-        standards.add(standard("side", "hipAnglePhaseStdDev", 0.0, 4.0, 0.03, "crank",
-                "髋角相位一致性在参考范围内。",
-                "髋角相位一致性不足，建议复核髋部控制与踏频稳定性。"));
-        standards.add(standard("side", "ankleAnglePhaseStdDev", 0.0, 5.0, 0.03, "cleat",
-                "踝角相位一致性在参考范围内。",
-                "踝角相位一致性不足，建议复核锁片位置和脚踝参与方式。"));
-        return standards;
-    }
-
-    private static DynamicFittingStandard standard(String viewType, String metricKey, double minVal, double maxVal,
-            double weight, String part, String lowAdviceContent, String highAdviceContent) {
-        DynamicFittingStandard standard = new DynamicFittingStandard();
-        standard.setViewType(viewType);
-        standard.setMetricKey(metricKey);
-        standard.setMinVal(minVal);
-        standard.setMaxVal(maxVal);
-        standard.setWeight(weight);
-        standard.setSensitivity(3.0);
-        standard.setPart(part);
-        standard.setLowAdvice("advice.dynamic." + metricKey + ".low");
-        standard.setHighAdvice("advice.dynamic." + metricKey + ".high");
-        standard.setLowAdviceContent(lowAdviceContent);
-        standard.setHighAdviceContent(highAdviceContent);
-        return standard;
-    }
-
-    private double normalizeMetricValueForStandard(String metricKey, double value, DynamicFittingStandard standard) {
-        if (!"ankleAtBdc".equals(metricKey) || standard == null
-                || standard.getMinVal() == null || standard.getMaxVal() == null) {
-            return value;
-        }
-        if (standard.getMaxVal() <= 45.0 && value > 60.0) {
-            return value - 90.0;
-        }
-        if (standard.getMinVal() >= 60.0 && value <= 45.0) {
-            return value + 90.0;
-        }
-        return value;
-    }
-
     /**
      * 非对称得分计算
      *
@@ -341,24 +221,44 @@ public class DynamicFittingAlgorithm {
             Integer bikeType,
             Map<String, String> standardRanges) {
         // 根据车型查取阈值，未知车型使用默认值
+        double threshold = BILATERAL_ASYMMETRY_THRESHOLDS.getOrDefault(
+                bikeType, DEFAULT_BILATERAL_THRESHOLD);
+        String rangeText = String.format("双侧差値 < %.0f°", threshold);
+
         metrics.forEach((key, val) -> {
             if (key.endsWith("_L")) {
                 String rightKey = key.replace("_L", "_R");
                 if (metrics.containsKey(rightKey)) {
-                    String baseMetric = key.substring(0, key.length() - 2);
-                    MetricDescriptor descriptor = describeBilateralMetric(baseMetric, bikeType);
-                    if (descriptor == null) return;
-
                     double leftVal = val;
                     double rightVal = metrics.get(rightKey);
                     double delta = Math.abs(leftVal - rightVal);
 
-                    if (delta > descriptor.threshold) {
+                    if (delta > threshold) {
+                        String baseMetric = key.substring(0, key.length() - 2);
+                        String metricName = "指征";
+                        String unit = "°";
+                        if (baseMetric.toLowerCase().contains("knee")) {
+                            if (baseMetric.toLowerCase().contains("variance") || baseMetric.toLowerCase().contains("stddev") || baseMetric.toLowerCase().contains("cv")) {
+                                metricName = "膝部角度波动方差";
+                            } else {
+                                metricName = "膝部伸展角度";
+                            }
+                        }
+                        if (baseMetric.toLowerCase().contains("elbow")) metricName = "手肘外张角度";
+                        if (baseMetric.toLowerCase().contains("wobble")) {
+                            metricName = "膝部横向跨度";
+                            unit = "mm";
+                        }
+                        if (baseMetric.toLowerCase().contains("hipdrop")) {
+                            metricName = "骨盆下坠幅度";
+                            unit = "%";
+                        }
+                        
                         String adviceText = String.format(
-                                "检测到双侧【%s】不平衡（左右差值 %.1f%s，超过参考容差 %.0f%s）。这通常提示相关肌群控制差异、核心稳定性不足、视频视角误差，或锁片/坐垫设置造成的代偿。建议先复核拍摄角度，再结合疼痛反馈与专业 fitting 检查。",
-                                descriptor.metricName, delta, descriptor.unit, descriptor.threshold, descriptor.unit);
+                                "检测到双侧【%s】极度不平衡（左右差値 %.1f%s，超出设定的容差阈値 %.0f%s）。这通常是相关肌群发力不均或代偿引起的，建议进一步排查身体柔韧性、核心稳定性，或核实是否存在由不恰当锁片设置引发的结构性长短腿效应。",
+                                metricName, delta, unit, threshold, unit);
                                 
-                        String rangeStr = String.format("双侧差值 < %.0f%s", descriptor.threshold, descriptor.unit);
+                        String rangeStr = String.format("双侧差値 < %.0f%s", threshold, unit);
                         standardRanges.put(baseMetric, rangeStr);
                                 
                         advices.add(DynamicFittingAdviceVO.builder()
@@ -376,43 +276,6 @@ public class DynamicFittingAlgorithm {
                 }
             }
         });
-    }
-
-    private MetricDescriptor describeBilateralMetric(String baseMetric, Integer bikeType) {
-        String key = baseMetric.toLowerCase();
-        if (key.contains("cv") || key.contains("variance")) {
-            return null;
-        }
-        if (key.contains("stddev")) {
-            return new MetricDescriptor("双侧控制稳定性", 3.0, "°");
-        }
-        if (key.contains("wobble")) {
-            return new MetricDescriptor("膝部横向偏移", 5.0, "%");
-        }
-        if (key.contains("hipdrop")) {
-            return new MetricDescriptor("骨盆下坠幅度", 5.0, "%");
-        }
-        double angleThreshold = BILATERAL_ASYMMETRY_THRESHOLDS.getOrDefault(
-                bikeType, DEFAULT_BILATERAL_THRESHOLD);
-        if (key.contains("knee")) {
-            return new MetricDescriptor("膝部伸展角度", angleThreshold, "°");
-        }
-        if (key.contains("elbow")) {
-            return new MetricDescriptor("手肘外张角度", 5.0, "%");
-        }
-        return null;
-    }
-
-    private static class MetricDescriptor {
-        private final String metricName;
-        private final double threshold;
-        private final String unit;
-
-        private MetricDescriptor(String metricName, double threshold, String unit) {
-            this.metricName = metricName;
-            this.threshold = threshold;
-            this.unit = unit;
-        }
     }
 
     /**
@@ -472,13 +335,6 @@ public class DynamicFittingAlgorithm {
             return convertToDouble(map.get(metricKey + "Mean"));
         if (map.containsKey(metricKey + "Val"))
             return convertToDouble(map.get(metricKey + "Val"));
-        // 【修复 P14】稳定性指标（StdDev/CV/Variance）参与诊断
-        if (map.containsKey(metricKey + "StdDev"))
-            return convertToDouble(map.get(metricKey + "StdDev"));
-        if (map.containsKey(metricKey + "CV"))
-            return convertToDouble(map.get(metricKey + "CV"));
-        if (map.containsKey(metricKey + "Variance"))
-            return convertToDouble(map.get(metricKey + "Variance"));
 
         return null;
     }
