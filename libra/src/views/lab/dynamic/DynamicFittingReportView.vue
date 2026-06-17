@@ -79,24 +79,15 @@
                     <div class="m-vals">
                       <div class="v-group">
                         <span class="v-label">实测</span>
-                        <span class="v-num" :class="{'out-of-range': m.status !== 'OK'}">{{ m.currentValue }}<span class="v-unit">{{ getUnit(m.label, viewType) }}</span></span>
+                        <span class="v-num" :class="{'out-of-range': m.status !== 'OK'}">{{ m.currentValue }}<span style="font-size: 0.9rem; margin-left: 2px;">{{ getUnit(m.label, viewType) }}</span></span>
                       </div>
-                      <div class="v-group">
+                      <div class="v-group" v-if="m.idealRange && m.idealRange !== '--'">
                         <span class="v-label">理想</span>
-                        <span class="v-num ideal-num">{{ m.idealRange && m.idealRange !== '--' ? m.idealRange : '--' }}<span class="v-unit">{{ getUnit(m.label, viewType) }}</span></span>
+                        <span class="v-num">{{ m.idealRange }}<span style="font-size: 0.9rem; margin-left: 2px;">{{ getUnit(m.label, viewType) }}</span></span>
                       </div>
                     </div>
-                    <p v-if="getDescription(m.label)" class="m-desc-text">{{ getDescription(m.label) }}</p>
-                    <!-- 调车建议 -->
-                    <p class="m-advice" v-if="m.advice && m.status !== 'OK'">
-                      <i class="fas fa-wrench advice-icon bike-icon"></i>
-                      <span>{{ m.advice }}</span>
-                    </p>
-                    <!-- 骑车习惯/动作纠正建议 -->
-                    <p class="m-advice rider-advice" v-if="m.riderAdvice && m.status !== 'OK'">
-                      <i class="fas fa-child advice-icon rider-icon"></i>
-                      <span>{{ m.riderAdvice }}</span>
-                    </p>
+                    <p v-if="getDescription(m.label)" class="m-desc-text" style="font-size: 0.8rem; color: #888; margin-bottom: 5px; line-height: 1.4;">{{ getDescription(m.label) }}</p>
+                    <p class="m-advice" v-if="m.advice && m.status !== 'OK'">{{ m.advice }}</p>
                   </div>
                 </div>
               </div>
@@ -572,7 +563,7 @@ onUnmounted(() => {
 .status-dot.adjust { background: var(--accent-gold); box-shadow: 0 0 6px rgba(212, 175, 55, 0.4); }
 
 .metric-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(360px, 1fr)); gap: 22px; margin-bottom: 35px; }
-.m-card { padding: 24px; border-radius: 14px; border: 1px solid rgba(92, 110, 88, 0.12); background: white; transition: all 0.3s ease; overflow: hidden; }
+.m-card { padding: 24px; border-radius: 14px; border: 1px solid rgba(92, 110, 88, 0.12); background: white; transition: all 0.3s ease; }
 .m-card:hover { transform: translateY(-2px); box-shadow: 0 8px 25px rgba(92, 110, 88, 0.08); }
 .m-card.ADJUST { background: linear-gradient(135deg, rgba(212, 175, 55, 0.05) 0%, rgba(212, 175, 55, 0.02) 100%); border-left: 5px solid var(--accent-gold); }
 .m-card.WARNING { background: linear-gradient(135deg, rgba(255, 77, 79, 0.05) 0%, rgba(255, 77, 79, 0.02) 100%); border-left: 5px solid #ff4d4f; }
@@ -588,14 +579,8 @@ onUnmounted(() => {
 .v-num { font-family: var(--font-serif); font-size: 1.5rem; font-weight: 700; color: var(--primary-color); }
 .v-num.out-of-range { color: #ff4d4f; }
 
-.m-desc-text { font-size: 0.8rem; color: #888; margin-bottom: 8px; line-height: 1.4; padding: 10px 12px; background: rgba(92, 110, 88, 0.03); border-radius: 8px; border-left: 3px solid rgba(92, 110, 88, 0.15); }
-.m-advice { font-size: 0.85rem; color: var(--text-body); line-height: 1.6; border-top: 1px dotted rgba(92, 110, 88, 0.15); padding-top: 12px; margin-top: 4px; font-style: italic; display: flex; align-items: flex-start; gap: 8px; }
-.m-advice .advice-icon { flex-shrink: 0; margin-top: 2px; font-size: 0.9rem; }
-.m-advice .bike-icon { color: var(--primary-color); }
-.m-advice.rider-advice { border-top: 1px dotted rgba(212, 175, 55, 0.2); background: linear-gradient(135deg, rgba(212, 175, 55, 0.04) 0%, rgba(212, 175, 55, 0.01) 100%); border-radius: 0 0 8px 8px; margin: 0 -12px -12px -12px; padding: 10px 16px; border-left: 3px solid var(--accent-gold); font-style: normal; }
-.m-advice .rider-icon { color: var(--accent-gold); }
-.v-unit { font-size: 0.9rem; margin-left: 2px; color: inherit; }
-.ideal-num { color: var(--text-muted) !important; }
+.m-desc-text { font-size: 0.85rem; color: var(--text-muted); line-height: 1.5; margin-bottom: 12px; padding: 12px; background: rgba(92, 110, 88, 0.03); border-radius: 8px; }
+.m-advice { font-size: 0.85rem; color: var(--text-body); line-height: 1.6; border-top: 1px dotted rgba(92, 110, 88, 0.15); padding-top: 14px; margin-top: auto; font-style: italic; }
 
 .evidence-block { margin-bottom: 45px; }
 .sub-label { font-size: 1.1rem; color: var(--text-main); margin-bottom: 20px; display: flex; align-items: center; gap: 10px; font-weight: 600; }
