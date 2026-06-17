@@ -396,7 +396,7 @@ const injuryWarning = computed(() => {
     const maxWobble = Math.max(lWobble, rWobble);
     const badLeg = maxWobble === rWobble ? '右膝' : '左膝';
     if (maxWobble > 5.0) {
-      return `检测到${badLeg}存在 ${maxWobble.toFixed(1)}% 侧向晃动（骨盆宽占比），处于半月板磨损高危区，建议微调锁鞋。`;
+      return `检测到${badLeg}存在 ${maxWobble.toFixed(1)}mm 侧向晃动，处于半月板磨损高危区，建议微调锁鞋。`;
     }
   } else {
      const ext = fallbackMetrics.value.find(m => m.label.includes('伸展度'));

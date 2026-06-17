@@ -238,10 +238,7 @@ export function usePoseEstimation(viewModeRef = 'side') {
             // 补充算法 1 所需：frontal Hip-Knee-Ankle 2D 夹角，直接沿用 leftKnee/rightKnee 即可
 
 
-            // 4. 计算手肘外张 (Elbow Flare) - 点到直线的距离，并用肩宽归一化
-            //    【修复 P13】原算法返回原始像素值(px)，受视频分辨率和拍摄距离影响，无法跨设备比较。
-            //    现在除以肩宽归一化为%，使不同视频/设备的结果具有可比性。
-            //    理想范围：|flare| < 15% 肩宽
+            // 4. 计算手肘外张 (Elbow Flare) - 点到直线的距离
             const calculateFlare = (shoulder, wrist, elbow, w, h) => {
                 if (!shoulder || !wrist || !elbow) return 0;
                 const sx = shoulder.x * w, sy = shoulder.y * h;
@@ -251,14 +248,9 @@ export function usePoseEstimation(viewModeRef = 'side') {
                 const denominator = Math.sqrt(Math.pow(wx - sx, 2) + Math.pow(wy - sy, 2));
                 return denominator > 0 ? numerator / denominator : 0;
             };
-            // 肩宽作为归一化参照
-            const shoulderWidthPx = Math.abs(lm[11].x - lm[12].x) * videoDim.w;
 
-            const lFlareRaw = calculateFlare(lm[11], lm[15], lm[13], videoDim.w, videoDim.h);
-            const rFlareRaw = calculateFlare(lm[12], lm[16], lm[14], videoDim.w, videoDim.h);
-
-            const lFlare = shoulderWidthPx > 1 ? (lFlareRaw / shoulderWidthPx) * 100 : 0;
-            const rFlare = shoulderWidthPx > 1 ? (rFlareRaw / shoulderWidthPx) * 100 : 0;
+            const lFlare = calculateFlare(lm[11], lm[15], lm[13], videoDim.w, videoDim.h);
+            const rFlare = calculateFlare(lm[12], lm[16], lm[14], videoDim.w, videoDim.h);
 
             // 平滑处理并赋值
             metrics.value.leftKneeAngle = applySmoothing(leftKnee, 'leftKneeAngle');
@@ -327,13 +319,8 @@ export function usePoseEstimation(viewModeRef = 'side') {
                 y: (lm[11].y + lm[12].y) / 2
             };
 
-            // 1. 骨盆摇摆 (Pelvis Sway)：提取 Y轴骨盆高度差的绝对值，并用骨盆宽归一化
-            //    【修复 P13】原算法 `|hipY_L - hipY_R| * h` 返回原始像素(px)，受视频分辨率和拍摄距离影响。
-            //    现在除以骨盆宽归一化为%，与 hipDrop 使用相同的参照系，使结果跨设备可比。
-            //    理想范围：< 10% 骨盆宽
-            const swayPx = Math.abs(lm[23].y - lm[24].y) * videoDim.h;
-            const pelvisWidthPx = Math.abs(lm[23].x - lm[24].x) * videoDim.w;
-            const sway = pelvisWidthPx > 1 ? (swayPx / pelvisWidthPx) * 100 : 0;
+            // 1. 骨盆摇摆 (Pelvis Tilt/Sway)：提取 Y轴骨盆高度差的绝对值（换算为像素）
+            const sway = Math.abs(lm[23].y - lm[24].y) * videoDim.h;
 
             // 2. 脊柱侧偏角 (Spine Tilt)
             const spineAngleRaw = Math.atan2(hipCenter.y - shoulderCenter.y, hipCenter.x - shoulderCenter.x) * 180 / Math.PI;

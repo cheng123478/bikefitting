@@ -116,7 +116,7 @@
                 <div class="mini-dashboard">
                   <div class="m-item">
                       <span class="l">左右横摆(L/R)</span>
-                      <span class="v">{{ session.front.summary?.maxWobble_L || session.front.summary?.maxWobble || '--' }}<span style="font-size:0.7rem">%</span> / {{ session.front.summary?.maxWobble_R || session.front.summary?.maxWobble || '--' }}<span style="font-size:0.7rem">%</span></span>
+                      <span class="v">{{ session.front.summary?.maxWobble_L || session.front.summary?.maxWobble || '--' }}<span style="font-size:0.7rem">mm</span> / {{ session.front.summary?.maxWobble_R || session.front.summary?.maxWobble || '--' }}<span style="font-size:0.7rem">mm</span></span>
                   </div>
                   <div class="m-item">
                     <span class="l">躯干/骨盆侧倾极值</span>

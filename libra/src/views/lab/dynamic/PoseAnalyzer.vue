@@ -188,19 +188,19 @@
             <div class="metric-card" :class="{ 'in-range': metrics.frontMaxLFlare < 15 && metrics.frontMaxRFlare < 15 }">
               <div class="card-header">
                 <label>手肘外张 (Elbow Flare)</label>
-                <div class="target-tag">目标 &lt; 15%</div>
+                <div class="target-tag">目标 < 15px</div>
               </div>
               <div class="dual-vals">
                 <div class="val-item">
                   <span class="l">左肘最大</span>
-                  <span class="v small">{{ (metrics.frontMaxLFlare || 0).toFixed(1) }}%</span>
+                  <span class="v small">{{ metrics.frontMaxLFlare || 0 }}px</span>
                 </div>
                 <div class="val-item">
                   <span class="l">右肘最大</span>
-                  <span class="v small">{{ (metrics.frontMaxRFlare || 0).toFixed(1) }}%</span>
+                  <span class="v small">{{ metrics.frontMaxRFlare || 0 }}px</span>
                 </div>
               </div>
-              <div class="desc">手肘偏离躯干的归一化距离 (% 肩宽)</div>
+              <div class="desc">距离过大提示车把过宽或未主动收肘</div>
             </div>
           </template>
 
@@ -208,10 +208,10 @@
           <template v-else-if="viewType === 'back'">
             <div class="metric-card">
               <label>骨盆摇摆 (Pelvis Sway)</label>
-              <div class="val" :class="{ warning: metrics.pelvisSway > 10 }">
-                {{ (metrics.pelvisSway || 0).toFixed(1) }}%
+              <div class="val" :class="{ warning: metrics.pelvisSway > 20 }">
+                {{ metrics.pelvisSway }}px
               </div>
-              <div class="desc">骨盆上下晃动的归一化幅度 (% 骨盆宽)，理想 &lt; 10%</div>
+            </div>
             <div class="metric-card">
               <label>高低肩 (Shoulder Tilt)</label>
               <div class="val" :class="{ warning: metrics.shoulderTilt > 3 }">

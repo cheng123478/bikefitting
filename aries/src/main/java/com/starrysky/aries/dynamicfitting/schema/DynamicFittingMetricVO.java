@@ -21,6 +21,5 @@ public class DynamicFittingMetricVO {
     private String status; // 状态: OK, ADJUST, WARNING
     private String currentValue; // 实测值: e.g., "142.5"
     private String idealRange; // 理想范围: e.g., "140-150"
-    private String advice; // 针对该指标的具体建议（调车方向）
-    private String riderAdvice; // 针对骑车人自身动作纠正/习惯改善的建议
+    private String advice; // 针对该指标的具体建议
 }
