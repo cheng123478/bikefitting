@@ -97,16 +97,16 @@
             <span class="idx-lbl">膝盖侧向位移/晃动 (Knee Wobble)</span>
             <div class="flex-row mt-2" style="display:flex; justify-content:space-between; width: 100%;">
               <div class="wobble-item text-center">
-                <div class="val text-warning">{{ data.lateralWobbleLeft.toFixed(1) }} mm</div>
+                <div class="val text-warning">{{ data.lateralWobbleLeft.toFixed(1) }} %</div>
                 <div class="lbl">左膝晃幅</div>
               </div>
               <div class="wobble-item text-center">
-                <div class="val text-warning">{{ data.lateralWobbleRight.toFixed(1) }} mm</div>
+                <div class="val text-warning">{{ data.lateralWobbleRight.toFixed(1) }} %</div>
                 <div class="lbl">右膝晃幅</div>
               </div>
             </div>
             <span class="idx-eval" style="color:var(--text-muted); font-size: 0.75rem; margin-top: 8px;">
-              代替脚踏中心偏离仪，从正面视角测量膝关节踩踏时的画圆跑偏量。越小说明力量传导越笔直无损耗。
+              代替脚踏中心偏离仪，从正面视角测量膝关节踩踏时的画圆跑偏量（% 骨盆宽）。越小说明力量传导越笔直无损耗。
             </span>
           </div>
 
