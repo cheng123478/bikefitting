@@ -495,6 +495,13 @@ watch(currentStep, (newStep) => {
   }
 });
 
+// 监听路由参数变化，响应外部跳转
+watch(() => route.query.step, (newStep) => {
+  if (newStep) {
+    currentStep.value = Number(newStep);
+  }
+});
+
 /**
  * 分步验证逻辑
  */
