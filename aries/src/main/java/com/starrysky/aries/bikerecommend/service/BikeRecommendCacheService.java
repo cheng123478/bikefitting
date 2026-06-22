@@ -64,14 +64,14 @@ public class BikeRecommendCacheService {
                     }
                 }
                 if (!result.isEmpty()) {
-                    log.info("从 Redis 加载推荐缓存, 共 {} 条", result.size());
+                    log.debug("从 Redis 加载推荐缓存, 共 {} 条", result.size());
                     return result;
                 }
             }
         }
 
         // 2. 缓存未命中，从 DB 加载并计算热度分
-        log.info("推荐缓存未命中，从 DB 加载并计算热度分");
+        log.debug("推荐缓存未命中，从 DB 加载并计算热度分");
         return computeAndCache();
     }
 
@@ -111,7 +111,7 @@ public class BikeRecommendCacheService {
         String cacheKey = RedisConstant.RECOMMEND_CACHE;
         if (!redisHashData.isEmpty()) {
             redisUtil.hmset(cacheKey, redisHashData, RedisConstant.RECOMMEND_CACHE_TIMEOUT);
-            log.info("推荐缓存已写入 Redis, 共 {} 条, TTL={}s", redisHashData.size(),
+            log.debug("推荐缓存已写入 Redis, 共 {} 条, TTL={}s", redisHashData.size(),
                     RedisConstant.RECOMMEND_CACHE_TIMEOUT);
         }
 
@@ -142,7 +142,7 @@ public class BikeRecommendCacheService {
                             new cn.hutool.core.lang.TypeReference<Map<String, List<BikeStandOverCacheItem>>>() {},
                             false);
                     if (result != null && !result.isEmpty()) {
-                        log.info("从 Redis 加载跨高缓存, 共 {} 个车型", result.size());
+                        log.debug("从 Redis 加载跨高缓存, 共 {} 个车型", result.size());
                         return result;
                     }
                 } catch (Exception e) {
@@ -152,7 +152,7 @@ public class BikeRecommendCacheService {
         }
 
         // 2. 缓存未命中，从 DB 加载
-        log.info("跨高缓存未命中，从 DB 加载");
+        log.debug("跨高缓存未命中，从 DB 加载");
         return computeStandOverCache();
     }
 
@@ -180,7 +180,7 @@ public class BikeRecommendCacheService {
         if (!result.isEmpty()) {
             String json = JSONUtil.toJsonStr(result);
             redisUtil.set(RedisConstant.RECOMMEND_STAND_OVER_CACHE, json, RedisConstant.RECOMMEND_STAND_OVER_CACHE_TTL);
-            log.info("跨高缓存已写入 Redis, 共 {} 个车型, TTL={}s", result.size(),
+            log.debug("跨高缓存已写入 Redis, 共 {} 个车型, TTL={}s", result.size(),
                     RedisConstant.RECOMMEND_STAND_OVER_CACHE_TTL);
         }
 
@@ -195,10 +195,9 @@ public class BikeRecommendCacheService {
     @PostConstruct
     public void warmUp() {
         try {
-            log.info("开始预热推荐缓存...");
             loadRecommendCache();
             loadStandOverCache();
-            log.info("推荐缓存预热完成");
+            log.debug("推荐缓存预热完成");
         } catch (Exception e) {
             log.warn("推荐缓存预热失败（不影响启动），将在首次请求时懒加载", e);
         }
@@ -209,7 +208,7 @@ public class BikeRecommendCacheService {
      */
     public void clearCache() {
         redisUtil.del(RedisConstant.RECOMMEND_CACHE, RedisConstant.RECOMMEND_STAND_OVER_CACHE);
-        log.info("推荐缓存已全部清除");
+        log.debug("推荐缓存已全部清除");
     }
 
     /**
@@ -217,7 +216,7 @@ public class BikeRecommendCacheService {
      */
     public void clearHotScoreCache() {
         redisUtil.del(RedisConstant.RECOMMEND_CACHE);
-        log.info("热度分缓存已清除");
+        log.debug("热度分缓存已清除");
     }
 
     /**
@@ -225,7 +224,7 @@ public class BikeRecommendCacheService {
      */
     public void clearStandOverCache() {
         redisUtil.del(RedisConstant.RECOMMEND_STAND_OVER_CACHE);
-        log.info("跨高数据缓存已清除");
+        log.debug("跨高数据缓存已清除");
     }
 
     // ==================== 私有工具方法 ====================
