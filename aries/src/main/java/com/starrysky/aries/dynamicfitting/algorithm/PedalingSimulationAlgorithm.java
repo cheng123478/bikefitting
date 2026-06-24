@@ -155,7 +155,7 @@ public class PedalingSimulationAlgorithm {
         int rightRatio = 100 - leftRatio;
 
         // 上提不平顺代理指数：使用跨周期振幅一致性，而不是峰/谷绝对比例。
-        // 正常平滑踩踏的膝/膝点轨迹本来就有大幅峰谷差，不能因此判为“不平顺”。
+        // 正常平滑踩踏的膝/膝点轨迹本来就有大幅峰谷差，不能因此判为"不平顺"。
         int upstrokeDrag = calculateBilateralAmplitudeConsistencyIndex(leftKneeY, leftPeaks, rightKneeY, rightPeaks);
 
         // 构建结果
@@ -166,6 +166,11 @@ public class PedalingSimulationAlgorithm {
         result.put("rightPeakAngle", 270); // 代理曲线峰值参考相位，约等于另一侧下压主相位
         result.put("upstrokeDragIndex", upstrokeDrag);
         result.put("forceCurvePoints", generateBilateralCurve(leftRatio, rightRatio));
+
+        // 提示：2D正面视角受透视投影影响，摄像头距离越近，离镜头更近的腿会被放大
+        // 此处未做透视畸变校正，双侧幅度比仅作为粗略参考，不可替代功率计测量
+        result.put("analysisNote",
+                "基于2D正面视频的双侧运动幅度代理分析。注意：摄像头透视畸变可能导致离镜头更近的一侧被系统性放大，双侧幅度比仅为粗略参考，不可替代功率计或压力设备测量。建议保持摄像头正对中轴、距离2米以上以减小误差。");
 
         // 从正面 summary 提取膝盖横摆量（归一化用骨盆宽度）
         if (frontView.getSummary() != null) {
@@ -247,6 +252,7 @@ public class PedalingSimulationAlgorithm {
      * 根据左右腿运动幅度占比生成确定性双侧代理曲线。
      * 左腿：0°~180° 下压正弦；右腿：180°~360° 下压正弦。
      * 不包含任何随机噪声，保证相同输入总产生相同输出。
+     * 输出中的 leftVelocity/rightVelocity 保留键名兼容前端，实际意义为运动幅度指数而非物理速度。
      */
     private List<Map<String, Object>> generateBilateralCurve(int leftRatio, int rightRatio) {
         List<Map<String, Object>> points = new ArrayList<>();
@@ -275,6 +281,7 @@ public class PedalingSimulationAlgorithm {
 
             Map<String, Object> point = new HashMap<>();
             point.put("angle", angle);
+            // leftVelocity/rightVelocity 保持JSON键名兼容前端，实际为运动幅度代理指数
             point.put("leftVelocity", Math.round(leftV * 10) / 10.0);
             point.put("rightVelocity", Math.round(rightV * 10) / 10.0);
             point.put("totalVelocity", Math.round((leftV + rightV) * 10) / 10.0);
@@ -406,7 +413,7 @@ public class PedalingSimulationAlgorithm {
         for (Double amp : amplitudes) {
             variance += Math.pow(amp - mean, 2);
         }
-        variance /= amplitudes.size();
+        variance /= (amplitudes.size() - 1); // 样本方差 n-1
         double cv = Math.sqrt(variance) / mean * 100.0;
         return Math.max(0, Math.min(100, (int) Math.round(cv)));
     }

@@ -121,6 +121,10 @@ public class DynamicFittingService {
 
     /**
      * 异步处理Fitting会话
+     * 注意：本方法上 @Async 和 @Transactional 的组合在 Spring 中工作正常：
+     * @Async 将方法调度到异步线程池执行，@Transactional 在异步线程中开启独立事务。
+     * 与 saveFittingSession 的事务完全隔离，互不影响。
+     * 若异步处理失败，catch 块会独立将 session 状态更新为 FAILED。
      *
      * @param sessionId 会话ID
      * @param request   请求
@@ -394,6 +398,24 @@ public class DynamicFittingService {
         }
         reportVO.setStandardRanges(standardRanges);
 
+        // 计算检测覆盖率
+        Map<String, String> finalStandardRanges = standardRanges;
+        int totalStandards = finalStandardRanges != null ? finalStandardRanges.size() : 0;
+        int detectedCount = 0;
+        if (overallSummary != null) {
+            for (Map<String, Object> viewMetrics : overallSummary.values()) {
+                if (viewMetrics instanceof Map && !"pedalingData".equals(viewMetrics)) {
+                    @SuppressWarnings("unchecked")
+                    Map<String, Object> vm = (Map<String, Object>) viewMetrics;
+                    detectedCount += (int) vm.keySet().stream()
+                            .filter(k -> finalStandardRanges != null && finalStandardRanges.containsKey(k))
+                            .count();
+                }
+            }
+        }
+        reportVO.setDetectedMetricsCount(detectedCount);
+        reportVO.setTotalStandardMetricsCount(totalStandards);
+
         if (overallSummary != null) {
             reportVO.setSideData(
                     new DynamicFittingReportVO.ViewData(mapToMetricVO("side", overallSummary.get("side"), advices, standardRanges)));
@@ -443,7 +465,7 @@ public class DynamicFittingService {
         LITERATURE_IDEAL_RANGES.put("cadenceRpm", "70.0-110.0");
         LITERATURE_IDEAL_RANGES.put("ankleAtBdc", "0.0-30.0");
         LITERATURE_IDEAL_RANGES.put("ankleY", "0.0-15.0");
-        LITERATURE_IDEAL_RANGES.put("maxKnee", "145.0-155.0");
+        LITERATURE_IDEAL_RANGES.put("maxKnee", "145.0-150.0");
         LITERATURE_IDEAL_RANGES.put("maxShoulder", "80.0-95.0");
         // 正面视角
         LITERATURE_IDEAL_RANGES.put("maxWobble", "0.0-15.0");
@@ -651,10 +673,11 @@ public class DynamicFittingService {
 
         // 兼容历史报告：旧采集值是 ∠KNEE-ANKLE-TOE 内角（约 90-120°），
         // 新业务口径是跖屈代理角（约 10-25°）。显示/判定时按标准区间自动换算。
-        if (range[1] <= 45.0 && value > 60.0) {
+        // 使用严格阈值避免误判：内角低于80度不可行，跖屈代理角高于50度不合理
+        if (range[1] <= 45.0 && value > 80.0 && value <= 125.0) {
             return value - 90.0;
         }
-        if (range[0] >= 60.0 && value <= 45.0) {
+        if (range[0] >= 60.0 && value >= -45.0 && value <= 45.0) {
             return value + 90.0;
         }
         return value;
@@ -1111,8 +1134,9 @@ public class DynamicFittingService {
             int end = peaks.get(p + 1);
             if (end <= start + 4) continue;
             for (int b = 0; b < phaseBins; b++) {
-                int idx = start + (int) Math.round((end - start) * (b / (double) phaseBins));
-                idx = Math.min(idx, values.size() - 1);
+                // 避免将下一个周期的起始点采样到当前周期，b/(phaseBins-1)保证最后一个点不超过end-1
+                int idx = start + (int) Math.round((end - start) * (b / (double)(phaseBins - 1)));
+                idx = Math.min(idx, end - 1); // 严格限制在当前周期内（start到end-1）
                 bins.get(b).add(values.get(idx));
             }
         }
@@ -1159,7 +1183,8 @@ public class DynamicFittingService {
         for (Double v : values) {
             sumSqDiff += Math.pow(v - mean, 2);
         }
-        return sumSqDiff / values.size();
+        // 使用样本方差 n-1（生物力学标准做法），避免小样本低估
+        return values.size() > 1 ? sumSqDiff / (values.size() - 1) : sumSqDiff;
     }
 
     private double round2(double val) {

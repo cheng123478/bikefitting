@@ -46,6 +46,10 @@ public class DynamicFittingReportVO {
     // 诊断标准范围映射
     private Map<String, String> standardRanges;
 
+    // 检测覆盖率：已检测到的指标数 / 标准要求的总指标数
+    private Integer detectedMetricsCount;
+    private Integer totalStandardMetricsCount;
+
     @Data
     @AllArgsConstructor
     @NoArgsConstructor

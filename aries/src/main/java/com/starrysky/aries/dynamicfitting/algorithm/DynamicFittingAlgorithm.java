@@ -56,6 +56,23 @@ public class DynamicFittingAlgorithm {
     }
     /** 未知车型的双侧对称性告警阈值默认值（°） */
     private static final double DEFAULT_BILATERAL_THRESHOLD = 8.0;
+
+    /**
+     * 各车型的横向偏移类指标百分比阈值（wobble/hipDrop 等）。
+     * 与角度阈值类似，车型越竞技，允许的偏移百分比越小。
+     * 注意：此为百分比阈值，独立于角度阈值 BILATERAL_ASYMMETRY_THRESHOLDS。
+     */
+    private static final Map<Integer, Double> LATERAL_DEVIATION_PCT_THRESHOLDS;
+    static {
+        Map<Integer, Double> m = new HashMap<>();
+        m.put(BikeType.ROAD_BIKE.code, 6.0);
+        m.put(BikeType.MOUNTAIN_BIKE.code, 8.0);
+        m.put(BikeType.GRAVEL_BIKE.code, 7.0);
+        m.put(BikeType.CITY_BIKE.code, 10.0);
+        m.put(BikeType.TT_BIKE.code, 5.0);
+        LATERAL_DEVIATION_PCT_THRESHOLDS = Collections.unmodifiableMap(m);
+    }
+    private static final double DEFAULT_LATERAL_PCT_THRESHOLD = 8.0;
     private static final Set<String> OBSERVATION_ONLY_METRICS = Set.of("cadenceRpm");
 
     /**
@@ -143,10 +160,16 @@ public class DynamicFittingAlgorithm {
                 ? BigDecimal.valueOf(totalWeightedScore / totalWeight).setScale(1, RoundingMode.HALF_UP)
                 : BigDecimal.valueOf(100.0);
 
+        // 计算检测覆盖率：记录共多少标准，实际检测到多少
+        int totalStandards = standards.size();
+        int detectedCount = detectedMetrics.size();
+
         return DynamicFittingResultVO.builder()
                 .matchScore(finalScore)
                 .advices(advices)
                 .standardRanges(standardRanges)
+                .detectedMetricsCount(detectedCount)
+                .totalStandardMetricsCount(totalStandards)
                 .build();
     }
 
@@ -222,20 +245,25 @@ public class DynamicFittingAlgorithm {
         DynamicFittingStandard normalized = copyStandard(std);
         switch (std.getMetricKey()) {
             case "maxKnee":
+                // 参考Holmes (1994), Bini (2011) 文献：多数研究建议不超过150°以减少膝后侧损伤风险
+                // 公路车/铁三更严格，这里统一使用145-150范围，比原155更保守安全
                 normalized.setMinVal(145.0);
-                normalized.setMaxVal(155.0);
+                normalized.setMaxVal(150.0);
                 break;
             case "ankleAtBdc":
+                // 跖屈代理角：Silberman (2005) 建议10-25度，保留0-30以容纳个体差异
                 normalized.setMinVal(0.0);
                 normalized.setMaxVal(30.0);
                 normalized.setWeight(Math.min(defaultDouble(std.getWeight(), 0.04), 0.04));
                 break;
             case "kopsOffset":
+                // KOPS标准：主流平台建议±10mm范围，这里保留-15+15但权重适当降低
                 normalized.setMinVal(-15.0);
                 normalized.setMaxVal(15.0);
                 normalized.setWeight(Math.min(defaultDouble(std.getWeight(), 0.05), 0.05));
                 break;
             case "cadenceRpm":
+                // 经济性踏频80-100，保留70-110以容纳骑行风格差异
                 normalized.setMinVal(70.0);
                 normalized.setMaxVal(110.0);
                 normalized.setWeight(0.0);
@@ -243,6 +271,7 @@ public class DynamicFittingAlgorithm {
             case "maxHipTilt":
             case "maxShoulderTilt":
             case "maxSpineTilt":
+                // 2D视觉测量有噪声，保留7度阈值
                 normalized.setMinVal(0.0);
                 normalized.setMaxVal(7.0);
                 break;
@@ -367,10 +396,13 @@ public class DynamicFittingAlgorithm {
                 || standard.getMinVal() == null || standard.getMaxVal() == null) {
             return value;
         }
-        if (standard.getMaxVal() <= 45.0 && value > 60.0) {
+        // 跖屈代理角转换：标准范围在0-30度时，若value在90-120度范围则判断为旧版内角格式
+        // 旧版 ∠KNEE-ANKLE-TOE 内角约90-120°，新版跖屈代理角 = 内角 - 90
+        // 使用更严格的阈值范围避免误判：内角低于80度理论上不可行，跖屈代理角高于50度也不合理
+        if (standard.getMaxVal() <= 45.0 && value > 80.0 && value <= 125.0) {
             return value - 90.0;
         }
-        if (standard.getMinVal() >= 60.0 && value <= 45.0) {
+        if (standard.getMinVal() >= 60.0 && value >= -45.0 && value <= 45.0) {
             return value + 90.0;
         }
         return value;
@@ -468,14 +500,20 @@ public class DynamicFittingAlgorithm {
         if (key.contains("avgknee") || key.contains("kneevariance")) {
             return null;
         }
-        if (key.contains("wobble")) {
-            return new MetricDescriptor("膝部横向偏移", 8.0, "%");
-        }
-        if (key.contains("hipdrop")) {
-            return new MetricDescriptor("骨盆下坠幅度", 8.0, "%");
-        }
         double angleThreshold = BILATERAL_ASYMMETRY_THRESHOLDS.getOrDefault(
                 bikeType, DEFAULT_BILATERAL_THRESHOLD);
+        if (key.contains("wobble")) {
+            // 膝部横向偏移：使用独立的百分比阈值，车型越竞技越严格
+            double pctThreshold = LATERAL_DEVIATION_PCT_THRESHOLDS.getOrDefault(
+                    bikeType, DEFAULT_LATERAL_PCT_THRESHOLD);
+            return new MetricDescriptor("膝部横向偏移", pctThreshold, "%");
+        }
+        if (key.contains("hipdrop")) {
+            // 骨盆下坠幅度：使用独立的百分比阈值
+            double pctThreshold = LATERAL_DEVIATION_PCT_THRESHOLDS.getOrDefault(
+                    bikeType, DEFAULT_LATERAL_PCT_THRESHOLD);
+            return new MetricDescriptor("骨盆下坠幅度", pctThreshold, "%");
+        }
         if (key.contains("knee")) {
             return new MetricDescriptor("膝部伸展角度", angleThreshold, "°");
         }

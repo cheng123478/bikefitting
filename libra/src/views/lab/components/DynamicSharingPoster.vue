@@ -672,31 +672,72 @@ const generateCanvasPoster = async () => {
   ctx.stroke();
   ctx.setLineDash([]);
 
-  ctx.fillStyle = '#2D3430';
-  ctx.font = '900 32px "Microsoft YaHei", sans-serif';
-  ctx.fillText(`${PROJECT_CONFIG.NAME_EN} · ${posterUsername.value}`, x, 1344);
+  // Bottom footer area - balanced layout
+  const footerY = 1300;
+  const footerHeight = 180;
+
+  // Left side: slogan area
+  ctx.textAlign = 'left';
+  ctx.fillStyle = '#465543';
+  ctx.font = '900 36px "Microsoft YaHei", sans-serif';
+  ctx.fillText(PROJECT_CONFIG.SHARE_SLOGAN_DYNAMIC, x, footerY + 58);
+
   ctx.fillStyle = '#787673';
-  ctx.font = '600 24px "Microsoft YaHei", sans-serif';
-  drawWrappedText(ctx, PROJECT_CONFIG.SHARE_SLOGAN_DYNAMIC, x, 1384, 470, 34, 2);
+  ctx.font = '600 22px "Microsoft YaHei", sans-serif';
+  ctx.fillText(`RideTrace AI · 守护您的每一次踩踏`, x, footerY + 100);
+  ctx.fillText(`${reportDate.value} · ${posterUsername.value}`, x, footerY + 134);
+
+  // Right side: QR code card
+  const qrSize = 156;
+  const qrPadding = 16;
+  const qrCardWidth = qrSize + qrPadding * 2;
+  const qrCardHeight = qrSize + qrPadding * 2 + 36; // extra for text
+  const qrX = x + contentWidth - qrCardWidth;
+  const qrY = footerY + (footerHeight - qrCardHeight) / 2 - 10;
+
+  // QR card white background with rounded corners and subtle border
+  ctx.fillStyle = '#FFFFFF';
+  ctx.beginPath();
+  if (typeof ctx.roundRect === 'function') {
+    ctx.roundRect(qrX, qrY, qrCardWidth, qrCardHeight, 12);
+  } else {
+    const r = 12;
+    ctx.moveTo(qrX + r, qrY);
+    ctx.lineTo(qrX + qrCardWidth - r, qrY);
+    ctx.quadraticCurveTo(qrX + qrCardWidth, qrY, qrX + qrCardWidth, qrY + r);
+    ctx.lineTo(qrX + qrCardWidth, qrY + qrCardHeight - r);
+    ctx.quadraticCurveTo(qrX + qrCardWidth, qrY + qrCardHeight, qrX + qrCardWidth - r, qrY + qrCardHeight);
+    ctx.lineTo(qrX + r, qrY + qrCardHeight);
+    ctx.quadraticCurveTo(qrX, qrY + qrCardHeight, qrX, qrY + qrCardHeight - r);
+    ctx.lineTo(qrX, qrY + r);
+    ctx.quadraticCurveTo(qrX, qrY, qrX + r, qrY);
+    ctx.closePath();
+  }
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(92, 110, 88, 0.12)';
+  ctx.lineWidth = 1;
+  ctx.stroke();
 
   const qrCanvas = posterRef.value?.querySelector('.qr-box canvas');
-  const qrX = 824;
-  const qrY = 1300;
-  ctx.fillStyle = '#FFFFFF';
-  fillRoundRect(ctx, qrX - 20, qrY - 20, 196, 224, 8);
   if (qrCanvas) {
-    ctx.drawImage(qrCanvas, qrX, qrY, 148, 148);
+    ctx.drawImage(qrCanvas, qrX + qrPadding, qrY + qrPadding, qrSize, qrSize);
   } else {
-    ctx.strokeStyle = '#2D3430';
-    ctx.lineWidth = 5;
-    ctx.strokeRect(qrX, qrY, 148, 148);
-    ctx.fillStyle = '#2D3430';
-    ctx.font = '700 22px "Microsoft YaHei", sans-serif';
-    ctx.fillText('QR', qrX + 55, qrY + 82);
+    ctx.strokeStyle = '#465543';
+    ctx.lineWidth = 4;
+    ctx.strokeRect(qrX + qrPadding, qrY + qrPadding, qrSize, qrSize);
+    ctx.fillStyle = '#465543';
+    ctx.font = '700 28px "Microsoft YaHei", sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('QR', qrX + qrCardWidth / 2, qrY + qrPadding + qrSize / 2 + 10);
+    ctx.textAlign = 'left';
   }
-  ctx.fillStyle = '#787673';
-  ctx.font = '700 22px "Microsoft YaHei", sans-serif';
-  ctx.fillText('扫码生成你的骑行体检', 782, 1482);
+
+  // QR tip text centered under QR code
+  ctx.fillStyle = '#5C6E58';
+  ctx.font = '700 20px "Microsoft YaHei", sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText('扫码查看完整报告', qrX + qrCardWidth / 2, qrY + qrCardHeight - 14);
+  ctx.textAlign = 'left';
 
   return canvas.toDataURL('image/jpeg', 0.94);
 };

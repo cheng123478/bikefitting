@@ -30,4 +30,8 @@ public class DynamicFittingResultVO {
 
     // 记录所有涉及指标的标准范围 (即便指标正常也返回，用于前端展示)
     private Map<String, String> standardRanges;
+
+    // 检测覆盖率：已检测到的指标数 / 标准要求的总指标数
+    private Integer detectedMetricsCount;
+    private Integer totalStandardMetricsCount;
 }
