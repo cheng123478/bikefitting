@@ -11,6 +11,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.hibernate.annotations.Comment;
 import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.UpdateTimestamp;
 
 import java.time.LocalDateTime;
 
@@ -45,7 +46,7 @@ public class UserNotification {
 
     @Convert(converter = NotificationTypeConverter.class)
     @Column(nullable = false, length = 30)
-    @Comment("消息类型: new-activity, member-join, like, comment 等")
+    @Comment("消息类型: join-apply/join-approved/join-rejected/member-join/member-leave/captain-leave/member-kicked/member-promote/member-demote/team-disbanded/new-activity/edit-activity/delete-activity/new-notice/edit-notice/like/comment/fitting-complete")
     private NotificationType type;
 
     @Convert(converter = NotificationCategoryConverter.class)
@@ -65,6 +66,10 @@ public class UserNotification {
     @Comment("关联车队ID（车队相关通知时设置）")
     private Long teamId;
 
+    @Column(name = "link_id")
+    @Comment("跳转目标ID（如 activity_id / post_id / notice_id）")
+    private Long linkId;
+
     @Column(name = "is_read", nullable = false)
     @Comment("是否已读: false未读 true已读")
     private Boolean isRead = false;
@@ -77,4 +82,9 @@ public class UserNotification {
     @Column(name = "created_at", updatable = false)
     @Comment("创建时间")
     private LocalDateTime createdAt;
+
+    @UpdateTimestamp
+    @Column(name = "updated_at")
+    @Comment("更新时间")
+    private LocalDateTime updatedAt;
 }

@@ -194,11 +194,12 @@ public class NotificationService {
      * @param title   标题
      * @param content 内容
      * @param teamId  关联车队ID（可为 null）
+     * @param linkId  跳转目标ID（如 activity_id/post_id/notice_id，可为 null）
      */
     public void send(Long userId, NotificationType type,
-                     String title, String content, Long teamId) {
+                     String title, String content, Long teamId, Long linkId) {
         eventPublisher.publishEvent(
-                new NotificationEvent(this, userId, type, truncateTitle(title), truncateContent(content), teamId));
+                new NotificationEvent(this, userId, type, truncateTitle(title), truncateContent(content), teamId, linkId));
     }
 
     /**
@@ -209,14 +210,15 @@ public class NotificationService {
      * @param title   标题
      * @param content 内容
      * @param teamId  关联车队ID（可为 null）
+     * @param linkId  跳转目标ID（如 activity_id/post_id/notice_id，可为 null）
      */
     public void sendBatch(List<Long> userIds, NotificationType type,
-                          String title, String content, Long teamId) {
+                          String title, String content, Long teamId, Long linkId) {
         if (userIds == null || userIds.isEmpty()) {
             return;
         }
         eventPublisher.publishEvent(
-                new NotificationBatchEvent(this, userIds, type, truncateTitle(title), truncateContent(content), teamId));
+                new NotificationBatchEvent(this, userIds, type, truncateTitle(title), truncateContent(content), teamId, linkId));
     }
 
     // ======================== 实际持久化方法（供 EventListener 调用） ========================
@@ -226,7 +228,7 @@ public class NotificationService {
      */
     @Transactional(rollbackFor = Exception.class)
     public void save(Long userId, NotificationType type,
-                     String title, String content, Long teamId) {
+                     String title, String content, Long teamId, Long linkId) {
         UserNotification notification = UserNotification.builder()
                 .userId(userId)
                 .type(type)
@@ -234,11 +236,12 @@ public class NotificationService {
                 .title(title)
                 .content(content)
                 .teamId(teamId)
+                .linkId(linkId)
                 .isRead(false)
                 .expiresAt(LocalDateTime.now().plusDays(RETENTION_DAYS))
                 .build();
         notificationRepository.save(notification);
-        log.debug("通知已持久化: userId={}, type={}, teamId={}", userId, type, teamId);
+        log.debug("通知已持久化: userId={}, type={}, teamId={}, linkId={}", userId, type, teamId, linkId);
     }
 
     /**
@@ -246,7 +249,7 @@ public class NotificationService {
      */
     @Transactional(rollbackFor = Exception.class)
     public void saveBatch(List<Long> userIds, NotificationType type,
-                          String title, String content, Long teamId) {
+                          String title, String content, Long teamId, Long linkId) {
         if (userIds == null || userIds.isEmpty()) {
             return;
         }
@@ -260,6 +263,7 @@ public class NotificationService {
                         .title(title)
                         .content(content)
                         .teamId(teamId)
+                        .linkId(linkId)
                         .isRead(false)
                         .expiresAt(expiresAt)
                         .build())
@@ -273,7 +277,7 @@ public class NotificationService {
             notificationRepository.flush();
         }
 
-        log.debug("批量通知已持久化: count={}, type={}, teamId={}", notifications.size(), type, teamId);
+        log.debug("批量通知已持久化: count={}, type={}, teamId={}, linkId={}", notifications.size(), type, teamId, linkId);
     }
 
     // ============================ 私有方法 ============================
@@ -292,6 +296,7 @@ public class NotificationService {
                 .teamId(notification.getTeamId())
                 .teamName(teamName)
                 .read(notification.getIsRead())
+                .linkId(notification.getLinkId())
                 .linkType(linkType)
                 .link(buildLink(notification, linkType))
                 .createdAt(notification.getCreatedAt())
@@ -305,7 +310,6 @@ public class NotificationService {
         if (type == NotificationType.FITTING_COMPLETE) {
             return "lab";
         }
-        // 所有车队相关通知
         if (type.getCategory() == NotificationCategory.TEAM) {
             return "team";
         }
@@ -321,7 +325,29 @@ public class NotificationService {
         }
         return switch (linkType) {
             case "lab" -> "/lab";
-            case "team" -> notification.getTeamId() != null ? "/peloton/" + notification.getTeamId() : null;
+            case "team" -> {
+                if (notification.getTeamId() == null) {
+                    yield null;
+                }
+                String base = "/peloton/" + notification.getTeamId();
+                NotificationType type = notification.getType();
+                // 根据通知类型拼接子路由，linkId 用于精确定位
+                if (notification.getLinkId() != null) {
+                    if (type == NotificationType.NEW_ACTIVITY || type == NotificationType.EDIT_ACTIVITY || type == NotificationType.DELETE_ACTIVITY) {
+                        yield base + "/activity/" + notification.getLinkId();
+                    }
+                    if (type == NotificationType.NEW_NOTICE || type == NotificationType.EDIT_NOTICE) {
+                        yield base + "/notice/" + notification.getLinkId();
+                    }
+                    if (type == NotificationType.LIKE || type == NotificationType.COMMENT) {
+                        yield base + "/post/" + notification.getLinkId();
+                    }
+                    if (type == NotificationType.JOIN_APPLY) {
+                        yield base + "/member";
+                    }
+                }
+                yield base;
+            }
             default -> null;
         };
     }

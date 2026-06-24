@@ -290,7 +290,7 @@ public class TeamPostService {
                         NotificationType.LIKE,
                         "获得点赞",
                         "「" + likerName + "」赞了您的动态「" + postPreview + "」",
-                        post.getTeamId());
+                        post.getTeamId(), postId);
             }
 
             return true;
@@ -345,7 +345,7 @@ public class TeamPostService {
                     NotificationType.COMMENT,
                     "新评论",
                     "「" + commenterName + "」评论了您的动态：「" + commentPreview + "」",
-                    post.getTeamId());
+                    post.getTeamId(), postId);
         }
 
         return convertCommentToVO(comment, user);

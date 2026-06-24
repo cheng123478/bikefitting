@@ -45,6 +45,9 @@ public class UserNotificationVO {
     /** 是否已读 */
     private Boolean read;
 
+    /** 跳转目标ID（如 activity_id / post_id / notice_id） */
+    private Long linkId;
+
     /** 链接类型（如 team / lab），供前端根据类型构建路由 */
     private String linkType;
 

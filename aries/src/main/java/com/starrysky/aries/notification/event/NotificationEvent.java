@@ -20,14 +20,16 @@ public class NotificationEvent extends ApplicationEvent {
     private final String title;
     private final String content;
     private final Long teamId;
+    private final Long linkId;
 
     public NotificationEvent(Object source, Long userId, NotificationType type,
-                             String title, String content, Long teamId) {
+                             String title, String content, Long teamId, Long linkId) {
         super(source);
         this.userId = userId;
         this.type = type;
         this.title = title;
         this.content = content;
         this.teamId = teamId;
+        this.linkId = linkId;
     }
 }

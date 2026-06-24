@@ -110,7 +110,7 @@ public class TeamNoticeService {
                 NotificationType.NEW_NOTICE,
                 "新公告发布",
                 "管理员发布了新公告「" + notice.getTitle() + "」",
-                teamId);
+                teamId, notice.getId());
 
         log.debug("用户 {} 在车队 {} 中发布了公告（id={}）", user.getId(), teamId, notice.getId());
         return convertToVO(notice, user);
@@ -159,7 +159,7 @@ public class TeamNoticeService {
                 NotificationType.EDIT_NOTICE,
                 "公告已编辑",
                 "公告「" + notice.getTitle() + "」已更新内容",
-                teamId);
+                teamId, noticeId);
 
         log.debug("用户 {} 在车队 {} 中编辑了公告（id={}）", user.getId(), teamId, noticeId);
         User author = userRepository.findById(notice.getAuthorId()).orElse(null);

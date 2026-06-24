@@ -349,7 +349,7 @@ public class PelotonTeamService {
                 NotificationType.TEAM_DISBANDED,
                 "车队已解散",
                 "您所在的「" + team.getName() + "」车队已被队长解散",
-                null);
+                null, null);
 
         log.info("用户 {} 解散了车队 {}（id={}）", user.getId(), team.getName(), teamId);
     }

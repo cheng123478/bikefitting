@@ -128,7 +128,7 @@ public class TeamActivityService {
                 NotificationType.NEW_ACTIVITY,
                 "新活动发布",
                 "队长「" + user.getName() + "」发布了新活动「" + activity.getTitle() + "」，快来报名吧！",
-                teamId);
+                teamId, activity.getId());
 
         log.debug("用户 {} 在车队 {} 中发布了活动（id={}）", user.getId(), teamId, activity.getId());
         return convertToVO(activity, user);
@@ -191,7 +191,7 @@ public class TeamActivityService {
                 NotificationType.EDIT_ACTIVITY,
                 "活动已更新",
                 "「" + activity.getTitle() + "」活动信息已更新",
-                teamId);
+                teamId, activityId);
 
         log.debug("用户 {} 在车队 {} 中编辑了活动（id={}）", user.getId(), teamId, activityId);
         User author = userRepository.findById(activity.getAuthorId()).orElse(null);
@@ -237,7 +237,7 @@ public class TeamActivityService {
                 NotificationType.DELETE_ACTIVITY,
                 "活动已取消",
                 "「" + activity.getTitle() + "」活动已被取消",
-                teamId);
+                teamId, activityId);
 
         log.debug("用户 {} 在车队 {} 中删除了活动（id={}）", user.getId(), teamId, activityId);
     }

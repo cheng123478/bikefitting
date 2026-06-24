@@ -38,7 +38,7 @@ public class NotificationEventListener {
     public void handleNotificationEvent(NotificationEvent event) {
         try {
             notificationService.save(event.getUserId(), event.getType(),
-                    event.getTitle(), event.getContent(), event.getTeamId());
+                    event.getTitle(), event.getContent(), event.getTeamId(), event.getLinkId());
         } catch (Exception e) {
             log.error("通知持久化失败: userId={}, type={}", event.getUserId(), event.getType(), e);
         }
@@ -53,7 +53,7 @@ public class NotificationEventListener {
     public void handleNotificationBatchEvent(NotificationBatchEvent event) {
         try {
             notificationService.saveBatch(event.getUserIds(), event.getType(),
-                    event.getTitle(), event.getContent(), event.getTeamId());
+                    event.getTitle(), event.getContent(), event.getTeamId(), event.getLinkId());
         } catch (Exception e) {
             log.error("批量通知持久化失败: count={}, type={}", event.getUserIds().size(), event.getType(), e);
         }

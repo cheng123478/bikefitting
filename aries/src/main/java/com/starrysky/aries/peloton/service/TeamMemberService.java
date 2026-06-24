@@ -78,7 +78,7 @@ public class TeamMemberService {
                 NotificationType.MEMBER_LEAVE,
                 "成员离开",
                 "「" + user.getName() + "」已退出车队",
-                teamId);
+                teamId, null);
 
         log.info("用户 {} 退出车队 {}，当前成员数已原子递减", user.getId(), teamId);
     }
@@ -132,14 +132,14 @@ public class TeamMemberService {
                 NotificationType.CAPTAIN_LEAVE,
                 "队长转让",
                 "「" + (user.getName() != null ? user.getName() : "原队长") + "」已将队长身份转让并退出车队",
-                teamId);
+                teamId, null);
     
         // 通知新队长：您已成为新队长
         notificationService.send(newCaptainUserId,
                 NotificationType.MEMBER_PROMOTE,
                 "队长任命",
                 "您已被任命为「" + team.getName() + "」的队长",
-                teamId);
+                teamId, null);
     
         log.info("用户 {} 将队长身份转让给 {}（车队 {}），原队长已退出",
                 user.getId(), newCaptainUserId, teamId);
@@ -174,7 +174,7 @@ public class TeamMemberService {
                 NotificationType.MEMBER_PROMOTE,
                 "管理员任命",
                 "您已被提升为「" + team.getName() + "」管理员",
-                teamId);
+                teamId, null);
 
         log.info("用户 {} 在车队 {} 中将 {} 设为管理员", admin.getId(), teamId, targetUserId);
     }
@@ -205,7 +205,7 @@ public class TeamMemberService {
                 NotificationType.MEMBER_DEMOTE,
                 "管理员撤销",
                 "您在「" + team.getName() + "」的管理员权限已被撤销",
-                teamId);
+                teamId, null);
 
         log.info("用户 {} 在车队 {} 中撤销了 {} 的管理员权限", admin.getId(), teamId, targetUserId);
     }
@@ -240,7 +240,7 @@ public class TeamMemberService {
                 NotificationType.MEMBER_KICKED,
                 "您已被请离车队",
                 "您已被「" + team.getName() + "」车队请离",
-                teamId);
+                teamId, null);
 
         log.info("用户 {} 在车队 {} 中请离了成员 {}", admin.getId(), teamId, targetUserId);
     }

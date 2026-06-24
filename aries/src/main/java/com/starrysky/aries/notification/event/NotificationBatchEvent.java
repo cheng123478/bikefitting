@@ -22,14 +22,16 @@ public class NotificationBatchEvent extends ApplicationEvent {
     private final String title;
     private final String content;
     private final Long teamId;
+    private final Long linkId;
 
     public NotificationBatchEvent(Object source, List<Long> userIds, NotificationType type,
-                                  String title, String content, Long teamId) {
+                                  String title, String content, Long teamId, Long linkId) {
         super(source);
         this.userIds = userIds;
         this.type = type;
         this.title = title;
         this.content = content;
         this.teamId = teamId;
+        this.linkId = linkId;
     }
 }

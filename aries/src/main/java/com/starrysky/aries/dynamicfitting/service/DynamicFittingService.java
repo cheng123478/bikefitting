@@ -238,7 +238,7 @@ public class DynamicFittingService {
                     NotificationType.FITTING_COMPLETE,
                     "Fitting报告已生成",
                     "「" + bikeName + "」的动态Fitting报告已生成，请前往实验室查看",
-                    null);
+                    null, null);
 
         } catch (Exception e) {
             log.error("会话后台分析失败: {}", sessionId, e);

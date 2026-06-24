@@ -135,7 +135,7 @@ public class TeamApplicationService {
                 NotificationType.JOIN_APPLY,
                 "新入队申请",
                 "「" + applicantName + "」申请加入车队，请审核",
-                teamId);
+                teamId, null);
     }
 
     /**
@@ -190,7 +190,7 @@ public class TeamApplicationService {
                 NotificationType.JOIN_APPROVED,
                 "申请已通过",
                 "您加入「" + team.getName() + "」的申请已通过，快去看看吧！",
-                team.getId());
+                team.getId(), null);
 
         // 通知所有队内成员：新成员加入（排除新成员自己）
         User applicant = userRepository.findById(application.getApplicantId()).orElse(null);
@@ -205,7 +205,7 @@ public class TeamApplicationService {
                 NotificationType.MEMBER_JOIN,
                 "新成员加入",
                 "「" + applicantName + "」已加入车队，一起骑行吧！",
-                team.getId());
+                team.getId(), null);
 
         log.info("用户 {} 审批通过申请 {}，申请人 {} 加入车队 {}",
                 admin.getId(), applicationId, application.getApplicantId(), team.getId());
@@ -238,7 +238,7 @@ public class TeamApplicationService {
                 NotificationType.JOIN_REJECTED,
                 "申请被拒绝",
                 "您加入「" + team.getName() + "」的申请已被拒绝",
-                null);
+                null, null);
 
         log.info("用户 {} 拒绝了加入申请 {}（车队 {}）", admin.getId(), applicationId, team.getId());
     }
