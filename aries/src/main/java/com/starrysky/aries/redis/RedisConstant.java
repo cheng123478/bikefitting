@@ -47,23 +47,42 @@ public class RedisConstant {
 
     // 车队缓存相关常量
     /**
-     * 车队列表缓存（Spring Cache，key=分页+筛选条件，TTL=60s自动过期）
+     * 车队列表缓存（Spring Cache，key=分页+筛选条件，TTL=5min，写操作时 allEntries 清除）
      */
-    public static final String PELOTON_TEAMS_LIST = "peloton:teams:list";
+    public static final String PELOTON_TEAMS_LIST = "starrysky:aries:peloton:list";
+    public static final int PELOTON_TEAMS_LIST_TTL = 5 * 60;
+
     /**
-     * 我的车队缓存（Spring Cache，key=userId）
+     * 我的车队缓存（Spring Cache，key=userId，TTL=5min，加入/退出时精确失效）
      */
-    public static final String PELOTON_TEAMS_MY = "peloton:teams:my";
+    public static final String PELOTON_TEAMS_MY = "starrysky:aries:peloton:my";
+    public static final int PELOTON_TEAMS_MY_TTL = 5 * 60;
+
     /**
-     * 车队详情缓存（Spring Cache，key=teamId）
+     * 车队详情缓存（Spring Cache，key=teamId，TTL=10min，写操作时精确失效，支持空值防穿透）
      */
-    public static final String PELOTON_TEAMS_DETAIL = "peloton:teams:detail";
+    public static final String PELOTON_TEAMS_DETAIL = "starrysky:aries:peloton:detail";
+    public static final int PELOTON_TEAMS_DETAIL_TTL = 10 * 60;
+
     /**
-     * 车队成员列表缓存（Spring Cache，key=teamId:page:size:keyword）
+     * 车队成员列表缓存（Spring Cache，key=teamId:page:size:keyword，TTL=5min，成员变动时清除）
      */
-    public static final String PELOTON_TEAMS_MEMBERS = "peloton:teams:members";
+    public static final String PELOTON_TEAMS_MEMBERS = "starrysky:aries:peloton:members";
+    public static final int PELOTON_TEAMS_MEMBERS_TTL = 5 * 60;
+
     /**
-     * 车队车库缓存（Spring Cache，key=teamId）
+     * 车队车库缓存（Spring Cache，key=teamId，TTL=10min）
      */
-    public static final String PELOTON_TEAMS_GARAGE = "peloton:teams:garage";
+    public static final String PELOTON_TEAMS_GARAGE = "starrysky:aries:peloton:garage";
+    public static final int PELOTON_TEAMS_GARAGE_TTL = 10 * 60;
+
+    /**
+     * 车队成员数缓存（Redis String，key=teamId，value=成员数量）
+     * 成员变动时主动删除，下次读取时从 DB 重新加载。TTL=1h 作为安全兜底。
+     */
+    public static final String PELOTON_TEAMS_MEMBER_COUNT = "starrysky:aries:peloton:memberCount:";
+    /**
+     * 车队成员数缓存过期时间（秒），1小时安全兜底
+     */
+    public static final int PELOTON_TEAMS_MEMBER_COUNT_TTL = 60 * 60;
 }

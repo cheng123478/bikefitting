@@ -29,13 +29,4 @@ public class PelotonTeamQueryDTO {
 
     /** 搜索关键词（匹配名称、所在地、简介、标签） */
     private String keyword;
-
-    /**
-     * 分类筛选:
-     * hot  - 热门车队
-     * new  - 新兴车队
-     * nearby - 附近车队（预留）
-     * mine - 我加入的车队（预留）
-     */
-    private String category;
 }

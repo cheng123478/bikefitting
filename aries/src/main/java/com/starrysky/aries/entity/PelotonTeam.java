@@ -56,13 +56,6 @@ public class PelotonTeam {
     @Comment("车队简介")
     private String description;
 
-    @Comment("成员数量（冗余字段）")
-    private Integer memberCount;
-
-    @Column(length = 20)
-    @Comment("活跃度等级: hot-热门, normal-普通, new-新兴")
-    private String activityLevel;
-
     @Column(length = 500)
     @Comment("标签，逗号分隔，如: 公路,爬坡,长途")
     private String tags;

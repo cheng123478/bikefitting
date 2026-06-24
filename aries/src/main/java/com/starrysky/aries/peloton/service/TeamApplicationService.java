@@ -12,6 +12,7 @@ import com.starrysky.aries.peloton.repository.TeamJoinApplicationRepository;
 import com.starrysky.aries.peloton.repository.TeamMemberRepository;
 import com.starrysky.aries.peloton.schema.PelotonTeamMemberVO;
 import com.starrysky.aries.redis.RedisConstant;
+import com.starrysky.aries.redis.RedisUtil;
 import com.starrysky.aries.util.PelotonTeamUtil;
 import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
@@ -60,6 +61,9 @@ public class TeamApplicationService {
 
     @Resource
     private NotificationService notificationService;
+
+    @Resource
+    private RedisUtil redisUtil;
 
     /**
      * 获取车队待审核申请列表（仅队长/管理员可查看）
@@ -179,7 +183,6 @@ public class TeamApplicationService {
                 .build();
         teamMemberRepository.save(member);
 
-        teamMemberService.incrementMemberCount(team.getId());
         evictApprovalCaches(team.getId(), application.getApplicantId());
 
         // 通知申请人：申请已通过
@@ -249,6 +252,9 @@ public class TeamApplicationService {
      */
     private void evictApprovalCaches(Long teamId, Long applicantId) {
         if (cacheManager == null) return;
+
+        // 失效成员数 Redis 缓存
+        redisUtil.del(RedisConstant.PELOTON_TEAMS_MEMBER_COUNT + teamId);
 
         Cache detailCache = cacheManager.getCache(RedisConstant.PELOTON_TEAMS_DETAIL);
         if (detailCache != null) {

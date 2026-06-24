@@ -33,6 +33,7 @@ spring:
   cache:
     type: redis
     redis:
+      # 全局默认 TTL（兜底值，车队缓存已在 CacheConfig 中差异化配置：list/my/members=5min, detail/garage=10min, memberCount=1h）
       time-to-live: 60000
   data:
     redis:

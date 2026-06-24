@@ -49,11 +49,8 @@ public class PelotonTeamVO implements Serializable {
     /** 车队简介 */
     private String description;
 
-    /** 成员数量 */
+    /** 成员数量（Redis缓存 -> DB兜底） */
     private Integer memberCount;
-
-    /** 活跃度等级: hot / normal / new */
-    private String activityLevel;
 
     /** 标签列表 */
     private List<String> tags;

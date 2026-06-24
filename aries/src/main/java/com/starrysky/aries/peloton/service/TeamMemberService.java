@@ -9,6 +9,7 @@ import com.starrysky.aries.notification.service.NotificationService;
 import com.starrysky.aries.peloton.repository.PelotonTeamRepository;
 import com.starrysky.aries.peloton.repository.TeamMemberRepository;
 import com.starrysky.aries.redis.RedisConstant;
+import com.starrysky.aries.redis.RedisUtil;
 import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.Cache;
@@ -45,6 +46,9 @@ public class TeamMemberService {
     @Resource
     private NotificationService notificationService;
 
+    @Resource
+    private RedisUtil redisUtil;
+
     /**
      * 退出车队（队长不能退出，需先转让队长身份）
      *
@@ -66,7 +70,7 @@ public class TeamMemberService {
         member.setStatus(TeamMember.STATUS_LEFT);
         teamMemberRepository.save(member);
 
-        pelotonTeamRepository.decrementMemberCount(teamId);
+        evictMemberCountCache(teamId);
         evictMemberCaches(teamId, user.getId());
 
         // 通知队长：成员退出车队
@@ -112,9 +116,9 @@ public class TeamMemberService {
 
         team.setCaptainId(newCaptainUserId);
         pelotonTeamRepository.save(team);
-        pelotonTeamRepository.decrementMemberCount(teamId);
-
-        // 失效涉及的所有缓存：详情、成员列表、旧队长和新队长的“我的车队”、车队列表
+        evictMemberCountCache(teamId);
+        
+        // 失效涉及的所有缓存：详情、成员列表、旧队长和新队长的"我的车队"、车队列表
         evictMemberCaches(teamId, user.getId(), newCaptainUserId);
     
         // 通知所有队内成员：队长转让并退出（排除新旧队长）
@@ -228,7 +232,7 @@ public class TeamMemberService {
         member.setStatus(TeamMember.STATUS_KICKED);
         teamMemberRepository.save(member);
 
-        pelotonTeamRepository.decrementMemberCount(teamId);
+        evictMemberCountCache(teamId);
         evictMemberCaches(teamId, targetUserId);
 
         // 通知被请离的成员
@@ -327,25 +331,19 @@ public class TeamMemberService {
     }
 
     /**
-     * 车队成员数 -1（数据库原子操作，避免并发覆盖）
+     * 删除车队成员数 Redis 缓存（成员变动时调用）
      */
-    void decrementMemberCount(Long teamId) {
-        pelotonTeamRepository.decrementMemberCount(teamId);
-    }
-
-    /**
-     * 车队成员数 +1（数据库原子操作，避免并发覆盖）
-     */
-    void incrementMemberCount(Long teamId) {
-        pelotonTeamRepository.incrementMemberCount(teamId);
+    private void evictMemberCountCache(Long teamId) {
+        redisUtil.del(RedisConstant.PELOTON_TEAMS_MEMBER_COUNT + teamId);
     }
 
     /**
      * 成员变动时精确失效相关缓存
      * <ul>
-     *   <li>{@code peloton:teams:detail::{teamId}} — 详情页 memberCount 已变</li>
-     *   <li>{@code peloton:teams:members::{teamId}:*} — 成员列表已变</li>
-     *   <li>{@code peloton:teams:my::{userId}} — 该用户的"我的车队"已变</li>
+     *   <li>{@code starrysky:aries:peloton:detail::{teamId}} — 详情页 memberCount 已变</li>
+     *   <li>{@code starrysky:aries:peloton:memberCount::{teamId}} — 成员数 Redis 缓存</li>
+     *   <li>{@code starrysky:aries:peloton:members::{teamId}:*} — 成员列表已变</li>
+     *   <li>{@code starrysky:aries:peloton:my::{userId}} — 该用户的"我的车队"已变</li>
      * </ul>
      *
      * @param teamId  车队ID
@@ -359,6 +357,9 @@ public class TeamMemberService {
         if (detailCache != null) {
             detailCache.evict(teamId);
         }
+    
+        // 失效成员数 Redis 缓存
+        redisUtil.del(RedisConstant.PELOTON_TEAMS_MEMBER_COUNT + teamId);
     
         // 失效成员列表缓存（使用 allEntries 因为分页 key 无法精确枚举）
         Cache membersCache = cacheManager.getCache(RedisConstant.PELOTON_TEAMS_MEMBERS);

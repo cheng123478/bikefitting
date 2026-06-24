@@ -21,6 +21,7 @@ import com.starrysky.aries.peloton.schema.PelotonTeamQueryDTO;
 import com.starrysky.aries.peloton.schema.PelotonTeamVO;
 import com.starrysky.aries.peloton.schema.TeamMemberQueryDTO;
 import com.starrysky.aries.redis.RedisConstant;
+import com.starrysky.aries.redis.RedisUtil;
 import com.starrysky.aries.user.repository.UserRepository;
 import com.starrysky.aries.util.PelotonTeamUtil;
 import jakarta.annotation.Resource;
@@ -45,10 +46,10 @@ import java.util.stream.Collectors;
  *
  * <h3>缓存策略</h3>
  * <ul>
- *   <li>{@code peloton:teams:list} — 车队列表分页缓存，60s TTL，不主动失效（靠TTL自动刷新）</li>
- *   <li>{@code peloton:teams:detail} — 车队详情缓存，写操作时精确失效</li>
- *   <li>{@code peloton:teams:my} — 我的车队缓存，成员变动时精确失效</li>
- *   <li>{@code peloton:teams:members} — 成员列表分页缓存，成员变动时精确失效</li>
+ *   <li>{@code starrysky:aries:peloton:list} — 车队列表分页缓存，5min TTL，写入时 allEntries 失效</li>
+ *   <li>{@code starrysky:aries:peloton:detail} — 车队详情缓存，10min TTL，写入时精确失效 + 空值防穿透</li>
+ *   <li>{@code starrysky:aries:peloton:my} — 我的车队缓存，5min TTL，成员变动时精确失效</li>
+ *   <li>{@code starrysky:aries:peloton:members} — 成员列表分页缓存，5min TTL，成员变动时清除</li>
  * </ul>
  *
  * @author adi
@@ -89,28 +90,25 @@ public class PelotonTeamService {
     @Resource
     private NotificationService notificationService;
 
+    @Resource
+    private RedisUtil redisUtil;
+
     /**
      * 获取车队列表（支持分类筛选、关键词搜索、分页）
      *
      * @param queryDTO 查询参数
      * @return 分页车队列表
      */
-    @Cacheable(value = RedisConstant.PELOTON_TEAMS_LIST, key = "#queryDTO.page + ':' + #queryDTO.size + ':' + #queryDTO.keyword + ':' + #queryDTO.category")
+    @Cacheable(value = RedisConstant.PELOTON_TEAMS_LIST, key = "#queryDTO.page + ':' + #queryDTO.size + ':' + #queryDTO.keyword")
     public PageResponse<PelotonTeamVO> getTeamList(PelotonTeamQueryDTO queryDTO) {
         int page = queryDTO.getPage();
         int size = queryDTO.getSize();
         PageRequest pageRequest = PageRequest.of(Math.max(page - 1, 0), size);
 
         String keyword = StringUtils.hasText(queryDTO.getKeyword()) ? queryDTO.getKeyword().trim() : null;
-        String category = StringUtils.hasText(queryDTO.getCategory()) ? queryDTO.getCategory().trim() : null;
 
         Page<PelotonTeam> teamPage;
-
-        if (StringUtils.hasText(category) && StringUtils.hasText(keyword)) {
-            teamPage = pelotonTeamRepository.searchByActivityLevelAndKeyword(category, keyword, pageRequest);
-        } else if (StringUtils.hasText(category)) {
-            teamPage = pelotonTeamRepository.findByActivityLevelOrderByCreateTimeDesc(category, pageRequest);
-        } else if (StringUtils.hasText(keyword)) {
+        if (StringUtils.hasText(keyword)) {
             teamPage = pelotonTeamRepository.searchByKeyword(keyword, pageRequest);
         } else {
             teamPage = pelotonTeamRepository.findAllByOrderByCreateTimeDesc(pageRequest);
@@ -178,8 +176,6 @@ public class PelotonTeamService {
                 .location(dto.getLocation() != null ? HtmlUtils.htmlEscape(dto.getLocation().trim()) : null)
                 .description(dto.getDescription() != null ? HtmlUtils.htmlEscape(dto.getDescription().trim()) : null)
                 .tags(tagsStr)
-                .activityLevel("new")
-                .memberCount(1)
                 .creatorId(user.getId())
                 .captainId(user.getId())
                 .build();
@@ -342,6 +338,9 @@ public class PelotonTeamService {
         teamPostInteractionRepository.deleteByTeamId(teamId);
         pelotonTeamRepository.delete(team);
 
+        // 清理成员数 Redis 缓存
+        evictMemberCountCache(teamId);
+
         // 通知所有成员：车队已解散（排除操作者自己）
         List<Long> notifyIds = memberIds.stream()
                 .filter(uid -> !uid.equals(user.getId()))
@@ -372,11 +371,43 @@ public class PelotonTeamService {
                 .coverImage(team.getCoverImage())
                 .location(team.getLocation())
                 .description(team.getDescription())
-                .memberCount(team.getMemberCount())
-                .activityLevel(team.getActivityLevel())
+                .memberCount(getMemberCount(team.getId()))
                 .tags(tagList)
                 .createdAt(team.getCreateTime())
                 .build();
+    }
+
+    /**
+     * 获取车队成员数（Redis 缓存 -> DB 兜底）
+     * <p>
+     * 优先从 Redis 读取，未命中则从 team_member 表实时 COUNT 并回写缓存。
+     * 成员变动时由 {@link #evictMemberCountCache(Long)} 主动删除缓存 key。
+     *
+     * @param teamId 车队ID
+     * @return 活跃成员数量
+     */
+    private int getMemberCount(Long teamId) {
+        String cacheKey = RedisConstant.PELOTON_TEAMS_MEMBER_COUNT + teamId;
+        // 1. 查 Redis
+        Object cached = redisUtil.get(cacheKey);
+        if (cached != null) {
+            return Integer.parseInt(cached.toString());
+        }
+        // 2. 查 DB
+        long count = teamMemberRepository.countByTeamIdAndStatus(teamId, TeamMember.STATUS_ACTIVE);
+        int memberCount = (int) count;
+        // 3. 回写 Redis（TTL 兜底）
+        redisUtil.set(cacheKey, memberCount, RedisConstant.PELOTON_TEAMS_MEMBER_COUNT_TTL);
+        return memberCount;
+    }
+
+    /**
+     * 删除车队成员数 Redis 缓存（成员变动时调用）
+     *
+     * @param teamId 车队ID
+     */
+    void evictMemberCountCache(Long teamId) {
+        redisUtil.del(RedisConstant.PELOTON_TEAMS_MEMBER_COUNT + teamId);
     }
 
     /**
