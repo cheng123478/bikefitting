@@ -186,12 +186,26 @@
           </div>
           <div class="preview-content">
             <img v-if="posterImage" :src="posterImage" alt="Poster Image" class="generated-poster">
-            <div v-else class="loading-state">
-              <i class="fas fa-spinner fa-spin"></i> 正在生成高阶海报...
+            <div v-else-if="report" class="live-poster-stage">
+              <DynamicSharingPoster ref="posterRef" :report="report" :snapshotsMap="snapshotsMap" />
+              <div v-if="isPosterGenerating" class="generating-badge">
+                <i class="fas fa-spinner fa-spin"></i>
+                正在生成高清分享图...
+              </div>
+              <div v-if="posterError" class="poster-inline-error">
+                <i class="fas fa-circle-exclamation"></i>
+                {{ posterError }}
+              </div>
+            </div>
+            <div v-else class="loading-state error-state">
+              <i class="fas fa-circle-exclamation"></i> {{ posterError || '海报暂未显示，请重新生成' }}
             </div>
           </div>
           <div class="preview-footer">
-            <button class="btn btn-outline" @click="downloadPoster" :disabled="!posterImage">
+            <button v-if="!posterImage && !isPosterGenerating" class="btn btn-outline" @click="handleShare">
+              <i class="fas fa-rotate-right"></i> 重新生成
+            </button>
+            <button v-else class="btn btn-outline" @click="downloadPoster" :disabled="!posterImage">
               <i class="fas fa-download"></i> 保存到相册
             </button>
             <p class="share-hint">提示：长按图片可直接保存或发送给朋友</p>
@@ -199,11 +213,6 @@
         </div>
       </div>
     </Transition>
-
-    <!-- Hidden Poster for Capture -->
-    <div class="hidden-poster" style="position: absolute; top: 0; left: -9999px; pointer-events: none;">
-      <DynamicSharingPoster v-if="report" ref="posterRef" :report="report" :snapshotsMap="snapshotsMap" />
-    </div>
 
   </div>
 </template>
@@ -215,7 +224,6 @@ import { getDiagnosisResult, getSnapshots, getMotionData } from '@/api/dynamicFi
 import { showToast } from '@/utils/toast.js';
 import * as echarts from 'echarts';
 import dayjs from 'dayjs';
-import html2canvas from 'html2canvas';
 import { PROJECT_CONFIG } from '@/config/constants';
 
 import DynamicSkeletonPlayer from './components/DynamicSkeletonPlayer.vue';
@@ -506,27 +514,46 @@ const renderEchart = (viewType) => {
 const showSharePreview = ref(false);
 const posterImage = ref(null);
 const posterRef = ref(null);
+const isPosterGenerating = ref(false);
+const posterError = ref('');
+
+const isDisplayablePosterImage = (value) => {
+  return typeof value === 'string'
+    && /^data:image\/(png|jpe?g|webp|svg\+xml)/i.test(value)
+    && value.length > 256;
+};
 
 const handleShare = async () => {
+  posterImage.value = null;
+  posterError.value = '';
+  isPosterGenerating.value = true;
   showSharePreview.value = true;
-  posterImage.value = null; // Reset
 
   await nextTick();
+  await new Promise(resolve => setTimeout(resolve, 120));
 
-  if (posterRef.value) {
-    try {
-      showToast('正在生成硬核海报，请稍候...', 'info');
-      // Timeout is used to ensure DOM rendering completes safely
-      setTimeout(async () => {
-        const img = await posterRef.value.generateImage();
-        posterImage.value = img;
-        if (img) showToast('海报生成成功', 'success');
-        else showToast('海报生成失败', 'error');
-      }, 500);
-    } catch (e) {
-      console.error(e);
-      showToast('海报生成发生异常', 'error');
+  if (!posterRef.value || !posterRef.value.generateImage) {
+    isPosterGenerating.value = false;
+    posterError.value = '海报组件正在准备，请重新生成';
+    showToast('海报组件正在准备，请重新生成', 'info');
+    return;
+  }
+
+  try {
+    const img = await posterRef.value.generateImage();
+    if (isDisplayablePosterImage(img)) {
+      posterImage.value = img;
+      showToast('海报生成成功', 'success');
+    } else {
+      posterError.value = '海报暂未显示，请重新生成';
+      showToast('海报暂未显示，请重新生成', 'info');
     }
+  } catch (e) {
+    console.error('生成海报异常:', e);
+    posterError.value = '海报生成未完成，请重新生成';
+    showToast('海报生成未完成，请重新生成', 'info');
+  } finally {
+    isPosterGenerating.value = false;
   }
 };
 
@@ -806,7 +833,8 @@ onUnmounted(() => {
 
 .preview-card {
   width: 100%;
-  max-width: 420px;
+  max-width: 480px;
+  max-height: 94vh;
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -827,21 +855,67 @@ onUnmounted(() => {
 .preview-header button:hover { color: var(--text-main); }
 
 .preview-content {
-  padding: 20px;
-  background: #F9F9F7;
+  padding: 18px;
+  background: #F2EFEA;
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: center;
-  min-height: 400px;
+  min-height: 420px;
+  max-height: calc(94vh - 146px);
+  overflow: auto;
 }
 
 .generated-poster {
   width: 100%;
-  max-width: 320px;
+  max-width: 375px;
   height: auto;
-  border-radius: 12px;
+  border-radius: 10px;
   box-shadow: var(--shadow-md);
   display: block;
+}
+
+.live-poster-stage {
+  position: relative;
+  width: 375px;
+  max-width: 100%;
+  display: flex;
+  justify-content: center;
+}
+
+.generating-badge {
+  position: absolute;
+  top: 14px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  border-radius: 999px;
+  background: rgba(43, 42, 41, 0.82);
+  color: #fff;
+  font-size: 0.78rem;
+  font-weight: 700;
+  box-shadow: 0 10px 24px rgba(0,0,0,0.22);
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.poster-inline-error {
+  position: absolute;
+  left: 14px;
+  right: 14px;
+  bottom: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: rgba(194, 65, 12, 0.92);
+  color: #fff;
+  font-size: 0.82rem;
+  text-align: center;
 }
 
 .loading-state {
@@ -852,6 +926,11 @@ onUnmounted(() => {
   color: var(--primary-color);
   font-family: var(--font-serif);
   font-size: 1.1rem;
+}
+
+.error-state {
+  color: #c2410c;
+  text-align: center;
 }
 
 .preview-footer {
@@ -874,5 +953,15 @@ onUnmounted(() => {
 }
 .modal-fade-enter-from, .modal-fade-leave-to {
   opacity: 0;
+}
+
+@media (max-width: 460px) {
+  .share-preview-overlay {
+    padding: 10px;
+  }
+
+  .preview-content {
+    padding: 10px;
+  }
 }
 </style>

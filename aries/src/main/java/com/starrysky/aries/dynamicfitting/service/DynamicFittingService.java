@@ -766,17 +766,17 @@ public class DynamicFittingService {
                                     Map<String, Object> metrics,
                                     List<DynamicFittingAdviceVO> advices,
                                     Map<String, String> standardRanges) {
-        if (!metrics.containsKey("maxHipDrop_L") && !metrics.containsKey("maxHipDrop_R")) {
+        if (!metrics.containsKey("hipDrop_L") && !metrics.containsKey("hipDrop_R")) {
             return;
         }
 
-        Double lVal = convertToDouble(metrics.get("maxHipDrop_L"));
-        Double rVal = convertToDouble(metrics.get("maxHipDrop_R"));
+        Double lVal = convertToDouble(metrics.get("hipDrop_L"));
+        Double rVal = convertToDouble(metrics.get("hipDrop_R"));
         if (lVal == null) lVal = 0.0;
         if (rVal == null) rVal = 0.0;
 
-        DynamicFittingAdviceVO adviceL = advices.stream().filter(a -> "maxHipDrop_L".equalsIgnoreCase(a.getMetric())).findFirst().orElse(null);
-        DynamicFittingAdviceVO adviceR = advices.stream().filter(a -> "maxHipDrop_R".equalsIgnoreCase(a.getMetric())).findFirst().orElse(null);
+        DynamicFittingAdviceVO adviceL = advices.stream().filter(a -> "hipDrop_L".equalsIgnoreCase(a.getMetric())).findFirst().orElse(null);
+        DynamicFittingAdviceVO adviceR = advices.stream().filter(a -> "hipDrop_R".equalsIgnoreCase(a.getMetric())).findFirst().orElse(null);
         DynamicFittingAdviceVO adviceAsym = advices.stream().filter(a -> "maxHipDrop".equalsIgnoreCase(a.getMetric())).findFirst().orElse(null);
 
         DynamicFittingAdviceVO finalAdvice = adviceAsym != null ? adviceAsym : (adviceL != null ? adviceL : adviceR);
@@ -847,8 +847,8 @@ public class DynamicFittingService {
         labels.put("maxPelvisSway", "骨盆横摆位移");
         labels.put("maxSpineTilt", "脊柱侧中心偏移");
         labels.put("spineRockingVar", "脊柱侧偏波动极差");
-        labels.put("maxHipDrop_L", "左侧骨盆下坠");
-        labels.put("maxHipDrop_R", "右侧骨盆下坠");
+        labels.put("hipDrop_L", "左侧骨盆下坠");
+        labels.put("hipDrop_R", "右侧骨盆下坠");
 
         // 【修复 P14】稳定性指标（StdDev / CV / Variance）
         labels.put("kneeAnglePhaseStdDev", "膝角相位一致性");

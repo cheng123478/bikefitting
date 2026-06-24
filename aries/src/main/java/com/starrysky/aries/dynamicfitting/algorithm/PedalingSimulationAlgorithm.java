@@ -170,8 +170,8 @@ public class PedalingSimulationAlgorithm {
         // 从正面 summary 提取膝盖横摆量（归一化用骨盆宽度）
         if (frontView.getSummary() != null) {
             Map<String, Object> fs = frontView.getSummary();
-            Double wobbleL = extractDoubleFromMap(fs, "maxWobble_L");
-            Double wobbleR = extractDoubleFromMap(fs, "maxWobble_R");
+            Double wobbleL = extractDoubleFromMap(fs, "wobble_L");
+            Double wobbleR = extractDoubleFromMap(fs, "wobble_R");
             
             if (wobbleL != null && wobbleR != null) {
                 result.put("lateralWobbleLeft", Math.round(wobbleL * 10) / 10.0);

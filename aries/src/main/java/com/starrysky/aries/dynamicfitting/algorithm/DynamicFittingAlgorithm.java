@@ -327,10 +327,10 @@ public class DynamicFittingAlgorithm {
         standards.add(standard("back", "maxShoulderTilt", 0.0, 7.0, 0.04, "handlebar",
                 "高低肩偏角在参考范围内。",
                 "高低肩偏角偏大，建议复核握把压力、肩胛稳定性和拍摄水平。"));
-        standards.add(standard("back", "maxHipDrop_L", 0.0, 8.0, 0.04, "seat",
+        standards.add(standard("back", "hipDrop_L", 0.0, 8.0, 0.04, "seat",
                 "左侧骨盆下坠在参考范围内。",
                 "左侧骨盆下坠偏大，建议复核座高和单侧髋部控制。"));
-        standards.add(standard("back", "maxHipDrop_R", 0.0, 8.0, 0.04, "seat",
+        standards.add(standard("back", "hipDrop_R", 0.0, 8.0, 0.04, "seat",
                 "右侧骨盆下坠在参考范围内。",
                 "右侧骨盆下坠偏大，建议复核座高和单侧髋部控制。"));
         standards.add(standard("side", "kneeAnglePhaseStdDev", 0.0, 4.0, 0.04, "crank",
