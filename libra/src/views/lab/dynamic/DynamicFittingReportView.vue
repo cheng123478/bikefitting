@@ -41,7 +41,7 @@
             <div class="report-legend">
               <span class="l-item"><i class="status-dot ok"></i> 正常</span>
               <span class="l-item"><i class="status-dot adjust"></i> 建议调整 (ADJUST)</span>
-              <span class="l-item" title="建议调整代表该项生物力学指标偏离了职业理想参考范围"><i class="fas fa-info-circle"></i></span>
+              <span class="l-item"><i class="status-dot warn"></i> 余量受限</span>
             </div>
             
             <!-- Overall Share Button -->
@@ -342,16 +342,16 @@ const getUnit = (label, viewType) => {
 };
 
 const getDescription = (label) => {
-  if (label.includes('肩')) return '反映上身稳定性。角度过大通常意味着核心力量不足或存在耸肩代偿。';
-  if (label.includes('骨盆侧倾') || label.includes(' Pelvis Tilt')) return '骨盆的大幅扭动通常暗示坐垫过高、过窄或双腿伸展不均衡。';
-  if (label.includes('横摆') || label.includes('Wobble')) return '膝关节横向偏移偏大时，提示力线控制、锁片角度或髋部稳定性需要复核。';
-  if (label.includes('外张') || label.includes('肘')) return '反映风阻截面。外张过大通常由于车把过宽或上半身过于紧张。';
-  if (label.includes('脊柱') || label.includes('躯干')) return '反映躯干与车辆水平面的夹角，接近理想范围骑行效率更佳。';
-  if (label.includes('伸展度')) return '决定座管高度的核心指标。偏高时需关注膝后侧不适，偏低时需关注膝前侧压力感。';
-  if (label.includes('踝') || label.includes('Ankle')) return '反映下死点附近脚踝跖屈/脚尖下压的代理变化。该值由 2D 踝内角减 90° 换算；负值代表脚跟更低/背屈趋势，需结合锁片、鞋底支撑和实际脚感复核。';
-  if (label.includes('髋角') || label.includes('Hip')) return '反映大腿与腹部的夹角。过小（上死点）会产生撞击感并压迫呼吸。';
-  if (label.includes('踏频')) return '高踏频有利于减轻肌肉负担，但过高的踏频若无稳定核心支撑则会产生身体跳动。';
-  if (label.includes('KOPS')) return '该项为 2D 视觉下的膝盖前后偏移代理值，需结合曲柄相位、踏板轴和锁片轴线复核。';
+  if ((label.includes('骨盆') && label.includes('倾')) || label.includes(' Pelvis Tilt')) return '反映踩踏时骨盆左右晃动的幅度，数值越大核心越不稳。';
+  if (label.includes('肩')) return '反映肩膀左右倾斜的程度，数值越大上半身越不稳定。';
+  if (label.includes('横摆') || label.includes('Wobble')) return '反映膝盖横向偏移的幅度，数值越大腿部力线越偏。';
+  if (label.includes('外张') || label.includes('肘')) return '反映手肘向外张开的幅度，数值越大风阻越大。';
+  if (label.includes('脊柱') || label.includes('躯干')) return '反映躯干与水平面的夹角，数值越小姿势越低趴。';
+  if (label.includes('伸展度')) return '反映膝盖在踩踏最低点的伸展程度，判断座高的核心指标。';
+  if (label.includes('踝') || label.includes('Ankle')) return '反映脚踝在踏板最低点时的姿态，偏高脚尖下压、偏低脚跟下沉。';
+  if (label.includes('髋角') || label.includes('Hip')) return '反映大腿与腹部的夹角，数值越小越容易顶到腹部。';
+  if (label.includes('踏频')) return '反映每分钟踩踏圈数，数值越高腿部负担越轻。';
+  if (label.includes('KOPS')) return '反映膝盖相对踏板轴的前后位置，偏前则膝盖超轴、偏后则膝盖落后。';
   return '';
 };
 
@@ -487,8 +487,8 @@ const renderEchart = (viewType) => {
       xAxis: { type: 'category', data: timeAxis, boundaryGap: false },
       yAxis: { type: 'value' },
       series: [
-        { name: '左膝', type: 'line', data: lWobbles, smooth: true, lineStyle: { color: '#007BFF', width: 2 }, symbol: 'none' },
-        { name: '右膝', type: 'line', data: rWobbles, smooth: true, lineStyle: { color: '#DC3545', width: 2 }, symbol: 'none' }
+        { name: '左膝', type: 'line', data: lWobbles, smooth: true, lineStyle: { color: '#5C6E58', width: 2 }, symbol: 'none' },
+        { name: '右膝', type: 'line', data: rWobbles, smooth: true, lineStyle: { color: '#B5A495', width: 2 }, symbol: 'none' }
       ]
     };
   } else if (viewType === 'back') {
@@ -594,13 +594,40 @@ onUnmounted(() => {
 .meta-info { display: flex; gap: 20px; color: var(--text-muted); font-size: 0.8rem; font-family: monospace; }
 
 /* Loader */
-.loading-full { height: 60vh; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 20px; color: var(--text-muted); }
-.pulse-loader { width: 40px; height: 40px; border: 4px solid var(--primary-light); border-radius: 50%; border-top-color: var(--primary-color); animation: spin 0.8s infinite linear; }
+.loading-full { height: 60vh; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 24px; color: var(--text-muted); }
+.loading-full p {
+  font-family: var(--font-serif);
+  font-size: 1.05rem;
+  font-style: italic;
+  letter-spacing: 0.03em;
+}
+.pulse-loader {
+  width: 60px; height: 60px;
+  position: relative;
+}
+.pulse-loader::before {
+  content: '';
+  position: absolute;
+  inset: -6px;
+  border-radius: 50%;
+  border: 2px solid rgba(92, 110, 88, 0.08);
+  border-top-color: rgba(92, 110, 88, 0.25);
+  animation: spin 2s linear infinite;
+}
+.pulse-loader::after {
+  content: '';
+  position: absolute;
+  inset: 4px;
+  border-radius: 50%;
+  border: 2.5px solid rgba(92, 110, 88, 0.12);
+  border-top-color: var(--primary-color);
+  animation: spin 1.2s linear infinite reverse;
+}
 @keyframes spin { to { transform: rotate(360deg); } }
 
 /* Report Hero Section */
 .report-hero { display: flex; align-items: center; gap: 40px; padding: 35px 40px; margin-bottom: 30px; border-left: 6px solid var(--primary-color); background: linear-gradient(135deg, var(--bg-surface) 0%, rgba(92, 110, 88, 0.03) 100%); }
-.score-orbit { position: relative; width: 120px; height: 120px; flex-shrink: 0; }
+.score-orbit { position: relative; width: 140px; height: 140px; flex-shrink: 0; }
 .ring-svg { width: 100%; height: 100%; }
 .ring-bg { fill: none; stroke: rgba(92, 110, 88, 0.1); stroke-width: 8; }
 .ring-fill { fill: none; stroke: var(--primary-color); stroke-width: 8; stroke-linecap: round; transform: rotate(-90deg); transform-origin: 50% 50%; transition: stroke-dashoffset 1.2s ease-out; filter: drop-shadow(0 0 8px rgba(92, 110, 88, 0.3)); }
@@ -609,16 +636,27 @@ onUnmounted(() => {
 .score-content .label { font-size: 0.7rem; color: var(--text-muted); letter-spacing: 3px; text-transform: uppercase; margin-top: 4px; display: block; }
 
 .summary-content { flex: 1; }
-.level-tag { font-family: var(--font-serif); font-size: 1.2rem; margin-bottom: 10px; padding: 6px 16px; display: inline-block; border-radius: 20px; background: rgba(92, 110, 88, 0.08); color: var(--primary-color); }
+.level-tag { font-family: var(--font-serif); font-size: 1.1rem; margin-bottom: 16px; padding: 6px 18px; display: inline-block; border-radius: 20px; background: rgba(92, 110, 88, 0.08); color: var(--primary-color); font-weight: 600; }
+.level-tag.text-success { background: rgba(110, 133, 101, 0.1); color: var(--success-color); }
+.level-tag.text-warning { background: rgba(212, 175, 55, 0.12); color: var(--accent-gold); }
+.level-tag.text-danger { background: rgba(193, 140, 126, 0.12); color: var(--danger-color); }
 .summary-text { font-size: 1rem; color: var(--text-body); font-style: italic; line-height: 1.6; margin-bottom: 18px; border-left: 3px solid var(--accent-gold); padding-left: 20px; }
-.quick-stats { display: flex; gap: 35px; }
-.stat { display: flex; flex-direction: column; padding: 12px 20px; background: rgba(0,0,0,0.02); border-radius: 10px; }
-.stat .l { font-size: 0.75rem; color: var(--text-muted); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 1px; }
-.stat .v { font-weight: 700; color: var(--text-main); font-size: 1.1rem; }
+.quick-stats { display: flex; gap: 24px; }
+.stat { display: flex; flex-direction: column; padding: 14px 22px; background: rgba(92, 110, 88, 0.04); border-radius: 12px; border: 1px solid rgba(92, 110, 88, 0.08); min-width: 120px; }
+.stat .l { font-size: 0.7rem; color: var(--text-muted); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 1.5px; font-weight: 600; }
+.stat .v { font-weight: 700; color: var(--text-main); font-size: 1.15rem; font-family: var(--font-serif); }
 
 /* View Sequence (Vertical Stack) */
 .view-sequence-container { display: flex; flex-direction: column; gap: 30px; margin-bottom: 50px; }
-.view-section { padding: 40px; background: var(--bg-surface); border-radius: 16px; border: 1px solid rgba(92, 110, 88, 0.1); box-shadow: 0 4px 20px rgba(0,0,0,0.03); }
+.view-section { padding: 40px; background: var(--bg-surface); border-radius: 16px; border: 1px solid rgba(92, 110, 88, 0.1); box-shadow: 0 4px 20px rgba(0,0,0,0.03); position: relative; overflow: hidden; }
+.view-section::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, var(--primary-color), var(--primary-light), transparent);
+  opacity: 0.5;
+}
 .view-header { display: flex; align-items: center; gap: 15px; margin-bottom: 35px; border-bottom: 2px solid rgba(92, 110, 88, 0.1); padding-bottom: 20px;}
 .view-header h2 { font-size: 1.5rem; color: var(--text-main); display: flex; align-items: center; gap: 12px; margin: 0; font-weight: 600; }
 .view-header h2 i { color: var(--primary-color); font-size: 1.3rem; }
@@ -628,24 +666,25 @@ onUnmounted(() => {
 .status-dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; margin-right: 6px; }
 .status-dot.ok { background: #52c41a; box-shadow: 0 0 6px rgba(82, 196, 26, 0.4); }
 .status-dot.adjust { background: var(--accent-gold); box-shadow: 0 0 6px rgba(212, 175, 55, 0.4); }
+.status-dot.warn { background: var(--danger-color); box-shadow: 0 0 6px rgba(193, 140, 126, 0.4); }
 
 .metric-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(360px, 1fr)); gap: 22px; margin-bottom: 35px; }
 .m-card { padding: 24px; border-radius: 14px; border: 1px solid rgba(92, 110, 88, 0.12); background: white; transition: all 0.3s ease; overflow: hidden; }
-.m-card:hover { transform: translateY(-2px); box-shadow: 0 8px 25px rgba(92, 110, 88, 0.08); }
+.m-card:hover { transform: translateY(-2px); box-shadow: 0 8px 25px rgba(92, 110, 88, 0.08); border-color: rgba(92, 110, 88, 0.2); }
 .m-card.ADJUST { background: linear-gradient(135deg, rgba(212, 175, 55, 0.05) 0%, rgba(212, 175, 55, 0.02) 100%); border-left: 5px solid var(--accent-gold); }
-.m-card.WARNING { background: linear-gradient(135deg, rgba(255, 77, 79, 0.05) 0%, rgba(255, 77, 79, 0.02) 100%); border-left: 5px solid #ff4d4f; }
+.m-card.WARNING { background: linear-gradient(135deg, rgba(193, 140, 126, 0.06) 0%, rgba(193, 140, 126, 0.02) 100%); border-left: 5px solid var(--danger-color); }
 .m-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px; }
 .m-label { font-size: 1rem; font-weight: 700; color: var(--text-main); }
 .m-status-text { font-size: 0.75rem; font-weight: 700; text-transform: uppercase; padding: 3px 10px; border-radius: 12px; }
 .m-card.ADJUST .m-status-text { background: rgba(212, 175, 55, 0.15); color: var(--accent-gold); }
-.m-card.WARNING .m-status-text { background: rgba(255, 77, 79, 0.15); color: #ff4d4f; }
+.m-card.WARNING .m-status-text { background: rgba(193, 140, 126, 0.15); color: var(--danger-color); }
 
 .m-vals { display: flex; gap: 40px; margin-bottom: 18px; }
 .v-group { display: flex; flex-direction: column; }
 .v-label { font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px; }
 .v-num { font-family: var(--font-serif); font-size: 1.5rem; font-weight: 700; color: var(--primary-color); }
 .v-num.needs-adjust { color: var(--accent-gold); }
-.v-num.out-of-range { color: #ff4d4f; }
+.v-num.out-of-range { color: var(--danger-color); }
 
 .m-desc-text { font-size: 0.8rem; color: #888; margin-bottom: 8px; line-height: 1.4; padding: 10px 12px; background: rgba(92, 110, 88, 0.03); border-radius: 8px; border-left: 3px solid rgba(92, 110, 88, 0.15); }
 .m-advice { font-size: 0.84rem; line-height: 1.65; display: flex; align-items: flex-start; gap: 10px; padding: 12px 14px; margin-top: 10px; border-radius: 10px; }
@@ -676,16 +715,28 @@ onUnmounted(() => {
 
 /* Footer */
 .report-footer { display: grid; gap: 30px; }
-.equip-card { padding: 35px; background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%); color: rgba(255,255,255,0.9); border-radius: 16px; border: 1px solid rgba(255,255,255,0.05); }
-.equip-card h4 { color: var(--accent-gold); margin-bottom: 20px; font-size: 1.2rem; display: flex; align-items: center; gap: 10px; }
-.equip-card h4 i { font-size: 1.1rem; }
-.equip-card ul { padding-left: 20px; }
-.equip-card li { margin-bottom: 12px; font-size: 0.95rem; position: relative; padding-left: 15px; }
-.equip-card li::before { content: '✦'; color: var(--accent-gold); position: absolute; left: 0; }
+.equip-card { padding: 30px; background: var(--bg-surface); border-radius: var(--radius-md); border: var(--border-glass); }
+.equip-card h4 { color: var(--primary-color); margin-bottom: 20px; font-size: 1.2rem; display: flex; align-items: center; gap: 10px; }
+.equip-card h4 i { font-size: 1.1rem; color: var(--accent-gold); }
+.equip-card ul { padding-left: 0; list-style: none; }
+.equip-card li { margin-bottom: 12px; font-size: 0.95rem; color: var(--text-body); display: flex; gap: 10px; align-items: flex-start; line-height: 1.5; }
+.equip-card li::before { content: '\2726'; color: var(--accent-gold); flex-shrink: 0; margin-top: 1px; }
 .action-bar { display: flex; gap: 20px; justify-content: center; padding: 25px; background: var(--bg-surface); border-top: 1px solid rgba(92, 110, 88, 0.1); }
 
-.btn { padding: 14px 28px; border-radius: 25px; border: 2px solid var(--primary-color); background: transparent; color: var(--primary-color); font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 10px; transition: all 0.3s ease; font-size: 0.95rem; }
-.btn:hover { background: var(--primary-color); color: white; transform: translateY(-2px); box-shadow: 0 6px 20px rgba(92, 110, 88, 0.2); }
+/* Use global btn styles; only override scoped specifics */
+.action-bar .btn {
+  padding: 14px 32px;
+  border-radius: var(--radius-pill);
+  font-weight: 600;
+  font-size: 0.95rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  transition: all var(--duration-normal) var(--ease-out-expo);
+}
 
 /* 骑车习惯总结卡片样式 */
 .rider-habits-card {
@@ -753,14 +804,14 @@ onUnmounted(() => {
   color: var(--text-body);
   margin: 0;
 }
-.btn-outline { border-color: rgba(92, 110, 88, 0.3); color: var(--text-muted); }
-.btn-outline:hover { border-color: var(--primary-color); background: var(--primary-color); color: white; }
+.btn-outline { border-color: rgba(92, 110, 88, 0.3); color: var(--text-muted); background: transparent; border: 1px solid currentColor; }
+.btn-outline:hover { border-color: var(--primary-color); background: var(--primary-color); color: white; transform: translateY(-2px); box-shadow: 0 6px 20px rgba(92, 110, 88, 0.2); }
 .btn-primary { background: linear-gradient(135deg, var(--primary-color) 0%, #4a7c59 100%); border: none; color: white; }
 .btn-primary:hover { transform: translateY(-3px); box-shadow: 0 8px 25px rgba(92, 110, 88, 0.3); }
 
 .text-success { color: var(--success-color); }
 .text-warning { color: var(--warning-color); }
-.text-danger { color: #ff4d4f; }
+.text-danger { color: var(--danger-color); }
 
 /* --- 5. 响应式适配 --- */
 @media (max-width: 900px) {
@@ -784,7 +835,7 @@ onUnmounted(() => {
     border-left: none;
     border-top: 4px solid var(--primary-color);
   }
-  .score-orbit { width: 110px; height: 110px; }
+  .score-orbit { width: 130px; height: 130px; }
   .summary-text { 
     padding-left: 0; 
     border-left: none; 
@@ -929,7 +980,7 @@ onUnmounted(() => {
 }
 
 .error-state {
-  color: #c2410c;
+  color: var(--danger-color);
   text-align: center;
 }
 

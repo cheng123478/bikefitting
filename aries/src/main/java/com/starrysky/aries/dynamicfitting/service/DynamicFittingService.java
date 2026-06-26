@@ -551,89 +551,89 @@ public class DynamicFittingService {
             switch (metricKey) {
                 case "avgTorso":
                     return isLow
-                        ? "骑行时收紧核心、挺胸收腹，避免塌腰。"
-                        : "增强胸椎灵活性，趴低时注意不要耸肩。";
+                        ? "骑行时收紧核心、挺胸收腹，想象「肚脐贴向脊柱」的感觉，避免塌腰。"
+                        : "如果趴低后感到不适，可先加强胸椎灵活性和核心力量，再逐步降低姿势。";
                 case "minHip":
                     return isLow
-                        ? "踩踏顶部主动「提膝」，锻炼髋屈肌灵活性。"
-                        : "练习单腿踩踏，改善髋关节在顶部的控制力。";
+                        ? "踏板到最高点时，有意识地「提膝」让大腿远离腹部，多做髋屈肌拉伸改善活动度。"
+                        : "练习单腿踩踏，感受踏板最高点时的髋关节控制，避免髋部晃动。";
                 case "maxHip":
                     return isLow
-                        ? "骑行前做髋屈肌拉伸，改善髋关节活动度。"
-                        : "踩踏时保持骨盆水平，不要过度下沉。";
+                        ? "骑行前做髋屈肌和股四头肌拉伸，改善髋关节活动范围，让踩踏更有力。"
+                        : "踏板最低点时保持骨盆水平、不要过度下沉，收紧臀部感受发力。";
                 case "maxKnee":
                     return isLow
-                        ? "练习「画圆」踩踏，避免单纯下踩发力。"
-                        : "膝盖保持微曲、不锁死，练习高踏频改善平顺度。";
+                        ? "练习「画圆」踩踏，想象用脚底画一个完整的圆，而不是单纯向下踩。"
+                        : "膝盖始终保持微曲、不锁死，用轻齿比练习高踏频，让踩踏更平顺。";
                 case "maxShoulder":
                     return isLow
-                        ? "肘部微曲、肩胛骨后收下沉，避免耸肩。"
-                        : "保持肘部弯曲约 15-20°，用臂肌吸收震动。";
+                        ? "肘部微曲、肩胛骨后收下沉，远离耳朵，避免耸肩。"
+                        : "保持肘部弯曲约 15-20°，让手臂像弹簧一样吸收路面震动。";
                 case "kopsOffset":
                     return isLow
-                        ? "踩踏时让膝盖主动「追踪」脚尖方向，感受股四头肌更早发力。"
-                        : "膝盖不要过度超过脚尖，感受臀大肌主导发力。";
+                        ? "踩踏时让膝盖主动「追踪」脚尖方向，感受大腿前侧（股四头肌）更早发力。"
+                        : "膝盖不要过度超过脚尖，感受臀部（臀大肌）主导发力，减轻膝盖压力。";
                 case "cadenceRpm":
                     return isLow
-                        ? "换更轻齿比，目标踏频 80-90 RPM，平顺踩踏。"
-                        : "收紧核心、适当增齿比，稳定骨盆不跳动。";
+                        ? "换更轻齿比，目标踏频 80-90 RPM，像缝纫机一样平顺踩踏。"
+                        : "收紧核心、适当增加齿比，让骨盆稳定不跳动，保持上身安静。";
                 case "ankleAtBdc":
                     return isLow
-                        ? "保持脚掌稳定，避免下死点脚跟过度下坠。"
-                        : "减少脚尖下压，保持脚掌更平稳地通过下死点。";
+                        ? "保持脚掌平稳，避免在踏板最低点时脚跟过度下坠，想象脚掌始终「平贴」踏板。"
+                        : "减少脚尖下压，让脚掌更平稳地通过最低点，避免脚踝反复晃动。";
                 case "ankleY":
                     return isLow
-                        ? "练习单腿踩踏，保持脚踝平滑过渡。"
-                        : "收紧核心，脚掌始终贴合踏板，避免抖动。";
+                        ? "练习单腿踩踏，让脚踝在踏板上平滑过渡，减少上下抖动。"
+                        : "收紧核心，脚掌始终贴合踏板，避免脚踝反复抬起。";
                 case "maxWobble":
                     return isLow ? null
-                        : "膝盖保持「上下」直线运动，避免外翻或内扣。多做臀中肌激活训练。";
+                        : "膝盖保持「上下」直线运动，想象膝盖在一条轨道上滑动。多做臀中肌激活训练（如侧卧抬腿、弹力带螃蟹步）。";
                 case "maxTilt":
                     return isLow ? null
-                        : "加强核心抗旋转训练，骑行时骨盆保持水平。";
+                        : "身体在踩踏时左右晃动偏大。加强核心抗旋转训练（如平板支撑变式），骑行时有意识地保持骨盆水平。";
                 case "maxElbowFlare":
                     return isLow ? null
-                        : "肘部「内收」靠近身体，感受前臂自然下垂。";
+                        : "手肘向外张开过多。有意识地将肘部「内收」靠近身体，让前臂自然下垂，减少风阻和肩膀紧张。";
                 case "maxShoulderTilt":
                     return isLow ? null
-                        : "加强弱侧肩胛稳定训练，日常注意左右对称发力。";
+                        : "左右肩膀高度不一致。加强弱侧肩胛稳定训练，日常注意两侧对称发力，骑行时放松握把。";
                 case "maxHipTilt":
                     return isLow ? null
-                        : "练习单腿踩踏，加强臀中肌和核心抗侧倾能力。";
+                        : "骨盆在踩踏时左右倾斜偏大，说明核心抗侧倾能力不足或左右腿发力不均。练习单腿踩踏、加强臀中肌（侧卧抬腿）和核心抗侧倾训练。";
                 case "maxPelvisSway":
                     return isLow ? null
-                        : "加强核心训练（平板支撑），骑行时骨盆「坐稳」。";
+                        : "骨盆在踩踏时左右晃动偏大。加强核心训练（平板支撑、死虫式），骑行时想象骨盆「坐稳」在坐垫上。";
                 case "maxSpineTilt":
                     return isLow ? null
-                        : "加强核心对称性训练，必要时咨询物理治疗师。";
+                        : "脊柱中线左右偏移偏大，可能存在左右发力不均。加强核心对称性训练，若持续出现建议咨询物理治疗师排查长短腿。";
                 case "spineRockingVar":
                     return isLow ? null
-                        : "稳定踏频匀速踩踏，避免身体左右晃动。";
+                        : "脊柱在踩踏中晃动幅度偏大。保持稳定踏频匀速踩踏，收紧核心，避免身体左右摇摆。";
                 case "maxHipDrop":
                     return isLow ? null
-                        : "加强弱侧臀中肌力量，踩踏时保持骨盆水平。";
+                        : "单侧骨盆在踩踏中下沉偏多，说明该侧臀中肌力量不足。加强弱侧的臀中肌训练，踩踏时有意识地保持骨盆水平。";
                 // 【修复 P14】稳定性指标
                 case "kneeAnglePhaseStdDev":
                     return isLow ? null
-                        : "踩踏节奏不稳，练习「画圆」踩踏和单腿训练。";
+                        : "踩踏节奏不够稳定，每圈膝角变化不一致。练习「画圆」踩踏和单腿训练，让每圈踩踏更均匀。";
                 case "hipAnglePhaseStdDev":
                     return isLow ? null
-                        : "稳定踏频匀速骑行，配合髋屈肌拉伸。";
+                        : "髋角在踩踏中变化不够稳定。保持匀速踏频，配合髋屈肌拉伸，让髋部动作更平顺。";
                 case "ankleAnglePhaseStdDev":
                     return isLow ? null
-                        : "用轻齿比练高踏频，脚掌与踏板保持稳定接触。";
+                        : "脚踝在踩踏中姿态不够稳定。用轻齿比练高踏频，让脚掌与踏板保持稳定接触，减少脚踝多余动作。";
                 case "torsoAngleStdDev":
                     return isLow ? null
-                        : "加强核心肌群训练，骑行时保持「肚脐贴脊柱」。";
+                        : "上半身在踩踏中不够稳定。加强核心肌群训练，骑行时保持「肚脐贴脊柱」的收紧感。";
                 case "shoulderTiltStdDev":
                     return isLow ? null
-                        : "放松握把、肘部微曲，让下肢节奏主导踩踏。";
+                        : "肩膀在踩踏中晃动偏大。放松握把、肘部微曲，让下肢节奏主导踩踏，上半身保持放松。";
                 case "hipTiltStdDev":
                     return isLow ? null
-                        : "降低坐垫 2-3mm 测试，加强侧平板支撑训练。";
+                        : "骨盆侧倾波动偏大，稳定性不足。可尝试降低坐垫 2-3mm 测试，同时加强侧平板支撑训练。";
                 case "pelvisSwayStdDev":
                     return isLow ? null
-                        : "练习高踏频稳定训练，加强核心抗旋转能力。";
+                        : "骨盆摇摆波动偏大，稳定性不足。练习高踏频稳定训练，加强核心抗旋转能力。";
                 default:
                     // 兜底：尝试匹配带 StdDev/CV/PhaseStdDev 后缀的稳定性指标
                     if (metricKey.endsWith("PhaseStdDev") || metricKey.endsWith("StdDev") || metricKey.endsWith("CV")) {
@@ -691,21 +691,21 @@ public class DynamicFittingService {
 
     private String getRangeDerivedAdvice(String metricKey, double currentVal, String rangeText) {
         double[] range = parseRange(rangeText);
-        if (range == null) return "该项超出参考范围，建议复核采集质量并结合实际骑行反馈判断。";
+        if (range == null) return "该项超出参考范围，建议复核采集质量并结合实际骑行感受判断。";
         boolean isLow = currentVal < range[0];
 
         switch (metricKey) {
             case "maxHipTilt":
-                return "骨盆最大侧倾略超参考范围。正面 2D 骨盆点会受到镜头水平、衣物遮挡和关键点识别误差影响；建议复核拍摄角度，若重复超过范围，再检查座高、坐垫支撑与核心/臀中肌控制。";
+                return "骨盆最大侧倾略超参考范围。这可能意味着踩踏时骨盆左右晃动偏大，会影响踩踏效率和腰部舒适度。建议先确认拍摄角度是否正面水平，若重复超范围，再检查：①座高是否过高；②坐垫支撑是否足够；③核心和臀中肌力量是否需加强。";
             case "ankleAtBdc":
                 return isLow
-                        ? "下死点跖屈代理角低于参考范围。建议复核锁片前后、鞋底支撑和脚跟下坠习惯。"
-                        : "下死点跖屈代理角高于参考范围。建议复核锁片位置、鞋底支撑和脚尖下压代偿。";
+                        ? "下死点脚踝角度低于参考范围，脚跟偏下沉。建议检查锁片前后位置、鞋底支撑，并注意踩踏时避免脚跟过度下坠。"
+                        : "下死点脚踝角度高于参考范围，脚尖下压偏多。建议检查锁片位置、鞋底支撑，并注意踩踏时避免过度用脚尖发力。";
             case "maxShoulderTilt":
             case "maxTilt":
-                return "上身侧倾超出参考范围。建议先确认摄像头水平和正面站位，再结合握把压力、肩胛稳定性和核心控制复核。";
+                return "上身侧倾超出参考范围。建议先确认：①摄像头是否水平放置；②站位是否正面居中。排除拍摄因素后，再检查握把压力是否均匀、肩胛是否稳定、核心控制是否到位。";
             default:
-                return "该项超出当前参考范围。建议先复核拍摄角度和关键点识别质量，再结合疼痛反馈与专业 fitting 检查。";
+                return "该项超出当前参考范围。建议先复核拍摄角度和关键点识别质量，再结合骑行中的实际感受（如疼痛、不适）与专业 fitting 检查综合判断。";
         }
     }
 
@@ -800,10 +800,15 @@ public class DynamicFittingService {
 
         DynamicFittingAdviceVO adviceL = advices.stream().filter(a -> "hipDrop_L".equalsIgnoreCase(a.getMetric())).findFirst().orElse(null);
         DynamicFittingAdviceVO adviceR = advices.stream().filter(a -> "hipDrop_R".equalsIgnoreCase(a.getMetric())).findFirst().orElse(null);
-        DynamicFittingAdviceVO adviceAsym = advices.stream().filter(a -> "maxHipDrop".equalsIgnoreCase(a.getMetric())).findFirst().orElse(null);
+        // 注意：performBilateralAudit 中不对称告警的 metric 为 baseMetric（"hipDrop"），
+        // 而非 "maxHipDrop"。同时检查双侧告警和单侧超限告警。
+        DynamicFittingAdviceVO adviceAsym = advices.stream().filter(a -> "hipDrop".equalsIgnoreCase(a.getMetric())).findFirst().orElse(null);
 
         DynamicFittingAdviceVO finalAdvice = adviceAsym != null ? adviceAsym : (adviceL != null ? adviceL : adviceR);
-        String range = resolveIdealRange("maxHipDrop", finalAdvice, standardRanges);
+        // 不对称告警存在时优先使用双侧差值范围，否则使用 maxHipDrop 理想范围
+        String range = adviceAsym != null
+                ? resolveIdealRange("hipDrop", finalAdvice, standardRanges)
+                : resolveIdealRange("maxHipDrop", finalAdvice, standardRanges);
         double maxDrop = Math.max(lVal, rVal);
         String status = finalAdvice != null ? "ADJUST" : resolveStatusFromRange(maxDrop, range);
         String adviceText = finalAdvice != null
@@ -852,24 +857,24 @@ public class DynamicFittingService {
         labels.put("shoulderTilt", "肩膀实时偏角");
         labels.put("rightKneeAngle", "右腿伸展度");
         labels.put("leftKneeAngle", "左腿伸展度");
-        labels.put("rightKneeWobble", "右膝横摆偏离量");
-        labels.put("leftKneeWobble", "左膝横摆偏离量");
-        labels.put("rightElbowFlare", "右肘外张角度");
-        labels.put("leftElbowFlare", "左肘外张角度");
+        labels.put("rightKneeWobble", "右膝横摆");
+        labels.put("leftKneeWobble", "左膝横摆");
+        labels.put("rightElbowFlare", "右肘外张");
+        labels.put("leftElbowFlare", "左肘外张");
         
         // 稳定性与汇总
-        labels.put("ankleY", "脚踝垂直波动轨迹");
+        labels.put("ankleY", "脚踝轨迹");
         labels.put("avgTorso", "平均躯干角度");
         labels.put("minHip", "上死点最小髋角");
-        labels.put("maxHip", "曲柄底端最大髋角");
-        labels.put("avgKneeLateral", "膝盖横向偏移均值");
-        labels.put("maxKnee", "下死点最大膝伸展角");
+        labels.put("maxHip", "下死点最大髋角");
+        labels.put("avgKneeLateral", "膝盖横向偏移");
+        labels.put("maxKnee", "下死点膝伸展角");
         labels.put("maxShoulder", "最大肩角 (前伸量)");
 
         // 背面
         labels.put("maxPelvisSway", "骨盆横摆位移");
-        labels.put("maxSpineTilt", "脊柱侧中心偏移");
-        labels.put("spineRockingVar", "脊柱侧偏波动极差");
+        labels.put("maxSpineTilt", "脊柱中线偏移");
+        labels.put("spineRockingVar", "脊柱侧偏波动");
         labels.put("hipDrop_L", "左侧骨盆下坠");
         labels.put("hipDrop_R", "右侧骨盆下坠");
 
@@ -923,10 +928,10 @@ public class DynamicFittingService {
         double score = result.getMatchScore() != null ? result.getMatchScore().doubleValue() : 0.0;
 
         // 1. 得分定性评价
-        if (score >= 90) sb.append("您的骑行姿态与车型几何高度适配，表现非常出色。");
-        else if (score >= 80) sb.append("整体姿态表现良好，但在局部细节上仍有微调空间。");
-        else if (score >= 70) sb.append("系统发现若干项关键姿态偏差，建议通过微调来优化您的舒适度。");
-        else sb.append("您的生物力学模型显示明显偏移，建议对车辆规格进行大幅调整。");
+        if (score >= 90) sb.append("您的骑行姿态与车型高度适配，各项指标表现优秀，继续保持！");
+        else if (score >= 80) sb.append("整体姿态表现良好，少数细节仍有微调空间，建议关注下方标注「建议调整」的指标。");
+        else if (score >= 70) sb.append("系统发现若干项关键姿态偏差，通过针对性微调可以显著提升您的骑行舒适度和效率。");
+        else sb.append("您的骑行姿态与车辆设定存在明显偏差，建议对车辆规格进行较大幅度调整，或咨询专业 Fitter。");
 
         // 2. 痛点关联 (解析 Session 中的 painLevels)
         String painJson = result.getSession().getPainLevels();
@@ -938,7 +943,7 @@ public class DynamicFittingService {
                             .map(RidingPainType::getDescriptionByCode)
                             .collect(Collectors.toList());
 
-                    sb.append(String.format("针对您反馈的 [%s] 等部位，系统已为您识别出专项优化建议：", String.join("、", labels)));
+                    sb.append(String.format(" 针对您反馈的 [%s] 等不适部位，系统已结合指标偏差为您提供专项优化建议：", String.join("、", labels)));
                 }
             } catch (Exception ignored) {
             }
@@ -947,7 +952,7 @@ public class DynamicFittingService {
         // 3. 建议数量统计
         if (advices != null && !advices.isEmpty()) {
             long adjustCount = advices.size();
-            sb.append(String.format("共包含 %d 项关键调整指导。", adjustCount));
+            sb.append(String.format(" 共包含 %d 项关键调整指导，建议按顺序逐项检查。", adjustCount));
         }
 
         return sb.toString();

@@ -11,10 +11,11 @@
 
         <!-- 极简的引擎状态指示器 -->
         <div class="engine-status-wrapper">
-          <div class="engine-status" :title="`${PROJECT_CONFIG.MASCOT} 引擎运作正常，随时待命`">
-            <span class="status-dot"></span>
-            <span class="status-text">{{ PROJECT_CONFIG.MASCOT }} Engine: Online</span>
+          <div class="guide-entry" @click="goTo('/lab/guide')" title="查看实验室工作流导览">
+            <i class="fas fa-compass"></i>
+            <span>新手指引</span>
           </div>
+          
         </div>
       </header>
 
@@ -243,41 +244,43 @@ onMounted(async () => {
   margin: 0;
 }
 
-/* 呼吸灯指示器核心样式 */
-.engine-status {
+/* 新手指引入口 */
+.guide-entry {
   display: inline-flex;
   align-items: center;
-  gap: 12px;
+  gap: 8px;
   padding: 8px 18px;
-  background: rgba(92, 110, 88, 0.05); /* 淡淡的鼠尾草绿底色 */
-  border: 1px solid rgba(92, 110, 88, 0.15);
+  background: linear-gradient(135deg, rgba(212, 175, 55, 0.08) 0%, rgba(212, 175, 55, 0.03) 100%);
+  border: 1px solid rgba(212, 175, 55, 0.25);
   border-radius: 30px;
-  cursor: default;
-}
-
-.status-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background-color: #52c41a; /* 荧光绿 */
-  box-shadow: 0 0 8px #52c41a;
-  /* 呼吸灯动画 */
-  animation: breathe 3s infinite ease-in-out;
-}
-
-.status-text {
-  font-family: 'Lato', monospace;
-  font-size: 0.75rem;
-  letter-spacing: 2px;
-  color: var(--primary-color);
+  cursor: pointer;
+  color: var(--accent-gold);
+  font-size: 0.8rem;
   font-weight: 700;
-  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  transition: all 0.35s var(--ease-out-expo);
 }
 
-@keyframes breathe {
-  0% { opacity: 0.4; transform: scale(0.8); box-shadow: 0 0 4px #52c41a; }
-  50% { opacity: 1; transform: scale(1.2); box-shadow: 0 0 12px #52c41a; }
-  100% { opacity: 0.4; transform: scale(0.8); box-shadow: 0 0 4px #52c41a; }
+.guide-entry i {
+  font-size: 0.85rem;
+  transition: transform 0.35s ease;
+}
+
+.guide-entry:hover {
+  background: linear-gradient(135deg, rgba(212, 175, 55, 0.15) 0%, rgba(212, 175, 55, 0.08) 100%);
+  border-color: rgba(212, 175, 55, 0.45);
+  box-shadow: 0 2px 12px rgba(212, 175, 55, 0.15);
+  transform: translateY(-1px);
+}
+
+.guide-entry:hover i {
+  transform: rotate(15deg);
+}
+
+.engine-status-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 12px;
 }
 
 /* 布局 */
@@ -548,8 +551,6 @@ onMounted(async () => {
   }
   .lab-title { font-size: 1.8rem; }
   .page-subtitle { font-size: 0.9rem; }
-  .engine-status { padding: 6px 14px; }
-
   /* 资产卡片适配 */
   .asset-card { padding: 18px; }
   .card-icon { width: 38px; height: 38px; font-size: 1rem; }
@@ -591,6 +592,6 @@ onMounted(async () => {
 @media (max-width: 480px) {
   .lab-title { font-size: 1.6rem; }
   .engine-status-wrapper { width: 100%; }
-  .engine-status { width: 100%; justify-content: center; }
+  .guide-entry { width: 100%; justify-content: center; }
 }
 </style>

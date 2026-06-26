@@ -101,7 +101,7 @@
               </div>
               <p v-else class="view-help-text">
                 <strong>核心几何与座高诊断</strong><br>
-                <span>分析膝关节伸展与躯干前倾姿态，预防膝盖/腰背疼痛，推导把立与座高。</span>
+                <span>分析膝关节伸展角度、躯干前倾姿态与踩踏效率，推导座高、把立长度与坐垫前后的调整方向。</span>
               </p>
             </div>
             <div class="check-circle" v-if="selectedView === 'side'"><i class="fas fa-check"></i></div>
@@ -155,7 +155,7 @@
               </div>
               <p v-else class="view-help-text">
                 <strong>骨盆与脊柱稳定性分析</strong><br>
-                <span>捕捉踩踏产生的骨盆代偿摇摆与高低肩现象，排查长短腿隐患与核心薄弱点。</span>
+                <span>捕捉踩踏中骨盆的代偿摇摆、脊柱中线偏移与单侧下坠，排查核心薄弱点与左右发力不均。</span>
               </p>
             </div>
             <div class="check-circle" v-if="selectedView === 'back'"><i class="fas fa-check"></i></div>
@@ -211,7 +211,7 @@
         </div>
 
         <p class="env-tip content-end-tip">
-          <i class="fas fa-info-circle"></i> 建议至少包含侧面视角以获得完整的几何调整建议。
+          <i class="fas fa-info-circle"></i> 建议至少包含侧面视角以获得完整的几何调整建议。正面和背面视角可补充分析身体对称性与稳定性。
         </p>
       </div>
 

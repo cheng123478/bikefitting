@@ -170,7 +170,7 @@
                   <span class="v small">{{ metrics.frontMaxRWobble }}%</span>
                 </div>
               </div>
-              <div class="desc">膝偏离/骨盆宽比值 (结合极值波动角综合判定)</div>
+              <div class="desc">膝偏离 / 骨盆宽比值，值越小力线越直</div>
             </div>
 
             <div class="metric-card" :class="{ 'in-range': Math.abs(metrics.frontMaxHipTilt) <= 5 && Math.abs(metrics.frontMaxShoulderTilt) <= 5 }">

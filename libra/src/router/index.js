@@ -36,6 +36,12 @@ const router = createRouter({
             meta: { title: '实验室', requiresAuth: false }
         },
         {
+            path: '/lab/guide',
+            name: 'lab-guide',
+            component: () => import('@/views/lab/LabGuideView.vue'),
+            meta: { title: '工作流导览', requiresAuth: false }
+        },
+        {
             path: '/lab/body',
             name: 'lab-body',
             component: () => import('@/views/lab/body/BodyProfileView.vue'),

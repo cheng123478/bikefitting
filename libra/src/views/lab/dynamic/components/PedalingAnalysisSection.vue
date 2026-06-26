@@ -82,44 +82,19 @@
           </div>
           <div class="idx-card">
             <span class="idx-lbl">上提不平顺代理指数</span>
-            <div class="drag-meter mt-2">
-              <span class="idx-v" :class="data.upstrokeDragIndex > 30 ? 'text-danger' : 'text-success'">
-                {{ data.upstrokeDragIndex }}
-              </span>
-              <span class="text-sm ml-2" style="color:var(--text-muted)"> (越小越平顺) </span>
-            </div>
-            <span class="idx-eval" style="color:var(--text-muted); font-size: 0.75rem; margin-top: 5px;">
-              数值偏大意味着视觉轨迹在上提阶段不够平顺，需结合实际脚感复核。
-            </span>
+            <span class="idx-v" :class="data.upstrokeDragIndex > 30 ? 'text-danger' : 'text-success'">{{ data.upstrokeDragIndex }}</span>
+            <span class="idx-eval">数值越大上提阶段越不平顺，越小越流畅。</span>
           </div>
-          
           <div class="idx-card" v-if="data.lateralWobbleLeft != null && data.lateralWobbleRight != null">
-            <span class="idx-lbl">膝盖侧向位移/晃动 (Knee Wobble)</span>
-            <div class="flex-row mt-2" style="display:flex; justify-content:space-between; width: 100%;">
-              <div class="wobble-item text-center">
-                <div class="val text-warning">{{ data.lateralWobbleLeft.toFixed(1) }} %</div>
-                <div class="lbl">左膝晃幅</div>
-              </div>
-              <div class="wobble-item text-center">
-                <div class="val text-warning">{{ data.lateralWobbleRight.toFixed(1) }} %</div>
-                <div class="lbl">右膝晃幅</div>
-              </div>
-            </div>
-            <span class="idx-eval" style="color:var(--text-muted); font-size: 0.75rem; margin-top: 8px;">
-              从正面视角测量膝关节踩踏时的横向轨迹偏移（% 骨盆宽）。数值越小，说明膝部轨迹越稳定；仍需结合锁片、鞋垫和髋部控制复核。
-            </span>
+            <span class="idx-lbl">膝盖侧向位移 (Knee Wobble)</span>
+            <span class="idx-v">L {{ data.lateralWobbleLeft.toFixed(1) }}% / R {{ data.lateralWobbleRight.toFixed(1) }}%</span>
+            <span class="idx-eval">占骨盆宽百分比，数值越小膝盖轨迹越稳定。</span>
           </div>
-
           <div class="idx-card" v-if="data.cadenceRpm">
             <span class="idx-lbl">踏频 (Cadence)</span>
-            <span class="idx-v" :class="data.cadenceRpm >= 70 && data.cadenceRpm <= 110 ? 'text-success' : 'text-warning'">
-              {{ data.cadenceRpm }} <small style="font-size:1rem">RPM</small>
-            </span>
-            <span class="idx-eval" :class="data.cadenceRpm >= 70 && data.cadenceRpm <= 110 ? 'text-success' : 'text-warning'">
-              {{ data.cadenceRpm >= 70 && data.cadenceRpm <= 110 ? '节奏处于常见巡航范围 (70-110 RPM)' : data.cadenceRpm < 70 ? '偏低，建议确认齿比和踩踏节奏' : '偏高，建议确认齿比和骨盆稳定性' }}
-            </span>
+            <span class="idx-v" :class="data.cadenceRpm >= 70 && data.cadenceRpm <= 110 ? 'text-success' : 'text-warning'">{{ data.cadenceRpm }} RPM</span>
+            <span class="idx-eval" :class="data.cadenceRpm >= 70 && data.cadenceRpm <= 110 ? 'text-success' : 'text-warning'">{{ getCadenceDesc(data.cadenceRpm) }}</span>
           </div>
-
         </div>
       </div>
     </div>
@@ -156,6 +131,12 @@ const getAngleDesc = (angle) => {
   return '参考相位正常';
 };
 
+const getCadenceDesc = (rpm) => {
+  if (rpm >= 70 && rpm <= 110) return '处于常见巡航范围';
+  if (rpm < 70) return '偏低，建议换轻齿比提高节奏';
+  return '偏高，建议确认齿比和骨盆稳定性';
+};
+
 const renderChart = () => {
   if (!props.data || !props.data.forceCurvePoints) return;
   
@@ -171,7 +152,7 @@ const renderChart = () => {
       echartInstance = echarts.init(curveChartDom.value);
     }
     const option = {
-      color: ['#007BFF', '#DC3545', '#888888'],
+      color: ['#5C6E58', '#B5A495', '#888888'],
       tooltip: { trigger: 'axis' },
       legend: {
         data: ['左侧代理值', '右侧代理值', '合成代理值'],
@@ -196,13 +177,13 @@ const renderChart = () => {
           type: 'line',
           data: leftValues,
           smooth: true,
-          lineStyle: { color: '#007BFF', width: 3 },
+          lineStyle: { color: '#5C6E58', width: 3 },
           symbol: 'none',
           markPoint: {
             data: [{ type: 'max', name: 'Max' }],
             symbolSize: 35,
             label: { formatter: '{c}', color: '#fff' },
-            itemStyle: { color: '#007BFF' }
+            itemStyle: { color: '#5C6E58' }
           }
         },
         {
@@ -210,13 +191,13 @@ const renderChart = () => {
           type: 'line',
           data: rightValues,
           smooth: true,
-          lineStyle: { color: '#DC3545', width: 3 },
+          lineStyle: { color: '#B5A495', width: 3 },
           symbol: 'none',
           markPoint: {
             data: [{ type: 'max', name: 'Max' }],
             symbolSize: 35,
             label: { formatter: '{c}', color: '#fff' },
-            itemStyle: { color: '#DC3545' }
+            itemStyle: { color: '#B5A495' }
           }
         },
         {
@@ -243,7 +224,7 @@ const renderChart = () => {
     const rightPolar = points.map(p => [Math.max(0, p.rightVelocity ?? p.rightV), p.angle]);
 
     const polarOption = {
-      color: ['#007BFF', '#DC3545', '#888888'],
+      color: ['#5C6E58', '#B5A495', '#888888'],
       tooltip: { trigger: 'item' },
       legend: { show: false },
       polar: { center: ['50%', '50%'], radius: '75%' },
@@ -277,8 +258,8 @@ const renderChart = () => {
           type: 'line',
           data: leftPolar,
           showSymbol: false,
-          areaStyle: { color: 'rgba(0, 123, 255, 0.2)' },
-          lineStyle: { color: '#007BFF', width: 2 }
+          areaStyle: { color: 'rgba(92, 110, 88, 0.2)' },
+          lineStyle: { color: '#5C6E58', width: 2 }
         },
         {
           coordinateSystem: 'polar',
@@ -286,8 +267,8 @@ const renderChart = () => {
           type: 'line',
           data: rightPolar,
           showSymbol: false,
-          areaStyle: { color: 'rgba(220, 53, 69, 0.2)' },
-          lineStyle: { color: '#DC3545', width: 2 }
+          areaStyle: { color: 'rgba(181, 164, 149, 0.2)' },
+          lineStyle: { color: '#B5A495', width: 2 }
         }
       ]
     };
@@ -321,7 +302,15 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
-.pedaling-section { padding: 40px; margin-bottom: 25px; }
+.pedaling-section { padding: 40px; margin-bottom: 25px; position: relative; overflow: hidden; }
+.pedaling-section::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, var(--accent-gold), var(--primary-color), transparent);
+  opacity: 0.5;
+}
 
 .confidence-high { background: rgba(82, 196, 26, 0.12) !important; color: #52c41a !important; }
 .confidence-low  { background: rgba(250, 173, 20, 0.12) !important; color: #faad14 !important; }
@@ -341,7 +330,7 @@ onUnmounted(() => {
 }
 .data-note i { color: var(--accent-gold); margin-top: 2px; flex-shrink: 0; }
 
-.view-header { display: flex; align-items: center; gap: 15px; margin-bottom: 30px; border-bottom: 1px solid rgba(0,0,0,0.05); padding-bottom: 15px;}
+.view-header { display: flex; align-items: center; gap: 15px; margin-bottom: 30px; border-bottom: 2px solid rgba(92, 110, 88, 0.1); padding-bottom: 15px;}
 .view-header h2 { font-size: 1.4rem; color: var(--text-main); display: flex; align-items: center; gap: 12px; margin: 0; }
 .badge { padding: 4px 10px; border-radius: 12px; font-size: 0.7rem; font-weight: 700; letter-spacing: 1px;}
 
@@ -375,8 +364,8 @@ onUnmounted(() => {
   font-family: var(--font-serif);
   transition: width 1s cubic-bezier(0.4, 0, 0.2, 1);
 }
-.left-fill { background: linear-gradient(135deg, #007BFF, #00B4DB); justify-content: space-between; }
-.right-fill { background: linear-gradient(135deg, #FF416C, #FF4B2B); justify-content: space-between; }
+.left-fill { background: linear-gradient(135deg, var(--primary-color), var(--primary-light)); justify-content: space-between; }
+.right-fill { background: linear-gradient(135deg, var(--secondary-color), var(--accent-gold)); justify-content: space-between; }
 .balance-fill .lbl { font-size: 0.8rem; font-weight: 500; opacity: 0.8; font-family: sans-serif; }
 .balance-desc { font-size: 0.9rem; color: var(--text-muted); margin-top: 15px; }
 
@@ -387,12 +376,12 @@ onUnmounted(() => {
 
 .chart-box { background: var(--bg-surface); padding: 20px; border-radius: 12px; border: 1px solid rgba(0,0,0,0.05); }
 .layman-desc {
-  background: rgba(0, 123, 255, 0.05);
-  border-left: 3px solid #007BFF;
+  background: rgba(92, 110, 88, 0.05);
+  border-left: 3px solid var(--primary-color);
   padding: 12px 15px;
   border-radius: 4px;
   font-size: 0.85rem;
-  color: var(--text-secondary);
+  color: var(--text-muted);
   line-height: 1.6;
   margin-bottom: 5px;
 }
@@ -412,15 +401,5 @@ onUnmounted(() => {
 
 .text-success { color: var(--success-color); }
 .text-warning { color: var(--warning-color); }
-.text-danger { color: #ff4d4f; }
-.text-center { text-align: center; }
-.mt-2 { margin-top: 10px; }
-.ml-2 { margin-left: 10px; }
-.text-sm { font-size: 0.8rem; }
-.flex-row { display: flex; }
-
-.wobble-item { flex: 1; border-right: 1px solid rgba(0,0,0,0.1); }
-.wobble-item:last-child { border-right: none; }
-.wobble-item .val { font-size: 1.2rem; font-weight: 800; font-family: var(--font-serif); }
-.wobble-item .lbl { font-size: 0.8rem; color: var(--text-muted); }
+.text-danger { color: var(--danger-color); }
 </style>
