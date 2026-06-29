@@ -2,6 +2,9 @@
   <div class="hub-page">
     <div class="container main-content-area">
 
+      <!-- 新手引导 -->
+      <DynamicFittingGuide v-if="showGuide" @dismiss="showGuide = false" />
+
       <!-- Header -->
       <header class="page-header fade-up">
         <div class="header-left">
@@ -9,6 +12,9 @@
           <p class="subtitle">{{ PROJECT_CONFIG.MASCOT }} 引擎已就绪，请选择采集视角以启动或补充分析。</p>
         </div>
         <div class="header-actions">
+          <button class="btn-text btn-help" @click="showGuide = true" title="查看使用引导">
+            <i class="fas fa-question-circle"></i> 使用帮助
+          </button>
           <button v-if="capturedCount > 0" class="btn-text text-danger" style="margin-right: 15px;" @click="discardSession">
             <i class="fas fa-trash-alt"></i> 清空暂存
           </button>
@@ -82,11 +88,11 @@
               <div v-if="session.side" class="data-preview">
                 <div class="mini-dashboard">
                   <div class="m-item">
-                      <span class="l">最大膝角(BDC)</span>
+                      <span class="l">最大膝角<GlossaryTerm term="BDC" /></span>
                     <span class="v">{{ session.side.summary?.maxKnee || '--' }}°</span>
                   </div>
                   <div class="m-item">
-                      <span class="l">最小髋角(TDC)</span>
+                      <span class="l">最小髋角<GlossaryTerm term="TDC" /></span>
                     <span class="v">{{ session.side.summary?.minHip || '--' }}°</span>
                   </div>
                   <div class="m-item">
@@ -99,10 +105,17 @@
                   </div>
                 </div>
               </div>
-              <p v-else class="view-help-text">
-                <strong>核心几何与座高诊断</strong><br>
-                <span>分析膝关节伸展角度、躯干前倾姿态与踩踏效率，推导座高、把立长度与坐垫前后的调整方向。</span>
-              </p>
+              <div v-else>
+                <p class="view-help-text">
+                  <strong>核心几何与座高诊断</strong><br>
+                  <span>分析膝关节伸展角度、躯干前倾姿态与踩踏效率，推导座高、把立长度与坐垫前后的调整方向。</span>
+                </p>
+                <!-- 拍摄要求 -->
+                <div class="setup-requirement">
+                  <i class="fas fa-info-circle"></i>
+                  <span>手机放在身体侧面，正对骑行台，镜头与人身垂直</span>
+                </div>
+              </div>
             </div>
             <div class="check-circle" v-if="selectedView === 'side'"><i class="fas fa-check"></i></div>
           </div>
@@ -128,10 +141,16 @@
                   </div>
                 </div>
               </div>
-              <p v-else class="view-help-text">
-                <strong>膝盖轨迹与风阻分析</strong><br>
-                <span>追踪膝盖内扣或外翻轨迹，提示锁片、鞋垫与核心控制的复核方向。</span>
-              </p>
+              <div v-else>
+                <p class="view-help-text">
+                  <strong>膝盖轨迹与力线分析</strong><br>
+                  <span>追踪膝盖内扣或外翻轨迹，提示锁片、鞋垫与核心控制的复核方向。</span>
+                </p>
+                <div class="setup-requirement">
+                  <i class="fas fa-info-circle"></i>
+                  <span>手机放在身体正前方，镜头正对躯干中心</span>
+                </div>
+              </div>
             </div>
             <div class="check-circle" v-if="selectedView === 'front'"><i class="fas fa-check"></i></div>
           </div>
@@ -153,10 +172,16 @@
                   </div>
                 </div>
               </div>
-              <p v-else class="view-help-text">
-                <strong>骨盆与脊柱稳定性分析</strong><br>
-                <span>捕捉踩踏中骨盆的代偿摇摆、脊柱中线偏移与单侧下坠，排查核心薄弱点与左右发力不均。</span>
-              </p>
+              <div v-else>
+                <p class="view-help-text">
+                  <strong>骨盆与脊柱稳定性分析</strong><br>
+                  <span>捕捉踩踏中骨盆的代偿摇摆、脊柱中线偏移与单侧下坠，排查核心薄弱点与左右发力不均。</span>
+                </p>
+                <div class="setup-requirement">
+                  <i class="fas fa-info-circle"></i>
+                  <span>手机放在身体正后方，镜头正对背部中线</span>
+                </div>
+              </div>
             </div>
             <div class="check-circle" v-if="selectedView === 'back'"><i class="fas fa-check"></i></div>
           </div>
@@ -220,19 +245,49 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, watch } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useLabStore } from '@/stores/lab.js';
 import { useDynamicSessionStore } from "@/stores/dynamicSession.js";
 import { showToast, showConfirm } from '@/utils/toast';
 import { PROJECT_CONFIG } from '@/config/constants';
 import PainSelector from "@/views/lab/components/PainSelector.vue";
+import DynamicFittingGuide, { isGuideDismissed } from './components/DynamicFittingGuide.vue';
 
 const route = useRoute();
 const router = useRouter();
 const labStore = useLabStore();
 const sessionStore = useDynamicSessionStore();
 const selectedView = ref('side');
+const showGuide = ref(!isGuideDismissed());
+
+// 术语词汇表 — 用于 hover tooltip 解释
+const glossary = {
+  BDC: '下死点（Bottom Dead Center），踏板最低点，此时膝盖伸展度最大',
+  TDC: '上死点（Top Dead Center），踏板最高点，此时髋角最小、大腿最贴近腹部',
+  KOPS: '膝盖前移量（Knee Over Pedal Spindle），膝盖相对踏板轴的前后偏移距离',
+  Reach: '前伸量，车把到坐垫的水平距离，决定上半身拉伸程度',
+  Stack: '堆高，车把相对五通的垂直高度，决定上半身姿态高低',
+};
+const showGlossary = ref(null);
+
+// 内联术语提示组件
+const GlossaryTerm = {
+  props: { term: String },
+  template: `
+    <span class="glossary-term" @mouseenter="show = true" @mouseleave="show = false" @click.stop>
+      ({{ term }})
+      <Transition name="tooltip-fade">
+        <span v-if="show" class="glossary-tooltip">{{ desc }}</span>
+      </Transition>
+    </span>
+  `,
+  setup(props) {
+    const show = ref(false);
+    const desc = glossary[props.term] || '';
+    return { show, desc };
+  }
+};
 
 // 状态
 const selectedBikeId = ref(null);
@@ -382,6 +437,25 @@ const getViewDesc = (v) => {
   font-size: 1rem;
   margin: 0; }
 .header-actions { display: flex; align-items: center; }
+.btn-help {
+  color: var(--primary-color);
+  font-size: 0.9rem;
+  background: rgba(92, 110, 88, 0.08);
+  border: 1px solid rgba(92, 110, 88, 0.15);
+  padding: 6px 14px;
+  border-radius: 20px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-right: 15px;
+  transition: all 0.3s;
+}
+.btn-help:hover {
+  background: rgba(92, 110, 88, 0.15);
+  border-color: var(--primary-color);
+  transform: translateY(-1px);
+}
 .back-btn { color: var(--text-muted); font-size: 0.95rem; background: transparent; border: none; cursor: pointer; transition: all 0.4s var(--ease-out-expo); display: flex; align-items: center; gap: 8px; }
 .back-btn:hover { color: var(--primary-color); transform: translateX(-5px); }
 
@@ -608,6 +682,72 @@ const getViewDesc = (v) => {
 .btn-content .sub { font-size: 0.7rem; opacity: 0.7; display: block; }
 
 .content-end-tip { margin-top: 30px; text-align: center; font-size: 0.85rem; color: var(--text-muted); }
+
+/* 术语提示 (Glossary Tooltip) */
+.glossary-term {
+  display: inline;
+  font-size: 0.65rem;
+  color: var(--accent-gold);
+  cursor: help;
+  position: relative;
+  font-weight: 500;
+  margin-left: 2px;
+  white-space: nowrap;
+}
+.glossary-tooltip {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(43, 42, 41, 0.92);
+  color: #fff;
+  font-size: 0.7rem;
+  font-weight: 400;
+  padding: 6px 12px;
+  border-radius: 8px;
+  white-space: nowrap;
+  z-index: 100;
+  pointer-events: none;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.25);
+  line-height: 1.4;
+}
+.glossary-tooltip::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  border: 5px solid transparent;
+  border-top-color: rgba(43, 42, 41, 0.92);
+}
+.tooltip-fade-enter-active,
+.tooltip-fade-leave-active {
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+.tooltip-fade-enter-from,
+.tooltip-fade-leave-to {
+  opacity: 0;
+  transform: translateX(-50%) translateY(4px);
+}
+
+.setup-requirement {
+  margin-top: 14px;
+  padding: 10px 14px;
+  background: rgba(92, 110, 88, 0.04);
+  border-radius: 10px;
+  border: 1px solid rgba(92, 110, 88, 0.1);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.8rem;
+  color: var(--primary-color);
+  line-height: 1.5;
+}
+.setup-requirement i {
+  font-size: 0.9rem;
+  flex-shrink: 0;
+  opacity: 0.7;
+}
 
 /* --- 4. 响应式适配 --- */
 @media (max-width: 1024px) {
