@@ -1,0 +1,25 @@
+import { BASE_URL } from '@/config/constants.uts'
+
+function getBaseOrigin() : string {
+	const apiIndex = BASE_URL.indexOf('/aries')
+	if (apiIndex > 0) {
+		return BASE_URL.substring(0, apiIndex)
+	}
+	return BASE_URL
+}
+
+export function resolveAssetUrl(path : string | null) : string {
+	if (path == null || path.length == 0) {
+		return ''
+	}
+	if (path.startsWith('http://') || path.startsWith('https://') || path.startsWith('data:')) {
+		return path
+	}
+	if (path.startsWith('/resource/')) {
+		return getBaseOrigin() + path
+	}
+	if (path.startsWith('/')) {
+		return getBaseOrigin() + path
+	}
+	return getBaseOrigin() + '/' + path
+}

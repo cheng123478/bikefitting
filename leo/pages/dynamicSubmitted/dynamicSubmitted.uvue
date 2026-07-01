@@ -1,0 +1,359 @@
+<template>
+	<view class="submitted-page">
+		<view class="nav-bar" :style="navBarStyle">
+			<view class="back-btn" :style="navBackStyle" @click="goBack">
+				<text class="back-icon">&lt;</text>
+			</view>
+			<text class="nav-title" :style="navTitleStyle">任务状态</text>
+			<view class="nav-right" :style="navRightStyle"></view>
+		</view>
+
+		<view class="page-shell" :style="pageShellStyle">
+			<view class="status-card">
+				<text class="status-kicker">ASYNC MODELING</text>
+				<text class="status-title">{{ getStatusTitle() }}</text>
+				<text class="status-desc">{{ getStatusDesc() }}</text>
+
+				<view class="meta-list">
+					<text class="meta-item">车辆：{{ bikeName }}</text>
+					<text class="meta-item">会话：#{{ sessionId }}</text>
+					<text class="meta-item">状态：{{ getStatusText(currentStatus) }}</text>
+				</view>
+
+				<view class="action-group">
+					<view v-if="currentStatus == 2" class="primary-btn wide-btn" @click="openReport">
+						<text class="primary-btn-text">查看报告</text>
+					</view>
+					<view v-else class="primary-btn wide-btn" @click="syncStatus">
+						<text class="primary-btn-text">刷新状态</text>
+					</view>
+
+					<view class="ghost-btn wide-btn" @click="openHistory">
+						<text class="ghost-btn-text">回到历史记录</text>
+					</view>
+				</view>
+			</view>
+		</view>
+	</view>
+</template>
+
+<script setup lang="uts">
+	import { ref } from 'vue'
+	import { getDynamicFittingSessionDetail } from '@/api/dynamicFitting.uts'
+	import { getAppLayoutMetrics } from '@/utils/layout.uts'
+
+	const layout = getAppLayoutMetrics()
+	const navContentCenter = layout.statusBarHeight + layout.navBarContentHeight / 2
+	const navBarStyle = {
+		height: layout.navBarHeight + 'px',
+		paddingTop: layout.statusBarHeight + 'px',
+		boxSizing: 'border-box'
+	}
+	const navBackStyle = {
+		top: navContentCenter + 'px'
+	}
+	const navTitleStyle = {
+		top: navContentCenter + 'px'
+	}
+	const navRightStyle = {
+		top: navContentCenter + 'px'
+	}
+	const pageShellStyle = {
+		paddingTop: layout.navBarHeight + 24 + 'px',
+		paddingBottom: layout.bottomSafeArea + 24 + 'px'
+	}
+
+	const sessionId = ref(0)
+	const currentStatus = ref(1)
+	const bikeName = ref('您的单车')
+	let pollingTimer = 0
+	let pollCount = 0
+	const maxPollCount = 15
+
+	function toSafeNumber(value : any | null, fallback : number) : number {
+		if (value == null) return fallback
+		const parsed = parseFloat(`${value}`)
+		return isNaN(parsed) ? fallback : parsed
+	}
+
+	function toText(value : any | null) : string {
+		return value != null ? `${value}` : ''
+	}
+
+	function toJsonObject(value : any | null) : UTSJSONObject | null {
+		if (value == null) {
+			return null
+		}
+		const jsonText = JSON.stringify(value)
+		const parsed = JSON.parse(jsonText)
+		return parsed != null ? parsed as UTSJSONObject : null
+	}
+
+	function getJsonValue(source : UTSJSONObject | null, key : string) : any | null {
+		const current = source
+		if (current == null) {
+			return null
+		}
+		const value = current[key]
+		return value != null ? value : null
+	}
+
+	function decodeRouteText(value : any) : string {
+		if (value == null) {
+			return ''
+		}
+		const decoded = decodeURIComponent(`${value}`)
+		return decoded != null ? decoded : ''
+	}
+
+	function getStatusText(status : number) : string {
+		if (status == 2) return '已完成'
+		if (status == 3) return '失败'
+		return '分析中'
+	}
+
+	function getStatusTitle() : string {
+		if (currentStatus.value == 2) return '报告已准备好'
+		if (currentStatus.value == 3) return '分析处理失败'
+		return '后端正在建模'
+	}
+
+	function getStatusDesc() : string {
+		if (currentStatus.value == 2) {
+			return '服务端已经完成了这次动态分析的正式计算，可以直接进入 App 内报告页查看结果。'
+		}
+		if (currentStatus.value == 3) {
+			return '这次分析在服务端处理时失败了，建议重新采集一轮更完整的视频数据。'
+		}
+		return '客户端已经完成本地会话提交，当前正在等待后端异步生成正式报告。'
+	}
+
+	function stopPolling() {
+		if (pollingTimer > 0) {
+			clearInterval(pollingTimer)
+			pollingTimer = 0
+		}
+	}
+
+	async function syncStatus() {
+		if (sessionId.value <= 0) {
+			return
+		}
+		try {
+			const data = await getDynamicFittingSessionDetail(sessionId.value)
+			const dataObject = toJsonObject(data)
+			const statusValue = getJsonValue(dataObject, 'status')
+			const bikeNameValue = getJsonValue(dataObject, 'bikeName')
+			if (statusValue != null) {
+				currentStatus.value = toSafeNumber(statusValue, currentStatus.value)
+			}
+			if (bikeNameValue != null) {
+				bikeName.value = toText(bikeNameValue)
+			}
+			if (currentStatus.value != 1) {
+				stopPolling()
+			}
+		} catch (e) {
+			console.error('[DynamicSubmitted] sync failed', e)
+		}
+	}
+
+	function startPolling() {
+		stopPolling()
+		if (currentStatus.value != 1) {
+			return
+		}
+		pollingTimer = setInterval(() => {
+			pollCount++
+			syncStatus()
+			if (pollCount >= maxPollCount) {
+				stopPolling()
+			}
+		}, 2000)
+	}
+
+	function openReport() {
+		if (sessionId.value <= 0) {
+			return
+		}
+		uni.navigateTo({
+			url: `/pages/dynamicReport/dynamicReport?sessionId=${sessionId.value}`
+		})
+	}
+
+	function openHistory() {
+		uni.navigateTo({ url: '/pages/dynamicHistory/dynamicHistory' })
+	}
+
+	function goBack() {
+		stopPolling()
+		const pages = getCurrentPages()
+		if (pages.length > 1) {
+			uni.navigateBack({
+				delta: 1,
+				fail: () => {
+					openHistory()
+				}
+			})
+		} else {
+			openHistory()
+		}
+	}
+
+	onLoad((query : any | null) => {
+		const queryObject = toJsonObject(query)
+		const idValue = getJsonValue(queryObject, 'id')
+		const statusValue = getJsonValue(queryObject, 'status')
+		const bikeNameValue = getJsonValue(queryObject, 'bikeName')
+		if (idValue != null) {
+			sessionId.value = toSafeNumber(idValue, 0)
+		}
+		if (statusValue != null) {
+			currentStatus.value = toSafeNumber(statusValue, 1)
+		}
+		if (bikeNameValue != null) {
+			bikeName.value = decodeRouteText(bikeNameValue)
+		}
+		syncStatus()
+		startPolling()
+	})
+
+	onUnload(() => {
+		stopPolling()
+	})
+</script>
+
+<style scoped>
+	.submitted-page {
+		height: 100%;
+		background: #F3F2ED;
+	}
+
+	.nav-bar {
+		position: fixed;
+		top: 0;
+		left: 0;
+		right: 0;
+		background: rgba(243, 242, 237, 0.98);
+		border-bottom: 1rpx solid rgba(43, 42, 41, 0.06);
+		z-index: 100;
+	}
+
+	.back-btn {
+		position: absolute;
+		left: 20rpx;
+		width: 72rpx;
+		height: 72rpx;
+		transform: translateY(-50%);
+		align-items: center;
+		justify-content: center;
+	}
+
+	.back-icon {
+		font-size: 40rpx;
+		font-weight: 700;
+		color: #2B2A29;
+	}
+
+	.nav-title {
+		position: absolute;
+		left: 50%;
+		transform: translate(-50%, -50%);
+		font-size: 32rpx;
+		font-weight: 700;
+		color: #2B2A29;
+	}
+
+	.nav-right {
+		position: absolute;
+		right: 24rpx;
+		transform: translateY(-50%);
+		width: 60rpx;
+	}
+
+	.page-shell {
+		padding-left: 16px;
+		padding-right: 16px;
+	}
+
+	.status-card {
+		background: rgba(255, 255, 255, 0.96);
+		border-radius: 8px;
+		padding: 22px 18px;
+		box-shadow: 0 16px 36px rgba(43, 42, 41, 0.08);
+	}
+
+	.status-kicker {
+		font-size: 11px;
+		font-weight: 700;
+		color: #7B766B;
+	}
+
+	.status-title {
+		margin-top: 10px;
+		font-size: 24px;
+		font-weight: 700;
+		color: #2B2A29;
+	}
+
+	.status-desc {
+		margin-top: 10px;
+		font-size: 14px;
+		line-height: 1.7;
+		color: #7E786E;
+	}
+
+	.meta-list {
+		margin-top: 16px;
+		padding: 14px;
+		border-radius: 8px;
+		background: #F7F4EC;
+	}
+
+	.meta-item {
+		margin-bottom: 8px;
+		font-size: 13px;
+		color: #5A564D;
+	}
+
+	.meta-item:last-child {
+		margin-bottom: 0;
+	}
+
+	.action-group {
+		margin-top: 18px;
+	}
+
+	.primary-btn,
+	.ghost-btn {
+		align-items: center;
+		justify-content: center;
+		border-radius: 8px;
+		padding: 12px 16px;
+		margin-top: 10px;
+	}
+
+	.primary-btn {
+		background: #5C6E58;
+	}
+
+	.ghost-btn {
+		background: rgba(92, 110, 88, 0.08);
+	}
+
+	.wide-btn {
+		width: 100%;
+	}
+
+	.primary-btn-text {
+		font-size: 14px;
+		font-weight: 700;
+		color: #FFFFFF;
+	}
+
+	.ghost-btn-text {
+		font-size: 14px;
+		font-weight: 700;
+		color: #465543;
+	}
+</style>

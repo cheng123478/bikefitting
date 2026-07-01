@@ -1,0 +1,10 @@
+import { requestGet } from '@/api/request.uts'
+
+export function searchModelNames(keyword : string) : Promise<any> {
+	return requestGet('/bike-model/search?keyword=' + encodeURIComponent(keyword), null, false)
+}
+
+export function getBikeModelTree(brand : string, model : string) : Promise<any> {
+	const query = '?brand=' + encodeURIComponent(brand) + '&model=' + encodeURIComponent(model)
+	return requestGet('/bike-model/tree' + query, null, false)
+}

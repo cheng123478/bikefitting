@@ -1,0 +1,30 @@
+export type NativePosePluginInfo = {
+	ready : boolean
+	provider : string
+	platform : string
+	modelAssetPath : string
+	supportedModes : string[]
+	reason : string | null
+}
+
+export type NativePoseAnalyzeOptions = {
+	videoPath : string
+	viewType : string | null
+	inferenceIntervalMs : number | null
+	modelAssetPath : string | null
+	numPoses : number | null
+	minPoseDetectionConfidence : number | null
+	minPosePresenceConfidence : number | null
+	minTrackingConfidence : number | null
+}
+
+export type NativePoseSnapshotOptions = {
+	videoPath : string
+	timestampMs : number
+	quality : number | null
+	maxWidth : number | null
+}
+
+export type GetNativePosePluginInfo = () => NativePosePluginInfo
+export type AnalyzeNativePoseVideo = (options : NativePoseAnalyzeOptions) => Promise<string>
+export type CaptureNativePoseSnapshot = (options : NativePoseSnapshotOptions) => string | null

@@ -1,0 +1,37 @@
+import {
+	AnalyzeNativePoseVideo,
+	CaptureNativePoseSnapshot,
+	GetNativePosePluginInfo,
+	NativePoseAnalyzeOptions,
+	NativePosePluginInfo,
+	NativePoseSnapshotOptions
+} from './interface.uts'
+
+// #ifdef APP-ANDROID
+export { getPluginInfo, analyzeVideo, captureSnapshot } from './app-android/index.uts'
+// #endif
+
+// #ifndef APP-ANDROID
+const unsupportedInfo : NativePosePluginInfo = {
+	ready: false,
+	provider: 'MediaPipe Pose Landmarker',
+	platform: 'unsupported',
+	modelAssetPath: 'pose_landmarker_lite.task',
+	supportedModes: [],
+	reason: 'Current platform does not expose the native MediaPipe bridge'
+}
+
+export const getPluginInfo : GetNativePosePluginInfo = function () : NativePosePluginInfo {
+	return unsupportedInfo
+}
+
+export const analyzeVideo : AnalyzeNativePoseVideo = function (_options : NativePoseAnalyzeOptions) : Promise<string> {
+	return new Promise<string>((_resolve, reject) => {
+		reject(new Error('Native MediaPipe Pose is only available on APP-ANDROID in this project'))
+	})
+}
+
+export const captureSnapshot : CaptureNativePoseSnapshot = function (_options : NativePoseSnapshotOptions) : string | null {
+	return null
+}
+// #endif

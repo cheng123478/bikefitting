@@ -1,0 +1,101 @@
+import {
+	AnalyzeNativePoseVideo,
+	CaptureNativePoseSnapshot,
+	GetNativePosePluginInfo,
+	NativePoseAnalyzeOptions,
+	NativePosePluginInfo,
+	NativePoseSnapshotOptions
+} from '../interface.uts'
+import { MediaPipePoseNative } from 'uts.starrysky.dynamicpose.android'
+
+function toJsonObject(value : any | null) : UTSJSONObject | null {
+	if (value == null) {
+		return null
+	}
+	const jsonText = JSON.stringify(value)
+	const parsed = JSON.parse(jsonText)
+	return parsed != null ? parsed as UTSJSONObject : null
+}
+
+function getJsonValue(source : UTSJSONObject | null, key : string) : any | null {
+	const current = source
+	if (current == null) {
+		return null
+	}
+	const value = current[key]
+	return value != null ? value : null
+}
+
+function getJsonText(source : UTSJSONObject | null, key : string, fallback : string) : string {
+	const value = getJsonValue(source, key)
+	return value != null ? `${value}` : fallback
+}
+
+function getJsonBoolean(source : UTSJSONObject | null, key : string, fallback : boolean) : boolean {
+	const value = getJsonValue(source, key)
+	if (value == null) {
+		return fallback
+	}
+	const text = `${value}`
+	if (text == 'true') {
+		return true
+	}
+	if (text == 'false') {
+		return false
+	}
+	return fallback
+}
+
+function getJsonStringArray(source : UTSJSONObject | null, key : string) : string[] {
+	const items : string[] = []
+	const value = getJsonValue(source, key)
+	if (value == null) {
+		return items
+	}
+	const jsonText = JSON.stringify(value)
+	const parsed = JSON.parse(jsonText)
+	const arrayValue = parsed != null ? parsed as any[] : []
+	for (let i = 0; i < arrayValue.length; i++) {
+		items.push(`${arrayValue[i]}`)
+	}
+	return items
+}
+
+function parsePluginInfo(rawJson : string) : NativePosePluginInfo {
+	const source = toJsonObject(JSON.parse(rawJson))
+	return {
+		ready: getJsonBoolean(source, 'ready', false),
+		provider: getJsonText(source, 'provider', 'MediaPipe Pose Landmarker'),
+		platform: getJsonText(source, 'platform', 'android'),
+		modelAssetPath: getJsonText(source, 'modelAssetPath', 'pose_landmarker_lite.task'),
+		supportedModes: getJsonStringArray(source, 'supportedModes'),
+		reason: getJsonValue(source, 'reason') != null ? `${getJsonValue(source, 'reason')}` : null
+	}
+}
+
+export const getPluginInfo : GetNativePosePluginInfo = function () : NativePosePluginInfo {
+	return parsePluginInfo(MediaPipePoseNative.getPluginInfoAsJson())
+}
+
+export const analyzeVideo : AnalyzeNativePoseVideo = function (options : NativePoseAnalyzeOptions) : Promise<string> {
+	return new Promise<string>((resolve, reject) => {
+		try {
+			MediaPipePoseNative.analyzeVideoAsJsonAsync(
+				JSON.stringify(options),
+				(resultJson : string | null, errorMessage : string | null) => {
+					if (errorMessage != null && errorMessage.length > 0) {
+						reject(new Error(errorMessage))
+						return
+					}
+					resolve(resultJson != null ? resultJson : '')
+				}
+			)
+		} catch (e) {
+			reject(e)
+		}
+	})
+}
+
+export const captureSnapshot : CaptureNativePoseSnapshot = function (options : NativePoseSnapshotOptions) : string | null {
+	return MediaPipePoseNative.captureFrameAsBase64(JSON.stringify(options))
+}

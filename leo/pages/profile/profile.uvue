@@ -1,0 +1,826 @@
+<template>
+	<view class="profile-page">
+		<scroll-view class="profile-scroll" scroll-y="true" :show-scrollbar="false" :style="scrollStyle">
+			<view class="profile-shell">
+				<view class="profile-hero" :style="headerStyle">
+					<view class="hero-top">
+						<view class="hero-avatar">
+							<image v-if="avatarUrl.length > 0" class="hero-avatar-img" :src="avatarUrl" mode="aspectFill" />
+							<view v-else class="hero-avatar-placeholder">
+								<view class="hero-avatar-placeholder-head"></view>
+								<view class="hero-avatar-placeholder-body"></view>
+							</view>
+							<view class="hero-avatar-edit">
+								<text class="hero-edit-icon">✎</text>
+							</view>
+						</view>
+
+						<view class="hero-info">
+							<text class="hero-name">{{ userName }}</text>
+							<view class="hero-meta">
+								<view class="hero-badge">
+									<text class="hero-badge-text">{{ memberType }}</text>
+								</view>
+								<text class="hero-status">{{ isLoggedIn ? '已同步' : '游客' }}</text>
+							</view>
+						</view>
+
+						<view class="hero-enter" @click="handleProfileEnter">
+							<text class="hero-enter-icon">›</text>
+						</view>
+					</view>
+
+					<view class="hero-stats">
+						<view class="hero-stat" @click="handleMenuClick('dynamicHistory')">
+							<text class="hero-stat-num">{{ dynamicFittingCount }}</text>
+							<text class="hero-stat-label">动态报告</text>
+						</view>
+						<view class="hero-stat" @click="handleMenuClick('garage')">
+							<text class="hero-stat-num">{{ bikeCount }}</text>
+							<text class="hero-stat-label">车辆资产</text>
+						</view>
+						<view class="hero-stat" @click="handleMenuClick('bodyProfile')">
+							<text class="hero-stat-num">{{ hasBodyProfile ? '✓' : '--' }}</text>
+							<text class="hero-stat-label">身体图谱</text>
+						</view>
+					</view>
+
+					<view class="hero-card" @click="handleMenuClick('membership')">
+						<view class="hero-card-top">
+							<view class="hero-card-left">
+								<text class="hero-card-icon">💎</text>
+								<view class="hero-card-title">
+									<text class="hero-card-title-text">会员中心</text>
+									<text class="hero-card-title-sub">查看专属权益</text>
+								</view>
+							</view>
+							<text class="hero-card-arrow">›</text>
+						</view>
+						<view class="hero-card-bottom">
+							<text class="hero-card-level">{{ memberType }} · 成长值 {{ growthValue }}/500</text>
+							<view class="hero-card-bar">
+								<view class="hero-card-bar-fill" :style="{ width: Math.min(growthValue / 500 * 100, 100) + '%' }"></view>
+							</view>
+						</view>
+					</view>
+				</view>
+
+				<view class="quick-group app-soft-card">
+					<view class="quick-item" @click="handleMenuClick('bodyProfile')">
+						<view class="quick-icon moss">
+							<text class="quick-emoji">🧍</text>
+						</view>
+						<view class="quick-copy">
+							<text class="quick-title">身体图谱</text>
+						</view>
+						<view class="quick-side">
+							<text class="quick-arrow">›</text>
+						</view>
+					</view>
+
+					<view class="quick-divider"></view>
+
+					<view class="quick-item" @click="handleMenuClick('garage')">
+						<view class="quick-icon blue">
+							<text class="quick-emoji">🚴</text>
+						</view>
+						<view class="quick-copy">
+							<text class="quick-title">我的车库</text>
+						</view>
+						<view class="quick-side">
+							<text class="quick-arrow">›</text>
+						</view>
+					</view>
+
+					<view class="quick-divider"></view>
+
+					<view class="quick-item" @click="handleMenuClick('favorites')">
+						<view class="quick-icon rose">
+							<text class="quick-emoji">⭐</text>
+						</view>
+						<view class="quick-copy">
+							<text class="quick-title">我的收藏</text>
+						</view>
+						<view class="quick-side">
+							<text class="quick-arrow">›</text>
+						</view>
+					</view>
+				</view>
+
+				<view class="quick-group app-soft-card">
+					<view class="quick-item" @click="handleMenuClick('basic')">
+						<view class="quick-icon moss">
+							<text class="quick-emoji">📋</text>
+						</view>
+						<view class="quick-copy">
+							<text class="quick-title">个人资料</text>
+						</view>
+						<view class="quick-side">
+							<text class="quick-arrow">›</text>
+						</view>
+					</view>
+
+					<view class="quick-divider"></view>
+
+					<view class="quick-item" @click="handleMenuClick('security')">
+						<view class="quick-icon amber">
+							<text class="quick-emoji">🔒</text>
+						</view>
+						<view class="quick-copy">
+							<text class="quick-title">账号安全</text>
+						</view>
+						<view class="quick-side">
+							<text class="quick-arrow">›</text>
+						</view>
+					</view>
+
+					<view class="quick-divider"></view>
+
+					<view class="quick-item" @click="handleMenuClick('membership')">
+						<view class="quick-icon gold">
+							<text class="quick-emoji">👑</text>
+						</view>
+						<view class="quick-copy">
+							<text class="quick-title">会员特权</text>
+						</view>
+						<view class="quick-side">
+							<text class="quick-arrow">›</text>
+						</view>
+					</view>
+
+					<view class="quick-divider"></view>
+
+					<view class="quick-item" @click="handleMenuClick('feedback')">
+						<view class="quick-icon blue">
+							<text class="quick-emoji">💬</text>
+						</view>
+						<view class="quick-copy">
+							<text class="quick-title">服务反馈</text>
+						</view>
+						<view class="quick-side">
+							<text class="quick-arrow">›</text>
+						</view>
+					</view>
+				</view>
+
+				<view class="auth-section">
+					<button v-if="isLoggedIn" class="btn-logout" @click="handleLogout">退出登录</button>
+					<button v-else class="btn-login" @click="handleLogin">登录账号</button>
+				</view>
+			</view>
+		</scroll-view>
+	</view>
+</template>
+
+<script setup lang="uts">
+	import { computed, ref, onMounted } from 'vue'
+	import { getUserInfo, logout, setUserInfo } from '@/store/user.uts'
+	import { logoutApi } from '@/api/auth.uts'
+	import { getCurrentUserProfile } from '@/api/profile.uts'
+	import { getLatestUserBody, getStaticFittingCount, getDynamicFittingCount, getActiveBikeCount } from '@/api/user.uts'
+	import { getAppLayoutMetrics } from '@/utils/layout.uts'
+	import { resolveAssetUrl } from '@/utils/url.uts'
+	import { TEMP_AVATAR_URL } from '@/config/constants.uts'
+
+	const layout = getAppLayoutMetrics()
+	const scrollStyle = {
+		paddingBottom: layout.tabBarHeight + layout.tabPageBottomSpace + 16 + 'px'
+	}
+	const headerStyle = {
+		paddingTop: layout.statusBarHeight + 24 + 'px'
+	}
+
+	const userInfo = ref(getUserInfo())
+
+	const isLoggedIn = computed((): boolean => {
+		return userInfo.value != null && userInfo.value.phone != null && userInfo.value.phone.length > 0
+	})
+
+	const userName = computed((): string => {
+		if (userInfo.value == null || userInfo.value.name == null || userInfo.value.name.length == 0) return '骑行客'
+		return userInfo.value.name
+	})
+
+	const avatarUrl = computed((): string => {
+		if (userInfo.value == null || userInfo.value.avatar == null || userInfo.value.avatar.length == 0) {
+			return isLoggedIn.value ? TEMP_AVATAR_URL : ''
+		}
+		return resolveAssetUrl(userInfo.value.avatar)
+	})
+
+	const genderClass = computed((): string => {
+		if (userInfo.value == null || userInfo.value.gender == null) return 'g-unknown'
+		return userInfo.value.gender == 1 ? 'g-male' : 'g-female'
+	})
+
+	const memberType = computed((): string => {
+		if (userInfo.value == null || userInfo.value.memberType == null) return '普通会员'
+		return userInfo.value.memberType === 'PRO' ? 'PRO 会员' : '普通会员'
+	})
+
+	const introduction = computed((): string => {
+		if (userInfo.value == null || userInfo.value.introduction == null || userInfo.value.introduction.length == 0) return '让每一次骑行都更贴合身体节奏。'
+		return userInfo.value.introduction
+	})
+
+	const staticFittingCount = ref(0)
+	const dynamicFittingCount = ref(0)
+	const bikeCount = ref(0)
+	const hasBodyProfile = ref(false)
+	const flexibilityScore = ref('--')
+
+	const growthValue = computed((): number => {
+		const value = staticFittingCount.value * 18 + dynamicFittingCount.value * 28 + bikeCount.value * 36
+		return value > 500 ? 500 : value
+	})
+
+	function toSafeNumber(value : any | null, fallback : number) : number {
+		if (value == null) return fallback
+		const parsed = parseFloat(`${value}`)
+		return isNaN(parsed) ? fallback : parsed
+	}
+
+	function toText(value : any | null) : string {
+		return value != null ? `${value}` : ''
+	}
+
+	function toJsonObject(value : any | null) : UTSJSONObject | null {
+		if (value == null) {
+			return null
+		}
+		const jsonText = JSON.stringify(value)
+		const parsed = JSON.parse(jsonText)
+		return parsed != null ? parsed as UTSJSONObject : null
+	}
+
+	function getJsonValue(source : UTSJSONObject | null, key : string) : any | null {
+		const current = source
+		if (current == null) {
+			return null
+		}
+		const value = current[key]
+		return value != null ? value : null
+	}
+
+	async function loadStaticFittingCount() {
+		if (!isLoggedIn.value) return
+		try {
+			const data = await getStaticFittingCount()
+			if (data != null) {
+				let count = 0
+				if (typeof data === 'number' || typeof data === 'string') {
+					count = toSafeNumber(data, 0)
+				} else {
+					const countObject = toJsonObject(data)
+					const countValue = getJsonValue(countObject, 'count')
+					count = countValue != null ? toSafeNumber(countValue, 0) : toSafeNumber(data, 0)
+				}
+				staticFittingCount.value = count
+			}
+		} catch (e) {
+			console.error('加载静态报告数量失败', e)
+		}
+	}
+
+	async function loadDynamicFittingCount() {
+		if (!isLoggedIn.value) return
+		try {
+			const data = await getDynamicFittingCount()
+			if (data != null) {
+				let count = 0
+				if (typeof data === 'number' || typeof data === 'string') {
+					count = toSafeNumber(data, 0)
+				} else {
+					const countObject = toJsonObject(data)
+					const countValue = getJsonValue(countObject, 'count')
+					count = countValue != null ? toSafeNumber(countValue, 0) : toSafeNumber(data, 0)
+				}
+				dynamicFittingCount.value = count
+			}
+		} catch (e) {
+			console.error('加载动态报告数量失败', e)
+		}
+	}
+
+	async function loadBodyProfile() {
+		if (!isLoggedIn.value) return
+		try {
+			const data = await getLatestUserBody()
+			const bodyData = toJsonObject(data)
+			if (getJsonValue(bodyData, 'id') != null) {
+				hasBodyProfile.value = true
+				const flexibilityScoreValue = getJsonValue(bodyData, 'flexibilityScore')
+				const flexibilityValue = getJsonValue(bodyData, 'flexibility')
+				if (flexibilityScoreValue != null) {
+					flexibilityScore.value = toText(flexibilityScoreValue)
+				} else if (flexibilityValue != null) {
+					flexibilityScore.value = toText(flexibilityValue)
+				} else {
+					flexibilityScore.value = '--'
+				}
+				return
+			}
+			hasBodyProfile.value = false
+		} catch (e) {
+			console.error('加载身体图谱数据失败', e)
+			hasBodyProfile.value = false
+		}
+	}
+
+	async function loadBikeCount() {
+		if (!isLoggedIn.value) return
+		try {
+			const data = await getActiveBikeCount()
+			bikeCount.value = toSafeNumber(data, 0)
+		} catch (e) {
+			console.error('加载车辆数据失败', e)
+		}
+	}
+
+	function initData() {
+		loadStaticFittingCount()
+		loadDynamicFittingCount()
+		loadBodyProfile()
+		loadBikeCount()
+	}
+
+	async function syncUserProfile() {
+		if (!isLoggedIn.value) {
+			return
+		}
+		try {
+			const latest = await getCurrentUserProfile()
+			setUserInfo(latest)
+			userInfo.value = latest
+		} catch (e) {
+			console.error('刷新用户资料失败', e)
+		}
+	}
+
+	function goProfileEdit() {
+		uni.navigateTo({
+			url: '/pages/profileEdit/profileEdit'
+		})
+	}
+
+	function handleProfileEnter() {
+		if (!isLoggedIn.value) {
+			uni.showToast({ title: '请先登录', icon: 'none' })
+			return
+		}
+		goProfileEdit()
+	}
+
+	function handleMenuClick(type: string) {
+		if (type == 'garage') {
+			uni.navigateTo({
+				url: '/pages/garage/garage'
+			})
+			return
+		}
+
+		switch (type) {
+			case 'dynamicHistory':
+				uni.navigateTo({
+					url: '/pages/dynamicHistory/dynamicHistory'
+				})
+				break
+			case 'bodyProfile':
+				uni.navigateTo({
+					url: '/pages/bodyProfile/bodyProfile'
+				})
+				break
+			case 'favorites':
+				uni.showToast({ title: '我的收藏', icon: 'none' })
+				break
+			case 'basic':
+				goProfileEdit()
+				break
+			case 'security':
+				uni.navigateTo({
+					url: '/pages/accountSecurity/accountSecurity'
+				})
+				break
+			case 'membership':
+				uni.showToast({ title: '会员特权', icon: 'none' })
+				break
+			case 'feedback':
+				uni.showToast({ title: '服务反馈', icon: 'none' })
+				break
+			default:
+				uni.showToast({ title: '功能开发中', icon: 'none' })
+		}
+	}
+
+	onMounted(() => {
+		userInfo.value = getUserInfo()
+		syncUserProfile()
+		initData()
+	})
+
+	onShow(() => {
+		userInfo.value = getUserInfo()
+		syncUserProfile()
+		initData()
+	})
+
+	function handleLogin() {
+		uni.navigateTo({
+			url: '/pages/login/login'
+		})
+	}
+
+	function handleLogout() {
+		uni.showModal({
+			title: '退出登录',
+			content: '确定要退出登录吗？',
+			success: (res : any) => {
+				const result = toJsonObject(res)
+				if (getJsonValue(result, 'confirm') == true) {
+					logoutApi().then((_res) => {
+						logout()
+						uni.showToast({ title: '已退出登录', icon: 'success' })
+						setTimeout(() => { uni.reLaunch({ url: '/pages/index/index' }) }, 1000)
+					}).catch((_e) => {
+						logout()
+						uni.showToast({ title: '已退出登录', icon: 'success' })
+						setTimeout(() => { uni.reLaunch({ url: '/pages/index/index' }) }, 1000)
+					})
+				}
+			}
+		})
+	}
+</script>
+
+<style>
+	.app-soft-card {
+		background-color: #FFFFFF;
+		border-radius: 8px;
+		border-width: 1px;
+		border-color: #FFFFFF;
+		border-style: solid;
+		box-shadow: 0 18px 48px rgba(53, 55, 41, 0.08);
+	}
+
+	.profile-page {
+		height: 100%;
+		background: #F3F2ED;
+	}
+
+	.profile-scroll {
+		height: 100%;
+	}
+
+	.profile-shell {
+		padding: 0 8px 28px;
+	}
+
+	.profile-hero {
+		position: relative;
+		overflow: hidden;
+		margin: 0 -8px 18px;
+		padding: 0 20px 24px;
+		border-bottom-left-radius: 20px;
+		border-bottom-right-radius: 20px;
+		background-color: #304236;
+	}
+
+	/* ── Top: Avatar + Info ── */
+	.hero-top {
+		position: relative;
+		z-index: 2;
+		flex-direction: row;
+		align-items: center;
+		padding: 8px 0 20px;
+	}
+
+	.hero-avatar {
+		position: relative;
+		width: 80px;
+		height: 80px;
+		margin-right: 16px;
+		flex-shrink: 0;
+	}
+
+	.hero-avatar-img {
+		width: 80px;
+		height: 80px;
+		border-radius: 50%;
+		border: 3px solid rgba(255, 255, 255, 0.2);
+	}
+
+	.hero-avatar-placeholder {
+		width: 80px;
+		height: 80px;
+		border-radius: 50%;
+		border: 3px solid rgba(255, 255, 255, 0.2);
+		background: rgba(255, 255, 255, 0.1);
+		align-items: center;
+		justify-content: center;
+	}
+
+	.hero-avatar-placeholder-head {
+		width: 22px;
+		height: 22px;
+		border-radius: 50%;
+		background: rgba(255, 255, 255, 0.78);
+		margin-bottom: 4px;
+	}
+
+	.hero-avatar-placeholder-body {
+		width: 36px;
+		height: 18px;
+		border-radius: 18px 18px 8px 8px;
+		background: rgba(255, 255, 255, 0.78);
+	}
+
+	.hero-avatar-edit {
+		position: absolute;
+		right: 0;
+		bottom: 0;
+		width: 26px;
+		height: 26px;
+		border-radius: 50%;
+		background: #25CB71;
+		align-items: center;
+		justify-content: center;
+		border: 2px solid #304236;
+	}
+
+	.hero-edit-icon {
+		font-size: 12px;
+		color: #FFFFFF;
+	}
+
+	.hero-info {
+		flex: 1;
+	}
+
+	.hero-name {
+		font-size: 26px;
+		font-weight: 700;
+		color: #FFFFFF;
+		margin-bottom: 8px;
+		letter-spacing: 0.5px;
+	}
+
+	.hero-meta {
+		flex-direction: row;
+		align-items: center;
+	}
+
+	.hero-badge {
+		padding: 3px 10px;
+		margin-right: 10px;
+		border-radius: 20px;
+		background: rgba(255, 255, 255, 0.15);
+		border: 1px solid rgba(255, 255, 255, 0.2);
+	}
+
+	.hero-badge-text {
+		font-size: 11px;
+		font-weight: 600;
+		color: #E8DCC5;
+		letter-spacing: 1px;
+	}
+
+	.hero-status {
+		font-size: 13px;
+		color: rgba(255, 255, 255, 0.5);
+	}
+
+	.hero-enter {
+		width: 40px;
+		height: 40px;
+		align-items: center;
+		justify-content: center;
+		flex-shrink: 0;
+	}
+
+	.hero-enter-icon {
+		font-size: 28px;
+		color: rgba(255, 255, 255, 0.35);
+	}
+
+	/* ── Stats ── */
+	.hero-stats {
+		position: relative;
+		z-index: 2;
+		flex-direction: row;
+		justify-content: space-around;
+		margin-bottom: 16px;
+		padding: 16px 0;
+		border-top: 1px solid rgba(255, 255, 255, 0.08);
+		border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+	}
+
+	.hero-stat {
+		flex: 1;
+		align-items: center;
+	}
+
+	.hero-stat-num {
+		font-size: 28px;
+		font-weight: 700;
+		color: #FFFFFF;
+		margin-bottom: 4px;
+	}
+
+	.hero-stat-label {
+		font-size: 12px;
+		color: rgba(255, 255, 255, 0.5);
+	}
+
+	/* ── Member Card ── */
+	.hero-card {
+		position: relative;
+		z-index: 2;
+		padding: 16px;
+		border-radius: 14px;
+		background: rgba(255, 255, 255, 0.14);
+		border: 1px solid rgba(255, 255, 255, 0.1);
+	}
+
+	.hero-card-top {
+		flex-direction: row;
+		align-items: center;
+		justify-content: space-between;
+		margin-bottom: 14px;
+	}
+
+	.hero-card-left {
+		flex-direction: row;
+		align-items: center;
+	}
+
+	.hero-card-icon {
+		font-size: 24px;
+		margin-right: 12px;
+	}
+
+	.hero-card-title {
+		flex-direction: column;
+	}
+
+	.hero-card-title-text {
+		font-size: 16px;
+		font-weight: 600;
+		color: #FFFFFF;
+		margin-bottom: 2px;
+	}
+
+	.hero-card-title-sub {
+		font-size: 12px;
+		color: rgba(255, 255, 255, 0.5);
+	}
+
+	.hero-card-arrow {
+		font-size: 22px;
+		color: rgba(255, 255, 255, 0.35);
+	}
+
+	.hero-card-bottom {
+		flex-direction: column;
+	}
+
+	.hero-card-level {
+		font-size: 12px;
+		color: rgba(255, 255, 255, 0.55);
+		margin-bottom: 8px;
+	}
+
+	.hero-card-bar {
+		height: 4px;
+		border-radius: 2px;
+		background: rgba(255, 255, 255, 0.12);
+		overflow: hidden;
+	}
+
+	.hero-card-bar-fill {
+		height: 4px;
+		border-radius: 2px;
+		background: linear-gradient(90deg, #7BE14F, #25CB71);
+	}
+
+	.section-head {
+		margin-bottom: 14px;
+	}
+
+	.section-head.compact {
+		margin-top: 4px;
+	}
+
+	.section-kicker {
+		font-size: 11px;
+		font-weight: 700;
+		color: #6A7C63;
+		letter-spacing: 2px;
+		margin-bottom: 4px;
+	}
+
+	.section-title {
+		font-size: 21px;
+		font-weight: 700;
+		color: #2B2A29;
+	}
+
+	.quick-group {
+		padding: 6px 0;
+		margin-left: 8px;
+		margin-right: 8px;
+		margin-bottom: 18px;
+	}
+
+	.quick-item {
+		flex-direction: row;
+		align-items: center;
+		padding: 10px 18px;
+	}
+
+	.quick-icon {
+		width: 40px;
+		height: 40px;
+		border-radius: 6px;
+		background: #FFFFFF;
+		align-items: center;
+		justify-content: center;
+		margin-right: 12px;
+	}
+
+	.quick-icon.moss {
+		background: #FFFFFF;
+	}
+
+	.quick-icon.blue {
+		background: #FFFFFF;
+	}
+
+	.quick-icon.rose {
+		background: #FFFFFF;
+	}
+
+	.quick-icon.amber {
+		background: #FFFFFF;
+	}
+
+	.quick-icon.gold {
+		background: #FFFFFF;
+	}
+
+	.quick-emoji {
+		font-size: 22px;
+	}
+
+	.quick-copy {
+		flex: 1;
+		padding-right: 12px;
+	}
+
+	.quick-title {
+		font-size: 16px;
+		font-weight: 700;
+		color: #2B2A29;
+	}
+
+	.quick-side {
+		align-items: center;
+		justify-content: center;
+	}
+
+	.quick-arrow {
+		font-size: 18px;
+		color: #B7B1A6;
+	}
+
+	.quick-divider {
+		height: 1px;
+		margin: 0 18px;
+		background: rgba(61, 63, 45, 0.06);
+	}
+
+	.auth-section {
+		padding: 4px 8px 0;
+	}
+
+	.btn-logout,
+	.btn-login {
+		width: 100%;
+		height: 54px;
+		line-height: 54px;
+		border-radius: 6px;
+		border-width: 0;
+		font-size: 16px;
+		font-weight: 700;
+		box-shadow: 0 12px 26px rgba(47, 48, 36, 0.08);
+	}
+
+	.btn-logout {
+		background-color: #FFFFFF;
+		color: #B86B6B;
+	}
+
+	.btn-login {
+		background-color: #5C6E58;
+		color: #FFFFFF;
+	}
+</style>

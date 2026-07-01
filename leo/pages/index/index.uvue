@@ -1,0 +1,558 @@
+<template>
+	<view class="home-page">
+		<scroll-view class="home-scroll" scroll-y="true" :show-scrollbar="false" :style="scrollStyle">
+			<view class="home-shell">
+				<view class="top-bar" :style="topBarStyle">
+					<view class="brand-wrap">
+						<image class="brand-logo" src="/static/logo.png" mode="aspectFit" />
+						<view class="brand-copy">
+							<text class="brand-name">{{ projectName }}</text>
+							<text class="brand-sub">Riding Intelligence</text>
+						</view>
+					</view>
+
+					<view v-if="loggedIn" class="profile-entry" @click="goToProfile">
+						<text class="profile-entry-text">{{ displayName }}</text>
+					</view>
+					<view v-else class="login-entry" @click="goToLogin">
+						<text class="login-entry-text">登录</text>
+					</view>
+				</view>
+
+				<view class="banner-section">
+					<swiper
+						class="banner-swiper"
+						:indicator-dots="false"
+						:autoplay="true"
+						:interval="5000"
+						:duration="500"
+						:circular="true"
+						@change="handleBannerChange"
+					>
+						<swiper-item v-for="(banner, index) in bannerList" :key="index">
+							<view class="banner-slide">
+								<image
+									class="banner-image"
+									:src="getBannerImageUrl(index)"
+									mode="aspectFill"
+								/>
+								<view class="banner-mask"></view>
+								<view class="banner-content">
+									<view class="banner-copy">
+										<text class="banner-kicker">{{ getBannerTag(index) }}</text>
+										<text class="banner-title">{{ getBannerTitle(index) }}</text>
+										<text class="banner-desc">{{ getBannerDesc(index) }}</text>
+									</view>
+								</view>
+							</view>
+						</swiper-item>
+					</swiper>
+					<view class="banner-dots">
+						<view
+							v-for="(banner, index) in bannerList"
+							:key="index"
+							:class="getBannerDotClass(index)"
+						></view>
+					</view>
+				</view>
+
+				<view class="lab-entry-card">
+					<view class="lab-entry-head" @click="goToLab">
+						<view class="lab-entry-title-wrap">
+							<image class="lab-entry-mark" src="/static/tabbar/lab-green-balanced.png" mode="aspectFit" />
+							<view class="lab-entry-copy">
+								<text class="lab-entry-kicker">FIT LAB</text>
+								<text class="lab-entry-title">实验室</text>
+							</view>
+						</view>
+						<view class="lab-entry-action">
+							<text class="lab-entry-action-text">进入</text>
+						</view>
+					</view>
+
+					<view class="lab-feature-grid">
+						<view class="lab-feature-item" @click="goToBodyProfile">
+							<view class="lab-feature-icon">
+								<text class="lab-feature-emoji">🧍</text>
+							</view>
+							<text class="lab-feature-label">身体图谱</text>
+						</view>
+						<view class="lab-feature-item" @click="goToGarage">
+							<view class="lab-feature-icon">
+								<text class="lab-feature-emoji">🚴</text>
+							</view>
+							<text class="lab-feature-label">我的车库</text>
+						</view>
+						<view class="lab-feature-item" @click="goToStaticHome">
+							<view class="lab-feature-icon">
+								<text class="lab-feature-emoji">📐</text>
+							</view>
+							<text class="lab-feature-label">静态诊断</text>
+						</view>
+						<view class="lab-feature-item" @click="goToDynamicSession">
+							<view class="lab-feature-icon">
+								<text class="lab-feature-emoji">📹</text>
+							</view>
+							<text class="lab-feature-label">动态分析</text>
+						</view>
+						<view class="lab-feature-item" @click="goToDynamicHistory">
+							<view class="lab-feature-icon">
+								<text class="lab-feature-emoji">🗂️</text>
+							</view>
+							<text class="lab-feature-label">报告历史</text>
+						</view>
+						<view class="lab-feature-item" @click="goToRealtimeHome">
+							<view class="lab-feature-icon">
+								<text class="lab-feature-emoji">💓</text>
+							</view>
+							<text class="lab-feature-label">实时监护</text>
+						</view>
+					</view>
+				</view>
+			</view>
+		</scroll-view>
+
+		<AuthModal />
+	</view>
+</template>
+
+<script setup lang="uts">
+	import { computed, ref } from 'vue'
+	import { PROJECT_CONFIG } from '@/config/constants.uts'
+	import { isLoggedIn, getUserInfo } from '@/store/user.uts'
+	import AuthModal from '@/components/AuthModal.uvue'
+	import { getAppLayoutMetrics } from '@/utils/layout.uts'
+
+	const projectName = PROJECT_CONFIG.NAME
+	const layout = getAppLayoutMetrics()
+	const topBarStyle = {
+		paddingTop: layout.statusBarHeight + 8 + 'px'
+	}
+	const scrollStyle = {
+		paddingBottom: layout.tabBarHeight + layout.tabPageBottomSpace + 16 + 'px'
+	}
+
+	const loggedIn = computed((): boolean => isLoggedIn.value)
+	const currentBannerIndex = ref(0)
+
+	const displayName = computed((): string => {
+		const user = getUserInfo()
+		const name = user != null && user.name != null ? `${user.name}` : ''
+		return name.length > 0 ? name : '骑士'
+	})
+
+	type HomeBanner = {
+		tag : string
+		title : string
+		desc : string
+		imageUrl : string
+	}
+
+	const fallbackBanner : HomeBanner = {
+		tag: '',
+		title: '',
+		desc: '',
+		imageUrl: ''
+	}
+
+	const bannerList : HomeBanner[] = [
+		{
+			tag: 'RIDING INTELLIGENCE',
+			title: '更懂骑手身体的智能调适工作台',
+			desc: '把身体图谱、姿态分析、车辆设定和报告档案串成一套更专业的骑行体验。',
+			imageUrl: '/static/carousel/banner1.png'
+		},
+		{
+			tag: 'AI VISION',
+			title: '动态姿态分析与踩踏轨迹追踪',
+			desc: '通过视觉引擎捕捉骑行中的关键变化，辅助发现代偿问题。',
+			imageUrl: '/static/carousel/banner2.png'
+		},
+		{
+			tag: 'BODY PROFILE',
+			title: '身体图谱精准个性化建模',
+			desc: '围绕柔韧性、核心力量与身体维度，建立更清晰的评估基础。',
+			imageUrl: '/static/carousel/banner3.jpg'
+		},
+		{
+			tag: 'FITTING FLOW',
+			title: '从建档到报告的一站式调适流程',
+			desc: '把单车、身体数据和诊断记录整合在一起，方便持续追踪每次调整。',
+			imageUrl: '/static/carousel/banner4.jpg'
+		}
+	]
+
+	function toJsonObject(value : any | null) : UTSJSONObject | null {
+		if (value == null) {
+			return null
+		}
+		const parsed = JSON.parse(JSON.stringify(value))
+		return parsed != null ? parsed as UTSJSONObject : null
+	}
+
+	function getJsonValue(source : UTSJSONObject | null, key : string) : any | null {
+		const current = source
+		if (current == null) {
+			return null
+		}
+		return current[key]
+	}
+
+	function getBannerByIndex(index: number) : HomeBanner {
+		if (index < 0 || index >= bannerList.length) {
+			return fallbackBanner
+		}
+		return bannerList[index]
+	}
+
+	function toBannerIndex(index: any | null) : number {
+		if (index == null) {
+			return 0
+		}
+		const parsed = parseInt(`${index}`)
+		return isNaN(parsed) ? 0 : parsed
+	}
+
+	function getBannerImageUrl(index: any | null) : string {
+		return getBannerByIndex(toBannerIndex(index)).imageUrl
+	}
+
+	function getBannerTag(index: any | null) : string {
+		return getBannerByIndex(toBannerIndex(index)).tag
+	}
+
+	function getBannerTitle(index: any | null) : string {
+		return getBannerByIndex(toBannerIndex(index)).title
+	}
+
+	function getBannerDesc(index: any | null) : string {
+		return getBannerByIndex(toBannerIndex(index)).desc
+	}
+
+	function handleBannerChange(event : any) {
+		const eventObject = toJsonObject(event)
+		const detail = toJsonObject(getJsonValue(eventObject, 'detail'))
+		const currentValue = getJsonValue(detail, 'current')
+		currentBannerIndex.value = toBannerIndex(currentValue)
+	}
+
+	function getBannerDotClass(index : any | null) : string {
+		return currentBannerIndex.value == toBannerIndex(index) ? 'banner-dot banner-dot-active' : 'banner-dot'
+	}
+
+	function goToLogin() {
+		uni.navigateTo({ url: '/pages/login/login' })
+	}
+
+	function goToLab() {
+		uni.switchTab({ url: '/pages/lab/lab' })
+	}
+
+	function goToBodyProfile() {
+		if (!loggedIn.value) {
+			goToLogin()
+			return
+		}
+		uni.navigateTo({ url: '/pages/bodyProfile/bodyProfile' })
+	}
+
+	function goToGarage() {
+		if (!loggedIn.value) {
+			goToLogin()
+			return
+		}
+		uni.navigateTo({ url: '/pages/garage/garage' })
+	}
+
+	function goToStaticHome() {
+		uni.switchTab({ url: '/pages/lab/lab' })
+	}
+
+	function goToDynamicSession() {
+		if (!loggedIn.value) {
+			goToLogin()
+			return
+		}
+		uni.navigateTo({ url: '/pages/dynamicSession/dynamicSession' })
+	}
+
+	function goToDynamicHistory() {
+		if (!loggedIn.value) {
+			goToLogin()
+			return
+		}
+		uni.navigateTo({ url: '/pages/dynamicHistory/dynamicHistory' })
+	}
+
+	function goToRealtimeHome() {
+		uni.showToast({ title: '功能开发中', icon: 'none' })
+	}
+
+	function goToProfile() {
+		uni.switchTab({ url: '/pages/profile/profile' })
+	}
+</script>
+
+<style>
+	.home-page {
+		height: 100%;
+		background: #F3F2ED;
+	}
+
+	.home-scroll {
+		height: 100%;
+	}
+
+	.home-shell {
+		padding: 0 16px 28px;
+	}
+
+	.app-soft-card {
+		background: rgba(255, 255, 255, 0.92);
+		border-radius: 8px;
+		border-width: 1px;
+		border-color: rgba(255, 255, 255, 0.72);
+		border-style: solid;
+		box-shadow: 0 18px 48px rgba(53, 55, 41, 0.08);
+	}
+
+	.top-bar {
+		flex-direction: row;
+		align-items: center;
+		justify-content: space-between;
+		padding-bottom: 16px;
+	}
+
+	.brand-wrap {
+		flex-direction: row;
+		align-items: center;
+	}
+
+	.brand-logo {
+		width: 72rpx;
+		height: 72rpx;
+		margin-right: 10px;
+	}
+
+	.brand-copy {
+		flex-direction: column;
+	}
+
+	.brand-name {
+		font-size: 22px;
+		font-weight: 700;
+		color: #2B2A29;
+	}
+
+	.brand-sub {
+		font-size: 11px;
+		color: #7C786D;
+		letter-spacing: 1px;
+	}
+
+	.profile-entry,
+	.login-entry {
+		padding: 10px 16px;
+		border-radius: 20px;
+		background: #FFFFFF;
+		border-width: 1px;
+		border-color: rgba(43, 42, 41, 0.06);
+		border-style: solid;
+	}
+
+	.profile-entry-text,
+	.login-entry-text {
+		font-size: 13px;
+		font-weight: 700;
+		color: #2B2A29;
+	}
+
+	.banner-section {
+		position: relative;
+		margin-bottom: 16px;
+	}
+
+	.banner-swiper {
+		height: 154px;
+		border-radius: 10px;
+		overflow: hidden;
+	}
+
+	.banner-slide {
+		position: relative;
+		height: 100%;
+	}
+
+	.banner-image {
+		width: 100%;
+		height: 100%;
+	}
+
+	.banner-mask {
+		position: absolute;
+		top: 0;
+		right: 0;
+		bottom: 0;
+		left: 0;
+		background: linear-gradient(135deg, rgba(33, 48, 36, 0.6) 0%, rgba(66, 89, 69, 0.3) 100%);
+	}
+
+	.banner-content {
+		position: absolute;
+		top: 0;
+		right: 0;
+		bottom: 0;
+		left: 0;
+		padding: 16px 18px 18px;
+		justify-content: flex-start;
+	}
+
+	.banner-copy {
+		padding-right: 12px;
+	}
+
+	.banner-kicker {
+		font-size: 10px;
+		font-weight: 700;
+		color: rgba(255, 255, 255, 0.9);
+		letter-spacing: 2px;
+		margin-bottom: 8px;
+	}
+
+	.banner-title {
+		font-size: 20px;
+		line-height: 24px;
+		font-weight: 700;
+		color: #FFFFFF;
+		margin-bottom: 8px;
+	}
+
+	.banner-desc {
+		font-size: 12px;
+		line-height: 17px;
+		color: rgba(255, 255, 255, 0.82);
+	}
+
+	.banner-dots {
+		position: absolute;
+		left: 0;
+		right: 0;
+		bottom: 9px;
+		flex-direction: row;
+		align-items: center;
+		justify-content: center;
+	}
+
+	.banner-dot {
+		width: 4px;
+		height: 4px;
+		border-radius: 2px;
+		background: rgba(255, 255, 255, 0.52);
+		margin: 0 3px;
+	}
+
+	.banner-dot-active {
+		width: 12px;
+		background: #FFFFFF;
+	}
+
+	.lab-entry-card {
+		background: #FFFFFF;
+		border-radius: 10px;
+		padding: 14px;
+		border-width: 1px;
+		border-color: rgba(43, 42, 41, 0.06);
+		border-style: solid;
+		box-shadow: 0 16px 36px rgba(53, 55, 41, 0.07);
+	}
+
+	.lab-entry-head {
+		flex-direction: row;
+		align-items: center;
+		justify-content: space-between;
+		padding-bottom: 12px;
+		margin-bottom: 12px;
+		border-bottom-width: 1px;
+		border-bottom-color: #F0EFE9;
+		border-bottom-style: solid;
+	}
+
+	.lab-entry-title-wrap {
+		flex-direction: row;
+		align-items: center;
+	}
+
+	.lab-entry-mark {
+		width: 42px;
+		height: 42px;
+		margin-right: 10px;
+	}
+
+	.lab-entry-copy {
+		flex-direction: column;
+	}
+
+	.lab-entry-kicker {
+		font-size: 10px;
+		line-height: 13px;
+		font-weight: 700;
+		color: #8E8A80;
+		letter-spacing: 1px;
+	}
+
+	.lab-entry-title {
+		font-size: 19px;
+		line-height: 24px;
+		font-weight: 700;
+		color: #2B2A29;
+	}
+
+	.lab-entry-action {
+		padding: 7px 12px;
+		border-radius: 16px;
+		background: #EEF8F1;
+	}
+
+	.lab-entry-action-text {
+		font-size: 12px;
+		line-height: 16px;
+		font-weight: 600;
+		color: #2A8C57;
+	}
+
+	.lab-feature-grid {
+		flex-direction: row;
+		flex-wrap: wrap;
+		justify-content: space-between;
+	}
+
+	.lab-feature-item {
+		width: 30%;
+		align-items: center;
+		justify-content: flex-start;
+		margin-bottom: 14px;
+	}
+
+	.lab-feature-icon {
+		width: 42px;
+		height: 42px;
+		border-radius: 10px;
+		background: #F7F7F3;
+		align-items: center;
+		justify-content: center;
+		margin-bottom: 8px;
+	}
+
+	.lab-feature-emoji {
+		font-size: 24px;
+		line-height: 28px;
+	}
+
+	.lab-feature-label {
+		font-size: 14px;
+		line-height: 18px;
+		font-weight: 600;
+		color: #2B2A29;
+		text-align: center;
+	}
+</style>

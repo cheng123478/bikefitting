@@ -1,0 +1,49 @@
+/**
+ * 閸斻劍鈧浇顫嬬憴澶婂瀻閺?API
+ */
+import { requestDelete, requestGet, requestPost } from '@/api/request.uts'
+
+function toRequestBody(raw : any) : UTSJSONObject {
+	const jsonText = JSON.stringify(raw)
+	return JSON.parse(jsonText) as UTSJSONObject
+}
+
+export function submitDynamicSession(payload : any) : Promise<any> {
+	return requestPost('/dynamic-fitting/sessions', toRequestBody(payload), null, false)
+}
+
+export function getDynamicFittingSessions(
+	page : number = 1,
+	size : number = 10,
+	bikeId : number | null = null
+) : Promise<any> {
+	let url = `/dynamic-fitting/sessions?page=${page}&size=${size}`
+	if (bikeId != null && bikeId > 0) {
+		url += `&bikeId=${bikeId}`
+	}
+	return requestGet(url, null, false)
+}
+
+export function getDynamicFittingSessionDetail(sessionId : number | string) : Promise<any> {
+	return requestGet(`/dynamic-fitting/sessions/${sessionId}`, null, false)
+}
+
+export function getDynamicFittingReport(sessionId : number | string) : Promise<any> {
+	return requestGet(`/dynamic-fitting/results/${sessionId}`, null, false)
+}
+
+export function getDynamicFittingMotionData(sessionId : number | string, viewType : string) : Promise<any> {
+	return requestGet(`/dynamic-fitting/motion-data/${sessionId}/${viewType}`, null, false)
+}
+
+export function getDynamicFittingSnapshots(sessionId : number | string, viewType : string) : Promise<any> {
+	return requestGet(`/dynamic-fitting/snapshots/${sessionId}/${viewType}`, null, false)
+}
+
+export function deleteDynamicFittingSession(sessionId : number | string) : Promise<any> {
+	return requestDelete(`/dynamic-fitting/sessions/${sessionId}`, null, false)
+}
+
+export function getDynamicFittingCount() : Promise<any> {
+	return requestGet('/dynamic-fitting/count', null, false)
+}

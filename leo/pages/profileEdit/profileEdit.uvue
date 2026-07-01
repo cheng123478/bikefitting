@@ -1,0 +1,653 @@
+<template>
+	<view class="profile-edit-page">
+		<view class="nav-bar" :style="navBarStyle">
+			<view class="back-btn" :style="navBackStyle" @click="goBack">
+				<text class="back-icon">‹</text>
+			</view>
+			<text class="nav-title" :style="navTitleStyle">个人资料</text>
+			<view class="nav-right" :style="navRightStyle"></view>
+		</view>
+
+		<scroll-view class="profile-edit-scroll" scroll-y="true" :show-scrollbar="false" :style="scrollStyle">
+			<view class="profile-edit-shell">
+				<view class="profile-card app-soft-card">
+					<view class="avatar-edit-row" @click="chooseAvatar">
+						<view class="avatar-preview">
+							<image v-if="avatarUrl.length > 0" class="avatar-image" :src="avatarUrl" mode="aspectFill" />
+							<view v-else class="avatar-placeholder">
+								<view class="avatar-placeholder-head"></view>
+								<view class="avatar-placeholder-body"></view>
+							</view>
+							<view class="avatar-camera">
+								<text class="avatar-camera-text">✎</text>
+							</view>
+						</view>
+						<view class="avatar-copy">
+							<text class="avatar-title">修改个人头像</text>
+							<text class="avatar-desc">建议使用清晰正方形图片，支持相册或拍照上传</text>
+						</view>
+						<text class="row-arrow">›</text>
+					</view>
+				</view>
+
+				<view class="form-card app-soft-card">
+					<view class="form-item">
+						<text class="form-label">昵称</text>
+						<input class="form-input" type="text" v-model="formName" maxlength="20" placeholder="起个响亮的名字" />
+					</view>
+
+					<view class="form-divider"></view>
+
+					<view class="form-item">
+						<text class="form-label">当前手机号</text>
+						<input class="form-input disabled-input" type="text" v-model="formPhone" :disabled="true" />
+						<text class="helper-text">手机号请在账号安全中修改</text>
+					</view>
+
+					<view class="form-divider"></view>
+
+					<view class="form-item">
+						<text class="form-label">性别</text>
+						<view class="gender-row">
+							<view :class="genderOptionClass(0)" @click="setGender(0)">
+								<text :class="genderTextClass(0)">保密</text>
+							</view>
+							<view :class="genderOptionClass(1)" @click="setGender(1)">
+								<text :class="genderTextClass(1)">男</text>
+							</view>
+							<view :class="genderOptionClass(2)" @click="setGender(2)">
+								<text :class="genderTextClass(2)">女</text>
+							</view>
+						</view>
+					</view>
+
+					<view class="form-divider"></view>
+
+					<view class="form-item">
+						<text class="form-label">生日</text>
+						<input class="form-input" type="text" v-model="formBirthday" maxlength="10" placeholder="YYYY-MM-DD" />
+						<text class="helper-text">用于身体图谱和报告中的年龄估算</text>
+					</view>
+
+					<view class="form-divider"></view>
+
+					<view class="form-item">
+						<text class="form-label">所在城市</text>
+						<input class="form-input" type="text" v-model="formLocation" maxlength="20" placeholder="例如：杭州" />
+					</view>
+
+					<view class="form-divider"></view>
+
+					<view class="form-item">
+						<text class="form-label">个人简介</text>
+						<textarea class="form-textarea" v-model="formIntroduction" maxlength="50" placeholder="写一句你的骑行座右铭..."></textarea>
+						<text class="helper-text">{{ introLength }}/50</text>
+					</view>
+				</view>
+
+				<view class="save-section">
+					<view :class="saving ? 'save-btn save-btn-disabled' : 'save-btn'" @click="saveProfile">
+						<text class="save-btn-text">{{ saving ? '保存中...' : '保存修改' }}</text>
+					</view>
+				</view>
+			</view>
+		</scroll-view>
+	</view>
+</template>
+
+<script setup lang="uts">
+	import { computed, ref, onMounted } from 'vue'
+	import { getAppLayoutMetrics } from '@/utils/layout.uts'
+	import { resolveAssetUrl } from '@/utils/url.uts'
+	import { getUserInfo, setUserInfo } from '@/store/user.uts'
+	import { getCurrentUserProfile, updateUserProfile, uploadUserAvatar } from '@/api/profile.uts'
+	import { TEMP_AVATAR_URL } from '@/config/constants.uts'
+	import type { UserProfile } from '@/types/auth.uts'
+
+	const layout = getAppLayoutMetrics()
+	const navContentCenter = layout.statusBarHeight + layout.navBarContentHeight / 2 + 6
+	const navBarStyle = {
+		height: layout.navBarHeight + 'px',
+		paddingTop: layout.statusBarHeight + 'px',
+		boxSizing: 'border-box'
+	}
+	const navBackStyle = {
+		top: navContentCenter + 'px'
+	}
+	const navTitleStyle = {
+		top: navContentCenter + 'px'
+	}
+	const navRightStyle = {
+		top: navContentCenter + 'px'
+	}
+	const scrollStyle = {
+		top: layout.navBarHeight + 'px',
+		paddingBottom: layout.bottomSafeArea + 24 + 'px'
+	}
+
+	const currentUser = ref<UserProfile | null>(null)
+	const saving = ref(false)
+	const uploadingAvatar = ref(false)
+
+	const formName = ref('')
+	const formPhone = ref('')
+	const formAvatar = ref('')
+	const formGender = ref(0)
+	const formBirthday = ref('')
+	const formLocation = ref('')
+	const formIntroduction = ref('')
+
+	const avatarUrl = computed((): string => {
+		if (formAvatar.value.length == 0) {
+			return TEMP_AVATAR_URL
+		}
+		return resolveAssetUrl(formAvatar.value)
+	})
+
+	const introLength = computed((): number => {
+		return formIntroduction.value.length
+	})
+
+	function trimText(value : string) : string {
+		return value.trim()
+	}
+
+	function nullableText(value : string | null) : string {
+		if (value == null) {
+			return ''
+		}
+		return value
+	}
+
+	function nullableNumber(value : number | null, fallback : number) : number {
+		if (value == null) {
+			return fallback
+		}
+		return value
+	}
+
+	function isDigitChar(value : string) : boolean {
+		return value == '0' || value == '1' || value == '2' || value == '3' || value == '4' || value == '5' || value == '6' || value == '7' || value == '8' || value == '9'
+	}
+
+	function isBirthdayValid(value : string) : boolean {
+		if (value.length == 0) {
+			return true
+		}
+		if (value.length != 10) {
+			return false
+		}
+		if (value.substring(4, 5) != '-' || value.substring(7, 8) != '-') {
+			return false
+		}
+		for (let i = 0; i < value.length; i++) {
+			if (i != 4 && i != 7 && !isDigitChar(value.substring(i, i + 1))) {
+				return false
+			}
+		}
+		return true
+	}
+
+	function genderOptionClass(value : number) : string {
+		return formGender.value == value ? 'gender-option gender-option-active' : 'gender-option'
+	}
+
+	function genderTextClass(value : number) : string {
+		return formGender.value == value ? 'gender-text gender-text-active' : 'gender-text'
+	}
+
+	function loadForm() {
+		const user = getUserInfo()
+		if (user == null) {
+			uni.showToast({ title: '请先登录', icon: 'none' })
+			uni.navigateTo({ url: '/pages/login/login' })
+			return
+		}
+		currentUser.value = user
+		const rawName = nullableText(user.name)
+		formName.value = rawName.length > 0 ? rawName : '骑行客'
+		formPhone.value = user.phone
+		formAvatar.value = nullableText(user.avatar)
+		formGender.value = nullableNumber(user.gender, 0)
+		formBirthday.value = nullableText(user.birthday)
+		formLocation.value = nullableText(user.location)
+		formIntroduction.value = nullableText(user.introduction)
+	}
+
+	async function refreshProfileFromServer() {
+		if (getUserInfo() == null) {
+			return
+		}
+		try {
+			const latest = await getCurrentUserProfile()
+			setUserInfo(latest)
+			currentUser.value = latest
+			const rawName = nullableText(latest.name)
+			formName.value = rawName.length > 0 ? rawName : '骑行客'
+			formPhone.value = latest.phone
+			formAvatar.value = nullableText(latest.avatar)
+			formGender.value = nullableNumber(latest.gender, 0)
+			formBirthday.value = nullableText(latest.birthday)
+			formLocation.value = nullableText(latest.location)
+			formIntroduction.value = nullableText(latest.introduction)
+		} catch (e) {
+			console.error('刷新用户资料失败', e)
+		}
+	}
+
+	function buildUpdatedUser() : UserProfile | null {
+		const user = currentUser.value
+		if (user == null) {
+			return null
+		}
+		const rawMemberType = nullableText(user.memberType)
+		return {
+			id: user.id,
+			phone: user.phone,
+			name: trimText(formName.value),
+			introduction: trimText(formIntroduction.value),
+			avatar: formAvatar.value,
+			birthday: trimText(formBirthday.value).length > 0 ? trimText(formBirthday.value) : null,
+			gender: formGender.value,
+			location: trimText(formLocation.value),
+			memberType: rawMemberType.length > 0 ? rawMemberType : null
+		}
+	}
+
+	function setGender(value : number) {
+		formGender.value = value
+	}
+
+	function goBack() {
+		const pages = getCurrentPages()
+		if (pages.length > 1) {
+			uni.navigateBack({ delta: 1 })
+		} else {
+			uni.switchTab({ url: '/pages/profile/profile' })
+		}
+	}
+
+	function toJsonObject(value : any | null) : UTSJSONObject | null {
+		if (value == null) {
+			return null
+		}
+		const jsonText = JSON.stringify(value)
+		const parsed = JSON.parse(jsonText)
+		return parsed != null ? parsed as UTSJSONObject : null
+	}
+
+	function getJsonValue(source : UTSJSONObject | null, key : string) : any | null {
+		const current = source
+		if (current == null) {
+			return null
+		}
+		const value = current[key]
+		return value != null ? value : null
+	}
+
+	function toText(value : any | null) : string {
+		return value != null ? `${value}` : ''
+	}
+
+	function getJsonArray(source : UTSJSONObject | null, key : string) : any[] {
+		const value = getJsonValue(source, key)
+		if (value == null) {
+			const empty : any[] = []
+			return empty
+		}
+		const jsonText = JSON.stringify(value)
+		const parsed = JSON.parse(jsonText)
+		return parsed != null ? parsed as any[] : []
+	}
+
+	async function uploadAvatarFile(filePath : string) {
+		try {
+			uploadingAvatar.value = true
+			uni.showLoading({ title: '上传头像...' })
+			const avatar = await uploadUserAvatar(filePath)
+			formAvatar.value = avatar
+			const user = buildUpdatedUser()
+			if (user != null) {
+				setUserInfo(user)
+				currentUser.value = user
+			}
+			await refreshProfileFromServer()
+			uni.showToast({ title: '头像已更新', icon: 'success' })
+		} catch (e) {
+			uni.showToast({ title: '头像上传失败', icon: 'none' })
+		} finally {
+			uploadingAvatar.value = false
+			uni.hideLoading()
+		}
+	}
+
+	function chooseAvatar() {
+		if (uploadingAvatar.value) {
+			return
+		}
+		const sizeType : string[] = ['compressed']
+		const sourceType : string[] = ['album', 'camera']
+		uni.chooseImage({
+			count: 1,
+			sizeType: sizeType,
+			sourceType: sourceType,
+			success: (res : any) => {
+				const result = toJsonObject(res)
+				const paths = getJsonArray(result, 'tempFilePaths')
+				if (paths.length == 0) {
+					return
+				}
+				const filePath = toText(paths[0])
+				if (filePath.length == 0) {
+					return
+				}
+				uploadAvatarFile(filePath)
+			}
+		})
+	}
+
+	async function saveProfile() {
+		if (saving.value) {
+			return
+		}
+		const name = trimText(formName.value)
+		if (name.length == 0) {
+			uni.showToast({ title: '昵称不能为空', icon: 'none' })
+			return
+		}
+		const birthday = trimText(formBirthday.value)
+		if (!isBirthdayValid(birthday)) {
+			uni.showToast({ title: '生日格式应为 YYYY-MM-DD', icon: 'none' })
+			return
+		}
+		try {
+			saving.value = true
+			await updateUserProfile({
+				name: name,
+				introduction: trimText(formIntroduction.value),
+				birthday: birthday.length > 0 ? birthday : null,
+				gender: formGender.value,
+				location: trimText(formLocation.value)
+			})
+			const user = buildUpdatedUser()
+			if (user != null) {
+				setUserInfo(user)
+				currentUser.value = user
+			}
+			await refreshProfileFromServer()
+			uni.showToast({ title: '个人资料已保存', icon: 'success' })
+		} catch (e) {
+			uni.showToast({ title: '保存失败，请稍后再试', icon: 'none' })
+		} finally {
+			saving.value = false
+		}
+	}
+
+	onMounted(() => {
+		loadForm()
+		refreshProfileFromServer()
+	})
+</script>
+
+<style>
+	.profile-edit-page {
+		height: 100%;
+		background: #F3F2ED;
+	}
+
+	.nav-bar {
+		position: fixed;
+		top: 0;
+		left: 0;
+		right: 0;
+		background: rgba(243, 242, 237, 0.98);
+		box-sizing: border-box;
+		border-bottom: 1rpx solid rgba(43, 42, 41, 0.05);
+		z-index: 100;
+	}
+
+	.back-btn {
+		position: absolute;
+		left: 20rpx;
+		transform: translateY(-50%);
+		width: 88rpx;
+		height: 88rpx;
+		justify-content: center;
+	}
+
+	.back-icon {
+		font-size: 48rpx;
+		color: #2B2A29;
+	}
+
+	.nav-title {
+		position: absolute;
+		left: 50%;
+		transform: translate(-50%, -50%);
+		font-size: 32rpx;
+		font-weight: 700;
+		color: #2B2A29;
+	}
+
+	.nav-right {
+		position: absolute;
+		right: 24rpx;
+		transform: translateY(-50%);
+		min-width: 72rpx;
+	}
+
+	.profile-edit-scroll {
+		position: fixed;
+		left: 0;
+		right: 0;
+		bottom: 0;
+	}
+
+	.profile-edit-shell {
+		padding: 18px 16px 28px;
+	}
+
+	.app-soft-card {
+		background: rgba(255, 255, 255, 0.94);
+		border-radius: 8px;
+		border-width: 1px;
+		border-color: rgba(43, 42, 41, 0.06);
+		border-style: solid;
+	}
+
+	.profile-card {
+		margin-bottom: 14px;
+		padding: 16px;
+	}
+
+	.avatar-edit-row {
+		flex-direction: row;
+		align-items: center;
+	}
+
+	.avatar-preview {
+		position: relative;
+		width: 70px;
+		height: 70px;
+		border-radius: 50%;
+		background: rgba(92, 110, 88, 0.1);
+		align-items: center;
+		justify-content: center;
+		margin-right: 14px;
+	}
+
+	.avatar-image {
+		width: 70px;
+		height: 70px;
+		border-radius: 50%;
+	}
+
+	.avatar-placeholder {
+		width: 70px;
+		height: 70px;
+		border-radius: 50%;
+		align-items: center;
+		justify-content: center;
+	}
+
+	.avatar-placeholder-head {
+		width: 20px;
+		height: 20px;
+		border-radius: 50%;
+		background: rgba(92, 110, 88, 0.55);
+		margin-bottom: 3px;
+	}
+
+	.avatar-placeholder-body {
+		width: 32px;
+		height: 16px;
+		border-radius: 16px 16px 7px 7px;
+		background: rgba(92, 110, 88, 0.55);
+	}
+
+	.avatar-camera {
+		position: absolute;
+		right: -2px;
+		bottom: -2px;
+		width: 24px;
+		height: 24px;
+		border-radius: 6px;
+		background: #F4EBDD;
+		align-items: center;
+		justify-content: center;
+	}
+
+	.avatar-camera-text {
+		font-size: 12px;
+		color: #2B2A29;
+	}
+
+	.avatar-copy {
+		flex: 1;
+		padding-right: 10px;
+	}
+
+	.avatar-title {
+		font-size: 17px;
+		font-weight: 700;
+		color: #2B2A29;
+		margin-bottom: 6px;
+	}
+
+	.avatar-desc {
+		font-size: 12px;
+		line-height: 18px;
+		color: #787673;
+	}
+
+	.row-arrow {
+		font-size: 22px;
+		color: #B7B1A6;
+	}
+
+	.form-card {
+		padding: 4px 16px;
+	}
+
+	.form-item {
+		padding: 14px 0;
+	}
+
+	.form-label {
+		font-size: 13px;
+		font-weight: 700;
+		color: #6A7C63;
+		margin-bottom: 8px;
+	}
+
+	.form-input {
+		height: 42px;
+		font-size: 16px;
+		color: #2B2A29;
+		background: #F8F8F5;
+		border-radius: 8px;
+		padding: 0 12px;
+	}
+
+	.disabled-input {
+		color: #787673;
+		background: #EFEFEA;
+	}
+
+	.helper-text {
+		font-size: 12px;
+		color: #8A8A84;
+		margin-top: 8px;
+	}
+
+	.form-divider {
+		height: 1px;
+		background: rgba(61, 63, 45, 0.06);
+	}
+
+	.gender-row {
+		flex-direction: row;
+	}
+
+	.gender-option {
+		flex: 1;
+		height: 42px;
+		border-radius: 8px;
+		background: #F8F8F5;
+		align-items: center;
+		justify-content: center;
+		margin-right: 8px;
+		border-width: 1px;
+		border-color: rgba(92, 110, 88, 0.08);
+		border-style: solid;
+	}
+
+	.gender-option-active {
+		background: #5C6E58;
+		border-color: #5C6E58;
+	}
+
+	.gender-text {
+		font-size: 14px;
+		font-weight: 700;
+		color: #5C6E58;
+	}
+
+	.gender-text-active {
+		color: #FFFFFF;
+	}
+
+	.form-textarea {
+		height: 88px;
+		font-size: 15px;
+		line-height: 22px;
+		color: #2B2A29;
+		background: #F8F8F5;
+		border-radius: 8px;
+		padding: 10px 12px;
+	}
+
+	.save-section {
+		padding-top: 18px;
+	}
+
+	.save-btn {
+		width: 100%;
+		height: 54px;
+		border-radius: 8px;
+		background-color: #5C6E58;
+		align-items: center;
+		justify-content: center;
+		box-shadow: 0 10px 24px rgba(74, 93, 72, 0.18);
+	}
+
+	.save-btn-disabled {
+		opacity: 0.72;
+	}
+
+	.save-btn-text {
+		font-size: 16px;
+		font-weight: 700;
+		color: #FFFFFF;
+	}
+</style>

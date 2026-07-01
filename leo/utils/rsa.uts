@@ -1,0 +1,36 @@
+/**
+ * RSA 公钥加密 — 与 Web libra/src/utils/rsa.js 使用相同公钥
+ * Android 端通过原生 JCA 实现，兼容后端 EncryptUtil.decrypt
+ */
+// #ifdef APP-ANDROID
+import Base64 from 'android.util.Base64'
+import Cipher from 'javax.crypto.Cipher'
+import KeyFactory from 'java.security.KeyFactory'
+import X509EncodedKeySpec from 'java.security.spec.X509EncodedKeySpec'
+import StandardCharsets from 'java.nio.charset.StandardCharsets'
+// #endif
+
+const RSA_PUBLIC_KEY_RAW =
+	'MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAt69hbXjJtv0mMNEVURviXG1eDdQCgc3odChsxz1ghggQlrbFwktgCqTWY/jWVqmKXrAmYV7WboXsF+g8M9pqLwDUZfHWoaBYA/VV3HIE6IV6vegLflan4wRJe89pgUP6pUrMhJ5wWlevarccrZpnyHxmWJHj26I31hSrb2KlGp64o7Yu6h3bzNZZNnRBZN7QDaEa2wK28ntfCmRcRKnIbkHRPi2/A8Ue/c2XDnX6Tf08OoiqNm35cjHJt6APmJwszca1e5Uhfu5mM1ylywrHEVsNO4Wrg/kFSyGqLsIRlIuLghVuvYbf7QX8JInvwz0wox9gihi53RQeJ8x3SsRtvQIDAQAB'
+
+export function rsaEncrypt(plainText : string) : string {
+	// #ifdef APP-ANDROID
+	try {
+		const keyBytes = Base64.decode(RSA_PUBLIC_KEY_RAW, Base64.DEFAULT)
+		const spec = new X509EncodedKeySpec(keyBytes)
+		const kf = KeyFactory.getInstance('RSA')
+		const pubKey = kf.generatePublic(spec)
+		const cipher = Cipher.getInstance('RSA/ECB/PKCS1Padding')
+		cipher.init(Cipher.ENCRYPT_MODE, pubKey)
+		const encryptedBytes = cipher.doFinal(plainText.toByteArray(StandardCharsets.UTF_8))
+		return Base64.encodeToString(encryptedBytes, Base64.NO_WRAP)
+	} catch (e) {
+		console.error('[RSA] 加密失败', e)
+		return ''
+	}
+	// #endif
+	// #ifndef APP-ANDROID
+	console.error('[RSA] 当前平台未实现 RSA 加密')
+	return ''
+	// #endif
+}

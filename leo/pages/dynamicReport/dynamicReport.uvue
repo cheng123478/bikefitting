@@ -1,0 +1,494 @@
+<template>
+	<view class="report-page">
+		<view class="nav-bar" :style="navBarStyle">
+			<view class="back-btn" :style="navBackStyle" @click="goBack">
+				<text class="back-icon">&lt;</text>
+			</view>
+			<text class="nav-title" :style="navTitleStyle">动态报告</text>
+			<view class="nav-right" :style="navRightStyle"></view>
+		</view>
+
+		<scroll-view class="content-scroll" scroll-y="true" :show-scrollbar="false" :style="contentScrollStyle">
+			<view class="page-shell">
+				<view v-if="loading" class="state-card">
+					<text class="state-title">正在加载报告...</text>
+				</view>
+
+				<view v-else-if="reportReady" class="report-body">
+					<view class="hero-card">
+						<text class="hero-kicker">FORMAL REPORT</text>
+						<text class="hero-title">{{ reportTitle }}</text>
+						<text class="hero-summary">{{ reportSummary }}</text>
+
+						<view class="hero-stats">
+							<view class="stat-item">
+								<text class="stat-label">匹配度</text>
+								<text class="stat-value">{{ reportMatchScore }}</text>
+							</view>
+							<view class="stat-item">
+								<text class="stat-label">车辆</text>
+								<text class="stat-value">{{ reportBikeName }}</text>
+							</view>
+							<view class="stat-item">
+								<text class="stat-label">视角数</text>
+								<text class="stat-value">{{ reportViewsCount }}</text>
+							</view>
+						</view>
+					</view>
+
+					<view class="view-section" v-if="sideMetrics.length > 0">
+						<text class="section-title">侧面视角</text>
+						<view class="metric-card" v-for="metric in sideMetrics" :key="metric.label">
+							<view class="metric-head">
+								<text class="metric-label">{{ metric.label }}</text>
+								<text class="metric-status">{{ metric.status }}</text>
+							</view>
+							<text class="metric-value">{{ metric.currentValue }}</text>
+							<text class="metric-range">理想范围：{{ metric.idealRange }}</text>
+							<text class="metric-advice">{{ metric.advice }}</text>
+							<text v-if="metric.riderAdvice != null && metric.riderAdvice.length > 0" class="metric-rider-advice">{{ metric.riderAdvice }}</text>
+						</view>
+					</view>
+
+					<view class="view-section" v-if="frontMetrics.length > 0">
+						<text class="section-title">正面视角</text>
+						<view class="metric-card" v-for="metric in frontMetrics" :key="metric.label">
+							<view class="metric-head">
+								<text class="metric-label">{{ metric.label }}</text>
+								<text class="metric-status">{{ metric.status }}</text>
+							</view>
+							<text class="metric-value">{{ metric.currentValue }}</text>
+							<text class="metric-range">理想范围：{{ metric.idealRange }}</text>
+							<text class="metric-advice">{{ metric.advice }}</text>
+							<text v-if="metric.riderAdvice != null && metric.riderAdvice.length > 0" class="metric-rider-advice">{{ metric.riderAdvice }}</text>
+						</view>
+					</view>
+
+					<view class="view-section" v-if="backMetrics.length > 0">
+						<text class="section-title">背面视角</text>
+						<view class="metric-card" v-for="metric in backMetrics" :key="metric.label">
+							<view class="metric-head">
+								<text class="metric-label">{{ metric.label }}</text>
+								<text class="metric-status">{{ metric.status }}</text>
+							</view>
+							<text class="metric-value">{{ metric.currentValue }}</text>
+							<text class="metric-range">理想范围：{{ metric.idealRange }}</text>
+							<text class="metric-advice">{{ metric.advice }}</text>
+							<text v-if="metric.riderAdvice != null && metric.riderAdvice.length > 0" class="metric-rider-advice">{{ metric.riderAdvice }}</text>
+						</view>
+					</view>
+
+					<view class="view-section" v-if="equipmentSuggestions.length > 0">
+						<text class="section-title">器材调整建议</text>
+						<view class="suggestion-card" v-for="(item, index) in equipmentSuggestions" :key="index">
+							<text class="suggestion-text">{{ item }}</text>
+						</view>
+					</view>
+				</view>
+
+				<view v-else class="state-card">
+					<text class="state-title">报告加载失败</text>
+					<text class="state-desc">当前没有拿到正式报告数据，稍后可以回历史记录重新打开。</text>
+				</view>
+			</view>
+		</scroll-view>
+	</view>
+</template>
+
+<script setup lang="uts">
+	import { ref } from 'vue'
+	import { getDynamicFittingReport } from '@/api/dynamicFitting.uts'
+	import { getAppLayoutMetrics } from '@/utils/layout.uts'
+
+	type ReportMetric = {
+		label : string
+		status : string
+		currentValue : string
+		idealRange : string
+		advice : string
+		riderAdvice : string
+	}
+
+	const layout = getAppLayoutMetrics()
+	const navContentCenter = layout.statusBarHeight + layout.navBarContentHeight / 2
+	const navBarStyle = {
+		height: layout.navBarHeight + 'px',
+		paddingTop: layout.statusBarHeight + 'px',
+		boxSizing: 'border-box'
+	}
+	const navBackStyle = {
+		top: navContentCenter + 'px'
+	}
+	const navTitleStyle = {
+		top: navContentCenter + 'px'
+	}
+	const navRightStyle = {
+		top: navContentCenter + 'px'
+	}
+	const contentScrollStyle = {
+		top: layout.navBarHeight + 'px',
+		paddingBottom: layout.bottomSafeArea + 28 + 'px'
+	}
+
+	function createReportMetricArray() : ReportMetric[] {
+		const items : ReportMetric[] = []
+		return items
+	}
+
+	function createStringArray() : string[] {
+		const items : string[] = []
+		return items
+	}
+
+	const sessionId = ref(0)
+	const loading = ref(true)
+	const reportReady = ref(false)
+	const reportTitle = ref('分析报告')
+	const reportSummary = ref('已生成正式分析结果。')
+	const reportMatchScore = ref('--')
+	const reportBikeName = ref('--')
+	const reportViewsCount = ref('--')
+	const sideMetrics = ref<ReportMetric[]>(createReportMetricArray())
+	const frontMetrics = ref<ReportMetric[]>(createReportMetricArray())
+	const backMetrics = ref<ReportMetric[]>(createReportMetricArray())
+	const equipmentSuggestions = ref<string[]>(createStringArray())
+
+	function toSafeNumber(value : any | null, fallback : number) : number {
+		if (value == null) return fallback
+		const parsed = parseFloat(`${value}`)
+		return isNaN(parsed) ? fallback : parsed
+	}
+
+	function formatValue(value : any | null) : string {
+		if (value == null) return '--'
+		return `${value}`
+	}
+
+	function toText(value : any | null) : string {
+		if (value == null) return ''
+		return `${value}`
+	}
+
+	function createAnyArray() : any[] {
+		const items : any[] = []
+		return items
+	}
+
+	function toJsonObject(value : any | null) : UTSJSONObject | null {
+		if (value == null) {
+			return null
+		}
+		const jsonText = JSON.stringify(value)
+		const parsed = JSON.parse(jsonText)
+		return parsed != null ? parsed as UTSJSONObject : null
+	}
+
+	function getJsonValue(source : UTSJSONObject | null, key : string) : any | null {
+		const current = source
+		if (current == null) {
+			return null
+		}
+		const value = current[key]
+		return value != null ? value : null
+	}
+
+	function getJsonText(source : UTSJSONObject | null, key : string, fallback : string) : string {
+		const value = getJsonValue(source, key)
+		if (value == null) {
+			return fallback
+		}
+		const text = toText(value)
+		return text.length > 0 ? text : fallback
+	}
+
+	function getJsonObject(source : UTSJSONObject | null, key : string) : UTSJSONObject | null {
+		const value = getJsonValue(source, key)
+		return value != null ? toJsonObject(value) : null
+	}
+
+	function getJsonArray(source : UTSJSONObject | null, key : string) : any[] {
+		const value = getJsonValue(source, key)
+		if (value == null) {
+			return createAnyArray()
+		}
+		const jsonText = JSON.stringify(value)
+		const parsed = JSON.parse(jsonText)
+		return parsed != null ? parsed as any[] : createAnyArray()
+	}
+
+	function normalizeMetric(raw : any) : ReportMetric {
+		const source = toJsonObject(raw)
+		return {
+			label: getJsonText(source, 'label', '指标'),
+			status: getJsonText(source, 'status', '--'),
+			currentValue: getJsonText(source, 'currentValue', '--'),
+			idealRange: getJsonText(source, 'idealRange', '--'),
+			advice: getJsonText(source, 'advice', ''),
+			riderAdvice: getJsonText(source, 'riderAdvice', '')
+		}
+	}
+
+	function normalizeMetricList(reportObject : UTSJSONObject | null, viewKey : string) : ReportMetric[] {
+		const normalized = createReportMetricArray()
+		const viewObject = getJsonObject(reportObject, viewKey)
+		const rawMetrics = getJsonArray(viewObject, 'metrics')
+		for (let i = 0; i < rawMetrics.length; i++) {
+			normalized.push(normalizeMetric(rawMetrics[i]))
+		}
+		return normalized
+	}
+
+	function normalizeSuggestions(reportObject : UTSJSONObject | null) : string[] {
+		const normalized = createStringArray()
+		const rawSuggestions = getJsonArray(reportObject, 'equipmentSuggestions')
+		for (let i = 0; i < rawSuggestions.length; i++) {
+			const item = toText(rawSuggestions[i])
+			if (item.length > 0) {
+				normalized.push(item)
+			}
+		}
+		return normalized
+	}
+
+	function resetReport() {
+		reportReady.value = false
+		reportTitle.value = '分析报告'
+		reportSummary.value = '已生成正式分析结果。'
+		reportMatchScore.value = '--'
+		reportBikeName.value = '--'
+		reportViewsCount.value = '--'
+		sideMetrics.value = createReportMetricArray()
+		frontMetrics.value = createReportMetricArray()
+		backMetrics.value = createReportMetricArray()
+		equipmentSuggestions.value = createStringArray()
+	}
+
+	function hydrateReport(reportObject : UTSJSONObject | null) {
+		if (reportObject == null) {
+			resetReport()
+			return
+		}
+
+		reportTitle.value = getJsonText(reportObject, 'matchLevel', '分析报告')
+		reportSummary.value = getJsonText(reportObject, 'summary', '已生成正式分析结果。')
+		reportMatchScore.value = formatValue(getJsonValue(reportObject, 'matchScore'))
+		reportBikeName.value = getJsonText(reportObject, 'bikeName', '--')
+		reportViewsCount.value = formatValue(getJsonValue(reportObject, 'viewsCount'))
+		sideMetrics.value = normalizeMetricList(reportObject, 'sideData')
+		frontMetrics.value = normalizeMetricList(reportObject, 'frontData')
+		backMetrics.value = normalizeMetricList(reportObject, 'backData')
+		equipmentSuggestions.value = normalizeSuggestions(reportObject)
+		reportReady.value = true
+	}
+
+	async function loadReport() {
+		if (sessionId.value <= 0) {
+			resetReport()
+			loading.value = false
+			return
+		}
+		loading.value = true
+		try {
+			const data = await getDynamicFittingReport(sessionId.value)
+			hydrateReport(toJsonObject(data))
+		} catch (e) {
+			console.error('[DynamicReport] load failed', e)
+			resetReport()
+			uni.showToast({
+				title: '报告加载失败',
+				icon: 'none'
+			})
+		} finally {
+			loading.value = false
+		}
+	}
+
+	function goBack() {
+		const pages = getCurrentPages()
+		if (pages.length > 1) {
+			uni.navigateBack({
+				delta: 1,
+				fail: () => {
+					uni.navigateTo({ url: '/pages/dynamicHistory/dynamicHistory' })
+				}
+			})
+		} else {
+			uni.navigateTo({ url: '/pages/dynamicHistory/dynamicHistory' })
+		}
+	}
+
+	onLoad((query : any | null) => {
+		const queryObject = toJsonObject(query)
+		const querySessionId = getJsonValue(queryObject, 'sessionId')
+		sessionId.value = querySessionId != null ? toSafeNumber(querySessionId, 0) : 0
+		loadReport()
+	})
+</script>
+
+<style scoped>
+	.report-page {
+		height: 100%;
+		background: #F3F2ED;
+	}
+
+	.nav-bar {
+		position: fixed;
+		top: 0;
+		left: 0;
+		right: 0;
+		background: rgba(243, 242, 237, 0.98);
+		border-bottom: 1rpx solid rgba(43, 42, 41, 0.06);
+		z-index: 100;
+	}
+
+	.back-btn {
+		position: absolute;
+		left: 20rpx;
+		width: 72rpx;
+		height: 72rpx;
+		transform: translateY(-50%);
+		align-items: center;
+		justify-content: center;
+	}
+
+	.back-icon {
+		font-size: 40rpx;
+		font-weight: 700;
+		color: #2B2A29;
+	}
+
+	.nav-title {
+		position: absolute;
+		left: 50%;
+		transform: translate(-50%, -50%);
+		font-size: 32rpx;
+		font-weight: 700;
+		color: #2B2A29;
+	}
+
+	.nav-right {
+		position: absolute;
+		right: 24rpx;
+		transform: translateY(-50%);
+		width: 60rpx;
+	}
+
+	.content-scroll {
+		position: fixed;
+		left: 0;
+		right: 0;
+		bottom: 0;
+	}
+
+	.page-shell {
+		padding: 20px 16px 0;
+	}
+
+	.state-card,
+	.hero-card,
+	.view-section {
+		background: rgba(255, 255, 255, 0.96);
+		border-radius: 8px;
+		padding: 18px 16px;
+		margin-bottom: 14px;
+		box-shadow: 0 14px 32px rgba(43, 42, 41, 0.06);
+	}
+
+	.state-title,
+	.hero-title,
+	.section-title {
+		font-size: 22px;
+		font-weight: 700;
+		color: #2B2A29;
+	}
+
+	.state-desc,
+	.hero-summary {
+		margin-top: 10px;
+		font-size: 14px;
+		line-height: 1.7;
+		color: #7E786E;
+	}
+
+	.hero-kicker {
+		font-size: 11px;
+		font-weight: 700;
+		color: #7B766B;
+	}
+
+	.hero-stats {
+		flex-direction: row;
+		margin-top: 14px;
+	}
+
+	.stat-item {
+		flex: 1;
+		background: #F7F4EC;
+		border-radius: 8px;
+		padding: 10px;
+		margin-right: 8px;
+	}
+
+	.stat-item:last-child {
+		margin-right: 0;
+	}
+
+	.stat-label {
+		font-size: 11px;
+		color: #8B867C;
+	}
+
+	.stat-value {
+		margin-top: 6px;
+		font-size: 16px;
+		font-weight: 700;
+		color: #2B2A29;
+	}
+
+	.metric-card,
+	.suggestion-card {
+		background: #F8F4EC;
+		border-radius: 8px;
+		padding: 14px;
+		margin-top: 12px;
+	}
+
+	.metric-head {
+		flex-direction: row;
+		justify-content: space-between;
+		align-items: center;
+	}
+
+	.metric-label {
+		font-size: 15px;
+		font-weight: 700;
+		color: #2B2A29;
+	}
+
+	.metric-status {
+		font-size: 12px;
+		color: #5C6E58;
+		font-weight: 700;
+	}
+
+	.metric-value {
+		margin-top: 8px;
+		font-size: 20px;
+		font-weight: 700;
+		color: #2B2A29;
+	}
+
+	.metric-range,
+	.metric-advice,
+	.metric-rider-advice,
+	.suggestion-text {
+		margin-top: 8px;
+		font-size: 12px;
+		line-height: 1.7;
+		color: #6F6A61;
+	}
+
+	.metric-rider-advice {
+		color: #465543;
+	}
+</style>

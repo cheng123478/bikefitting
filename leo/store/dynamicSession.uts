@@ -1,0 +1,355 @@
+import { ref } from 'vue'
+import { STORAGE_KEYS } from '@/config/constants.uts'
+import { submitDynamicSession } from '@/api/dynamicFitting.uts'
+
+type DynamicViewCapture = {
+	viewType : string
+	summary : any | null
+	triggerMetrics : any | null
+	snapshots : any | null
+	frameData : any[]
+	qualityInfo : any | null
+	sampleMeta : any | null
+	capturedAt : string
+}
+
+type DynamicSessionDraft = {
+	bikeId : number
+	painLevels : string[]
+	side : DynamicViewCapture | null
+	front : DynamicViewCapture | null
+	back : DynamicViewCapture | null
+	sessionId : number
+	isSubmitting : boolean
+	lastUpdated : string
+}
+
+function createEmptySession(bikeId : number) : DynamicSessionDraft {
+	return {
+		bikeId: bikeId,
+		painLevels: [],
+		side: null,
+		front: null,
+		back: null,
+		sessionId: 0,
+		isSubmitting: false,
+		lastUpdated: ''
+	}
+}
+
+function createCapture(
+	viewType : string,
+	summary : any | null,
+	triggerMetrics : any | null,
+	snapshots : any | null,
+	frameData : any[],
+	qualityInfo : any | null,
+	sampleMeta : any | null,
+	capturedAt : string
+) : DynamicViewCapture {
+	return {
+		viewType: viewType,
+		summary: summary,
+		triggerMetrics: triggerMetrics,
+		snapshots: snapshots,
+		frameData: frameData,
+		qualityInfo: qualityInfo,
+		sampleMeta: sampleMeta,
+		capturedAt: capturedAt
+	}
+}
+
+function toSafeNumber(value : any | null, fallback : number) : number {
+	if (value == null) {
+		return fallback
+	}
+	const parsed = parseFloat(`${value}`)
+	return isNaN(parsed) ? fallback : parsed
+}
+
+function toJsonObject(value : any | null) : UTSJSONObject | null {
+	if (value == null) {
+		return null
+	}
+	const jsonText = JSON.stringify(value)
+	const parsed = JSON.parse(jsonText)
+	return parsed != null ? parsed as UTSJSONObject : null
+}
+
+function getJsonValue(source : UTSJSONObject | null, key : string) : any | null {
+	const current = source
+	if (current == null) {
+		return null
+	}
+	const value = current[key]
+	return value != null ? value : null
+}
+
+function getJsonText(source : UTSJSONObject | null, key : string, fallback : string) : string {
+	const value = getJsonValue(source, key)
+	return value != null ? `${value}` : fallback
+}
+
+function getJsonBoolean(source : UTSJSONObject | null, key : string, fallback : boolean) : boolean {
+	const value = getJsonValue(source, key)
+	if (value == null) {
+		return fallback
+	}
+	const text = `${value}`
+	if (text == 'true') {
+		return true
+	}
+	if (text == 'false') {
+		return false
+	}
+	return fallback
+}
+
+function getObjectField(source : UTSJSONObject | null, key : string, fallback : any) : any {
+	if (source == null) {
+		return fallback
+	}
+	const value = source[key]
+	return value != null ? value : fallback
+}
+
+function getArrayField(source : UTSJSONObject | null, key : string) : any[] {
+	if (source == null) {
+		return []
+	}
+	const value = source[key]
+	if (value != null) {
+		const jsonText = JSON.stringify(value)
+		const parsed = JSON.parse(jsonText)
+		return parsed as any[]
+	}
+	return []
+}
+
+function getStringArrayField(source : UTSJSONObject | null, key : string) : string[] {
+	const items : string[] = []
+	const rawItems = getArrayField(source, key)
+	for (let i = 0; i < rawItems.length; i++) {
+		items.push(`${rawItems[i]}`)
+	}
+	return items
+}
+
+function normalizeCaptureFromSource(defaultViewType : string, source : UTSJSONObject | null) : DynamicViewCapture {
+	return createCapture(
+		getJsonText(source, 'viewType', defaultViewType),
+		getObjectField(source, 'summary', {}),
+		getObjectField(source, 'triggerMetrics', {}),
+		getObjectField(source, 'snapshots', {}),
+		getArrayField(source, 'frameData'),
+		getObjectField(source, 'qualityInfo', {}),
+		getObjectField(source, 'sampleMeta', {}),
+		getJsonText(source, 'capturedAt', new Date().toISOString())
+	)
+}
+
+function normalizeCaptureFromAny(defaultViewType : string, raw : any | null) : DynamicViewCapture | null {
+	if (raw == null) {
+		return null
+	}
+	return normalizeCaptureFromSource(defaultViewType, toJsonObject(raw))
+}
+
+function cloneSession(raw : any) : DynamicSessionDraft {
+	const source = toJsonObject(raw)
+	const bikeIdValue = getJsonValue(source, 'bikeId')
+	const sideValue = getJsonValue(source, 'side')
+	const frontValue = getJsonValue(source, 'front')
+	const backValue = getJsonValue(source, 'back')
+	const sessionIdValue = getJsonValue(source, 'sessionId')
+	return {
+		bikeId: toSafeNumber(bikeIdValue, 0),
+		painLevels: getStringArrayField(source, 'painLevels'),
+		side: normalizeCaptureFromAny('side', sideValue),
+		front: normalizeCaptureFromAny('front', frontValue),
+		back: normalizeCaptureFromAny('back', backValue),
+		sessionId: toSafeNumber(sessionIdValue, 0),
+		isSubmitting: getJsonBoolean(source, 'isSubmitting', false),
+		lastUpdated: getJsonText(source, 'lastUpdated', '')
+	}
+}
+
+function getStoredText(key : string) : string | null {
+	const value = uni.getStorageSync(key)
+	return value != null ? `${value}` : null
+}
+
+function persistSession() {
+	uni.setStorageSync(STORAGE_KEYS.DYNAMIC_SESSION_DRAFT, JSON.stringify(sessionData.value))
+}
+
+export const sessionData = ref<DynamicSessionDraft>(createEmptySession(0))
+
+export function initDynamicSessionStore() {
+	try {
+		const stored = getStoredText(STORAGE_KEYS.DYNAMIC_SESSION_DRAFT)
+		if (stored == null || stored.length == 0) {
+			return
+		}
+		const parsed = JSON.parse(stored)
+		if (parsed != null) {
+			sessionData.value = cloneSession(parsed)
+		}
+	} catch (e) {
+		console.error('[DynamicSessionStore] hydrate failed', e)
+		uni.removeStorageSync(STORAGE_KEYS.DYNAMIC_SESSION_DRAFT)
+		sessionData.value = createEmptySession(0)
+	}
+}
+
+function markUpdated() {
+	sessionData.value.lastUpdated = new Date().toISOString()
+	persistSession()
+}
+
+export function initDynamicSession(bikeId : number) {
+	if (bikeId <= 0) {
+		return
+	}
+	if (sessionData.value.bikeId == bikeId) {
+		return
+	}
+	sessionData.value = createEmptySession(bikeId)
+	markUpdated()
+}
+
+export function setDynamicPainLevels(levels : string[]) {
+	const nextLevels : string[] = []
+	for (let i = 0; i < levels.length; i++) {
+		nextLevels.push(levels[i])
+	}
+	sessionData.value.painLevels = nextLevels
+	markUpdated()
+}
+
+export function toggleDynamicPainLevel(label : string) {
+	const nextLevels : string[] = []
+	let exists = false
+	for (let i = 0; i < sessionData.value.painLevels.length; i++) {
+		const current = sessionData.value.painLevels[i]
+		if (current == label) {
+			exists = true
+			continue
+		}
+		nextLevels.push(current)
+	}
+	if (!exists) {
+		nextLevels.push(label)
+	}
+	sessionData.value.painLevels = nextLevels
+	markUpdated()
+}
+
+export function getDynamicCapture(viewType : string) : DynamicViewCapture | null {
+	if (viewType == 'side') return sessionData.value.side
+	if (viewType == 'front') return sessionData.value.front
+	if (viewType == 'back') return sessionData.value.back
+	return null
+}
+
+function normalizeCapture(viewType : string, capture : any) : DynamicViewCapture {
+	const source = toJsonObject(capture)
+	return createCapture(
+		viewType,
+		getObjectField(source, 'summary', {}),
+		getObjectField(source, 'triggerMetrics', {}),
+		getObjectField(source, 'snapshots', {}),
+		getArrayField(source, 'frameData'),
+		getObjectField(source, 'qualityInfo', {}),
+		getObjectField(source, 'sampleMeta', {}),
+		new Date().toISOString()
+	)
+}
+
+export function saveDynamicCapture(viewType : string, capture : any) {
+	const normalized = normalizeCapture(viewType, capture)
+
+	if (viewType == 'side') {
+		sessionData.value.side = normalized
+	} else if (viewType == 'front') {
+		sessionData.value.front = normalized
+	} else if (viewType == 'back') {
+		sessionData.value.back = normalized
+	}
+	markUpdated()
+}
+
+export function removeDynamicCapture(viewType : string) {
+	if (viewType == 'side') {
+		sessionData.value.side = null
+	} else if (viewType == 'front') {
+		sessionData.value.front = null
+	} else if (viewType == 'back') {
+		sessionData.value.back = null
+	}
+	markUpdated()
+}
+
+export function clearDynamicSession(keepBikeId : boolean = true) {
+	const bikeId = keepBikeId ? sessionData.value.bikeId : 0
+	sessionData.value = createEmptySession(bikeId)
+	if (bikeId == 0) {
+		uni.removeStorageSync(STORAGE_KEYS.DYNAMIC_SESSION_DRAFT)
+		return
+	}
+	markUpdated()
+}
+
+export function getDynamicCapturedCount() : number {
+	let count = 0
+	if (sessionData.value.side != null) count++
+	if (sessionData.value.front != null) count++
+	if (sessionData.value.back != null) count++
+	return count
+}
+
+export function isDynamicSessionEmpty() : boolean {
+	return getDynamicCapturedCount() == 0
+}
+
+function appendView(views : any[], viewType : string, capture : DynamicViewCapture | null) {
+	if (capture == null) {
+		return
+	}
+	views.push({
+		viewType: viewType,
+		summary: capture.summary != null ? capture.summary : {},
+		triggerMetrics: capture.triggerMetrics != null ? capture.triggerMetrics : {},
+		snapshots: capture.snapshots != null ? capture.snapshots : {},
+		frameData: capture.frameData != null ? capture.frameData : []
+	})
+}
+
+export async function submitDynamicDraft() : Promise<any> {
+	sessionData.value.isSubmitting = true
+	persistSession()
+	try {
+		const views : any[] = []
+		appendView(views, 'SIDE', sessionData.value.side)
+		appendView(views, 'FRONT', sessionData.value.front)
+		appendView(views, 'BACK', sessionData.value.back)
+
+		const payload = {
+			bikeId: sessionData.value.bikeId,
+			sessionTime: new Date().toISOString(),
+			painLevels: sessionData.value.painLevels,
+			views: views
+		}
+
+		const result = await submitDynamicSession(payload)
+		const resultObject = toJsonObject(result)
+		const resultId = getJsonValue(resultObject, 'id')
+		if (resultId != null) {
+			sessionData.value.sessionId = toSafeNumber(resultId, 0)
+		}
+		return result
+	} finally {
+		sessionData.value.isSubmitting = false
+		markUpdated()
+	}
+}

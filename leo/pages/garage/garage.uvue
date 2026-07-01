@@ -1,0 +1,872 @@
+<template>
+	<view class="garage-page">
+		<view class="nav-bar" :style="navBarStyle">
+			<view class="back-btn" :style="navBackStyle" @click="goBack">
+				<text class="back-icon">‹</text>
+			</view>
+			<text class="nav-title" :style="navTitleStyle">我的车库</text>
+			<view class="nav-right" :style="navRightStyle">
+				<text class="nav-count">{{ bikeCountText }}</text>
+			</view>
+		</view>
+
+		<scroll-view
+			class="garage-scroll"
+			scroll-y="true"
+			:show-scrollbar="false"
+			:style="scrollStyle"
+			:refresher-enabled="true"
+			:refresher-triggered="refreshing"
+			@refresherrefresh="handleRefresh"
+		>
+			<view class="garage-shell">
+				<view class="garage-hero app-soft-card">
+					<text class="garage-kicker">MOBILE GARAGE</text>
+					<text class="garage-title">单车资产总览</text>
+					<text class="garage-desc">移动端先聚焦展示你已录入的单车卡片、关键几何参数和当前设定，方便快速回看。</text>
+					<view class="garage-actions">
+						<view class="garage-add-btn" @click="goAddBike">
+							<text class="garage-add-text">新增单车</text>
+						</view>
+					</view>
+				</view>
+
+				<view v-if="loading" class="loading-wrap app-soft-card">
+					<text class="loading-title">正在打开车库...</text>
+					<text class="loading-desc">单车数据和图片将从后端实时加载</text>
+				</view>
+
+				<view v-else-if="bikeList.length > 0" class="bike-list">
+					<view v-for="bike in bikeList" :key="bike.id" class="bike-card app-soft-card">
+						<view class="bike-image-wrap">
+							<image
+								v-if="bike.displayImageUrl.length > 0"
+								class="bike-image"
+								:src="bike.displayImageUrl"
+								mode="aspectFit"
+							/>
+							<view v-else class="bike-image-placeholder">
+								<text class="bike-image-placeholder-icon">🚲</text>
+								<text class="bike-image-placeholder-text">暂无车辆图片</text>
+							</view>
+							<view class="bike-type-badge">
+								<text class="bike-type-text">{{ getBikeTypeLabel(bike.bikeType) }}</text>
+							</view>
+						</view>
+
+						<view class="bike-content">
+							<view class="bike-title-row">
+								<text class="bike-name">{{ getBikeName(bike) }}</text>
+								<text v-if="bike.hasReport" class="report-badge">已诊断</text>
+							</view>
+
+							<text v-if="bike.remark" class="bike-remark">{{ bike.remark }}</text>
+
+							<view class="bike-meta-row">
+								<text class="bike-meta">{{ bike.brand != null && bike.brand.length > 0 ? bike.brand : '--' }}</text>
+								<text class="bike-meta-dot">·</text>
+								<text class="bike-meta">{{ bike.frameSize != null && bike.frameSize.length > 0 ? bike.frameSize : '--' }} 尺码</text>
+								<text v-if="bike.modelYear" class="bike-meta-dot">·</text>
+								<text v-if="bike.modelYear" class="bike-meta">{{ bike.modelYear }}</text>
+							</view>
+
+							<view class="metric-grid">
+								<view class="metric-item">
+									<text class="metric-label">STR</text>
+									<text class="metric-value">{{ formatMetric(bike.frameStr, '') }}</text>
+								</view>
+								<view class="metric-item">
+									<text class="metric-label">Reach+</text>
+									<text class="metric-value">{{ formatMetric(bike.effectiveReachPlus, 'mm') }}</text>
+								</view>
+								<view class="metric-item">
+									<text class="metric-label">Stack+</text>
+									<text class="metric-value">{{ formatMetric(bike.effectiveStackPlus, 'mm') }}</text>
+								</view>
+								<view class="metric-item">
+									<text class="metric-label">曲柄</text>
+									<text class="metric-value">{{ formatMetric(bike.crankLength, 'mm') }}</text>
+								</view>
+							</view>
+
+							<view class="setup-bar">
+								<text class="setup-label">当前设定</text>
+								<text class="setup-text">{{ getSetupSummary(bike) }}</text>
+							</view>
+
+							<view class="card-footer">
+								<text class="footer-text">录入时间 {{ formatDate(bike.createTime) }}</text>
+								<view class="footer-actions">
+									<view class="bike-action" @click="goEditBike(bike.id)">
+										<text class="bike-action-text">编辑</text>
+									</view>
+									<view :class="deletingBikeId == bike.id ? 'bike-action bike-action-danger bike-action-disabled' : 'bike-action bike-action-danger'" @click="confirmDeleteBike(bike)">
+										<text class="bike-action-danger-text">{{ deletingBikeId == bike.id ? '删除中' : '删除' }}</text>
+									</view>
+								</view>
+							</view>
+						</view>
+					</view>
+				</view>
+
+				<view v-else class="empty-state app-soft-card">
+					<view class="empty-icon-wrap">
+						<text class="empty-icon">🚲</text>
+					</view>
+					<text class="empty-title">车库里还没有单车</text>
+					<text class="empty-desc">当前移动端先提供轻量展示能力。等你在其他端录入单车后，这里会自动同步显示。</text>
+					<view class="empty-action" @click="goAddBike">
+						<text class="empty-action-text">录入第一辆车</text>
+					</view>
+				</view>
+			</view>
+		</scroll-view>
+	</view>
+</template>
+
+<script setup lang="uts">
+	import { computed, ref } from 'vue'
+	import { deleteUserBike, getMyGarage } from '@/api/user.uts'
+	import { getAppLayoutMetrics } from '@/utils/layout.uts'
+	import { resolveAssetUrl } from '@/utils/url.uts'
+
+	type UserBikeSetupVO = {
+		stemLength ?: number | null
+		stemAngle ?: number | null
+		spacersHeight ?: number | null
+		saddleHeight ?: number | null
+	}
+
+	type UserBikeCard = {
+		id : number
+		createTime : string | null
+		remark : string | null
+		status : number | null
+		brand : string | null
+		model : string | null
+		modelYear : string | null
+		imageUrl : string | null
+		displayImageUrl : string
+		bikeType : number | null
+		frameSize : string | null
+		crankLength : number | null
+		frameStr : number | null
+		effectiveStackPlus : number | null
+		effectiveReachPlus : number | null
+		hasReport : boolean
+		currentSetupVO : UserBikeSetupVO | null
+	}
+
+	const layout = getAppLayoutMetrics()
+	const navContentCenter = layout.statusBarHeight + layout.navBarContentHeight / 2
+	const navBarStyle = {
+		height: layout.navBarHeight + 'px',
+		paddingTop: layout.statusBarHeight + 'px',
+		boxSizing: 'border-box'
+	}
+	const navBackStyle = {
+		top: navContentCenter + 'px'
+	}
+	const navTitleStyle = {
+		top: navContentCenter + 'px'
+	}
+	const navRightStyle = {
+		top: navContentCenter + 'px'
+	}
+	const scrollStyle = {
+		top: layout.navBarHeight + 'px',
+		paddingBottom: layout.bottomSafeArea + 24 + 'px'
+	}
+
+	const loading = ref(true)
+	const refreshing = ref(false)
+	const deletingBikeId = ref<number | null>(null)
+	const bikeList = ref<UserBikeCard[]>([])
+
+	function toSafeNumber(value : any | null, fallback : number) : number {
+		if (value == null) return fallback
+		const parsed = parseFloat(`${value}`)
+		return isNaN(parsed) ? fallback : parsed
+	}
+
+	function toText(value : any | null) : string {
+		return value != null ? `${value}` : ''
+	}
+
+	function toNullableText(value : any | null) : string | null {
+		const text = toText(value)
+		return text.length > 0 ? text : null
+	}
+
+	function createAnyArray() : any[] {
+		const items : any[] = []
+		return items
+	}
+
+	function toJsonObject(value : any | null) : UTSJSONObject | null {
+		if (value == null) {
+			return null
+		}
+		const jsonText = JSON.stringify(value)
+		const parsed = JSON.parse(jsonText)
+		return parsed != null ? parsed as UTSJSONObject : null
+	}
+
+	function getJsonValue(source : UTSJSONObject | null, key : string) : any | null {
+		const current = source
+		if (current == null) {
+			return null
+		}
+		const value = current[key]
+		return value != null ? value : null
+	}
+
+	function getJsonText(source : UTSJSONObject | null, key : string, fallback : string) : string {
+		const value = getJsonValue(source, key)
+		if (value == null) {
+			return fallback
+		}
+		const text = toText(value)
+		return text.length > 0 ? text : fallback
+	}
+
+	function getJsonNullableText(source : UTSJSONObject | null, key : string) : string | null {
+		return toNullableText(getJsonValue(source, key))
+	}
+
+	function getJsonNumber(source : UTSJSONObject | null, key : string, fallback : number) : number {
+		const value = getJsonValue(source, key)
+		return value != null ? toSafeNumber(value, fallback) : fallback
+	}
+
+	function getJsonArray(value : any | null) : any[] {
+		if (value == null) {
+			return createAnyArray()
+		}
+		const jsonText = JSON.stringify(value)
+		const parsed = JSON.parse(jsonText)
+		return parsed != null ? parsed as any[] : createAnyArray()
+	}
+
+	function toBikeSetup(value : any | null) : UserBikeSetupVO | null {
+		if (value == null) {
+			return null
+		}
+		const source = toJsonObject(value)
+		if (source == null) {
+			return null
+		}
+		const stemLengthValue = getJsonValue(source, 'stemLength')
+		const stemAngleValue = getJsonValue(source, 'stemAngle')
+		const spacersHeightValue = getJsonValue(source, 'spacersHeight')
+		const saddleHeightValue = getJsonValue(source, 'saddleHeight')
+		return {
+			stemLength: stemLengthValue != null ? toSafeNumber(stemLengthValue, 0) : null,
+			stemAngle: stemAngleValue != null ? toSafeNumber(stemAngleValue, 0) : null,
+			spacersHeight: spacersHeightValue != null ? toSafeNumber(spacersHeightValue, 0) : null,
+			saddleHeight: saddleHeightValue != null ? toSafeNumber(saddleHeightValue, 0) : null
+		}
+	}
+
+	function padNumber(value : number) : string {
+		if (value < 10) return `0${value}`
+		return `${value}`
+	}
+
+	const bikeCountText = computed(() : string => {
+		return bikeList.value.length > 0 ? `${bikeList.value.length} 辆` : ''
+	})
+
+	function normalizeBike(raw : any) : UserBikeCard {
+		const source = toJsonObject(raw)
+		const imageUrl = getJsonText(source, 'imageUrl', '')
+		const currentSetup = toBikeSetup(getJsonValue(source, 'currentSetupVO'))
+		const statusValue = getJsonValue(source, 'status')
+		const bikeTypeValue = getJsonValue(source, 'bikeType')
+		const crankLengthValue = getJsonValue(source, 'crankLength')
+		const frameStrValue = getJsonValue(source, 'frameStr')
+		const effectiveStackPlusValue = getJsonValue(source, 'effectiveStackPlus')
+		const effectiveReachPlusValue = getJsonValue(source, 'effectiveReachPlus')
+
+		return {
+			id: getJsonNumber(source, 'id', 0),
+			createTime: getJsonNullableText(source, 'createTime'),
+			remark: getJsonNullableText(source, 'remark'),
+			status: statusValue != null ? toSafeNumber(statusValue, 0) : null,
+			brand: getJsonNullableText(source, 'brand'),
+			model: getJsonNullableText(source, 'model'),
+			modelYear: getJsonNullableText(source, 'modelYear'),
+			imageUrl: imageUrl,
+			displayImageUrl: resolveAssetUrl(imageUrl),
+			bikeType: bikeTypeValue != null ? toSafeNumber(bikeTypeValue, 0) : null,
+			frameSize: getJsonNullableText(source, 'frameSize'),
+			crankLength: crankLengthValue != null ? toSafeNumber(crankLengthValue, 0) : null,
+			frameStr: frameStrValue != null ? toSafeNumber(frameStrValue, 0) : null,
+			effectiveStackPlus: effectiveStackPlusValue != null ? toSafeNumber(effectiveStackPlusValue, 0) : null,
+			effectiveReachPlus: effectiveReachPlusValue != null ? toSafeNumber(effectiveReachPlusValue, 0) : null,
+			hasReport: getJsonValue(source, 'hasReport') == true,
+			currentSetupVO: currentSetup
+		}
+	}
+
+	async function loadGarageData(showPullRefresh : boolean = false) {
+		if (!showPullRefresh) {
+			loading.value = true
+		}
+		try {
+			const data = await getMyGarage()
+			const list = getJsonArray(data)
+			const normalized : UserBikeCard[] = []
+			for (let i = 0; i < list.length; i++) {
+				normalized.push(normalizeBike(list[i]))
+			}
+			bikeList.value = normalized
+		} catch (e) {
+			console.error('[Garage] load failed', e)
+			uni.showToast({
+				title: '加载车库失败',
+				icon: 'none'
+			})
+		} finally {
+			loading.value = false
+			refreshing.value = false
+		}
+	}
+
+	function handleRefresh() {
+		refreshing.value = true
+		loadGarageData(true)
+	}
+
+	function goAddBike() {
+		uni.navigateTo({
+			url: '/pages/garageAdd/garageAdd'
+		})
+	}
+
+	function goEditBike(id : number) {
+		if (id <= 0) {
+			uni.showToast({
+				title: '单车 ID 异常，无法编辑',
+				icon: 'none'
+			})
+			return
+		}
+		uni.navigateTo({
+			url: '/pages/garageAdd/garageAdd?id=' + id
+		})
+	}
+
+	async function deleteBikeById(id : number) {
+		if (deletingBikeId.value != null) {
+			return
+		}
+		try {
+			deletingBikeId.value = id
+			await deleteUserBike(id)
+			uni.showToast({
+				title: '单车已删除',
+				icon: 'success'
+			})
+			loadGarageData(true)
+		} catch (e) {
+			console.error('[Garage] delete failed', e)
+			uni.showToast({
+				title: '删除失败，请稍后重试',
+				icon: 'none'
+			})
+		} finally {
+			deletingBikeId.value = null
+		}
+	}
+
+	function confirmDeleteBike(bike : UserBikeCard) {
+		if (deletingBikeId.value != null) {
+			return
+		}
+		if (bike.id <= 0) {
+			uni.showToast({
+				title: '单车 ID 异常，无法删除',
+				icon: 'none'
+			})
+			return
+		}
+		const brand = bike.brand != null ? bike.brand : ''
+		const model = bike.model != null ? bike.model : ''
+		const bikeName = `${brand} ${model}`.trim().length > 0 ? `${brand} ${model}`.trim() : '这辆单车'
+		uni.showModal({
+			title: '删除单车',
+			content: '确定删除“' + bikeName + '”吗？删除后不会出现在车库列表中。',
+			confirmText: '删除',
+			confirmColor: '#B94747',
+			cancelText: '取消',
+			success: (res : any) => {
+				const result = toJsonObject(res)
+				if (getJsonValue(result, 'confirm') == true) {
+					deleteBikeById(bike.id)
+				}
+			}
+		})
+	}
+
+	function goBack() {
+		const pages = getCurrentPages()
+		if (pages.length > 1) {
+			uni.navigateBack({
+				delta: 1,
+				fail: () => {
+					uni.switchTab({ url: '/pages/profile/profile' })
+				}
+			})
+		} else {
+			uni.switchTab({ url: '/pages/profile/profile' })
+		}
+	}
+
+	function getBikeName(bike : UserBikeCard) : string {
+		const brand = bike.brand != null ? bike.brand : ''
+		const model = bike.model != null ? bike.model : ''
+		const fullName = `${brand} ${model}`.trim()
+		return fullName.length > 0 ? fullName : '未命名单车'
+	}
+
+	function getBikeTypeLabel(type : number | null) : string {
+		if (type == 1) return '公路'
+		if (type == 2) return '山地'
+		if (type == 3) return 'Gravel'
+		if (type == 4) return '城市'
+		if (type == 5) return 'TT'
+		return '单车'
+	}
+
+	function formatMetric(value : number | null, unit : string) : string {
+		if (value == null) return '--'
+		const text = Number.isInteger(value) ? `${value}` : value.toFixed(1)
+		return unit.length > 0 ? `${text} ${unit}` : text
+	}
+
+	function getSetupSummary(bike : UserBikeCard) : string {
+		const setup = bike.currentSetupVO
+		if (setup == null) return '暂未同步详细设定'
+
+		const parts : string[] = []
+		if (setup.stemLength != null) {
+			parts.push(`把立 ${setup.stemLength}mm`)
+		}
+		if (setup.spacersHeight != null) {
+			parts.push(`垫圈 ${setup.spacersHeight}mm`)
+		}
+		if (setup.saddleHeight != null) {
+			parts.push(`座高 ${setup.saddleHeight}mm`)
+		}
+		if (parts.length == 0) return '暂未同步详细设定'
+		return parts.join(' / ')
+	}
+
+	function formatDate(dateStr : string | null) : string {
+		if (dateStr == null || dateStr.length == 0) return '--'
+		const date = new Date(dateStr)
+		if (isNaN(date.getTime())) return '--'
+		const year = `${date.getFullYear()}`
+		const month = padNumber(date.getMonth() + 1)
+		const day = padNumber(date.getDate())
+		return `${year}.${month}.${day}`
+	}
+
+	onShow(() => {
+		loadGarageData()
+	})
+</script>
+
+<style scoped>
+	.app-soft-card {
+		background: #FFFFFF;
+		border-radius: 24px;
+		border-width: 1px;
+		border-color: rgba(43, 42, 41, 0.06);
+		border-style: solid;
+		box-shadow: 0 12px 30px rgba(43, 42, 41, 0.05);
+	}
+
+	.garage-page {
+		height: 100%;
+		background: #F3F2ED;
+	}
+
+	.nav-bar {
+		position: fixed;
+		top: 0;
+		left: 0;
+		right: 0;
+		background: rgba(243, 242, 237, 0.98);
+		box-sizing: border-box;
+		border-bottom: 1rpx solid rgba(43, 42, 41, 0.05);
+		z-index: 100;
+	}
+
+	.back-btn {
+		position: absolute;
+		left: 20rpx;
+		transform: translateY(-50%);
+		width: 88rpx;
+	}
+
+	.back-icon {
+		font-size: 48rpx;
+		color: #2B2A29;
+	}
+
+	.nav-title {
+		position: absolute;
+		left: 50%;
+		transform: translate(-50%, -50%);
+		font-size: 32rpx;
+		font-weight: 700;
+		color: #2B2A29;
+	}
+
+	.nav-right {
+		position: absolute;
+		right: 24rpx;
+		transform: translateY(-50%);
+		min-width: 72rpx;
+		align-items: flex-end;
+	}
+
+	.nav-count {
+		font-size: 22rpx;
+		color: #7B766B;
+	}
+
+	.garage-scroll {
+		position: fixed;
+		left: 0;
+		right: 0;
+		bottom: 0;
+		box-sizing: border-box;
+	}
+
+	.garage-shell {
+		padding: 20rpx 32rpx 0;
+	}
+
+	.garage-hero {
+		padding: 34rpx 30rpx;
+		margin-bottom: 24rpx;
+	}
+
+	.garage-kicker {
+		font-size: 20rpx;
+		font-weight: 700;
+		color: #8A857A;
+		letter-spacing: 4rpx;
+		margin-bottom: 10rpx;
+	}
+
+	.garage-title {
+		font-size: 50rpx;
+		line-height: 1.08;
+		font-weight: 700;
+		color: #2B2A29;
+		margin-bottom: 14rpx;
+	}
+
+	.garage-desc {
+		font-size: 24rpx;
+		line-height: 1.72;
+		color: #7B766B;
+		margin-bottom: 20rpx;
+	}
+
+	.garage-actions {
+		flex-direction: row;
+		justify-content: flex-end;
+	}
+
+	.garage-add-btn {
+		height: 76rpx;
+		padding: 0 30rpx;
+		border-radius: 8px;
+		background: #5C6E58;
+		align-items: center;
+		justify-content: center;
+		box-shadow: 0 10rpx 24rpx rgba(74, 93, 72, 0.18);
+	}
+
+	.garage-add-text {
+		font-size: 26rpx;
+		font-weight: 700;
+		color: #FFFFFF;
+	}
+
+	.loading-wrap {
+		padding: 64rpx 36rpx;
+		align-items: center;
+	}
+
+	.loading-title {
+		font-size: 32rpx;
+		color: #2B2A29;
+		font-weight: 700;
+		margin-bottom: 12rpx;
+	}
+
+	.loading-desc {
+		font-size: 24rpx;
+		color: #979184;
+	}
+
+	.bike-list {
+		padding-bottom: 8rpx;
+	}
+
+	.bike-card {
+		margin-bottom: 24rpx;
+		overflow: hidden;
+	}
+
+	.bike-image-wrap {
+		position: relative;
+		height: 340rpx;
+		background: #FFFFFF;
+		padding: 28rpx;
+	}
+
+	.bike-image {
+		width: 100%;
+		height: 100%;
+	}
+
+	.bike-image-placeholder {
+		width: 100%;
+		height: 100%;
+		align-items: center;
+		justify-content: center;
+	}
+
+	.bike-image-placeholder-icon {
+		font-size: 66rpx;
+		margin-bottom: 10rpx;
+	}
+
+	.bike-image-placeholder-text {
+		font-size: 24rpx;
+		color: #A49F94;
+	}
+
+	.bike-type-badge {
+		position: absolute;
+		top: 24rpx;
+		left: 24rpx;
+		padding: 10rpx 18rpx;
+		border-radius: 999rpx;
+		background: rgba(67, 66, 63, 0.88);
+	}
+
+	.bike-type-text {
+		font-size: 22rpx;
+		color: #FFFFFF;
+		font-weight: 700;
+	}
+
+	.bike-content {
+		padding: 28rpx;
+	}
+
+	.bike-title-row {
+		flex-direction: row;
+		align-items: center;
+		justify-content: space-between;
+		margin-bottom: 10rpx;
+	}
+
+	.bike-name {
+		flex: 1;
+		font-size: 36rpx;
+		line-height: 1.3;
+		font-weight: 700;
+		color: #2B2A29;
+		margin-right: 16rpx;
+	}
+
+	.report-badge {
+		padding: 8rpx 14rpx;
+		border-radius: 999rpx;
+		background: #F5F3EE;
+		color: #6F6A61;
+		font-size: 20rpx;
+		font-weight: 700;
+	}
+
+	.bike-remark {
+		font-size: 24rpx;
+		color: #6E6A61;
+		line-height: 1.6;
+		margin-bottom: 12rpx;
+	}
+
+	.bike-meta-row {
+		flex-direction: row;
+		align-items: center;
+		flex-wrap: wrap;
+		margin-bottom: 24rpx;
+	}
+
+	.bike-meta {
+		font-size: 24rpx;
+		color: #787673;
+	}
+
+	.bike-meta-dot {
+		margin: 0 10rpx;
+		font-size: 22rpx;
+		color: #BBB3A4;
+	}
+
+	.metric-grid {
+		flex-direction: row;
+		flex-wrap: wrap;
+		justify-content: space-between;
+		margin-bottom: 22rpx;
+	}
+
+	.metric-item {
+		width: 48%;
+		background: #F7F5F0;
+		border-radius: 20rpx;
+		padding: 18rpx 20rpx;
+		margin-bottom: 16rpx;
+	}
+
+	.metric-label {
+		font-size: 20rpx;
+		color: #9A958A;
+		margin-bottom: 8rpx;
+	}
+
+	.metric-value {
+		font-size: 28rpx;
+		line-height: 1.2;
+		font-weight: 700;
+		color: #2B2A29;
+	}
+
+	.setup-bar {
+		padding: 18rpx 20rpx;
+		background: #F2F1EC;
+		border-radius: 20rpx;
+		margin-bottom: 18rpx;
+	}
+
+	.setup-label {
+		font-size: 20rpx;
+		color: #8E8A80;
+		margin-bottom: 6rpx;
+	}
+
+	.setup-text {
+		font-size: 24rpx;
+		line-height: 1.6;
+		color: #5A5953;
+	}
+
+	.card-footer {
+		flex-direction: row;
+		align-items: center;
+		justify-content: space-between;
+		padding-top: 10rpx;
+		border-top: 1rpx solid rgba(43, 42, 41, 0.05);
+	}
+
+	.footer-text {
+		font-size: 22rpx;
+		color: #9A958A;
+		flex: 1;
+	}
+
+	.footer-actions {
+		flex-direction: row;
+		align-items: center;
+		margin-left: 16rpx;
+	}
+
+	.bike-action {
+		height: 56rpx;
+		min-width: 92rpx;
+		padding: 0 18rpx;
+		border-radius: 8px;
+		background: #F2F1EC;
+		align-items: center;
+		justify-content: center;
+		margin-left: 10rpx;
+	}
+
+	.bike-action-danger {
+		background: #FFF1F1;
+	}
+
+	.bike-action-disabled {
+		opacity: 0.6;
+	}
+
+	.bike-action-text {
+		font-size: 23rpx;
+		font-weight: 700;
+		color: #5C6E58;
+	}
+
+	.bike-action-danger-text {
+		font-size: 23rpx;
+		font-weight: 700;
+		color: #B94747;
+	}
+
+	.empty-state {
+		padding: 72rpx 40rpx;
+		align-items: center;
+	}
+
+	.empty-icon-wrap {
+		width: 132rpx;
+		height: 132rpx;
+		border-radius: 40rpx;
+		background: #F2F1EC;
+		align-items: center;
+		justify-content: center;
+		margin-bottom: 24rpx;
+	}
+
+	.empty-icon {
+		font-size: 66rpx;
+	}
+
+	.empty-title {
+		font-size: 34rpx;
+		color: #2B2A29;
+		font-weight: 700;
+		margin-bottom: 12rpx;
+	}
+
+	.empty-desc {
+		font-size: 24rpx;
+		line-height: 1.72;
+		color: #8D8A84;
+		text-align: center;
+	}
+
+	.empty-action {
+		margin-top: 28rpx;
+		height: 76rpx;
+		padding: 0 30rpx;
+		border-radius: 8px;
+		background: #5C6E58;
+		align-items: center;
+		justify-content: center;
+	}
+
+	.empty-action-text {
+		font-size: 26rpx;
+		font-weight: 700;
+		color: #FFFFFF;
+	}
+</style>

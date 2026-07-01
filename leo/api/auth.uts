@@ -1,0 +1,94 @@
+/**
+ * Auth related APIs.
+ */
+import { requestGet, requestPost } from '@/api/request.uts'
+import { STORAGE_KEYS } from '@/config/constants.uts'
+import { parseLoginResult } from '@/types/auth.uts'
+import type { LoginResult } from '@/types/auth.uts'
+
+function buildInviterHeader() : UTSJSONObject | null {
+	const inviterKey : string = STORAGE_KEYS.INVITER_CODE
+	const inviterCodeValue = uni.getStorageSync(inviterKey)
+	const inviterCode = inviterCodeValue != null ? `${inviterCodeValue}` : ''
+	if (inviterCode.length > 0) {
+		const header = {} as UTSJSONObject
+		header['X-Inviter-Code'] = inviterCode
+		return header
+	}
+	return null
+}
+
+function clearInviterCode() {
+	const inviterKey : string = STORAGE_KEYS.INVITER_CODE
+	uni.removeStorageSync(inviterKey)
+}
+
+function parseLoginResultOrThrow(data : any | null) : LoginResult {
+	if (data == null) {
+		throw new Error('登录响应为空')
+	}
+	return parseLoginResult(data)
+}
+
+export function sendSmsCode(phone : string) : Promise<any> {
+	return requestGet('/sms/send', phone, false)
+}
+
+export function registerUser(phone : string, code : string) : Promise<LoginResult> {
+	const header = buildInviterHeader()
+	return new Promise<LoginResult>((resolve, reject) => {
+		requestPost('/user/login/sms', {
+			phone: phone,
+			code: code
+		} as UTSJSONObject, header, false).then((data) => {
+			try {
+				clearInviterCode()
+				resolve(parseLoginResultOrThrow(data))
+			} catch (e) {
+				reject(e)
+			}
+		}).catch((err) => {
+			reject(err)
+		})
+	})
+}
+
+export function loginByPassword(phone : string, encryptedPassword : string) : Promise<LoginResult> {
+	return new Promise<LoginResult>((resolve, reject) => {
+		requestPost('/user/login', {
+			phone: phone,
+			password: encryptedPassword
+		} as UTSJSONObject, null, false).then((data) => {
+			try {
+				resolve(parseLoginResultOrThrow(data))
+			} catch (e) {
+				reject(e)
+			}
+		}).catch((err) => {
+			reject(err)
+		})
+	})
+}
+
+export function logoutApi() : Promise<any> {
+	return requestGet('/user/logout', null, false)
+}
+
+export function resetPasswordByCode(code : string, encryptedPassword : string) : Promise<any> {
+	return requestPost('/user/password/edit/code', {
+		code: code,
+		password: encryptedPassword
+	} as UTSJSONObject, null, false)
+}
+
+export function changeUserPhone(newPhone : string, code : string, encryptedPassword : string) : Promise<any> {
+	return requestPost('/user/phone/edit', {
+		newPhone: newPhone,
+		code: code,
+		password: encryptedPassword
+	} as UTSJSONObject, null, false)
+}
+
+export function deleteUserAccount() : Promise<any> {
+	return requestPost('/user/delete', {} as UTSJSONObject, null, false)
+}

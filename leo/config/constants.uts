@@ -1,0 +1,62 @@
+/**
+ * Global constants.
+ */
+
+/**
+ * 后端接口基础地址。
+ * 如果你拉取本项目到自己的电脑调试，请把下面地址中的 IP 改成
+ * 运行后端服务那台电脑的局域网 IP，同时确认端口和基础路径是否正确。
+ * 示例：http://你的局域网IP:9200/aries
+ */
+export const BASE_URL = 'http://10.107.83.192:9200/aries'
+
+/** 临时默认头像，后续接入正式头像后可以替换或移除。 */
+export const TEMP_AVATAR_URL = '/static/avatar/temp-cyclist-avatar.png'
+
+export const REQUEST_TIMEOUT = 15000
+
+type BizCodeConfig = {
+	SUCCESS : number
+	AUTH_TOKEN_EXPIRED : number
+	AUTH_TOKEN_INVALID : number
+	AUTH_SESSION_MISSING : number
+}
+
+export const BIZ_CODE : BizCodeConfig = {
+	SUCCESS: 200,
+	AUTH_TOKEN_EXPIRED: 40101,
+	AUTH_TOKEN_INVALID: 40102,
+	AUTH_SESSION_MISSING: 40103
+}
+
+type StorageKeysConfig = {
+	USER_INFO : string
+	ACCESS_TOKEN : string
+	REFRESH_TOKEN : string
+	INVITER_CODE : string
+	DYNAMIC_SESSION_DRAFT : string
+}
+
+export const STORAGE_KEYS : StorageKeysConfig = {
+	USER_INFO: 'user_info',
+	ACCESS_TOKEN: 'access_token',
+	REFRESH_TOKEN: 'refresh_token',
+	INVITER_CODE: 'inviter_code',
+	DYNAMIC_SESSION_DRAFT: 'dynamic_session_draft'
+}
+
+export const PROJECT_CONFIG = {
+	NAME: '\u9a91\u8ff9',
+	NAME_EN: 'RideTrace',
+	TAGLINE: '\u4e13\u4e1a\u3001\u9ad8\u6548\u3001\u667a\u80fd\u7684\u81ea\u884c\u8f66\u8c03\u9002\u7cfb\u7edf'
+}
+
+export const THEME = {
+	PRIMARY: '#5C6E58',
+	PRIMARY_DARK: '#465543',
+	TEXT_MAIN: '#2B2A29',
+	TEXT_MUTED: '#787673',
+	BG_PAGE: '#F3F2ED',
+	BG_SURFACE: '#FFFFFF',
+	DANGER: '#C18C7E'
+}

@@ -1,0 +1,957 @@
+<template>
+	<view class="session-page">
+		<view class="nav-bar" :style="navBarStyle">
+			<view class="back-btn" :style="navBackStyle" @click="goBack">
+				<text class="back-icon">&lt;</text>
+			</view>
+			<text class="nav-title" :style="navTitleStyle">动态采集会话</text>
+			<view class="nav-right" :style="navRightStyle" @click="confirmClearSession">
+				<text class="nav-link">清空</text>
+			</view>
+		</view>
+
+		<scroll-view
+			class="content-scroll"
+			scroll-y="true"
+			:show-scrollbar="false"
+			:style="contentScrollStyle"
+		>
+			<view class="page-shell">
+				<view class="hero-card">
+					<text class="hero-kicker">NATIVE ANALYSIS</text>
+					<text class="hero-title">端上采集，本地暂存</text>
+					<text class="hero-desc">按视角逐步采集，先把每个视角的结构化结果暂存在 App 里，最后统一提交后端生成正式报告。</text>
+
+					<view class="hero-stats">
+						<view class="stat-item">
+							<text class="stat-label">当前车辆</text>
+							<text class="stat-value">{{ getSelectedBikeName() }}</text>
+						</view>
+						<view class="stat-item">
+							<text class="stat-label">已采视角</text>
+							<text class="stat-value">{{ capturedCount }}</text>
+						</view>
+						<view class="stat-item">
+							<text class="stat-label">痛点标签</text>
+							<text class="stat-value">{{ session.painLevels.length }}</text>
+						</view>
+					</view>
+				</view>
+
+				<view v-if="false" class="panel-card">
+					<text class="section-kicker">STEP 1</text>
+					<text class="section-title">选择本次分析车辆</text>
+					<text class="section-desc">切换车辆会清空当前会话暂存，避免不同车辆的数据混在同一次分析里。</text>
+
+					<view class="bike-list" v-if="bikeList.length > 0">
+						<view
+							v-for="bike in bikeList"
+							:key="bike.id"
+							class="bike-card"
+							:class="selectedBikeId == bike.id ? 'bike-card-active' : ''"
+							@click="selectBike(bike.id)"
+						>
+							<view class="bike-main">
+								<text class="bike-name">{{ getBikeName(bike) }}</text>
+								<text class="bike-meta">{{ getBikeMeta(bike) }}</text>
+							</view>
+							<text v-if="selectedBikeId == bike.id" class="selected-badge">已选中</text>
+						</view>
+					</view>
+
+					<view v-else class="empty-block">
+						<text class="empty-title">还没有可分析的车辆</text>
+						<view class="ghost-btn" @click="goToGarage">
+							<text class="ghost-btn-text">去车库补充</text>
+						</view>
+					</view>
+				</view>
+
+				<view class="panel-card">
+					<text class="section-kicker">STEP 1</text>
+					<text class="section-title">记录身体不适标签</text>
+					<text class="section-desc">这一层会随会话一起提交后端，用于提升报告建议的解释权重。</text>
+
+					<view class="chip-wrap">
+						<view
+							v-for="pain in painOptions"
+							:key="pain.code"
+							class="pain-chip"
+							:class="containsPain(pain.code) ? 'pain-chip-active' : ''"
+							@click="togglePain(pain.code)"
+						>
+							<text class="pain-chip-text" :class="containsPain(pain.code) ? 'pain-chip-text-active' : ''">{{ pain.description }}</text>
+						</view>
+					</view>
+				</view>
+
+				<view class="panel-card">
+					<text class="section-kicker">STEP 2</text>
+					<text class="section-title">逐视角采集</text>
+					<text class="section-desc">建议至少采集侧面视角。正面和背面会补充膝轨迹、骨盆稳定性和左右代偿信息。</text>
+
+					<view class="view-list">
+						<view class="view-card" v-for="view in viewCards" :key="view.viewType">
+							<view class="view-top">
+								<view>
+									<text class="view-name">{{ view.title }}</text>
+									<text class="view-desc">{{ view.desc }}</text>
+								</view>
+								<text class="view-status" :class="hasCapture(view.viewType) ? 'view-status-done' : 'view-status-pending'">
+									{{ hasCapture(view.viewType) ? '已采集' : '待采集' }}
+								</text>
+							</view>
+
+							<view class="view-actions">
+								<view class="primary-btn small-btn" @click="openCapture(view.viewType)">
+									<text class="primary-btn-text">{{ hasCapture(view.viewType) ? '重新采集' : '开始采集' }}</text>
+								</view>
+								<view v-if="hasCapture(view.viewType)" class="ghost-btn small-btn" @click="removeCapture(view.viewType)">
+									<text class="ghost-btn-text">移除</text>
+								</view>
+							</view>
+						</view>
+					</view>
+				</view>
+
+				<view class="action-panel">
+					<view class="primary-btn wide-btn" @click="confirmSubmitSession">
+						<text class="primary-btn-text">{{ session.isSubmitting ? '提交中...' : '提交分析' }}</text>
+					</view>
+					<text class="action-tip">会话暂存保存在本地，提交后会进入服务端异步建模流程。</text>
+				</view>
+			</view>
+		</scroll-view>
+	</view>
+</template>
+
+<script setup lang="uts">
+	import { computed, ref } from 'vue'
+	import { getPainOptions as fetchPainOptions } from '@/api/lab.uts'
+	import { getMyGarage } from '@/api/user.uts'
+	import {
+		clearDynamicSession,
+		getDynamicCapture,
+		getDynamicCapturedCount,
+		initDynamicSession,
+		removeDynamicCapture,
+		sessionData,
+		setDynamicPainLevels,
+		submitDynamicDraft,
+		toggleDynamicPainLevel
+	} from '@/store/dynamicSession.uts'
+	import { getAppLayoutMetrics } from '@/utils/layout.uts'
+
+	type DynamicBikeCard = {
+		id : number
+		brand : string | null
+		model : string | null
+		remark : string | null
+		bikeType : number | null
+		frameSize : string | null
+	}
+
+	type ViewCard = {
+		viewType : string
+		title : string
+		desc : string
+	}
+
+	type PainOption = {
+		code : string
+		description : string
+	}
+
+	const layout = getAppLayoutMetrics()
+	const navContentCenter = layout.statusBarHeight + layout.navBarContentHeight / 2
+	const navBarStyle = {
+		height: layout.navBarHeight + 'px',
+		paddingTop: layout.statusBarHeight + 'px',
+		boxSizing: 'border-box'
+	}
+	const navBackStyle = {
+		top: navContentCenter + 'px'
+	}
+	const navTitleStyle = {
+		top: navContentCenter + 'px'
+	}
+	const navRightStyle = {
+		top: navContentCenter + 'px'
+	}
+	const contentScrollStyle = {
+		top: layout.navBarHeight + 'px',
+		paddingBottom: layout.bottomSafeArea + 32 + 'px'
+	}
+
+	const session = sessionData
+	const bikeList = ref<DynamicBikeCard[]>([])
+	const selectedBikeId = ref(0)
+	const loading = ref(false)
+	const painOptions = ref<PainOption[]>([
+		{ code: 'neck_pain', description: '颈部酸痛/僵硬' },
+		{ code: 'shoulder_pain', description: '肩部/斜方肌酸痛' },
+		{ code: 'hand_numbness', description: '手掌发麻/刺痛' },
+		{ code: 'lower_back', description: '腰背酸痛' },
+		{ code: 'perineum_pain', description: '会阴/坐骨痛' },
+		{ code: 'knee_anterior', description: '膝盖前侧痛' },
+		{ code: 'knee_posterior', description: '膝盖后侧痛' },
+		{ code: 'knee_medial', description: '膝盖内侧痛' },
+		{ code: 'knee_lateral', description: '膝盖外侧痛' },
+		{ code: 'foot_numbness', description: '脚部发麻/灼热' },
+		{ code: 'achilles_pain', description: '跟腱痛/足跟痛' }
+	])
+	const viewCards : ViewCard[] = [
+		{ viewType: 'side', title: '侧面视角', desc: '核心几何、座高、前伸与踝角代理' },
+		{ viewType: 'front', title: '正面视角', desc: '膝轨迹、躯干侧倾与肘部外张' },
+		{ viewType: 'back', title: '背面视角', desc: '骨盆横摆、脊柱侧偏与左右下坠' }
+	]
+
+	const capturedCount = computed(() : number => {
+		return getDynamicCapturedCount()
+	})
+
+	function toSafeNumber(value : any | null, fallback : number) : number {
+		if (value == null) return fallback
+		const parsed = parseFloat(`${value}`)
+		return isNaN(parsed) ? fallback : parsed
+	}
+
+	function toText(value : any | null) : string {
+		return value != null ? `${value}` : ''
+	}
+
+	function toNullableText(value : any | null) : string | null {
+		const text = toText(value)
+		return text.length > 0 ? text : null
+	}
+
+	function createAnyArray() : any[] {
+		const items : any[] = []
+		return items
+	}
+
+	function createPainOptionsArray() : PainOption[] {
+		const items : PainOption[] = []
+		return items
+	}
+
+	function toJsonObject(value : any | null) : UTSJSONObject | null {
+		if (value == null) {
+			return null
+		}
+		const jsonText = JSON.stringify(value)
+		const parsed = JSON.parse(jsonText)
+		return parsed != null ? parsed as UTSJSONObject : null
+	}
+
+	function getJsonValue(source : UTSJSONObject | null, key : string) : any | null {
+		const current = source
+		if (current == null) {
+			return null
+		}
+		const value = current[key]
+		return value != null ? value : null
+	}
+
+	function getJsonText(source : UTSJSONObject | null, key : string, fallback : string) : string {
+		const value = getJsonValue(source, key)
+		if (value == null) {
+			return fallback
+		}
+		const text = toText(value)
+		return text.length > 0 ? text : fallback
+	}
+
+	function getJsonNullableText(source : UTSJSONObject | null, key : string) : string | null {
+		return toNullableText(getJsonValue(source, key))
+	}
+
+	function getJsonNumber(source : UTSJSONObject | null, key : string, fallback : number) : number {
+		const value = getJsonValue(source, key)
+		return value != null ? toSafeNumber(value, fallback) : fallback
+	}
+
+	function getJsonArray(value : any | null) : any[] {
+		if (value == null) {
+			return createAnyArray()
+		}
+		const jsonText = JSON.stringify(value)
+		const parsed = JSON.parse(jsonText)
+		return parsed != null ? parsed as any[] : createAnyArray()
+	}
+
+	function normalizePainOption(raw : any) : PainOption | null {
+		const source = toJsonObject(raw)
+		const code = getJsonText(source, 'code', '')
+		const description = getJsonText(source, 'description', '')
+		if (code.length == 0 || description.length == 0) {
+			return null
+		}
+		return {
+			code: code,
+			description: description
+		}
+	}
+
+	function getPainCodeByDescription(description : string) : string | null {
+		for (let i = 0; i < painOptions.value.length; i++) {
+			if (painOptions.value[i].description == description) {
+				return painOptions.value[i].code
+			}
+		}
+		return null
+	}
+
+	function mapLegacyPainCode(value : string) : string | null {
+		if (value == '膝前疼痛') return 'knee_anterior'
+		if (value == '膝后不适') return 'knee_posterior'
+		if (value == '腰背酸紧') return 'lower_back'
+		if (value == '肩颈紧张') return 'neck_pain'
+		if (value == '手麻压迫') return 'hand_numbness'
+		if (value == '髋部不适') return 'perineum_pain'
+		return null
+	}
+
+	function normalizeSessionPainLevels() {
+		const nextLevels : string[] = []
+		let changed = false
+		for (let i = 0; i < session.value.painLevels.length; i++) {
+			const current = session.value.painLevels[i]
+			let resolved = current
+			const byDescription = getPainCodeByDescription(current)
+			if (byDescription != null) {
+				resolved = byDescription
+				changed = true
+			} else {
+				const legacyCode = mapLegacyPainCode(current)
+				if (legacyCode != null) {
+					resolved = legacyCode
+					changed = true
+				}
+			}
+			let exists = false
+			for (let j = 0; j < nextLevels.length; j++) {
+				if (nextLevels[j] == resolved) {
+					exists = true
+					break
+				}
+			}
+			if (!exists) {
+				nextLevels.push(resolved)
+			}
+		}
+		if (changed) {
+			setDynamicPainLevels(nextLevels)
+		}
+	}
+
+	function normalizeBike(raw : any) : DynamicBikeCard {
+		const source = toJsonObject(raw)
+		const bikeTypeValue = getJsonValue(source, 'bikeType')
+		return {
+			id: getJsonNumber(source, 'id', 0),
+			brand: getJsonNullableText(source, 'brand'),
+			model: getJsonNullableText(source, 'model'),
+			remark: getJsonNullableText(source, 'remark'),
+			bikeType: bikeTypeValue != null ? toSafeNumber(bikeTypeValue, 0) : null,
+			frameSize: getJsonNullableText(source, 'frameSize')
+		}
+	}
+
+	async function loadBikeList() {
+		loading.value = true
+		try {
+			const data = await getMyGarage()
+			const list = getJsonArray(data)
+			const normalized : DynamicBikeCard[] = []
+			for (let i = 0; i < list.length; i++) {
+				normalized.push(normalizeBike(list[i]))
+			}
+			bikeList.value = normalized
+
+			let resolvedBikeId = 0
+			if (session.value.bikeId > 0) {
+				for (let i = 0; i < normalized.length; i++) {
+					if (normalized[i].id == session.value.bikeId) {
+						resolvedBikeId = session.value.bikeId
+						break
+					}
+				}
+			}
+			if (resolvedBikeId == 0 && selectedBikeId.value > 0) {
+				for (let i = 0; i < normalized.length; i++) {
+					if (normalized[i].id == selectedBikeId.value) {
+						resolvedBikeId = selectedBikeId.value
+						break
+					}
+				}
+			}
+			if (resolvedBikeId == 0 && normalized.length > 0) {
+				resolvedBikeId = normalized[0].id
+			}
+
+			selectedBikeId.value = resolvedBikeId
+			if (resolvedBikeId > 0 && session.value.bikeId != resolvedBikeId) {
+				initDynamicSession(resolvedBikeId)
+			}
+		} catch (e) {
+			console.error('[DynamicSession] bike list load failed', e)
+			uni.showToast({ title: '车辆加载失败', icon: 'none' })
+		} finally {
+			loading.value = false
+		}
+	}
+
+	function getBikeName(bike : DynamicBikeCard) : string {
+		const brand = bike.brand != null ? bike.brand : ''
+		const model = bike.model != null ? bike.model : ''
+		const fullName = `${brand} ${model}`.trim()
+		return fullName.length > 0 ? fullName : '未命名车辆'
+	}
+
+	function getSelectedBikeName() : string {
+		for (let i = 0; i < bikeList.value.length; i++) {
+			if (bikeList.value[i].id == selectedBikeId.value) {
+				return getBikeName(bikeList.value[i])
+			}
+		}
+		return selectedBikeId.value > 0 ? `车辆 #${selectedBikeId.value}` : '未选择'
+	}
+
+	function getBikeTypeLabel(type : number | null) : string {
+		if (type == 1) return '公路车'
+		if (type == 2) return '山地车'
+		if (type == 3) return '砾石车'
+		if (type == 4) return 'TT'
+		if (type == 5) return '铁三车'
+		return '自行车'
+	}
+
+	function getBikeMeta(bike : DynamicBikeCard) : string {
+		const sizeText = bike.frameSize != null && bike.frameSize.length > 0 ? `${bike.frameSize} 尺码` : '尺码待补充'
+		return `${getBikeTypeLabel(bike.bikeType)} - ${sizeText}`
+	}
+
+	async function loadPainOptionList() {
+		try {
+			const data = await fetchPainOptions()
+			const list = getJsonArray(data)
+			const normalized = createPainOptionsArray()
+			for (let i = 0; i < list.length; i++) {
+				const option = normalizePainOption(list[i])
+				if (option != null) {
+					normalized.push(option)
+				}
+			}
+			if (normalized.length > 0) {
+				painOptions.value = normalized
+			}
+		} catch (e) {
+			console.warn('[DynamicSession] pain options load failed', e)
+		}
+		normalizeSessionPainLevels()
+	}
+
+	function containsPain(label : string) : boolean {
+		for (let i = 0; i < session.value.painLevels.length; i++) {
+			if (session.value.painLevels[i] == label) {
+				return true
+			}
+		}
+		return false
+	}
+
+	function togglePain(label : string) {
+		toggleDynamicPainLevel(label)
+	}
+
+	function hasCapture(viewType : string) : boolean {
+		return getDynamicCapture(viewType) != null
+	}
+
+	function getSummaryPreview(viewType : string) : string {
+		const capture = getDynamicCapture(viewType)
+		if (capture == null || capture.summary == null) {
+			return '暂无摘要'
+		}
+		const summary = toJsonObject(capture.summary)
+		const maxKnee = getJsonText(summary, 'maxKnee', '--')
+		const minHip = getJsonText(summary, 'minHip', '--')
+		const avgTorso = getJsonText(summary, 'avgTorso', '--')
+		const maxWobble = getJsonText(summary, 'maxWobble', '--')
+		const maxHipTilt = getJsonText(summary, 'maxHipTilt', '--')
+		const maxElbowFlare = getJsonText(summary, 'maxElbowFlare', '--')
+		const maxPelvisSway = getJsonText(summary, 'maxPelvisSway', '--')
+		const maxSpineTilt = getJsonText(summary, 'maxSpineTilt', '--')
+		if (viewType == 'side') {
+			return `膝角 ${maxKnee}° · 髋角 ${minHip}° · 躯干 ${avgTorso}°`
+		}
+		if (viewType == 'front') {
+			return `膝轨迹 ${maxWobble}% · 髋侧倾 ${maxHipTilt}° · 肘外张 ${maxElbowFlare}%`
+		}
+		return `骨盆横摆 ${maxPelvisSway}% · 脊柱侧偏 ${maxSpineTilt}°`
+	}
+
+	function selectBike(id : number) {
+		if (selectedBikeId.value == id) {
+			return
+		}
+		if (capturedCount.value > 0) {
+			uni.showModal({
+				title: '切换车辆',
+				content: '切换车辆会清空当前会话暂存，是否继续？',
+				success: (res : any) => {
+					const result = toJsonObject(res)
+					if (getJsonValue(result, 'confirm') == true) {
+						selectedBikeId.value = id
+						initDynamicSession(id)
+					}
+				}
+			})
+			return
+		}
+		selectedBikeId.value = id
+		initDynamicSession(id)
+	}
+
+	function openCapture(viewType : string) {
+		if (selectedBikeId.value <= 0 && bikeList.value.length > 0) {
+			selectedBikeId.value = bikeList.value[0].id
+		}
+		if (selectedBikeId.value <= 0) {
+			uni.showModal({
+				title: '暂无可用车辆',
+				content: '请先到单车库补全车辆信息后，再开始动态采集。',
+				success: (res : any) => {
+					const result = toJsonObject(res)
+					if (getJsonValue(result, 'confirm') == true) {
+						uni.navigateTo({ url: '/pages/garage/garage' })
+					}
+				}
+			})
+			return
+		}
+		if (selectedBikeId.value <= 0) {
+			uni.showToast({ title: '请先选择车辆', icon: 'none' })
+			return
+		}
+		initDynamicSession(selectedBikeId.value)
+		uni.navigateTo({
+			url: `/pages/dynamicCapture/dynamicCapture?viewType=${viewType}&bikeId=${selectedBikeId.value}`
+		})
+	}
+
+	function removeCapture(viewType : string) {
+		removeDynamicCapture(viewType)
+		uni.showToast({ title: '该视角已移除', icon: 'none' })
+	}
+
+	function goBack() {
+		const pages = getCurrentPages()
+		if (pages.length > 1) {
+			uni.navigateBack({
+				delta: 1,
+				fail: () => {
+					uni.switchTab({ url: '/pages/lab/lab' })
+				}
+			})
+		} else {
+			uni.switchTab({ url: '/pages/lab/lab' })
+		}
+	}
+
+	async function doSubmitSession() {
+		try {
+			const bikeName = getSelectedBikeName()
+			const result = await submitDynamicDraft()
+			const resultObject = toJsonObject(result)
+			const sessionId = getJsonNumber(resultObject, 'id', 0)
+			const status = getJsonNumber(resultObject, 'status', 1)
+			if (sessionId <= 0) {
+				uni.showToast({ title: '服务端未返回会话编号', icon: 'none' })
+				return
+			}
+			clearDynamicSession(true)
+			uni.navigateTo({
+				url: `/pages/dynamicSubmitted/dynamicSubmitted?id=${sessionId}&status=${status}&bikeName=${encodeURIComponent(bikeName)}`
+			})
+		} catch (e) {
+			console.error('[DynamicSession] submit failed', e)
+			uni.showToast({ title: '提交失败，请稍后重试', icon: 'none' })
+		}
+	}
+
+	function confirmClearSession() {
+		if (capturedCount.value == 0 && session.value.painLevels.length == 0) {
+			goBack()
+			return
+		}
+		uni.showModal({
+			title: '清空暂存',
+			content: '确定清空当前动态会话暂存吗？',
+			success: (res : any) => {
+				const result = toJsonObject(res)
+				if (getJsonValue(result, 'confirm') == true) {
+					clearDynamicSession(true)
+					uni.showToast({ title: '已清空', icon: 'success' })
+				}
+			}
+		})
+	}
+
+	function confirmSubmitSession() {
+		if (session.value.isSubmitting) {
+			return
+		}
+		if (capturedCount.value == 0) {
+			uni.showToast({ title: '请至少采集一个视角', icon: 'none' })
+			return
+		}
+		if (!hasCapture('side')) {
+			uni.showModal({
+				title: '缺少侧面视角',
+				content: '未采集侧面视角时，座高与前伸类建议会不完整。仍要继续提交吗？',
+				success: (res : any) => {
+					const result = toJsonObject(res)
+					if (getJsonValue(result, 'confirm') == true) {
+						doSubmitSession()
+					}
+				}
+			})
+			return
+		}
+		doSubmitSession()
+	}
+
+	function goToGarage() {
+		uni.navigateTo({ url: '/pages/garage/garage' })
+	}
+
+	onLoad((query : any | null) => {
+		const queryObject = toJsonObject(query)
+		const bikeIdValue = getJsonValue(queryObject, 'bikeId')
+		if (bikeIdValue != null) {
+			selectedBikeId.value = toSafeNumber(bikeIdValue, 0)
+		}
+		if (selectedBikeId.value > 0 && session.value.bikeId != selectedBikeId.value) {
+			initDynamicSession(selectedBikeId.value)
+		}
+		loadPainOptionList()
+		loadBikeList()
+	})
+
+	onShow(() => {
+		loadPainOptionList()
+		if (!loading.value) {
+			loadBikeList()
+		}
+	})
+</script>
+
+<style scoped>
+	.session-page {
+		height: 100%;
+		background: #F3F2ED;
+	}
+
+	.nav-bar {
+		position: fixed;
+		top: 0;
+		left: 0;
+		right: 0;
+		background: rgba(243, 242, 237, 0.98);
+		border-bottom: 1rpx solid rgba(43, 42, 41, 0.06);
+		z-index: 100;
+	}
+
+	.back-btn,
+	.nav-right {
+		position: absolute;
+		transform: translateY(-50%);
+	}
+
+	.back-btn {
+		left: 20rpx;
+		width: 72rpx;
+		height: 72rpx;
+		align-items: center;
+		justify-content: center;
+	}
+
+	.back-icon {
+		font-size: 40rpx;
+		font-weight: 700;
+		color: #2B2A29;
+	}
+
+	.nav-title {
+		position: absolute;
+		left: 50%;
+		transform: translate(-50%, -50%);
+		font-size: 32rpx;
+		font-weight: 700;
+		color: #2B2A29;
+	}
+
+	.nav-right {
+		right: 24rpx;
+	}
+
+	.nav-link {
+		font-size: 24rpx;
+		color: #5C6E58;
+	}
+
+	.content-scroll {
+		position: fixed;
+		left: 0;
+		right: 0;
+		bottom: 0;
+	}
+
+	.page-shell {
+		padding: 20px 16px 0;
+	}
+
+	.hero-card,
+	.panel-card {
+		background: rgba(255, 255, 255, 0.94);
+		border-radius: 8px;
+		padding: 18px 16px;
+		margin-bottom: 14px;
+		box-shadow: 0 14px 32px rgba(43, 42, 41, 0.06);
+	}
+
+	.hero-kicker,
+	.section-kicker {
+		font-size: 11px;
+		font-weight: 700;
+		color: #7B766B;
+	}
+
+	.hero-title,
+	.section-title {
+		margin-top: 8px;
+		font-size: 22px;
+		font-weight: 700;
+		color: #2B2A29;
+	}
+
+	.hero-desc,
+	.section-desc {
+		margin-top: 10px;
+		font-size: 13px;
+		line-height: 1.7;
+		color: #7E786E;
+	}
+
+	.hero-stats {
+		flex-direction: row;
+		margin-top: 14px;
+	}
+
+	.stat-item {
+		flex: 1;
+		background: #F7F4EC;
+		border-radius: 8px;
+		padding: 10px;
+		margin-right: 8px;
+	}
+
+	.stat-item:last-child {
+		margin-right: 0;
+	}
+
+	.stat-label {
+		font-size: 11px;
+		color: #8B867C;
+	}
+
+	.stat-value {
+		margin-top: 6px;
+		font-size: 16px;
+		font-weight: 700;
+		color: #2B2A29;
+	}
+
+	.bike-list,
+	.view-list {
+		margin-top: 14px;
+	}
+
+	.bike-card,
+	.view-card {
+		background: #F8F4EC;
+		border-radius: 8px;
+		padding: 14px;
+		margin-bottom: 10px;
+		border-width: 1px;
+		border-style: solid;
+		border-color: transparent;
+	}
+
+	.bike-card-active {
+		border-color: rgba(92, 110, 88, 0.42);
+		background: rgba(92, 110, 88, 0.08);
+	}
+
+	.bike-main {
+		flex: 1;
+	}
+
+	.bike-name,
+	.view-name {
+		font-size: 16px;
+		font-weight: 700;
+		color: #2B2A29;
+	}
+
+	.bike-meta,
+	.view-desc {
+		margin-top: 6px;
+		font-size: 12px;
+		line-height: 1.6;
+		color: #7F796F;
+	}
+
+	.selected-badge {
+		margin-top: 8px;
+		font-size: 12px;
+		color: #5C6E58;
+		font-weight: 700;
+	}
+
+	.empty-block {
+		margin-top: 14px;
+		padding: 14px;
+		background: #F8F4EC;
+		border-radius: 8px;
+	}
+
+	.empty-title {
+		font-size: 14px;
+		color: #2B2A29;
+	}
+
+	.chip-wrap {
+		flex-direction: row;
+		flex-wrap: wrap;
+		justify-content: space-between;
+		margin-top: 14px;
+	}
+
+	.pain-chip {
+		width: 48.5%;
+		min-height: 48px;
+		padding: 10px 12px;
+		border-radius: 10px;
+		background: #F5F1E8;
+		margin-bottom: 8px;
+		align-items: center;
+		justify-content: center;
+		box-sizing: border-box;
+	}
+
+	.pain-chip-active {
+		background: rgba(92, 110, 88, 0.14);
+	}
+
+	.pain-chip-text {
+		font-size: 12px;
+		line-height: 1.4;
+		color: #6F6A61;
+		text-align: center;
+	}
+
+	.pain-chip-text-active {
+		color: #41503E;
+		font-weight: 700;
+	}
+
+	.view-top,
+	.view-actions {
+		flex-direction: row;
+		justify-content: space-between;
+		align-items: center;
+	}
+
+	.view-status {
+		font-size: 12px;
+		font-weight: 700;
+	}
+
+	.view-status-done {
+		color: #5C6E58;
+	}
+
+	.view-status-pending {
+		color: #A18472;
+	}
+
+	.summary-block {
+		margin-top: 10px;
+		padding: 10px;
+		border-radius: 8px;
+		background: rgba(92, 110, 88, 0.06);
+	}
+
+	.summary-text {
+		font-size: 12px;
+		line-height: 1.6;
+		color: #465543;
+	}
+
+	.view-actions {
+		margin-top: 12px;
+	}
+
+	.primary-btn,
+	.ghost-btn {
+		align-items: center;
+		justify-content: center;
+		border-radius: 8px;
+		padding: 12px 16px;
+	}
+
+	.primary-btn {
+		background: #5C6E58;
+	}
+
+	.ghost-btn {
+		background: rgba(92, 110, 88, 0.08);
+	}
+
+	.small-btn {
+		min-width: 112px;
+		padding-top: 10px;
+		padding-bottom: 10px;
+	}
+
+	.wide-btn {
+		width: 100%;
+	}
+
+	.primary-btn-text {
+		font-size: 14px;
+		font-weight: 700;
+		color: #FFFFFF;
+	}
+
+	.ghost-btn-text {
+		font-size: 13px;
+		font-weight: 700;
+		color: #465543;
+	}
+
+	.action-panel {
+		padding: 8px 0 24px;
+	}
+
+	.action-tip {
+		margin-top: 10px;
+		font-size: 12px;
+		line-height: 1.6;
+		color: #8B867C;
+		text-align: center;
+	}
+</style>

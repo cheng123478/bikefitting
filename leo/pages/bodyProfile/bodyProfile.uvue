@@ -1,0 +1,867 @@
+<template>
+	<view class="body-profile-page">
+		<view class="nav-bar" :style="{ height: navBarHeight + 'px', paddingTop: statusBarHeight + 'px', boxSizing: 'border-box' }">
+			<view class="back-btn" :style="navBackButtonStyle" @click="goBack">
+				<text class="back-icon">‹</text>
+			</view>
+			<text class="nav-title" :style="navTitleStyle">身体图谱</text>
+			<view class="nav-right" :style="navRightStyle"></view>
+		</view>
+
+		<scroll-view class="content-scroll" scroll-y="true" :show-scrollbar="false" :style="contentScrollStyle">
+			<view class="page-shell">
+				<view v-if="loading" class="loading-container app-soft-card">
+					<text class="loading-text">正在加载身体数据...</text>
+				</view>
+
+				<view v-else-if="!hasData" class="empty-card app-soft-card">
+					<view class="empty-icon-wrap">
+						<text class="empty-icon">📊</text>
+					</view>
+					<text class="empty-title">暂无身体档案</text>
+					<text class="empty-desc">请先完成身体测量，建立你的专属骑行画像，后续静态与动态诊断都会以此为基线。</text>
+					<view class="start-btn" @click="startMeasure">
+						<text class="btn-text">开始测量</text>
+					</view>
+				</view>
+
+				<view v-else class="profile-content">
+					<view class="hero-card">
+						<view class="hero-copy">
+							<text class="hero-kicker">BODY BLUEPRINT</text>
+							<text class="hero-title">你的骑行身体画像</text>
+							<text class="hero-desc">用基础体型、柔韧性和核心稳定性数据，为后续骑行调适提供更可靠的参考。</text>
+						</view>
+						<view class="hero-score-cluster">
+							<view class="score-pill">
+								<text class="score-pill-label">柔韧</text>
+								<text class="score-pill-value">{{ displayValue(formData.flexibilityScore) }}</text>
+							</view>
+							<view class="score-pill">
+								<text class="score-pill-label">稳定</text>
+								<text class="score-pill-value">{{ displayValue(formData.stabilityScore) }}</text>
+							</view>
+						</view>
+					</view>
+
+					<view class="summary-grid">
+						<view class="summary-card app-soft-card">
+							<text class="summary-label">身高</text>
+							<text class="summary-value">{{ displayMetric(formData.height, 'mm') }}</text>
+						</view>
+						<view class="summary-card app-soft-card">
+							<text class="summary-label">跨高</text>
+							<text class="summary-value">{{ displayMetric(formData.spanHeight, 'mm') }}</text>
+						</view>
+						<view class="summary-card app-soft-card">
+							<text class="summary-label">BMI</text>
+							<text class="summary-value">{{ displayValue(formData.bmi) }}</text>
+						</view>
+					</view>
+
+					<view class="section-card app-soft-card">
+						<view class="section-head">
+							<view>
+								<text class="section-kicker">BASE DIMENSIONS</text>
+								<text class="section-title">基础数据</text>
+							</view>
+						</view>
+						<view class="detail-grid">
+							<view class="detail-item">
+								<text class="detail-label">身高</text>
+								<text class="detail-value">{{ displayMetric(formData.height, 'mm') }}</text>
+							</view>
+							<view class="detail-item">
+								<text class="detail-label">体重</text>
+								<text class="detail-value">{{ displayMetric(formData.weightKg, 'kg') }}</text>
+							</view>
+							<view class="detail-item">
+								<text class="detail-label">跨高</text>
+								<text class="detail-value">{{ displayMetric(formData.spanHeight, 'mm') }}</text>
+							</view>
+							<view class="detail-item">
+								<text class="detail-label">BMI</text>
+								<text class="detail-value">{{ displayValue(formData.bmi) }}</text>
+							</view>
+						</view>
+					</view>
+
+					<view class="section-card app-soft-card">
+						<view class="section-head">
+							<view>
+								<text class="section-kicker">LIMB METRICS</text>
+								<text class="section-title">肢体数据</text>
+							</view>
+						</view>
+						<view class="detail-grid">
+							<view class="detail-item">
+								<text class="detail-label">大腿长</text>
+								<text class="detail-value">{{ displayMetric(formData.thighLength, 'mm') }}</text>
+							</view>
+							<view class="detail-item">
+								<text class="detail-label">小腿长</text>
+								<text class="detail-value">{{ displayMetric(formData.calfLength, 'mm') }}</text>
+							</view>
+							<view class="detail-item">
+								<text class="detail-label">大臂长</text>
+								<text class="detail-value">{{ displayMetric(formData.longArmLength, 'mm') }}</text>
+							</view>
+							<view class="detail-item">
+								<text class="detail-label">小臂长</text>
+								<text class="detail-value">{{ displayMetric(formData.shortArmLength, 'mm') }}</text>
+							</view>
+						</view>
+					</view>
+
+					<view class="section-card app-soft-card">
+						<view class="section-head">
+							<view>
+								<text class="section-kicker">FLEXIBILITY</text>
+								<text class="section-title">柔韧性评估</text>
+							</view>
+							<view class="section-guide" @click="openThoracicGuide">
+								<text class="section-guide-text">测量说明</text>
+							</view>
+						</view>
+						<view class="detail-list">
+							<view class="list-row">
+								<text class="list-label">举臂角度</text>
+								<text class="list-value">{{ displayMetric(formData.armRaiseAngle, '°') }}</text>
+							</view>
+							<view class="list-row">
+								<text class="list-label">胸椎旋转</text>
+								<text class="list-value">{{ displayMetric(formData.thoracicRotationAngle, '°') }}</text>
+							</view>
+							<view class="list-row">
+								<text class="list-label">痛感等级</text>
+								<text class="list-value">{{ getPainLabel(formData.thoracicPainLevel) }}</text>
+							</view>
+							<view class="list-row">
+								<text class="list-label">柔韧评分</text>
+								<text class="list-value accent-green">{{ displayValue(formData.flexibilityScore) }}</text>
+							</view>
+						</view>
+					</view>
+
+					<view class="section-card app-soft-card">
+						<view class="section-head">
+							<view>
+								<text class="section-kicker">CORE STABILITY</text>
+								<text class="section-title">核心稳定性</text>
+							</view>
+						</view>
+						<view class="detail-list">
+							<view class="list-row">
+								<text class="list-label">深蹲评分</text>
+								<text class="list-value">{{ displayValue(formData.squatStabilityScore) }}</text>
+							</view>
+							<view class="list-row">
+								<text class="list-label">平板支撑</text>
+								<text class="list-value">{{ displayValue(formData.plankScore) }}</text>
+							</view>
+							<view class="list-row">
+								<text class="list-label">稳定性评分</text>
+								<text class="list-value accent-green">{{ displayValue(formData.stabilityScore) }}</text>
+							</view>
+						</view>
+					</view>
+
+					<view class="update-card app-soft-card">
+						<text class="update-label">最近更新</text>
+						<text class="update-value">{{ formatDate(formData.createTime) }}</text>
+					</view>
+
+					<view class="edit-btn" @click="goToEdit">
+						<text class="btn-text">修改数据</text>
+					</view>
+				</view>
+			</view>
+		</scroll-view>
+
+		<view v-if="showGuideModal" class="guide-modal" @click="closeGuide">
+			<scroll-view class="guide-content" scroll-y="true" :show-scrollbar="false" :style="guideScrollStyle" @click.stop>
+				<view class="guide-header">
+					<text class="guide-title">{{ currentGuide.title }}</text>
+					<view class="guide-close" @click="closeGuide">
+						<text class="close-icon">×</text>
+					</view>
+				</view>
+				<view class="guide-image">
+					<image :src="currentGuide.image" mode="aspectFit" class="guide-img" />
+				</view>
+				<view class="guide-desc">
+					<text class="desc-title">测量步骤</text>
+					<text class="desc-text">{{ currentGuide.steps }}</text>
+				</view>
+				<view class="guide-notice">
+					<text class="notice-title">注意事项</text>
+					<text class="notice-text">{{ currentGuide.notice }}</text>
+				</view>
+			</scroll-view>
+		</view>
+	</view>
+</template>
+
+<script setup lang="uts">
+	import { ref, onMounted } from 'vue'
+	import { getLatestUserBody } from '@/api/user.uts'
+	import { getAppLayoutMetrics } from '@/utils/layout.uts'
+
+	type GuideItem = {
+		title: string
+		image: string
+		steps: string
+		notice: string
+	}
+
+	type BodyProfileData = {
+		id: number | null
+		userId: number | null
+		height: number | null
+		weightKg: number | null
+		spanHeight: number | null
+		longArmLength: number | null
+		shortArmLength: number | null
+		thighLength: number | null
+		calfLength: number | null
+		armRaiseAngle: number | null
+		thoracicRotationAngle: number | null
+		thoracicPainLevel: number | null
+		squatStabilityScore: number | null
+		plankScore: number | null
+		bmi: number | null
+		flexibilityScore: number | null
+		stabilityScore: number | null
+		createTime: string | null
+	}
+
+	const loading = ref(true)
+	const hasData = ref(false)
+
+	const layout = getAppLayoutMetrics()
+	const windowInfo = uni.getWindowInfo()
+	const statusBarHeight = layout.statusBarHeight
+	const navBarHeight = layout.navBarHeight
+	const navContentOffset = 6
+	const navContentCenter = statusBarHeight + layout.navBarContentHeight / 2 + navContentOffset
+	const guideWindowHeight = windowInfo.windowHeight
+	const contentScrollStyle = {
+		top: navBarHeight + 'px',
+		paddingBottom: layout.bottomSafeArea + 24 + 'px'
+	}
+	const guideScrollStyle = {
+		maxHeight: (guideWindowHeight > 0 ? Math.round(guideWindowHeight * 0.8) : 560) + 'px'
+	}
+	const navBackButtonStyle = {
+		top: navContentCenter + 'px'
+	}
+	const navTitleStyle = {
+		top: navContentCenter + 'px'
+	}
+	const navRightStyle = {
+		top: navContentCenter + 'px'
+	}
+
+	const showGuideModal = ref(false)
+	const currentGuide = ref<GuideItem>({
+		title: '',
+		image: '',
+		steps: '',
+		notice: ''
+	})
+
+	const thoracicGuide : GuideItem = {
+			title: '胸椎旋转 / Thoracic Spine',
+			image: '/static/image/fitting/thoracicspine.png',
+			steps: '1. 坐姿，背部挺直\n2. 缓慢向一侧转动躯干\n3. 测量旋转角度',
+			notice: '评估胸椎灵活性，影响骑行时的转向能力'
+	}
+
+	const painLabels = ['无痛', '轻微', '轻度', '中度', '重度', '剧烈']
+
+	const formData = ref<BodyProfileData>({
+		id: null,
+		userId: null,
+		height: null,
+		weightKg: null,
+		spanHeight: null,
+		longArmLength: null,
+		shortArmLength: null,
+		thighLength: null,
+		calfLength: null,
+		armRaiseAngle: null,
+		thoracicRotationAngle: null,
+		thoracicPainLevel: null,
+		squatStabilityScore: null,
+		plankScore: null,
+		bmi: null,
+		flexibilityScore: null,
+		stabilityScore: null,
+		createTime: null
+	})
+
+	function toNullableNumber(value : any | null) : number | null {
+		if (value == null || value === '') return null
+		const parsed = parseFloat(`${value}`)
+		return isNaN(parsed) ? null : parsed
+	}
+
+	function toNullableText(value : any | null) : string | null {
+		return value != null ? `${value}` : null
+	}
+
+	function toJsonObject(value : any | null) : UTSJSONObject | null {
+		if (value == null) {
+			return null
+		}
+		const jsonText = JSON.stringify(value)
+		const parsed = JSON.parse(jsonText)
+		return parsed != null ? parsed as UTSJSONObject : null
+	}
+
+	function getJsonValue(source : UTSJSONObject | null, key : string) : any | null {
+		const current = source
+		if (current == null) {
+			return null
+		}
+		const value = current[key]
+		return value != null ? value : null
+	}
+
+	function normalizeBodyProfileData(raw : any | null) : BodyProfileData {
+		const bodyData = toJsonObject(raw)
+		return {
+			id: toNullableNumber(getJsonValue(bodyData, 'id')),
+			userId: toNullableNumber(getJsonValue(bodyData, 'userId')),
+			height: toNullableNumber(getJsonValue(bodyData, 'height')),
+			weightKg: toNullableNumber(getJsonValue(bodyData, 'weightKg')),
+			spanHeight: toNullableNumber(getJsonValue(bodyData, 'spanHeight')),
+			longArmLength: toNullableNumber(getJsonValue(bodyData, 'longArmLength')),
+			shortArmLength: toNullableNumber(getJsonValue(bodyData, 'shortArmLength')),
+			thighLength: toNullableNumber(getJsonValue(bodyData, 'thighLength')),
+			calfLength: toNullableNumber(getJsonValue(bodyData, 'calfLength')),
+			armRaiseAngle: toNullableNumber(getJsonValue(bodyData, 'armRaiseAngle')),
+			thoracicRotationAngle: toNullableNumber(getJsonValue(bodyData, 'thoracicRotationAngle')),
+			thoracicPainLevel: toNullableNumber(getJsonValue(bodyData, 'thoracicPainLevel')),
+			squatStabilityScore: toNullableNumber(getJsonValue(bodyData, 'squatStabilityScore')),
+			plankScore: toNullableNumber(getJsonValue(bodyData, 'plankScore')),
+			bmi: toNullableNumber(getJsonValue(bodyData, 'bmi')),
+			flexibilityScore: toNullableNumber(getJsonValue(bodyData, 'flexibilityScore')),
+			stabilityScore: toNullableNumber(getJsonValue(bodyData, 'stabilityScore')),
+			createTime: toNullableText(getJsonValue(bodyData, 'createTime'))
+		}
+	}
+
+	function openThoracicGuide() {
+		currentGuide.value = thoracicGuide
+		showGuideModal.value = true
+	}
+
+	function closeGuide() {
+		showGuideModal.value = false
+	}
+
+	function getPainLabel(level : number | null) : string {
+		if (level == null) return '--'
+		if (level < 0 || level >= painLabels.length) return '--'
+		return painLabels[level]
+	}
+
+	function padNumber(value : number) : string {
+		if (value < 10) return `0${value}`
+		return `${value}`
+	}
+
+	function displayValue(value : number | null) : string {
+		if (value == null) return '--'
+		return `${value}`
+	}
+
+	function displayMetric(value : number | null, unit : string) : string {
+		if (value == null) return '--'
+		return `${value}${unit}`
+	}
+
+	function formatDate(dateStr : string | null) : string {
+		if (dateStr == null || dateStr.length == 0) return '--'
+		const date = new Date(dateStr)
+		if (isNaN(date.getTime())) return '--'
+		const year = `${date.getFullYear()}`
+		const month = padNumber(date.getMonth() + 1)
+		const day = padNumber(date.getDate())
+		return `${year}-${month}-${day}`
+	}
+
+	function goBack() {
+		const pages = getCurrentPages()
+		if (pages.length > 1) {
+			uni.navigateBack({
+				delta: 1,
+				fail: () => {
+					uni.switchTab({ url: '/pages/index/index' })
+				}
+			})
+		} else {
+			uni.switchTab({ url: '/pages/index/index' })
+		}
+	}
+
+	function startMeasure() {
+		uni.showToast({ title: '测量功能开发中', icon: 'none' })
+	}
+
+	function goToEdit() {
+		uni.navigateTo({
+			url: '/pages/editBody/editBody'
+		})
+	}
+
+	async function loadData() {
+		loading.value = true
+		try {
+			const data = await getLatestUserBody()
+			const nextData = normalizeBodyProfileData(data)
+			if (nextData.id != null) {
+				hasData.value = true
+				formData.value = nextData
+			} else {
+				hasData.value = false
+			}
+		} catch (e) {
+			console.error('加载身体数据失败', e)
+			hasData.value = false
+		} finally {
+			loading.value = false
+		}
+	}
+
+	onMounted(() => {
+		loadData()
+	})
+</script>
+
+<style scoped>
+	.app-soft-card {
+		background: rgba(255, 255, 255, 0.92);
+		border-radius: 8px;
+		border-width: 1px;
+		border-color: rgba(255, 255, 255, 0.72);
+		border-style: solid;
+		box-shadow: 0 18px 48px rgba(53, 55, 41, 0.08);
+	}
+
+	.body-profile-page {
+		height: 100%;
+		background: linear-gradient(180deg, #F8F5EE 0%, #F1ECE1 60%, #ECE4D7 100%);
+	}
+
+	.nav-bar {
+		position: fixed;
+		top: 0;
+		left: 0;
+		right: 0;
+		background: rgba(248, 245, 238, 0.92);
+		box-sizing: border-box;
+		z-index: 100;
+	}
+
+	.back-btn {
+		position: absolute;
+		left: 24rpx;
+		transform: translateY(-50%);
+		width: 88rpx;
+	}
+
+	.back-icon {
+		font-size: 48rpx;
+		color: #2B2A29;
+	}
+
+	.nav-title {
+		position: absolute;
+		left: 50%;
+		transform: translate(-50%, -50%);
+		font-size: 32rpx;
+		font-weight: 700;
+		color: #2B2A29;
+	}
+
+	.nav-right {
+		position: absolute;
+		right: 24rpx;
+		transform: translateY(-50%);
+		width: 60rpx;
+	}
+
+	.content-scroll {
+		position: fixed;
+		left: 0;
+		right: 0;
+		bottom: 0;
+		box-sizing: border-box;
+	}
+
+	.page-shell {
+		padding: 20rpx 32rpx 0;
+	}
+
+	.loading-container {
+		padding: 72rpx 32rpx;
+		align-items: center;
+		justify-content: center;
+	}
+
+	.loading-text {
+		font-size: 28rpx;
+		color: #8E8A80;
+	}
+
+	.empty-card {
+		padding: 80rpx 40rpx;
+		align-items: center;
+	}
+
+	.empty-icon-wrap {
+		width: 128rpx;
+		height: 128rpx;
+		border-radius: 10rpx;
+		background: rgba(92, 110, 88, 0.08);
+		align-items: center;
+		justify-content: center;
+		margin-bottom: 24rpx;
+	}
+
+	.empty-icon {
+		font-size: 64rpx;
+	}
+
+	.empty-title {
+		font-size: 36rpx;
+		font-weight: 700;
+		color: #2B2A29;
+		margin-bottom: 12rpx;
+	}
+
+	.empty-desc {
+		font-size: 24rpx;
+		line-height: 1.72;
+		color: #8D8A84;
+		text-align: center;
+		margin-bottom: 30rpx;
+	}
+
+	.start-btn,
+	.edit-btn {
+		padding: 16rpx 34rpx;
+		border-radius: 6rpx;
+		background: #5C6E58;
+		align-items: center;
+		justify-content: center;
+		box-shadow: 0 14rpx 28rpx rgba(54, 67, 51, 0.16);
+	}
+
+	.btn-text {
+		font-size: 28rpx;
+		font-weight: 700;
+		color: #FFFFFF;
+	}
+
+	.profile-content {
+		padding-bottom: 12rpx;
+	}
+
+	.hero-card {
+		padding: 34rpx 30rpx;
+		margin-bottom: 22rpx;
+		border-radius: 8rpx;
+		background: #486048;
+	}
+
+	.hero-copy {
+		margin-bottom: 20rpx;
+	}
+
+	.hero-kicker {
+		font-size: 20rpx;
+		font-weight: 700;
+		color: rgba(238, 227, 208, 0.82);
+		letter-spacing: 4rpx;
+		margin-bottom: 10rpx;
+	}
+
+	.hero-title {
+		font-size: 48rpx;
+		line-height: 1.12;
+		font-weight: 700;
+		color: #FFFFFF;
+		margin-bottom: 14rpx;
+	}
+
+	.hero-desc {
+		font-size: 24rpx;
+		line-height: 1.72;
+		color: rgba(255, 255, 255, 0.78);
+	}
+
+	.hero-score-cluster {
+		flex-direction: row;
+	}
+
+	.score-pill {
+		flex: 1;
+		padding: 18rpx 20rpx;
+		margin-right: 12rpx;
+		border-radius: 8rpx;
+		background: rgba(255, 255, 255, 0.12);
+	}
+
+	.score-pill:last-child {
+		margin-right: 0;
+	}
+
+	.score-pill-label {
+		font-size: 20rpx;
+		color: rgba(255, 255, 255, 0.72);
+		margin-bottom: 8rpx;
+	}
+
+	.score-pill-value {
+		font-size: 38rpx;
+		font-weight: 700;
+		color: #FFFFFF;
+	}
+
+	.summary-grid {
+		flex-direction: row;
+		justify-content: space-between;
+		margin-bottom: 22rpx;
+	}
+
+	.summary-card {
+		width: 32%;
+		padding: 22rpx 18rpx;
+	}
+
+	.summary-label {
+		font-size: 20rpx;
+		color: #8F8A80;
+		margin-bottom: 10rpx;
+	}
+
+	.summary-value {
+		font-size: 30rpx;
+		font-weight: 700;
+		color: #2B2A29;
+	}
+
+	.section-card {
+		padding: 24rpx;
+		margin-bottom: 18rpx;
+	}
+
+	.section-head {
+		flex-direction: row;
+		align-items: center;
+		justify-content: space-between;
+		margin-bottom: 18rpx;
+	}
+
+	.section-kicker {
+		font-size: 18rpx;
+		font-weight: 700;
+		color: #6A7C63;
+		letter-spacing: 4rpx;
+		margin-bottom: 8rpx;
+	}
+
+	.section-title {
+		font-size: 32rpx;
+		font-weight: 700;
+		color: #2B2A29;
+	}
+
+	.section-guide {
+		padding: 10rpx 16rpx;
+		border-radius: 999rpx;
+		background: rgba(92, 110, 88, 0.08);
+	}
+
+	.section-guide-text {
+		font-size: 22rpx;
+		font-weight: 600;
+		color: #5C6E58;
+	}
+
+	.detail-grid {
+		flex-direction: row;
+		flex-wrap: wrap;
+		justify-content: space-between;
+	}
+
+	.detail-item {
+		width: 48%;
+		padding: 20rpx;
+		margin-bottom: 16rpx;
+		border-radius: 6rpx;
+		background: #F8F5EE;
+	}
+
+	.detail-label {
+		font-size: 20rpx;
+		color: #8E8A80;
+		margin-bottom: 10rpx;
+	}
+
+	.detail-value {
+		font-size: 28rpx;
+		font-weight: 700;
+		color: #2B2A29;
+	}
+
+	.detail-list {
+		padding-top: 2rpx;
+	}
+
+	.list-row {
+		flex-direction: row;
+		align-items: center;
+		justify-content: space-between;
+		padding: 18rpx 0;
+		border-bottom: 1rpx solid rgba(43, 42, 41, 0.06);
+	}
+
+	.list-row:last-child {
+		border-bottom: none;
+		padding-bottom: 0;
+	}
+
+	.list-label {
+		font-size: 24rpx;
+		color: #767167;
+	}
+
+	.list-value {
+		font-size: 28rpx;
+		font-weight: 700;
+		color: #2B2A29;
+	}
+
+	.accent-green {
+		color: #5C6E58;
+	}
+
+	.update-card {
+		flex-direction: row;
+		align-items: center;
+		justify-content: space-between;
+		padding: 22rpx 24rpx;
+		margin-bottom: 18rpx;
+	}
+
+	.update-label {
+		font-size: 22rpx;
+		color: #8E8A80;
+	}
+
+	.update-value {
+		font-size: 24rpx;
+		font-weight: 700;
+		color: #2B2A29;
+	}
+
+	.guide-modal {
+		position: fixed;
+		top: 0;
+		left: 0;
+		right: 0;
+		bottom: 0;
+		background: rgba(21, 25, 21, 0.62);
+		align-items: center;
+		justify-content: center;
+		z-index: 1000;
+		padding: 20px;
+	}
+
+	.guide-content {
+		background: #FFFDF8;
+		border-radius: 8px;
+		width: 100%;
+		max-width: 360px;
+		box-shadow: 0 24px 50px rgba(37, 38, 29, 0.18);
+	}
+
+	.guide-header {
+		flex-direction: row;
+		align-items: center;
+		justify-content: space-between;
+		padding: 20px;
+		border-bottom: 1px solid rgba(43, 42, 41, 0.06);
+	}
+
+	.guide-title {
+		font-size: 18px;
+		font-weight: 700;
+		color: #1A1A1A;
+	}
+
+	.guide-close {
+		width: 32px;
+		height: 32px;
+		align-items: center;
+		justify-content: center;
+	}
+
+	.close-icon {
+		font-size: 28px;
+		color: #8E8A80;
+	}
+
+	.guide-image {
+		padding: 20px;
+		background: #F7F3EA;
+	}
+
+	.guide-img {
+		width: 100%;
+		height: auto;
+		border-radius: 6px;
+	}
+
+	.guide-desc {
+		padding: 20px;
+		border-bottom: 1px solid rgba(43, 42, 41, 0.06);
+	}
+
+	.desc-title {
+		font-size: 15px;
+		font-weight: 700;
+		color: #2B2A29;
+		margin-bottom: 10px;
+	}
+
+	.desc-text {
+		font-size: 14px;
+		color: #666;
+		line-height: 1.6;
+		white-space: pre-wrap;
+	}
+
+	.guide-notice {
+		padding: 20px;
+		background: rgba(92, 110, 88, 0.05);
+		border-radius: 0 0 8px 8px;
+	}
+
+	.notice-title {
+		font-size: 15px;
+		font-weight: 700;
+		color: #5C6E58;
+		margin-bottom: 10px;
+	}
+
+	.notice-text {
+		font-size: 14px;
+		color: #666;
+		line-height: 1.6;
+	}
+</style>

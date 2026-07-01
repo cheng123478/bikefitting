@@ -1,0 +1,316 @@
+/**
+ * HTTP request wrapper for uni-app x.
+ */
+import { BASE_URL, BIZ_CODE, REQUEST_TIMEOUT } from '@/config/constants.uts'
+import {
+	getAccessToken,
+	getRefreshToken,
+	refreshSession,
+	logout
+} from '@/store/user.uts'
+import { parseApiResult, parseLoginResult } from '@/types/auth.uts'
+import type { ApiResult } from '@/types/auth.uts'
+
+type RequestOptions = {
+	url : string
+	method : RequestMethodValue
+	data : UTSJSONObject | null
+	header : UTSJSONObject
+	silent : boolean
+}
+
+type RequestMethodValue = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'
+type RequestRunner = (options : RequestOptions) => Promise<any>
+
+let isRefreshing = false
+const retryQueue : Array<(token : string) => void> = []
+
+function buildAuthHeader(token : string) : string {
+	if (token.startsWith('Bearer ')) {
+		return token
+	}
+	return 'Bearer ' + token
+}
+
+function getMessage(apiRes : ApiResult, defaultValue : string) : string {
+	if (apiRes.message != null && apiRes.message.length > 0) {
+		return apiRes.message
+	}
+	return defaultValue
+}
+
+function createDefaultHeader() : UTSJSONObject {
+	const header = {} as UTSJSONObject
+	header['Content-Type'] = 'application/json;charset=utf-8'
+	return header
+}
+
+function createFallbackApiResult() : ApiResult {
+	return {
+		code: -1,
+		message: '',
+		data: null
+	}
+}
+
+function createEmptyResponseData() : UTSJSONObject {
+	return {} as UTSJSONObject
+}
+
+function createRejectedPromise(message : string) : Promise<any> {
+	return new Promise<any>((_resolve, reject) => {
+		reject(new Error(message))
+	})
+}
+
+let doRequestRef : RequestRunner = (_options : RequestOptions) => createRejectedPromise('请求处理器未初始化')
+
+function extractApiResult(resData : any | null) : ApiResult {
+	if (resData == null) {
+		return createFallbackApiResult()
+	}
+	return parseApiResult(resData)
+}
+
+function mergeAuthHeader(baseHeader : UTSJSONObject) : UTSJSONObject {
+	const header = baseHeader
+	const token = getAccessToken()
+	if (token.length > 0) {
+		header['Authorization'] = buildAuthHeader(token)
+	}
+	if (header['Content-Type'] == null) {
+		header['Content-Type'] = 'application/json;charset=utf-8'
+	}
+	return header
+}
+
+function showError(message : string) {
+	uni.showToast({
+		title: message,
+		icon: 'none',
+		duration: 2500
+	})
+}
+
+function performFullLogout(message : string) {
+	showError(message)
+	logout()
+	isRefreshing = false
+	retryQueue.length = 0
+	uni.reLaunch({ url: '/pages/index/index' })
+}
+
+function resolveApiData(resolve : (value : any) => void, apiRes : ApiResult) {
+	const responseData = apiRes.data
+	if (responseData != null) {
+		resolve(responseData)
+	} else {
+		resolve(createEmptyResponseData())
+	}
+}
+
+function handleTokenExpired(originalOptions : RequestOptions) : Promise<any> {
+	const refresh = getRefreshToken()
+	const requestRunner = doRequestRef
+	if (refresh.length == 0 || originalOptions.url.indexOf('/user/refresh') >= 0) {
+		performFullLogout('登录已过期')
+		return createRejectedPromise('认证失败')
+	}
+
+	if (!isRefreshing) {
+		isRefreshing = true
+		return new Promise<any>((resolve, reject) => {
+			uni.request({
+				url: BASE_URL + '/user/refresh',
+				method: 'POST',
+				data: { refreshToken: refresh } as UTSJSONObject,
+				header: createDefaultHeader(),
+				timeout: REQUEST_TIMEOUT,
+				success: (res) => {
+					const apiRes = extractApiResult(res.data)
+					if (apiRes.code == BIZ_CODE.SUCCESS) {
+						const loginRaw = apiRes.data
+						if (loginRaw != null) {
+							const loginData = parseLoginResult(loginRaw)
+							refreshSession(loginData.accessToken, loginData.refreshToken, loginData.user)
+
+							for (let i = 0; i < retryQueue.length; i++) {
+								retryQueue[i](loginData.accessToken)
+							}
+							retryQueue.length = 0
+
+							const retryHeader = originalOptions.header
+							retryHeader['Authorization'] = buildAuthHeader(loginData.accessToken)
+							requestRunner({
+								url: originalOptions.url,
+								method: originalOptions.method,
+								data: originalOptions.data,
+								header: retryHeader,
+								silent: originalOptions.silent
+							}).then(resolve).catch(reject)
+							return
+						}
+					}
+
+					performFullLogout('认证已过期，请重新登录')
+					reject(new Error('Token 刷新失败'))
+				},
+				fail: (err) => {
+					performFullLogout('认证已过期，请重新登录')
+					reject(err)
+				},
+				complete: () => {
+					isRefreshing = false
+				}
+			})
+		})
+	}
+
+	return new Promise<any>((resolve, reject) => {
+		retryQueue.push((token : string) => {
+			const retryHeader = originalOptions.header
+			retryHeader['Authorization'] = buildAuthHeader(token)
+			requestRunner({
+				url: originalOptions.url,
+				method: originalOptions.method,
+				data: originalOptions.data,
+				header: retryHeader,
+				silent: originalOptions.silent
+			}).then(resolve).catch(reject)
+		})
+	})
+}
+
+function doRequest(options : RequestOptions) : Promise<any> {
+	return new Promise<any>((resolve, reject) => {
+		const header = mergeAuthHeader(options.header)
+
+		uni.request({
+			url: BASE_URL + options.url,
+			method: options.method,
+			data: options.data,
+			header: header,
+			timeout: REQUEST_TIMEOUT,
+			dataType: 'json',
+			success: (res) => {
+				if (res.statusCode == 401) {
+					const apiRes = extractApiResult(res.data)
+					if (apiRes.code == BIZ_CODE.AUTH_TOKEN_EXPIRED) {
+						handleTokenExpired(options).then(resolve).catch(reject)
+						return
+					}
+					if (isRefreshing && (apiRes.code == BIZ_CODE.AUTH_TOKEN_INVALID || apiRes.code == BIZ_CODE.AUTH_SESSION_MISSING)) {
+						handleTokenExpired(options).then(resolve).catch(reject)
+						return
+					}
+					const expiredMessage = getMessage(apiRes, '登录会话已过期，请重新登录')
+					performFullLogout(expiredMessage)
+					reject(new Error(expiredMessage))
+					return
+				}
+
+				if (res.statusCode != null && res.statusCode >= 400) {
+					const msg = '璇锋眰澶辫触 (' + res.statusCode + ')'
+					if (!options.silent) {
+						showError(msg)
+					}
+					reject(new Error(msg))
+					return
+				}
+
+				const apiRes = extractApiResult(res.data)
+				if (apiRes.code == BIZ_CODE.SUCCESS) {
+					resolveApiData(resolve, apiRes)
+					return
+				}
+
+				if (apiRes.code == BIZ_CODE.AUTH_TOKEN_EXPIRED) {
+					handleTokenExpired(options).then(resolve).catch(reject)
+					return
+				}
+
+				if (apiRes.code == BIZ_CODE.AUTH_TOKEN_INVALID || apiRes.code == BIZ_CODE.AUTH_SESSION_MISSING) {
+					if (isRefreshing) {
+						handleTokenExpired(options).then(resolve).catch(reject)
+						return
+					}
+					const expiredMessage = getMessage(apiRes, '登录会话已过期，请重新登录')
+					performFullLogout(expiredMessage)
+					reject(new Error(expiredMessage))
+					return
+				}
+
+				const errMsg = getMessage(apiRes, '系统错误')
+				if (!options.silent) {
+					showError(errMsg)
+				}
+				reject(new Error(errMsg))
+			},
+			fail: (_err) => {
+				const msg = '网络连接失败，请检查网络或 API 地址'
+				if (!options.silent) {
+					showError(msg)
+				}
+				reject(new Error(msg))
+			}
+		})
+	})
+}
+
+doRequestRef = (requestOptions : RequestOptions) => doRequest(requestOptions)
+
+function buildRequestOptions(
+	url : string,
+	method : RequestMethodValue,
+	data : UTSJSONObject | null,
+	header : UTSJSONObject | null,
+	silent : boolean
+) : RequestOptions {
+	let reqHeader = header
+	if (reqHeader == null) {
+		reqHeader = createDefaultHeader()
+	}
+	return {
+		url: url,
+		method: method,
+		data: data,
+		header: reqHeader,
+		silent: silent
+	}
+}
+
+export function requestGet(url : string, queryPhone : string | null, silent : boolean) : Promise<any> {
+	let fullUrl = url
+	if (queryPhone != null && queryPhone.length > 0) {
+		fullUrl += '?phone=' + encodeURIComponent(queryPhone)
+	}
+	return doRequest(buildRequestOptions(fullUrl, 'GET', null, null, silent))
+}
+
+export function requestPost(
+	url : string,
+	data : UTSJSONObject | null,
+	header : UTSJSONObject | null,
+	silent : boolean
+) : Promise<any> {
+	return doRequest(buildRequestOptions(url, 'POST', data, header, silent))
+}
+
+export function requestPut(
+	url : string,
+	data : UTSJSONObject | null,
+	header : UTSJSONObject | null,
+	silent : boolean
+) : Promise<any> {
+	return doRequest(buildRequestOptions(url, 'PUT', data, header, silent))
+}
+
+export function requestDelete(
+	url : string,
+	header : UTSJSONObject | null,
+	silent : boolean
+) : Promise<any> {
+	return doRequest(buildRequestOptions(url, 'DELETE', null, header, silent))
+}
+
+export default doRequest
