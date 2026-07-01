@@ -11,6 +11,7 @@ import com.starrysky.aries.peloton.repository.TeamPostInteractionRepository;
 import com.starrysky.aries.peloton.repository.TeamPostRepository;
 import com.starrysky.aries.peloton.schema.*;
 import com.starrysky.aries.user.repository.UserRepository;
+import com.starrysky.aries.util.SensitiveWordFilter;
 import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -68,6 +69,9 @@ public class TeamPostService {
     @Resource
     private NotificationService notificationService;
 
+    @Resource
+    private SensitiveWordFilter sensitiveWordFilter;
+
     /**
      * 发布动态
      * <p>
@@ -86,6 +90,9 @@ public class TeamPostService {
         // XSS 过滤文本内容（允许 null）
         String rawContent = dto.getContent() != null ? dto.getContent().trim() : "";
         String safeContent = rawContent.isEmpty() ? "" : HtmlUtils.htmlEscape(rawContent);
+
+        // 敏感词/违禁词校验
+        sensitiveWordFilter.assertClean(safeContent, "动态内容");
 
         // 过滤图片 URL（防止 null 列表）
         List<String> safeImages = dto.getImages() != null
@@ -321,6 +328,9 @@ public class TeamPostService {
         }
 
         String safeContent = HtmlUtils.htmlEscape(dto.getContent().trim());
+
+        // 敏感词/违禁词校验
+        sensitiveWordFilter.assertClean(safeContent, "评论内容");
 
         TeamPostInteraction comment = TeamPostInteraction.builder()
                 .postId(postId)

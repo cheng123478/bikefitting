@@ -39,6 +39,9 @@
           >
             <i :class="cat.icon"></i> {{ cat.label }}
           </button>
+          <button class="capsule-btn create-nav-btn" @click="handleCreateTeam" title="创建车队">
+            <i class="fas fa-plus"></i> 创建车队
+          </button>
         </div>
         <div class="toolbar-right">
           <div class="search-box">
@@ -50,9 +53,6 @@
               placeholder="搜索车队名称、城市或标签..."
             />
           </div>
-          <button class="create-team-btn" @click="handleCreateTeam" title="创建车队">
-            <i class="fas fa-plus"></i>
-          </button>
         </div>
       </div>
 
@@ -88,7 +88,12 @@
                   @click.stop="isCreator(team) ? router.push(`/peloton/create?id=${team.id}`) : openJoinDialog(team)"
                   :title="isCreator(team) ? '编辑车队' : '申请加入'"
                 >
-                  <i :class="isCreator(team) ? 'fas fa-pen' : 'fas fa-plus'"></i>
+                  <template v-if="isCreator(team)">
+                    <i class="fas fa-pen"></i> 编辑
+                  </template>
+                  <template v-else>
+                    申请加入
+                  </template>
                 </button>
               </div>
               <p class="team-desc">{{ team.description }}</p>
@@ -721,42 +726,34 @@ onUnmounted(() => {
   font-size: 0.7rem;
 }
 
-/* 加入按钮（卡片右上角 + 号） */
+/* 加入/编辑按钮（卡片右上角） */
 .card-join-btn {
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  border: 1.5px solid rgba(0, 0, 0, 0.1);
-  background: #fff;
-  color: var(--text-muted);
-  font-size: 0.85rem;
-  display: flex;
+  padding: 6px 14px;
+  border-radius: 18px;
+  border: 1px solid rgba(92, 110, 88, 0.2);
+  background: transparent;
+  color: var(--primary-color);
+  font-size: 0.78rem;
+  font-weight: 600;
+  display: inline-flex;
   align-items: center;
-  justify-content: center;
+  gap: 4px;
   cursor: pointer;
   transition: all 0.3s cubic-bezier(0.165, 0.84, 0.44, 1);
   flex-shrink: 0;
-  padding: 0;
   line-height: 1;
+  white-space: nowrap;
 }
 
 .card-join-btn:hover {
   background: var(--primary-color);
   border-color: var(--primary-color);
   color: #fff;
-  transform: rotate(90deg) scale(1.1);
   box-shadow: 0 4px 12px rgba(92, 110, 88, 0.35);
 }
-.card-join-btn.is-edit:hover {
-  transform: scale(1.1);
-}
 
-.team-card:hover .card-join-btn {
-  border-color: rgba(92, 110, 88, 0.2);
-  color: var(--primary-color);
-}
-.team-card:hover .card-join-btn.is-edit {
-  color: var(--primary-color);
+.card-join-btn i {
+  font-size: 0.72rem;
 }
 
 /* 简介 */
@@ -813,35 +810,22 @@ onUnmounted(() => {
   white-space: nowrap;
 }
 
-/* --- 创建车队按钮 --- */
-.create-team-btn {
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  border: 1.5px solid rgba(92, 110, 88, 0.25);
-  background: transparent;
+/* --- 创建车队胶囊按钮 --- */
+.capsule-nav .create-nav-btn {
   color: var(--primary-color);
-  font-size: 0.9rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  flex-shrink: 0;
-  padding: 0;
-  transition: all 0.3s cubic-bezier(0.165, 0.84, 0.44, 1);
+  border: 1.5px dashed rgba(92, 110, 88, 0.3);
+  background: rgba(92, 110, 88, 0.04);
+  margin-left: 4px;
 }
 
-.create-team-btn:hover {
+.capsule-nav .create-nav-btn:hover {
   background: var(--primary-color);
   border-color: var(--primary-color);
   color: #fff;
-  transform: rotate(90deg) scale(1.1);
-  box-shadow: 0 4px 14px rgba(92, 110, 88, 0.3);
 }
 
-.create-team-btn i {
-  font-size: 0.82rem;
-  line-height: 1;
+.capsule-nav .create-nav-btn i {
+  font-size: 0.78rem;
 }
 
 /* --- 加载状态 --- */
@@ -1266,9 +1250,9 @@ onUnmounted(() => {
 }
 
 @media (max-width: 480px) {
-  .create-team-btn {
-    width: 36px;
-    height: 36px;
+  .capsule-nav .create-nav-btn {
+    padding: 8px 14px;
+    font-size: 0.78rem;
   }
 
   .peloton-title {

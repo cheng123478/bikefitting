@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="home-page">
     <!-- 1. Hero Dynamic Banner (Now Floating Boxed Layout) -->
     <section class="hero-section">
@@ -117,23 +117,36 @@
 
           <!-- Asymmetric Console Layout -->
           <div class="console-layout">
-            <!-- Main Action: Static Diagnosis -->
-            <div class="console-main glass-panel featured-panel" @click="router.push('/lab/static')">
-              <div class="panel-header">
-                <span class="panel-tag">ENGINE A: STATIC</span>
-                <i class="fas fa-expand-alt"></i>
-              </div>
-              <div class="panel-body">
-                <h3 class="panel-title">静态诊断引擎</h3>
-                <p class="panel-desc">高精度人体几何建模，为您生成基于 Baseline 的个性化调教建议。</p>
-
-                <!-- Decorative HUD elements -->
-                <div class="hud-display">
-                  <div class="hud-circle"></div>
+            <!-- Top row: Static + Dynamic (side-by-side) -->
+            <div class="console-top-row">
+              <div class="glass-panel engine-panel" @click="router.push('/lab/static')">
+                <div class="panel-header">
+                  <span class="panel-tag">ENGINE A: STATIC</span>
+                  <i class="fas fa-expand-alt"></i>
+                </div>
+                <div class="panel-body">
+                  <h3 class="panel-title">静态诊断引擎</h3>
+                  <p class="panel-desc">高精度人体几何建模，为您生成基于 Baseline 的个性化调教建议。</p>
+                  <div class="hud-display"><div class="hud-circle"></div></div>
+                </div>
+                <div class="panel-footer">
+                  <button class="btn btn-primary btn-sm">启动诊断 &rarr;</button>
                 </div>
               </div>
-              <div class="panel-footer">
-                <button class="btn btn-primary btn-sm">启动诊断 &rarr;</button>
+
+              <div class="glass-panel engine-panel" @click="router.push('/lab/dynamic')">
+                <div class="panel-header">
+                  <span class="panel-tag">ENGINE B: DYNAMIC</span>
+                  <i class="fas fa-expand-alt"></i>
+                </div>
+                <div class="panel-body">
+                  <h3 class="panel-title">动态视觉追踪</h3>
+                  <p class="panel-desc">计算机视觉关节捕捉与踩踏轨迹分析，实时量化运动姿态，精准提升发力效率。</p>
+                  <div class="hud-display"><div class="hud-circle"></div></div>
+                </div>
+                <div class="panel-footer">
+                  <button class="btn btn-primary btn-sm">开启追踪 &rarr;</button>
+                </div>
               </div>
             </div>
 
@@ -369,6 +382,16 @@ onUnmounted(() => {
 .glass-panel { background: rgba(255, 255, 255, 0.6); border: 1px solid rgba(92, 110, 88, 0.15); border-radius: 12px; padding: 30px; transition: 0.4s; cursor: pointer; overflow: hidden; position: relative; box-shadow: var(--shadow-sm); }
 .glass-panel:hover { background: rgba(255, 255, 255, 0.95); border-color: rgba(92, 110, 88, 0.3); box-shadow: var(--shadow-md); }
 
+/* Top row: engine panels side by side */
+.console-top-row { grid-column: 1; display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+.engine-panel { display: flex; flex-direction: column; justify-content: space-between; min-height: 220px; padding: 24px 28px; }
+.engine-panel .panel-header { display: flex; justify-content: space-between; color: var(--text-muted); font-size: 0.7rem; font-weight: 800; letter-spacing: 2px; }
+.engine-panel .panel-title { color: var(--text-main); font-size: 1.35rem; margin: 12px 0 6px; }
+.engine-panel .panel-desc { color: var(--text-muted); line-height: 1.6; font-size: 0.82rem; max-width: 380px; }
+
+.dynamic-panel { border-left: 3px solid var(--accent-gold); }
+.dynamic-circle { border-color: var(--accent-gold) !important; }
+
 .console-main { grid-row: span 1; display: flex; flex-direction: column; justify-content: space-between; min-height: 320px; }
 .panel-header { display: flex; justify-content: space-between; color: var(--text-muted); font-size: 0.7rem; font-weight: 800; letter-spacing: 2px; }
 .panel-title { color: var(--text-main); font-size: 1.8rem; margin: 20px 0 10px; }
@@ -405,7 +428,7 @@ onUnmounted(() => {
   .section-title { font-size: 2.2rem; }
   .section-island { padding: 40px 30px; }
   .console-layout { grid-template-columns: 1fr; }
-  .console-bar { grid-column: span 1; }
+  .console-top-row { grid-template-columns: 1fr; }
   .showroom-horizontal-grid { grid-template-columns: repeat(2, 1fr); }
 }
 
@@ -455,6 +478,8 @@ onUnmounted(() => {
   .bike-visual { height: 160px; }
 
   /* Console / Laboratory */
+  .engine-panel { min-height: 200px; padding: 20px; }
+  .engine-panel .panel-title { font-size: 1.2rem; }
   .console-main { min-height: 280px; padding: 25px; }
   .panel-title { font-size: 1.5rem; }
   .hud-display { display: none; }

@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="activity-edit-page">
     <div class="container">
       <header class="edit-header">
@@ -59,7 +59,7 @@
               <label class="form-label">活动日期</label>
               <div class="input-wrap">
                 <i class="input-icon far fa-calendar-alt"></i>
-                <input v-model="form.eventDate" type="date" class="form-input" min="2024-01-01" max="2099-12-31" />
+                <input v-model="form.eventDate" type="date" class="form-input" :min="todayDate" max="2099-12-31" />
               </div>
             </div>
             <div class="form-group flex-1">
@@ -106,7 +106,7 @@
               <label class="form-label">预计里程 (km)</label>
               <div class="input-wrap">
                 <i class="input-icon fas fa-road"></i>
-                <input v-model.number="form.distance" type="number" class="form-input" placeholder="如：50" min="0" step="1" @wheel="$event.target.blur" />
+                <input v-model.number="form.distance" type="number" class="form-input" placeholder="如：50" min="0" step="1" @wheel.prevent />
               </div>
             </div>
           </div>
@@ -116,7 +116,7 @@
             <label class="form-label">人数上限</label>
             <div class="input-wrap">
               <i class="input-icon fas fa-users"></i>
-              <input v-model.number="form.maxParticipants" type="number" class="form-input" placeholder="不填则不限人数" min="1" @wheel="$event.target.blur" />
+              <input v-model.number="form.maxParticipants" type="number" class="form-input" placeholder="不填则不限人数" min="1" @wheel.prevent />
             </div>
           </div>
 
@@ -206,10 +206,16 @@ const form = reactive({
   description: ''
 })
 
+const todayDate = computed(() => {
+  const d = new Date()
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+})
+
 const isFormValid = computed(() => {
   if (!form.title.trim() || !form.eventDate || !form.location.trim() || !form.description.trim()) return false
   const year = parseInt(form.eventDate.substring(0, 4), 10)
-  return year >= 2024 && year <= 2099
+  const curYear = new Date().getFullYear()
+  return year >= curYear && year <= 2099
 })
 
 const handleBack = () => {

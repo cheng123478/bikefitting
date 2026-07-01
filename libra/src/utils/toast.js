@@ -61,6 +61,20 @@ export const showConfirm = (content, title = '提示', confirmText = '确定', c
 };
 
 /**
+ * 显示单按钮提示对话框
+ * @param {string} content - 提示内容
+ * @param {string} title - 标题 (默认: 提示)
+ * @param {string} confirmText - 按钮文字 (默认: 我知道了)
+ */
+export const showAlert = (content, title = '提示', confirmText = '我知道了') => {
+    toastState.dialog.content = content;
+    toastState.dialog.title = title;
+    toastState.dialog.confirmText = confirmText;
+    toastState.dialog.cancelText = '';  // 空字符串表示只显示确认按钮
+    toastState.dialog.visible = true;
+};
+
+/**
  * 供组件调用的内部方法：处理用户点击
  */
 export const closeDialog = (result) => {

@@ -28,7 +28,7 @@
             <button class="btn btn-sm btn-primary" @click="handleConfirm">
               {{ toastState.dialog.confirmText }}
             </button>
-            <button class="btn btn-sm btn-outline" @click="handleCancel">
+            <button v-if="toastState.dialog.cancelText" class="btn btn-sm btn-outline" @click="handleCancel">
               {{ toastState.dialog.cancelText }}
             </button>
           </div>

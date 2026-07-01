@@ -94,10 +94,6 @@
                 <i :class="tab.icon"></i> {{ tab.label }}
               </button>
             </div>
-            <button v-if="activeTab === 'events' && isCaptain" class="publish-btn"
-              @click="handlePublishActivity">
-              <i class="fas fa-plus-circle"></i> 发布活动
-            </button>
             <!-- 成员搜索栏（显示在 tab-bar 右侧） -->
             <div v-if="activeTab === 'members'" class="tab-bar-search">
               <div class="search-input-wrap">
@@ -117,44 +113,92 @@
             </div>
           </div>
 
+          <!-- 发布活动按钮（车队活动tab正下方） -->
+          <div v-if="activeTab === 'events' && isManager" class="publish-bar">
+            <button class="publish-btn-tab" @click="handlePublishActivity">
+              <i class="fas fa-plus-circle"></i> 发布活动
+            </button>
+          </div>
+
           <!-- 车队活动 -->
           <div v-if="activeTab === 'events'" class="tab-content">
-            <div v-if="teamActivities.length > 0" class="events-grid">
-              <div v-for="item in teamActivities" :key="item.id" class="event-card" @click="openActivityDetail(item)">
-                <div class="event-card-header">
-                  <div class="activity-icon activity"><i class="fas fa-calendar-check"></i></div>
-                  <div class="event-meta">
-                    <span class="activity-type-badge">{{ activityTypeLabel(item.activityType) }}</span>
-                    <span class="activity-date">{{ item.eventDate }}</span>
+            <div class="events-layout">
+              <!-- 左侧：活动列表 -->
+              <div class="events-main">
+                <div v-if="teamActivities.length > 0" class="events-grid events-grid-single">
+                  <div v-for="item in teamActivities" :key="item.id" class="event-card" @click="openActivityDetail(item)">
+                    <div class="event-card-header">
+                      <div class="activity-icon activity"><i class="fas fa-calendar-check"></i></div>
+                      <div class="event-meta">
+                        <span class="activity-type-badge">{{ activityTypeLabel(item.activityType) }}</span>
+                        <span class="activity-date">{{ item.eventDate }}</span>
+                      </div>
+                    </div>
+                    <h4 class="event-title">{{ item.title }}</h4>
+                    <div class="event-card-meta" v-if="item.location">
+                      <i class="fas fa-map-marker-alt"></i> {{ item.location }}
+                    </div>
+                    <p v-if="item.description" class="event-desc">{{ item.description }}</p>
+                    <img v-if="item.coverImage" :src="item.coverImage" class="activity-image" alt="活动照片" />
+                    <div class="event-card-stats" v-if="item.difficulty || item.distance || item.maxParticipants">
+                      <span v-if="item.difficulty" class="event-stat">{{ difficultyLabel(item.difficulty) }}</span>
+                      <span v-if="item.distance" class="event-stat">{{ item.distance }} km</span>
+                      <span v-if="item.maxParticipants" class="event-stat">{{ item.maxParticipants }}人上限</span>
+                    </div>
+                    <span v-if="item.participantCount" class="activity-participants">
+                      <i class="fas fa-user"></i> {{ item.participantCount }} 人已报名
+                    </span>
+                    <div v-if="isManager" class="event-card-actions">
+                      <button type="button" class="event-act-btn" title="编辑" @click.stop="handleEditActivity(item.id)">
+                        <i class="fas fa-pen"></i>
+                      </button>
+                      <button type="button" class="event-act-btn del" title="删除" @click.stop="handleDeleteActivity($event, item)">
+                        <i class="fas fa-trash"></i>
+                      </button>
+                    </div>
                   </div>
                 </div>
-                <h4 class="event-title">{{ item.title }}</h4>
-                <div class="event-card-meta" v-if="item.location">
-                  <i class="fas fa-map-marker-alt"></i> {{ item.location }}
+                <div v-else class="empty-tab">
+                  <i class="fas fa-calendar-times"></i>
+                  <p>暂无活动</p>
                 </div>
-                <p v-if="item.description" class="event-desc">{{ item.description }}</p>
-                <img v-if="item.coverImage" :src="item.coverImage" class="activity-image" alt="活动照片" />
-                <div class="event-card-stats" v-if="item.difficulty || item.distance || item.maxParticipants">
-                  <span v-if="item.difficulty" class="event-stat">{{ difficultyLabel(item.difficulty) }}</span>
-                  <span v-if="item.distance" class="event-stat">{{ item.distance }} km</span>
-                  <span v-if="item.maxParticipants" class="event-stat">{{ item.maxParticipants }}人上限</span>
-                </div>
-                <span v-if="item.participantCount" class="activity-participants">
-                  <i class="fas fa-user"></i> {{ item.participantCount }} 人已报名
-                </span>
-                <div v-if="isManager" class="event-card-actions">
-                  <button type="button" class="event-act-btn" title="编辑" @click.stop="handleEditActivity(item.id)">
-                    <i class="fas fa-pen"></i>
-                  </button>
-                  <button type="button" class="event-act-btn del" title="删除" @click.stop="handleDeleteActivity($event, item)">
-                    <i class="fas fa-trash"></i>
-                  </button>
+
+              </div>
+
+              <!-- 右侧：车队公告（仅队内成员可见） -->
+              <div v-if="isMember && (teamNotices.length > 0 || isManager)" class="events-sidebar">
+                <div class="feed-section notice-sidebar">
+                  <div class="feed-section-header notice-header">
+                    <i class="fas fa-bullhorn"></i> 公告
+                    <button v-if="isManager" class="notice-publish-btn" @click="handlePublishNotice">
+                      <i class="fas fa-plus"></i> 发布
+                    </button>
+                  </div>
+                  <div v-if="teamNotices.length > 0" class="notice-list">
+                    <div v-for="item in teamNotices" :key="item.id" class="notice-item"
+                      :class="{ expanded: expandedNotice === item.id }" @click="toggleNotice(item.id)">
+                      <div class="notice-row">
+                        <span class="notice-dot"></span>
+                        <span class="notice-title">{{ item.title }}</span>
+                        <span class="notice-date">{{ item.date }}</span>
+                        <i class="fas fa-chevron-down notice-arrow"></i>
+                        <div v-if="isManager" class="notice-actions" @click.stop>
+                          <button type="button" class="notice-act-btn" title="编辑" @click="handleEditNotice(item)">
+                            <i class="fas fa-pen"></i>
+                          </button>
+                          <button type="button" class="notice-act-btn del" title="删除" @click="handleDeleteNotice(item)">
+                            <i class="fas fa-trash"></i>
+                          </button>
+                        </div>
+                      </div>
+                      <div v-if="expandedNotice === item.id" class="notice-body">
+                        <p v-if="item.content">{{ item.content }}</p>
+                      </div>
+                    </div>
+                  </div>
+                  <p v-else class="notice-empty">暂无公告</p>
                 </div>
               </div>
-            </div>
-            <div v-else class="empty-tab">
-              <i class="fas fa-calendar-times"></i>
-              <p>暂无活动</p>
             </div>
           </div>
 
@@ -369,39 +413,6 @@
 
           <!-- 车队动态 -->
           <div v-if="activeTab === 'activity'" class="tab-content">
-            <div v-if="teamNotices.length > 0 || isManager" class="feed-section">
-              <div class="feed-section-header notice-header">
-                <i class="fas fa-bullhorn"></i> 公告
-                <button v-if="isManager" class="notice-publish-btn" @click="handlePublishNotice">
-                  <i class="fas fa-plus"></i> 发布公告
-                </button>
-              </div>
-              <div v-if="teamNotices.length > 0" class="notice-list">
-                <div v-for="item in teamNotices" :key="item.id" class="notice-item"
-                  :class="{ expanded: expandedNotice === item.id }" @click="toggleNotice(item.id)">
-                  <div class="notice-row">
-                    <span class="notice-dot"></span>
-                    <span class="notice-title">{{ item.title }}</span>
-                    <span class="notice-date">{{ item.date }}</span>
-                    <i class="fas fa-chevron-down notice-arrow"></i>
-                    <!-- 管理员操作按钮 -->
-                    <div v-if="isManager" class="notice-actions" @click.stop>
-                      <button type="button" class="notice-act-btn" title="编辑" @click="handleEditNotice(item)">
-                        <i class="fas fa-pen"></i>
-                      </button>
-                      <button type="button" class="notice-act-btn del" title="删除" @click="handleDeleteNotice(item)">
-                        <i class="fas fa-trash"></i>
-                      </button>
-                    </div>
-                  </div>
-                  <div v-if="expandedNotice === item.id" class="notice-body">
-                    <p v-if="item.content">{{ item.content }}</p>
-                  </div>
-                </div>
-              </div>
-              <p v-else class="notice-empty">暂无公告</p>
-            </div>
-
             <!-- 发布动态区 -->
             <div v-if="isMember" class="feed-section">
               <div class="feed-section-header notice-header post-section-header">
@@ -493,7 +504,7 @@
             <div v-if="postsLoading" class="empty-tab">
               <i class="fas fa-spinner fa-spin"></i><p>加载动态中…</p>
             </div>
-            <div v-else-if="teamNotices.length === 0 && teamPosts.length === 0" class="empty-tab">
+            <div v-else-if="teamPosts.length === 0" class="empty-tab">
               <i class="fas fa-inbox"></i><p>暂无动态</p>
             </div>
           </div>
@@ -793,7 +804,7 @@ import { useUserStore } from '@/stores/user'
 import { getTeamDetail, getTeamMembers, getTeamGarage, addBikeToTeamGarage, removeBikeFromTeamGarage, disbandTeam, joinTeam, getPendingApplications, approveJoin, rejectJoin, updateMemberTag, promoteAdmin, revokeAdmin, kickMember, captainLeaveTeam, getNoticeBoard, deleteNotice, getPosts, publishPost, deletePost, toggleLike as toggleLikeApi, addComment as addCommentApi, deleteComment as deleteCommentApi, uploadTeamImage, getActivities, deleteActivity, getMyPendingApplications } from '@/api/team'
 import { getBikeByModel } from '@/api/bikeShowroom'
 import { getMyGarage } from '@/api/userBike'
-import { showToast } from '@/utils/toast'
+import { showToast, showAlert } from '@/utils/toast'
 
 const router = useRouter()
 const route = useRoute()
@@ -811,7 +822,7 @@ const memberPages = ref(0)
 const memberKeyword = ref('')
 const memberSearchInput = ref('')
 const memberLoading = ref(false)
-const activeTab = ref('events')
+const activeTab = ref('members')
 const totalDistance = ref(12860)
 const expandedNotice = ref(null)
 const isMock = ref(false)
@@ -890,7 +901,12 @@ const submitComment = async (post) => {
     p.commentText = ''
     post.commentCount = (post.commentCount || 0) + 1
   } catch (err) {
-    showToast(err.message || '评论失败', 'error')
+    const msg = err.message || '评论失败'
+    if (msg.includes('敏感词')) {
+      showAlert(msg, '评论失败', '我知道了')
+    } else {
+      showToast(msg, 'error')
+    }
   }
 }
 const deleteComment = async (post, ci) => {
@@ -941,7 +957,12 @@ const handlePublishPost = async () => {
     publishPostImages.value = []
     showToast('动态发布成功', 'success')
   } catch (err) {
-    showToast(err.message || '发布失败', 'error')
+    const msg = err.message || '发布失败'
+    if (msg.includes('敏感词')) {
+      showAlert(msg, '发布失败', '我知道了')
+    } else {
+      showToast(msg, 'error')
+    }
   } finally {
     publishingPost.value = false
   }
@@ -979,7 +1000,7 @@ const fetchPosts = async () => {
 }
 
 const tabs = [
-  { key: 'events', label: '车队活动', icon: 'fas fa-calendar-alt' },
+  // { key: 'events', label: '车队活动', icon: 'fas fa-calendar-alt' },
   { key: 'members', label: '成员列表', icon: 'fas fa-users' },
   { key: 'garage', label: '车队车库', icon: 'fas fa-bicycle' },
   { key: 'activity', label: '车队动态', icon: 'fas fa-bullhorn', memberOnly: true }
@@ -1687,8 +1708,43 @@ onMounted(() => fetchData())
 .publish-btn { display: inline-flex; align-items: center; gap: 7px; padding: 10px 22px; border-radius: 24px; border: none; background: var(--primary-color); color: #fff; font-size: 0.88rem; font-weight: 600; cursor: pointer; transition: all 0.3s ease; white-space: nowrap; box-shadow: 0 2px 8px rgba(92,110,88,0.25) }
 .publish-btn:hover { background: var(--primary-dark); transform: translateY(-1px); box-shadow: 0 4px 16px rgba(92,110,88,0.35) }
 .publish-btn i { font-size: 0.85rem }
+.publish-btn-below { margin-top: 24px; width: 100%; justify-content: center; padding: 12px 22px }
+
+/* 发布活动按钮（tab正下方） */
+.publish-bar { margin-bottom: 24px; padding: 0 4px }
+.publish-btn-tab {
+  display: inline-flex; align-items: center; gap: 7px;
+  padding: 10px 24px; border-radius: 24px; border: none;
+  background: var(--primary-color); color: #fff;
+  font-size: 0.9rem; font-weight: 600; cursor: pointer;
+  transition: all 0.3s ease; white-space: nowrap;
+  box-shadow: 0 2px 8px rgba(92,110,88,0.25);
+}
+.publish-btn-tab:hover { background: var(--primary-dark); transform: translateY(-1px); box-shadow: 0 4px 16px rgba(92,110,88,0.35) }
+.publish-btn-tab i { font-size: 0.82rem }
 
 .events-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px }
+
+/* 活动+公告左右分栏布局 */
+.events-layout { display: flex; gap: 32px; align-items: flex-start }
+.events-main { flex: 1; min-width: 0 }
+.events-sidebar { width: 320px; flex-shrink: 0 }
+.events-grid-single { grid-template-columns: 1fr }
+
+.notice-sidebar {
+  background: #fff; border-radius: 14px;
+  border: 1px solid rgba(0,0,0,0.04);
+  box-shadow: var(--shadow-sm);
+  padding: 20px 22px;
+}
+.notice-sidebar .notice-header {
+  border-bottom-color: rgba(92, 110, 88, 0.12);
+  margin-bottom: 12px !important;
+  padding-bottom: 12px;
+}
+.notice-sidebar .notice-publish-btn {
+  padding: 5px 14px; font-size: 0.76rem;
+}
 .event-card { position: relative; padding: 22px 24px; border-radius: 14px; background: #fff; border: 1px solid rgba(0,0,0,0.04); box-shadow: var(--shadow-sm); transition: all 0.35s ease }
 .event-card:hover { transform: translateY(-2px); box-shadow: var(--shadow-md) }
 .event-card-header { display: flex; align-items: flex-start; gap: 14px; margin-bottom: 14px }
@@ -2418,6 +2474,8 @@ onMounted(() => fetchData())
   .garage-filters { width: 100%; overflow-x: auto; flex-wrap: nowrap }
   .garage-filters::-webkit-scrollbar { display: none }
   .event-card-actions { opacity: 1; pointer-events: auto }
+  .events-layout { flex-direction: column; gap: 24px }
+  .events-sidebar { width: 100% }
 }
 @media (max-width: 480px) {
   .hero-cover { height: 170px } .hero-actions { top: 10px; right: 10px; gap: 5px; } .hero-join-btn { padding: 7px 12px; font-size: 0.78rem } .hero-more-btn { width: 34px; height: 34px; font-size: 0.82rem; }

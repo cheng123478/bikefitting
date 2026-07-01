@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="profile-page">
     <div class="container profile-container">
 
@@ -182,7 +182,7 @@ onMounted(async () => {
 .menu-item i { width: 20px; text-align: center; }
 
 /* Content Panel */
-.content-panel { padding: 40px; border: var(--border-glass); min-height: 600px; }
+.content-panel { padding: 40px; border: var(--border-glass); min-height: 600px; overflow: visible; }
 
 @media (max-width: 768px) {
   .profile-header { flex-direction: column; text-align: center; gap: 30px; padding: 30px 20px; }
