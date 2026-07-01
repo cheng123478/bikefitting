@@ -52,18 +52,6 @@ bikefitting/leo
 npm install
 ```
 
-### 1.4 启动后端服务
-
-移动端运行前，需要先启动后端 `aries` 服务。
-
-后端本地默认地址：
-
-```text
-http://localhost:9200/aries
-```
-
-后端启动成功后，可以先在电脑浏览器访问上面的地址，确认服务是否正常。
-
 ## 2. H5 调试
 
 H5 调试适合在电脑浏览器中查看页面、交互和普通接口请求。
@@ -71,8 +59,7 @@ H5 调试适合在电脑浏览器中查看页面、交互和普通接口请求�
 ### 2.1 H5 调试前检查
 
 1. 后端 `aries` 服务已经启动。
-2. 电脑浏览器可以访问 `http://localhost:9200/aries`。
-3. HBuilderX 已经打开 `bikefitting/leo` 项目。
+2.HBuilderX 已经打开 `bikefitting/leo` 项目。
 
 ### 2.2 配置接口地址
 
