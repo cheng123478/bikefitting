@@ -262,11 +262,22 @@ public class DynamicFittingService {
     public Page<DynamicFittingSessionVO> getSessionsByUser(Long userId, Long bikeId, Pageable pageable) {
         Page<DynamicFittingSession> sessions;
         if (bikeId != null) {
-            sessions = sessionRepository.findByUser_IdAndUserBike_IdAndIsDeleted(userId, bikeId, 0, pageable);
+            sessions = sessionRepository.findByUserIdAndBikeIdAndIsDeletedWithDetails(userId, bikeId, 0, pageable);
         } else {
-            sessions = sessionRepository.findByUser_IdAndIsDeleted(userId, 0, pageable);
+            sessions = sessionRepository.findByUserIdAndIsDeletedWithDetails(userId, 0, pageable);
         }
-        return sessions.map(this::convertToVO);
+        if (sessions.isEmpty()) {
+            return sessions.map(session -> convertToVO(session, null));
+        }
+
+        List<Long> sessionIds = sessions.getContent().stream()
+                .map(DynamicFittingSession::getId)
+                .collect(Collectors.toList());
+        Map<Long, DynamicFittingResult> resultMap = resultRepository.findBySessionIds(sessionIds).stream()
+                .filter(result -> result.getSession() != null && result.getSession().getId() != null)
+                .collect(Collectors.toMap(result -> result.getSession().getId(), result -> result, (left, right) -> left));
+
+        return sessions.map(session -> convertToVO(session, resultMap.get(session.getId())));
     }
 
     /**
@@ -275,12 +286,11 @@ public class DynamicFittingService {
      * @param sessionId 会话ID
      * @return 会话详情
      */
-    public Map<String, Object> getSessionDetail(Long sessionId) {
+    public DynamicFittingSessionVO getSessionDetail(Long sessionId) {
         DynamicFittingSession session = sessionRepository.findById(sessionId)
                 .orElseThrow(() -> new RuntimeException("会话不存在"));
-        Map<String, Object> detail = new HashMap<>();
-        detail.put("sessionVO", convertToVO(session));
-        return detail;
+        DynamicFittingResult result = resultRepository.findBySession_Id(sessionId).orElse(null);
+        return convertToVO(session, result);
     }
 
     /**
@@ -289,7 +299,7 @@ public class DynamicFittingService {
      * @param session 会话对象
      * @return SessionVO对象
      */
-    private DynamicFittingSessionVO convertToVO(DynamicFittingSession session) {
+    private DynamicFittingSessionVO convertToVO(DynamicFittingSession session, DynamicFittingResult result) {
         DynamicFittingSessionVO vo = new DynamicFittingSessionVO();
 
         // 拷贝基本属性 (id, status, sessionTime, deviceInfo 等)
@@ -326,36 +336,41 @@ public class DynamicFittingService {
 
         // 提取已完成视角的总结与诊断摘要 (Summary Projection)
         if (session.getStatus() != null && session.getStatus().equals(FittingStatus.COMPLETED.getCode())) {
-            resultRepository.findBySession_Id(session.getId()).ifPresent(result -> {
-                vo.setMatchScore(result.getMatchScore());
-
-                // 提取精简卡片建议
-                if (org.springframework.util.StringUtils.hasText(result.getAdviceJson())) {
-                    try {
-                        List<DynamicFittingAdviceVO> advices = JSON.parseArray(result.getAdviceJson(), DynamicFittingAdviceVO.class);
-                        if (advices != null) {
-                            vo.setEquipmentSuggestions(advices.stream()
-                                    .map(a -> a.getAdviceContent() != null ? a.getAdviceContent() : a.getCode())
-                                    .distinct()
-                                    .collect(Collectors.toList()));
-                        }
-                    } catch (Exception e) {
-                        log.warn("解析会话 {} 的 adviceJson 失败", session.getId());
-                    }
-                }
-
-                if (result.getSummaryJson() != null) {
-                    try {
-                        Map<String, Object> summary = JSON.parseObject(result.getSummaryJson());
-                        vo.setViewTypes(String.join(",", summary.keySet()));
-                    } catch (Exception e) {
-                        log.warn("解析会话 {} 的 summaryJson 失败", session.getId());
-                    }
-                }
-            });
+            applySessionResultSummary(vo, session.getId(), result);
         }
 
         return vo;
+    }
+
+    private void applySessionResultSummary(DynamicFittingSessionVO vo, Long sessionId, DynamicFittingResult result) {
+        if (result == null) {
+            return;
+        }
+
+        vo.setMatchScore(result.getMatchScore());
+
+        if (org.springframework.util.StringUtils.hasText(result.getAdviceJson())) {
+            try {
+                List<DynamicFittingAdviceVO> advices = JSON.parseArray(result.getAdviceJson(), DynamicFittingAdviceVO.class);
+                if (advices != null) {
+                    vo.setEquipmentSuggestions(advices.stream()
+                            .map(a -> a.getAdviceContent() != null ? a.getAdviceContent() : a.getCode())
+                            .distinct()
+                            .collect(Collectors.toList()));
+                }
+            } catch (Exception e) {
+                log.warn("解析会话 {} 的 adviceJson 失败", sessionId);
+            }
+        }
+
+        if (result.getSummaryJson() != null) {
+            try {
+                Map<String, Object> summary = JSON.parseObject(result.getSummaryJson());
+                vo.setViewTypes(String.join(",", summary.keySet()));
+            } catch (Exception e) {
+                log.warn("解析会话 {} 的 summaryJson 失败", sessionId);
+            }
+        }
     }
 
     /**

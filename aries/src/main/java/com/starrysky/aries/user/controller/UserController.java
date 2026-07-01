@@ -134,6 +134,11 @@ public class UserController {
         return ResponseResult.success("用户信息修改成功", null);
     }
 
+    @GetMapping("/profile")
+    public ResponseResult<UserResponse.Profile> profile(@AuthenticationPrincipal User user) {
+        return ResponseResult.success(userService.getProfile(user.getId()));
+    }
+
     /**
      * 注销账户
      * 不删除数据库记录，只标记为已注销

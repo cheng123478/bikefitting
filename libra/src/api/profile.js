@@ -12,6 +12,13 @@ export function updateUserProfile(data) {
     });
 }
 
+export function getCurrentUserProfile() {
+    return request({
+        url: '/user/profile',
+        method: 'get'
+    });
+}
+
 /**
  * 上传头像
  * @param {FormData} formData 包含 file 对象的 FormData
