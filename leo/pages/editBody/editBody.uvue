@@ -1,0 +1,916 @@
+<template>
+	<view class="page">
+		<view class="nav-bar" :style="navBarStyle">
+			<view class="back-btn" :style="navBackButtonStyle" @click="goBack">
+				<text class="back-icon">‹</text>
+			</view>
+			<text class="nav-title" :style="navTitleStyle">修改身体数据</text>
+			<view class="nav-right" :style="navRightStyle" @click="showSettings">
+				<text class="nav-right-text">⋯</text>
+			</view>
+		</view>
+
+		<scroll-view class="scroll-content" scroll-y="true" :show-scrollbar="false" :style="scrollContentStyle">
+			<view class="content-wrapper">
+				<view class="image-section">
+					<image class="guide-image" :src="currentImage" mode="aspectFit" />
+				</view>
+
+				<view class="tips-section">
+					<text class="tips-text">{{ currentTips }}</text>
+				</view>
+
+				<view class="tabs-section">
+					<scroll-view class="tabs-scroll" scroll-x="true" :show-scrollbar="false">
+						<view class="tabs-row">
+						<view 
+							v-for="tab in tabs" 
+							:key="tab.key"
+							class="tab-item"
+							:class="{ active: activeTab == tab.key }"
+							@click="switchTab(tab.key)"
+						>
+							<text class="tab-text" :class="{ active: activeTab == tab.key }">{{ tab.label }}</text>
+							<view class="tab-indicator" v-if="activeTab == tab.key"></view>
+						</view>
+						</view>
+					</scroll-view>
+				</view>
+
+				<view class="form-section">
+					<view v-if="activeTab == 'basic'" class="form-content">
+						<view class="form-item" @click="setGuide('height')">
+							<text class="form-label">身高<text class="required-star" @click="showRequiredTip">★</text></text>
+							<input class="form-input" type="number" v-model="editForm.height" placeholder="例如：1750" @focus="setGuide('height')" />
+						</view>
+						<view class="form-item" @click="setGuide('weight')">
+							<text class="form-label">体重<text class="required-star" @click="showRequiredTip">★</text></text>
+							<input class="form-input" type="number" v-model="editForm.weightKg" placeholder="例如：65" @focus="setGuide('weight')" />
+						</view>
+						<view class="form-item" @click="setGuide('spanHeight')">
+							<text class="form-label">跨高<text class="required-star" @click="showRequiredTip">★</text></text>
+							<input class="form-input" type="number" v-model="editForm.spanHeight" placeholder="例如：820" @focus="setGuide('spanHeight')" />
+						</view>
+					</view>
+
+					<view v-if="activeTab == 'limb'" class="form-content">
+						<view class="form-item" @click="setGuide('thigh')">
+							<text class="form-label">大腿长</text>
+							<input class="form-input" type="number" v-model="editForm.thighLength" placeholder="例如：450" @focus="setGuide('thigh')" />
+						</view>
+						<view class="form-item" @click="setGuide('calf')">
+							<text class="form-label">小腿长</text>
+							<input class="form-input" type="number" v-model="editForm.calfLength" placeholder="例如：420" @focus="setGuide('calf')" />
+						</view>
+						<view class="form-item" @click="setGuide('bigarms')">
+							<text class="form-label">大臂长</text>
+							<input class="form-input" type="number" v-model="editForm.longArmLength" placeholder="例如：330" @focus="setGuide('bigarms')" />
+						</view>
+						<view class="form-item" @click="setGuide('smallarms')">
+							<text class="form-label">小臂长</text>
+							<input class="form-input" type="number" v-model="editForm.shortArmLength" placeholder="例如：280" @focus="setGuide('smallarms')" />
+						</view>
+					</view>
+
+					<view v-if="activeTab == 'flexibility'" class="form-content">
+						<view class="form-item" @click="setGuide('thoracic_rot')">
+							<text class="form-label">坐姿胸椎旋转<text class="required-star" @click="showRequiredTip">★</text></text>
+							<view class="radio-group">
+								<view class="radio-item" :class="{ active: editForm.thoracicRotationAngle == 85 }" @click="editForm.thoracicRotationAngle = 85">
+									<view class="radio-circle" :class="{ checked: editForm.thoracicRotationAngle == 85 }"></view>
+									<text class="radio-text">可以轻松转到侧面甚至略微超过</text>
+								</view>
+								<view class="radio-item" :class="{ active: editForm.thoracicRotationAngle == 70 }" @click="editForm.thoracicRotationAngle = 70">
+									<view class="radio-circle" :class="{ checked: editForm.thoracicRotationAngle == 70 }"></view>
+									<text class="radio-text">可以明显转动，但还看不到身体正侧面</text>
+								</view>
+								<view class="radio-item" :class="{ active: editForm.thoracicRotationAngle == 50 }" @click="editForm.thoracicRotationAngle = 50">
+									<view class="radio-circle" :class="{ checked: editForm.thoracicRotationAngle == 50 }"></view>
+									<text class="radio-text">只能稍微转一点点，幅度比较小</text>
+								</view>
+								<view class="radio-item" :class="{ active: editForm.thoracicRotationAngle == 30 }" @click="editForm.thoracicRotationAngle = 30">
+									<view class="radio-circle" :class="{ checked: editForm.thoracicRotationAngle == 30 }"></view>
+									<text class="radio-text">几乎转不动，感觉很僵硬</text>
+								</view>
+							</view>
+						</view>
+						<view class="form-item" @click="setGuide('arm_raise')">
+							<text class="form-label">举臂角度<text class="required-star" @click="showRequiredTip">★</text></text>
+							<view class="radio-group">
+								<view class="radio-item" :class="{ active: editForm.armRaiseAngle == 175 }" @click="editForm.armRaiseAngle = 175">
+									<view class="radio-circle" :class="{ checked: editForm.armRaiseAngle == 175 }"></view>
+									<text class="radio-text">手臂可轻松举过头顶，贴近耳朵</text>
+								</view>
+								<view class="radio-item" :class="{ active: editForm.armRaiseAngle == 155 }" @click="editForm.armRaiseAngle = 155">
+									<view class="radio-circle" :class="{ checked: editForm.armRaiseAngle == 155 }"></view>
+									<text class="radio-text">手臂可举过头顶，但无法贴近耳朵/有明显紧张</text>
+								</view>
+								<view class="radio-item" :class="{ active: editForm.armRaiseAngle == 120 }" @click="editForm.armRaiseAngle = 120">
+									<view class="radio-circle" :class="{ checked: editForm.armRaiseAngle == 120 }"></view>
+									<text class="radio-text">手臂最高只能到肩膀附近（接近T字）</text>
+								</view>
+								<view class="radio-item" :class="{ active: editForm.armRaiseAngle == 80 }" @click="editForm.armRaiseAngle = 80">
+									<view class="radio-circle" :class="{ checked: editForm.armRaiseAngle == 80 }"></view>
+									<text class="radio-text">手臂无法抬到肩膀高度</text>
+								</view>
+							</view>
+						</view>
+						<view class="form-item" @click="setGuide('pain_level')">
+							<text class="form-label">痛感等级<text class="required-star" @click="showRequiredTip">★</text></text>
+							<view class="pain-group">
+								<view class="pain-item" :class="{ active: editForm.thoracicPainLevel == 0 }" @click="editForm.thoracicPainLevel = 0">
+									<text class="pain-num">0</text>
+									<text class="pain-desc">无痛</text>
+								</view>
+								<view class="pain-item" :class="{ active: editForm.thoracicPainLevel == 1 }" @click="editForm.thoracicPainLevel = 1">
+									<text class="pain-num">1</text>
+									<text class="pain-desc">轻微</text>
+								</view>
+								<view class="pain-item" :class="{ active: editForm.thoracicPainLevel == 2 }" @click="editForm.thoracicPainLevel = 2">
+									<text class="pain-num">2</text>
+									<text class="pain-desc">轻度</text>
+								</view>
+								<view class="pain-item" :class="{ active: editForm.thoracicPainLevel == 3 }" @click="editForm.thoracicPainLevel = 3">
+									<text class="pain-num">3</text>
+									<text class="pain-desc">中度</text>
+								</view>
+								<view class="pain-item" :class="{ active: editForm.thoracicPainLevel == 4 }" @click="editForm.thoracicPainLevel = 4">
+									<text class="pain-num">4</text>
+									<text class="pain-desc">重度</text>
+								</view>
+								<view class="pain-item" :class="{ active: editForm.thoracicPainLevel == 5 }" @click="editForm.thoracicPainLevel = 5">
+									<text class="pain-num">5</text>
+									<text class="pain-desc">剧烈</text>
+								</view>
+							</view>
+						</view>
+					</view>
+
+					<view v-if="activeTab == 'stability'" class="form-content">
+						<view class="form-item" @click="setGuide('squat')">
+							<text class="form-label">深蹲稳定性评分(1-5)<text class="required-star" @click="showRequiredTip">★</text></text>
+							<view class="rating-group">
+								<view class="rating-item" :class="{ active: editForm.squatStabilityScore == '1' }" @click="editForm.squatStabilityScore = '1'">
+									<text class="rating-num">1</text>
+									<text class="rating-desc">无法完成</text>
+								</view>
+								<view class="rating-item" :class="{ active: editForm.squatStabilityScore == '2' }" @click="editForm.squatStabilityScore = '2'">
+									<text class="rating-num">2</text>
+									<text class="rating-desc">晃动明显</text>
+								</view>
+								<view class="rating-item" :class="{ active: editForm.squatStabilityScore == '3' }" @click="editForm.squatStabilityScore = '3'">
+									<text class="rating-num">3</text>
+									<text class="rating-desc">轻微晃动</text>
+								</view>
+								<view class="rating-item" :class="{ active: editForm.squatStabilityScore == '4' }" @click="editForm.squatStabilityScore = '4'">
+									<text class="rating-num">4</text>
+									<text class="rating-desc">整体稳定</text>
+								</view>
+								<view class="rating-item" :class="{ active: editForm.squatStabilityScore == '5' }" @click="editForm.squatStabilityScore = '5'">
+									<text class="rating-num">5</text>
+									<text class="rating-desc">动作流畅</text>
+								</view>
+							</view>
+						</view>
+						<view class="form-item" @click="setGuide('plank')">
+							<text class="form-label">平板支撑评分(1-5)<text class="required-star" @click="showRequiredTip">★</text></text>
+							<view class="rating-group">
+								<view class="rating-item" :class="{ active: editForm.plankScore == '1' }" @click="editForm.plankScore = '1'">
+									<text class="rating-num">1</text>
+									<text class="rating-desc">&lt; 20s</text>
+								</view>
+								<view class="rating-item" :class="{ active: editForm.plankScore == '2' }" @click="editForm.plankScore = '2'">
+									<text class="rating-num">2</text>
+									<text class="rating-desc">20-40s</text>
+								</view>
+								<view class="rating-item" :class="{ active: editForm.plankScore == '3' }" @click="editForm.plankScore = '3'">
+									<text class="rating-num">3</text>
+									<text class="rating-desc">40-60s</text>
+								</view>
+								<view class="rating-item" :class="{ active: editForm.plankScore == '4' }" @click="editForm.plankScore = '4'">
+									<text class="rating-num">4</text>
+									<text class="rating-desc">60-90s</text>
+								</view>
+								<view class="rating-item" :class="{ active: editForm.plankScore == '5' }" @click="editForm.plankScore = '5'">
+									<text class="rating-num">5</text>
+									<text class="rating-desc">&gt; 90s</text>
+								</view>
+							</view>
+						</view>
+					</view>
+				</view>
+			</view>
+
+			<view class="save-section" :style="saveSectionStyle">
+				<view class="save-btn" @click="saveData">
+					<text class="save-text">保存数据</text>
+				</view>
+			</view>
+		</scroll-view>
+	</view>
+</template>
+
+<script setup lang="uts">
+import { ref, computed, onMounted } from 'vue'
+import { getLatestUserBody, saveUserBody } from '@/api/user.uts'
+import { getAppLayoutMetrics } from '@/utils/layout.uts'
+
+const layout = getAppLayoutMetrics()
+const statusBarHeight = layout.statusBarHeight
+const navBarHeight = layout.navBarHeight
+const navContentOffset = 6
+const navContentCenter = statusBarHeight + layout.navBarContentHeight / 2 + navContentOffset
+const navBarStyle = {
+	height: navBarHeight + 'px',
+	paddingTop: statusBarHeight + 'px',
+	boxSizing: 'border-box'
+}
+const navBackButtonStyle = {
+	top: navContentCenter + 'px'
+}
+const navTitleStyle = {
+	top: navContentCenter + 'px'
+}
+const navRightStyle = {
+	top: navContentCenter + 'px'
+}
+const saveBarHeight = Math.round(uni.rpx2px(112))
+const saveSectionInset = Math.round(uni.rpx2px(24))
+
+const scrollContentStyle = {
+	marginTop: navBarHeight + 'px',
+	paddingBottom: layout.bottomSafeArea + saveBarHeight + 'px'
+}
+const saveSectionStyle = {
+	paddingBottom: layout.bottomSafeArea + saveSectionInset + 'px'
+}
+
+type BodyTab = {
+	key : string
+	label : string
+}
+
+const activeTab = ref<string>('basic')
+
+const tabs : BodyTab[] = [
+	{ key: 'basic', label: '基础数据' },
+	{ key: 'limb', label: '肢体数据' },
+	{ key: 'flexibility', label: '柔韧性' },
+	{ key: 'stability', label: '稳定性' }
+]
+
+type BodyEditForm = {
+	height : string
+	weightKg : string
+	spanHeight : string
+	thighLength : string
+	calfLength : string
+	longArmLength : string
+	shortArmLength : string
+	armRaiseAngle : number | null
+	thoracicRotationAngle : number | null
+	thoracicPainLevel : number | null
+	squatStabilityScore : string
+	plankScore : string
+}
+
+const editForm = ref<BodyEditForm>({
+	height: '',
+	weightKg: '',
+	spanHeight: '',
+	thighLength: '',
+	calfLength: '',
+	longArmLength: '',
+	shortArmLength: '',
+	armRaiseAngle: null,
+	thoracicRotationAngle: null,
+	thoracicPainLevel: null,
+	squatStabilityScore: '',
+	plankScore: ''
+})
+
+type TabAssetMap = {
+	basic: string
+	limb: string
+	flexibility: string
+	stability: string
+}
+
+const tabImages: TabAssetMap = {
+	basic: '/static/image/fitting/Trunk.png',
+	limb: '/static/image/fitting/limb.png',
+	flexibility: '/static/image/fitting/Flexibility.png',
+	stability: '/static/image/fitting/Core.png'
+}
+
+const tabTips: TabAssetMap = {
+	basic: '体重、身高与跨高是静态 fitting 的基础输入；腰围等补充数据可帮助判断腹部空间和上身舒适度。',
+	limb: '精确到毫米的肢体数据是计算 Stack 与 Reach 的核心。',
+	flexibility: '这决定了您能耐受多大的落差（Drop）。',
+	stability: '最后的评估项，帮助我们优化您的操控组件。'
+}
+
+const activeGuide = ref('basic')
+
+function getTabImage(key: string): string {
+	if (key == 'limb') return tabImages.limb
+	if (key == 'flexibility') return tabImages.flexibility
+	if (key == 'stability') return tabImages.stability
+	return tabImages.basic
+}
+
+function getTabTip(key: string): string {
+	if (key == 'limb') return tabTips.limb
+	if (key == 'flexibility') return tabTips.flexibility
+	if (key == 'stability') return tabTips.stability
+	return tabTips.basic
+}
+
+function setGuide(key: any | null) {
+	const guideKey = key != null ? `${key}` : ''
+	if (guideKey.length > 0) {
+		activeGuide.value = guideKey
+	}
+}
+
+function getGuideImage(key: string): string {
+	if (key == 'basic') return '/static/image/fitting/Trunk.png'
+	if (key == 'limb') return '/static/image/fitting/limb.png'
+	if (key == 'flexibility') return '/static/image/fitting/Flexibility.png'
+	if (key == 'stability') return '/static/image/fitting/Core.png'
+	if (key == 'weight') return '/static/image/fitting/Trunk.png'
+	if (key == 'height') return '/static/image/fitting/height.png'
+	if (key == 'spanHeight') return '/static/image/fitting/inseam.png'
+	if (key == 'bigarms') return '/static/image/fitting/bigarm.png'
+	if (key == 'smallarms') return '/static/image/fitting/smallarm.png'
+	if (key == 'thigh') return '/static/image/fitting/bigleg.png'
+	if (key == 'calf') return '/static/image/fitting/smallleg.png'
+	if (key == 'thoracic_rot') return '/static/image/fitting/thoracicspine.png'
+	if (key == 'arm_raise') return '/static/image/fitting/raisearm.png'
+	if (key == 'pain_level') return '/static/image/fitting/pain.png'
+	if (key == 'squat') return '/static/image/fitting/squat.png'
+	if (key == 'plank') return '/static/image/fitting/plank.png'
+	return ''
+}
+
+function getGuideTip(key: string): string {
+	if (key == 'basic') return '体重、身高与跨高是静态 fitting 的基础输入；腰围等补充数据可帮助判断腹部空间和上身舒适度。'
+	if (key == 'limb') return '精确到毫米的肢体数据是计算 Stack 与 Reach 的核心。'
+	if (key == 'flexibility') return '这决定了您能耐受多大的落差（Drop）。'
+	if (key == 'stability') return '最后的评估项，帮助我们优化您的操控组件。'
+	if (key == 'weight') return '体重用于基础数据完整性校验，并结合身高辅助判断骑行姿态是否需要预留更多腹部与呼吸空间。'
+	if (key == 'height') return '身高是车架整体尺寸范围的基础输入，测量时保持身体直立、双脚并拢。'
+	if (key == 'spanHeight') return '跨高决定座垫高度，是静态 fitting 的核心数据，测量时用硬质书本顶住裆部。'
+	if (key == 'bigarms') return '大臂长度影响上半身延展性和舒适度，测量肩峰到肘关节外侧的直线距离。'
+	if (key == 'smallarms') return '小臂长度影响上肢支撑长度，测量肘关节到手腕的直线距离。'
+	if (key == 'thigh') return '大腿长决定座垫前后偏移量，测量髋关节大转子到膝关节中心。'
+	if (key == 'calf') return '小腿长辅助修正座高，测量膝关节中心到外踝的直线距离。'
+	if (key == 'thoracic_rot') return '胸椎旋转反映上身灵活性，测试时骨盆保持稳定，缓慢旋转上半身。'
+	if (key == 'arm_raise') return '举臂角度用于评估肩部活动度，动作过程中避免耸肩和躯干侧倾。'
+	if (key == 'pain_level') return '根据胸椎旋转和举臂测试时的真实感受选择痛感等级，不要低估不适程度。'
+	if (key == 'squat') return '深蹲稳定性评估下肢控制能力，注意膝盖沿脚尖方向移动，保持动作平稳。'
+	if (key == 'plank') return '平板支撑评估核心耐力，头肩髋踝保持一条直线，姿势变形就应停止。'
+	return ''
+}
+
+const currentImage = computed(() => {
+	const guideImage = getGuideImage(activeGuide.value)
+	if (guideImage.length > 0) {
+		return guideImage
+	}
+	return getTabImage(activeTab.value)
+})
+const currentTips = computed(() => {
+	const guideTip = getGuideTip(activeGuide.value)
+	if (guideTip.length > 0) {
+		return guideTip
+	}
+	return getTabTip(activeTab.value)
+})
+
+function switchTab(tab: any | null) {
+	const tabKey = tab != null ? `${tab}` : ''
+	if (tabKey.length > 0) {
+		activeTab.value = tabKey
+		activeGuide.value = tabKey
+	}
+}
+
+function goBack() {
+	const pages = getCurrentPages()
+	if (pages.length > 1) {
+		uni.navigateBack({
+			delta: 1,
+			success: () => {
+				console.log('返回上一页成功')
+			},
+			fail: (err) => {
+				console.error('返回失败', err)
+				uni.switchTab({
+					url: '/pages/index/index'
+				})
+			}
+		})
+	} else {
+		uni.switchTab({
+			url: '/pages/index/index'
+		})
+	}
+}
+
+function showSettings() {
+	uni.showToast({
+		title: '设置',
+		icon: 'none'
+	})
+}
+
+function showRequiredTip() {
+	uni.showToast({
+		title: '必填项',
+		icon: 'none'
+	})
+}
+function toInputText(value: any | null): string {
+	return value != null ? `${value}` : ''
+}
+
+function parseIntegerOrNull(value: any | null): number | null {
+	const text = toInputText(value)
+	if (text.length == 0) {
+		return null
+	}
+	const parsed = parseInt(text)
+	return isNaN(parsed) ? null : parsed
+}
+
+function parseFloatOrNull(value: any | null): number | null {
+	const text = toInputText(value)
+	if (text.length == 0) {
+		return null
+	}
+	const parsed = parseFloat(text)
+	return isNaN(parsed) ? null : parsed
+}
+
+function toNullableNumber(value: any | null): number | null {
+	if (value == null) {
+		return null
+	}
+	const parsed = parseFloat(`${value}`)
+	return isNaN(parsed) ? null : parsed
+}
+
+function toJsonObject(value : any | null) : UTSJSONObject | null {
+	if (value == null) {
+		return null
+	}
+	const jsonText = JSON.stringify(value)
+	const parsed = JSON.parse(jsonText)
+	return parsed != null ? parsed as UTSJSONObject : null
+}
+
+function getJsonValue(source : UTSJSONObject | null, key : string) : any | null {
+	const current = source
+	if (current == null) {
+		return null
+	}
+	const value = current[key]
+	return value != null ? value : null
+}
+
+async function loadData() {
+	try {
+		const data = await getLatestUserBody()
+		if (data != null) {
+			const bodyData = toJsonObject(data)
+			editForm.value = {
+				height: toInputText(getJsonValue(bodyData, 'height')),
+				weightKg: toInputText(getJsonValue(bodyData, 'weightKg')),
+				spanHeight: toInputText(getJsonValue(bodyData, 'spanHeight')),
+				thighLength: toInputText(getJsonValue(bodyData, 'thighLength')),
+				calfLength: toInputText(getJsonValue(bodyData, 'calfLength')),
+				longArmLength: toInputText(getJsonValue(bodyData, 'longArmLength')),
+				shortArmLength: toInputText(getJsonValue(bodyData, 'shortArmLength')),
+				armRaiseAngle: toNullableNumber(getJsonValue(bodyData, 'armRaiseAngle')),
+				thoracicRotationAngle: toNullableNumber(getJsonValue(bodyData, 'thoracicRotationAngle')),
+				thoracicPainLevel: toNullableNumber(getJsonValue(bodyData, 'thoracicPainLevel')),
+				squatStabilityScore: toInputText(getJsonValue(bodyData, 'squatStabilityScore')),
+				plankScore: toInputText(getJsonValue(bodyData, 'plankScore'))
+			}
+		}
+	} catch (e) {
+		console.error('加载数据失败', e)
+	}
+}
+
+async function saveData() {
+	try {
+		const data = {
+			height: parseIntegerOrNull(editForm.value.height),
+			weightKg: parseFloatOrNull(editForm.value.weightKg),
+			spanHeight: parseIntegerOrNull(editForm.value.spanHeight),
+			thighLength: parseIntegerOrNull(editForm.value.thighLength),
+			calfLength: parseIntegerOrNull(editForm.value.calfLength),
+			longArmLength: parseIntegerOrNull(editForm.value.longArmLength),
+			shortArmLength: parseIntegerOrNull(editForm.value.shortArmLength),
+			armRaiseAngle: editForm.value.armRaiseAngle,
+			thoracicRotationAngle: editForm.value.thoracicRotationAngle,
+			thoracicPainLevel: editForm.value.thoracicPainLevel,
+			squatStabilityScore: parseIntegerOrNull(editForm.value.squatStabilityScore),
+			plankScore: parseIntegerOrNull(editForm.value.plankScore)
+		}
+		
+		await saveUserBody(data)
+		uni.showToast({
+			title: '保存成功',
+			icon: 'success'
+		})
+		setTimeout(() => {
+			uni.navigateBack()
+		}, 1500)
+	} catch (e) {
+		console.error('保存失败', e)
+		uni.showToast({
+			title: '保存失败',
+			icon: 'error'
+		})
+	}
+}
+
+onMounted(() => {
+	loadData()
+})
+</script>
+
+<style lang="scss">
+.page {
+	height: 100%;
+	background: #FFFFFF;
+}
+
+.nav-bar {
+	position: fixed;
+	top: 0;
+	left: 0;
+	right: 0;
+	background: #FFFFFF;
+	box-sizing: border-box;
+	z-index: 9999;
+}
+
+.back-btn {
+	position: absolute;
+	left: 24rpx;
+	transform: translateY(-50%);
+	width: 88rpx;
+}
+
+.back-icon {
+	font-size: 48rpx;
+	color: #2B2A29;
+}
+
+.nav-title {
+	position: absolute;
+	left: 50%;
+	transform: translate(-50%, -50%);
+	font-size: 32rpx;
+	font-weight: 700;
+	color: #2B2A29;
+}
+
+.nav-right {
+	position: absolute;
+	right: 24rpx;
+	transform: translateY(-50%);
+	width: 60rpx;
+	align-items: center;
+	justify-content: center;
+}
+
+.nav-right-text {
+	font-size: 36rpx;
+	color: #2B2A29;
+	font-weight: 600;
+}
+
+.scroll-content {
+	height: 100%;
+	box-sizing: border-box;
+}
+
+.content-wrapper {
+	background: #FFFFFF;
+	margin-bottom: 120rpx;
+}
+
+.image-section {
+	padding: 40rpx 32rpx;
+	display: flex;
+	justify-content: center;
+	align-items: center;
+}
+
+.guide-image {
+	width: 100%;
+	height: 360rpx;
+	background: #FFFFFF;
+	border-radius: 16rpx;
+}
+
+.tips-section {
+	padding: 0 32rpx 24rpx;
+}
+
+.tips-text {
+	font-size: 26rpx;
+	color: #999;
+	line-height: 1.6;
+}
+
+.tabs-section {
+	position: relative;
+	padding: 0 24rpx;
+	border-bottom: 1rpx solid #EEEEEE;
+}
+
+.tabs-scroll {
+	width: 100%;
+}
+
+.tabs-row {
+	flex-direction: row;
+}
+
+.tab-item {
+	padding: 24rpx 32rpx;
+	position: relative;
+	flex-shrink: 0;
+}
+
+.tab-text {
+	font-size: 28rpx;
+	color: #999;
+	transition: color 0.3s;
+}
+
+.tab-text.active {
+	color: #333;
+	font-weight: 600;
+}
+
+.tab-indicator {
+	position: absolute;
+	bottom: 0;
+	left: 50%;
+	transform: translateX(-50%);
+	width: 48rpx;
+	height: 4rpx;
+	background: #333;
+	border-radius: 2rpx;
+}
+
+.form-section {
+	padding: 24rpx 32rpx;
+}
+
+.form-content {
+	display: flex;
+	flex-direction: column;
+}
+
+.form-item {
+	display: flex;
+	flex-direction: column;
+	margin-bottom: 28rpx;
+}
+
+.form-content .form-item:last-child {
+	margin-bottom: 0;
+}
+
+.form-label {
+	font-size: 28rpx;
+	color: #333;
+	font-weight: 500;
+	margin-bottom: 12rpx;
+}
+
+.required-star {
+	font-size: 22rpx;
+	color: #FFB800;
+	margin-left: 8rpx;
+}
+
+.form-input {
+	height: 88rpx;
+	background: #F9F9F9;
+	border-radius: 12rpx;
+	padding: 0 24rpx;
+	font-size: 28rpx;
+	color: #333;
+}
+
+.option-group {
+	display: flex;
+	flex-wrap: wrap;
+}
+
+.option-item {
+	width: 48%;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	padding: 20rpx;
+	background: #F9F9F9;
+	border-radius: 12rpx;
+	border: 2rpx solid transparent;
+	transition: all 0.3s;
+}
+
+.option-item.active {
+	background: #E8F0E6;
+	border-color: #5C6E58;
+}
+
+.option-num {
+	font-size: 28rpx;
+	font-weight: 600;
+	color: #333;
+}
+
+.option-desc {
+	font-size: 22rpx;
+	color: #999;
+	margin-top: 6rpx;
+}
+
+.radio-group {
+	display: flex;
+	flex-direction: column;
+}
+
+.radio-item {
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	justify-content: flex-start;
+	padding: 24rpx;
+	background: #F9F9F9;
+	border-radius: 12rpx;
+	border: 2rpx solid transparent;
+	transition: all 0.3s;
+	margin-bottom: 12rpx;
+}
+
+.radio-group .radio-item:last-child {
+	margin-bottom: 0;
+}
+
+.radio-item.active {
+	background: #F0F5EF;
+	border-color: #5C6E58;
+}
+
+.radio-circle {
+	width: 32rpx;
+	height: 32rpx;
+	border-radius: 50%;
+	border: 2rpx solid #CCCCCC;
+	margin-right: 20rpx;
+	position: relative;
+	flex-shrink: 0;
+}
+
+.radio-circle.checked {
+	border-color: #5C6E58;
+	background: #5C6E58;
+}
+
+.radio-text {
+	font-size: 28rpx;
+	color: #333;
+	flex: 1;
+	text-align: left;
+}
+
+.radio-item.active .radio-text {
+	color: #5C6E58;
+}
+
+.pain-group {
+	display: flex;
+	flex-direction: row;
+	justify-content: space-between;
+}
+
+.pain-item {
+	flex: 1;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	padding: 20rpx 0;
+	background: #F9F9F9;
+	border-radius: 12rpx;
+	border: 2rpx solid transparent;
+	transition: all 0.3s;
+	margin-right: 12rpx;
+}
+
+.pain-group .pain-item:last-child {
+	margin-right: 0;
+}
+
+.pain-item.active {
+	background: #F0F5EF;
+	border-color: #5C6E58;
+}
+
+.pain-num {
+	font-size: 32rpx;
+	font-weight: 600;
+	color: #333;
+}
+
+.pain-item.active .pain-num {
+	color: #5C6E58;
+}
+
+.pain-desc {
+	font-size: 22rpx;
+	color: #999;
+	margin-top: 6rpx;
+}
+
+.rating-group {
+	display: flex;
+	flex-direction: row;
+	justify-content: space-between;
+}
+
+.rating-item {
+	flex: 1;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	padding: 20rpx 0;
+	background: #F9F9F9;
+	border-radius: 12rpx;
+	border: 2rpx solid transparent;
+	transition: all 0.3s;
+	margin-right: 12rpx;
+}
+
+.rating-group .rating-item:last-child {
+	margin-right: 0;
+}
+
+.rating-item.active {
+	background: #F0F5EF;
+	border-color: #5C6E58;
+}
+
+.rating-num {
+	font-size: 32rpx;
+	font-weight: 600;
+	color: #333;
+}
+
+.rating-item.active .rating-num {
+	color: #5C6E58;
+}
+
+.rating-desc {
+	font-size: 22rpx;
+	color: #999;
+	margin-top: 6rpx;
+	text-align: center;
+}
+
+.save-section {
+	position: fixed;
+	bottom: 0;
+	left: 0;
+	right: 0;
+	padding: 24rpx;
+	background: #FFFFFF;
+	box-shadow: 0 -4rpx 20rpx rgba(0, 0, 0, 0.05);
+}
+
+.save-btn {
+	background: #5C6E58;
+	height: 88rpx;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	border-radius: 44rpx;
+	box-shadow: 0 12rpx 28rpx rgba(74, 93, 72, 0.18);
+}
+
+.save-text {
+	font-size: 30rpx;
+	font-weight: 600;
+	color: #FFFFFF;
+}
+</style>

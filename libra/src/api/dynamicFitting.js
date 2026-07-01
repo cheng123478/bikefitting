@@ -20,6 +20,11 @@ export const getFittingSessionDetail = (sessionId) => {
     return request({
         url: `/dynamic-fitting/sessions/${sessionId}`,
         method: 'get'
+    }).then((res) => {
+        if (res?.sessionVO) {
+            return res.sessionVO;
+        }
+        return res;
     });
 };
 

@@ -5,6 +5,8 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.util.Collection;
+import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 
@@ -33,6 +35,15 @@ public interface DynamicFittingResultRepository extends JpaRepository<DynamicFit
      * @return Fitting结果
      */
     Optional<DynamicFittingResult> findBySession_Id(Long sessionId);
+
+    /**
+     * 根据一批会话ID批量查询结果，供历史列表页一次性装配摘要字段，避免 N+1。
+     *
+     * @param sessionIds 会话ID集合
+     * @return 结果列表
+     */
+    @Query("SELECT r FROM DynamicFittingResult r JOIN FETCH r.session s WHERE s.id IN :sessionIds")
+    List<DynamicFittingResult> findBySessionIds(@Param("sessionIds") Collection<Long> sessionIds);
 
     /**
      * 根据用户ID统计动态Fitting报告数量

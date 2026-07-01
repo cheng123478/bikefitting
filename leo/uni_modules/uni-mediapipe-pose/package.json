@@ -1,0 +1,6 @@
+{
+  "id": "uni-mediapipe-pose",
+  "displayName": "uni-mediapipe-pose",
+  "version": "1.0.0",
+  "description": "MediaPipe Pose Landmarker native bridge for uni-app x dynamic analysis"
+}

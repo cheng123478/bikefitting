@@ -1,0 +1,72 @@
+<script setup>
+	import { initUser } from '@/store/user.uts'
+	import { initDynamicSessionStore } from '@/store/dynamicSession.uts'
+
+
+	let firstBackTime = 0
+	let backResetTimer = 0
+
+
+	function clearBackResetTimer() {
+
+		if (backResetTimer > 0) {
+			clearTimeout(backResetTimer)
+			backResetTimer = 0
+		}
+
+	}
+
+	onLaunch(() => {
+		console.log('App Launch')
+		initUser()
+		initDynamicSessionStore()
+	})
+
+	onAppShow(() => {
+		console.log('App Show')
+	})
+
+	onAppHide(() => {
+		console.log('App Hide')
+		clearBackResetTimer()
+	})
+
+
+	onLastPageBackPress(() => {
+		console.log('App LastPageBackPress')
+		if (firstBackTime == 0) {
+			uni.showToast({
+				title: '再按一次退出应用',
+				position: 'bottom',
+			})
+			firstBackTime = Date.now()
+			clearBackResetTimer()
+			backResetTimer = setTimeout(() => {
+				firstBackTime = 0
+				backResetTimer = 0
+			}, 2000)
+		} else if (Date.now() - firstBackTime < 2000) {
+			clearBackResetTimer()
+			firstBackTime = Date.now()
+			uni.exit()
+		}
+	})
+
+	onExit(() => {
+		console.log('App Exit')
+		clearBackResetTimer()
+	})
+
+</script>
+
+<style>
+	/*每个页面公共css */
+	.uni-row {
+		flex-direction: row;
+	}
+
+	.uni-column {
+		flex-direction: column;
+	}
+
+</style>

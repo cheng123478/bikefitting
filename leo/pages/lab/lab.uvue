@@ -1,0 +1,1805 @@
+<template>
+	<view class="lab-page">
+		<scroll-view class="lab-scroll" scroll-y="true" :show-scrollbar="false" :style="scrollStyle">
+			<view class="lab-shell">
+				<view class="lab-hero" :style="headerStyle">
+					<view class="lab-hero-glow lab-hero-glow-left"></view>
+					<view class="lab-hero-glow lab-hero-glow-right"></view>
+					<view class="lab-hero-grid"></view>
+
+					<view class="lab-hero-top">
+						<view>
+							<text class="lab-kicker">DIAGNOSTIC COMMAND</text>
+							<text class="lab-title">BIKE FIT 实验室</text>
+							<text class="lab-subtitle">从身体、车辆和动态姿态三个维度，建立更完整的骑行调适闭环。</text>
+						</view>
+						<view class="lab-status">
+							<view class="status-dot"></view>
+							<text class="status-text">系统就绪</text>
+						</view>
+					</view>
+
+					<view class="lab-summary-board">
+						<view class="summary-card">
+							<text class="summary-label">柔韧性评分</text>
+							<text class="summary-value">{{ hasBodyProfile ? flexibilityScore : '--' }}</text>
+							<text class="summary-note">身体基础</text>
+						</view>
+						<view class="summary-card">
+							<text class="summary-label">在役单车</text>
+							<text class="summary-value">{{ bikeCount }}</text>
+							<text class="summary-note">车库资产</text>
+						</view>
+						<view class="summary-card">
+							<text class="summary-label">历史报告</text>
+							<text class="summary-value">{{ reportCount }}</text>
+							<text class="summary-note">可回溯记录</text>
+						</view>
+					</view>
+				</view>
+
+				<view class="mission-card app-soft-card">
+					<view class="mission-copy">
+						<text class="mission-kicker">MISSION CONTROL</text>
+						<text class="mission-title">先做评估，再做调适</text>
+						<text class="mission-desc">先用身体图谱建立基线，再进入静态或动态诊断，最后把单车设定沉淀进车库和报告。</text>
+					</view>
+					<view class="mission-action" @click="goToBodyProfile">
+						<text class="mission-action-text">{{ hasBodyProfile ? '查看图谱' : '录入图谱' }}</text>
+					</view>
+				</view>
+
+				<view class="bike-selector-wrap">
+					<view class="selector-head">
+						<view>
+							<text class="selector-kicker">ANALYSIS TARGET</text>
+							<text class="selector-title">分析选择车辆</text>
+						</view>
+						<view class="selector-manage" @click="goToGarage">
+							<text class="selector-manage-text">车库</text>
+						</view>
+					</view>
+
+					<view v-if="bikeList.length > 0" class="bike-carousel-shell">
+						<view
+							v-if="bikeList.length > 2"
+							class="bike-select-card stack-card stack-card-third"
+							:style="getThirdStackStyle()"
+						>
+							<view class="bike-photo-stage">
+								<image
+									v-if="thirdStackBike.displayImageUrl.length > 0"
+									class="bike-select-image"
+									:src="thirdStackBike.displayImageUrl"
+									mode="aspectFit"
+								/>
+								<view v-else class="bike-select-empty">
+									<text class="bike-select-empty-text">BIKE</text>
+								</view>
+							</view>
+							<view class="bike-select-info">
+								<text class="bike-select-name">{{ getBikeName(thirdStackBike) }}</text>
+								<text class="bike-select-meta">{{ getBikeMeta(thirdStackBike) }}</text>
+							</view>
+						</view>
+
+						<view
+							v-if="bikeList.length > 1"
+							class="bike-select-card stack-card stack-card-second"
+							:style="getSecondStackStyle()"
+						>
+							<view class="bike-photo-stage">
+								<image
+									v-if="secondStackBike.displayImageUrl.length > 0"
+									class="bike-select-image"
+									:src="secondStackBike.displayImageUrl"
+									mode="aspectFit"
+								/>
+								<view v-else class="bike-select-empty">
+									<text class="bike-select-empty-text">BIKE</text>
+								</view>
+							</view>
+							<view class="bike-select-info">
+								<text class="bike-select-name">{{ getBikeName(secondStackBike) }}</text>
+								<text class="bike-select-meta">{{ getBikeMeta(secondStackBike) }}</text>
+							</view>
+						</view>
+
+						<view
+							:class="getTopStackClass()"
+							:style="getTopStackStyle()"
+							@touchstart="handleStackTouchStart"
+							@touchmove="handleStackTouchMove"
+							@touchend="handleStackTouchEnd"
+							@touchcancel="handleStackTouchCancel"
+						>
+							<view v-if="bikeList.length > 1" class="bike-stack-edge bike-stack-edge-right" @click.stop="switchStackNext">
+								<text class="bike-stack-edge-text">›</text>
+							</view>
+							<view class="bike-photo-stage">
+								<image
+									v-if="topStackBike.displayImageUrl.length > 0"
+									class="bike-select-image"
+									:src="topStackBike.displayImageUrl"
+									mode="aspectFit"
+								/>
+								<view v-else class="bike-select-empty">
+									<text class="bike-select-empty-text">BIKE</text>
+								</view>
+							</view>
+							<view class="bike-select-info">
+								<text class="bike-select-name">{{ getBikeName(topStackBike) }}</text>
+								<text class="bike-select-meta">{{ getBikeMeta(topStackBike) }}</text>
+								<view class="bike-select-status">
+									<view class="selected-pulse-dot"></view>
+									<text class="bike-select-status-text">当前分析车辆</text>
+								</view>
+							</view>
+						</view>
+
+						<view class="selector-counter">
+							<text class="selector-counter-text">{{ selectedBikeIndex + 1 }} / {{ bikeList.length }}</text>
+						</view>
+					</view>
+
+					<view v-else class="bike-selector-empty app-soft-card">
+						<view class="bike-selector-empty-icon">
+							<text class="bike-selector-empty-icon-text">BIKE</text>
+						</view>
+						<view class="bike-selector-empty-copy">
+							<text class="bike-selector-empty-title">还没有可分析的车辆</text>
+							<text class="bike-selector-empty-desc">先把目标单车保存到车库，再进入静态或动态诊断。</text>
+						</view>
+						<view class="bike-selector-empty-action" @click="goToGarage">
+							<text class="bike-selector-empty-action-text">新增</text>
+						</view>
+					</view>
+				</view>
+
+				<view class="section-header">
+					<view>
+						<text class="section-kicker">PRIMARY ENGINES</text>
+						<text class="section-title">诊断引擎</text>
+					</view>
+				</view>
+
+				<view class="engine-stack">
+					<view class="engine-card static-card" @click="goToStatic">
+						<view class="engine-head">
+							<view class="engine-label-wrap">
+								<text class="engine-chip">BASELINE</text>
+								<text class="engine-name">静态几何诊断</text>
+							</view>
+							<view class="engine-history" @click.stop="goToStaticHistory">
+								<text class="engine-history-text">历史报告</text>
+							</view>
+						</view>
+						<view class="engine-body">
+							<view class="engine-visual">
+								<view class="engine-ring"></view>
+								<view class="engine-scan"></view>
+								<text class="engine-visual-icon">📐</text>
+							</view>
+							<view class="engine-copy">
+								<text class="engine-title">建立骑手与单车的几何基准</text>
+								<text class="engine-desc">根据身体图谱和基础设定推导更合理的坐垫高度、前伸和把位方向。</text>
+								<view class="engine-foot">
+									<text class="engine-foot-label">推荐用于首次调适</text>
+									<text class="engine-foot-cta">生成方案 →</text>
+								</view>
+							</view>
+						</view>
+					</view>
+
+					<view class="engine-card dynamic-card" @click="goToDynamic">
+						<view class="engine-head">
+							<view class="engine-label-wrap">
+								<text class="engine-chip">VISION</text>
+								<text class="engine-name">动态视觉分析</text>
+							</view>
+							<view class="engine-history" @click.stop="goToDynamicHistory">
+								<text class="engine-history-text">历史报告</text>
+							</view>
+						</view>
+						<view class="engine-body">
+							<view class="engine-visual soft-blue">
+								<text class="engine-visual-icon">📹</text>
+							</view>
+							<view class="engine-copy">
+								<text class="engine-title">观察踩踏节奏与姿态代偿</text>
+								<text class="engine-desc">通过 AI 视觉识别追踪膝、髋、肩等关键区域的动态轨迹与姿态变化。</text>
+								<view class="engine-foot">
+									<text class="engine-foot-label">推荐用于进阶优化</text>
+									<text class="engine-foot-cta">开始分析 →</text>
+								</view>
+							</view>
+						</view>
+					</view>
+
+					<view class="engine-card live-card" @click="goToRealtime">
+						<view class="engine-head">
+							<view class="engine-label-wrap">
+								<text class="engine-chip">REAL-TIME</text>
+								<text class="engine-name">姿态实时监护</text>
+							</view>
+						</view>
+						<view class="engine-body">
+							<view class="engine-visual alert">
+								<view class="pulse"></view>
+								<text class="engine-visual-icon">💓</text>
+							</view>
+							<view class="engine-copy">
+								<text class="engine-title">在训练中持续观察疲劳与代偿</text>
+								<text class="engine-desc">更适合与设备联动时做持续监测，目前入口保留中。</text>
+								<view class="engine-foot">
+									<text class="engine-foot-label">高级能力预留</text>
+									<text class="engine-foot-cta">敬请期待</text>
+								</view>
+							</view>
+						</view>
+					</view>
+				</view>
+
+				<view class="section-header compact">
+					<view>
+						<text class="section-kicker">ARCHIVE LAYERS</text>
+						<text class="section-title">数据沉淀</text>
+					</view>
+				</view>
+
+				<view class="archive-card app-soft-card" @click="goToArchives">
+					<view class="archive-main">
+						<view class="archive-icon-wrap">
+							<text class="archive-icon">🗂️</text>
+						</view>
+						<view class="archive-copy">
+							<text class="archive-title">诊断档案室</text>
+							<text class="archive-desc">集中管理评估记录、报告历史和后续可回溯的数据版本。</text>
+						</view>
+					</view>
+					<text class="archive-link">查看入口 ›</text>
+				</view>
+			</view>
+		</scroll-view>
+	</view>
+</template>
+
+<script setup lang="uts">
+	import { computed, ref } from 'vue'
+	import { getDynamicFittingCount, getDynamicFittingSessions } from '@/api/dynamicFitting.uts'
+	import { getLatestUserBody, getMyGarage } from '@/api/user.uts'
+	import { getUserInfo } from '@/store/user.uts'
+	import { getAppLayoutMetrics } from '@/utils/layout.uts'
+	import { resolveAssetUrl } from '@/utils/url.uts'
+
+	type LabHistoryItem = {
+		id : number
+		type : string
+		icon : string
+		title : string
+		time : string
+		status : number
+	}
+
+	type LabBikeCard = {
+		id : number
+		brand : string | null
+		model : string | null
+		remark : string | null
+		imageUrl : string
+		displayImageUrl : string
+		bikeType : number | null
+		frameSize : string | null
+		hasReport : boolean
+	}
+
+	const layout = getAppLayoutMetrics()
+	const scrollStyle = {
+		paddingBottom: layout.tabBarHeight + layout.tabPageBottomSpace + 16 + 'px'
+	}
+	const headerStyle = {
+		paddingTop: layout.statusBarHeight + 26 + 'px'
+	}
+
+	const hasBodyProfile = ref(false)
+	const flexibilityScore = ref('--')
+	const bikeCount = ref(0)
+	const reportCount = ref(0)
+	const bikeList = ref<LabBikeCard[]>([])
+	const selectedBikeIndex = ref(0)
+	const selectedBikeId = ref(0)
+	const isStackDragging = ref(false)
+	const isStackAnimating = ref(false)
+	const isStackResetting = ref(false)
+	const stackDirection = ref(1)
+	const stackMotionId = ref(0)
+	const dragLock = ref('')
+	const touchStartX = ref(0)
+	const touchStartY = ref(0)
+	const dragX = ref(0)
+	const dragY = ref(0)
+	const historyList = ref<LabHistoryItem[]>([])
+
+	const emptyBikeCard : LabBikeCard = {
+		id: 0,
+		brand: null,
+		model: null,
+		remark: null,
+		imageUrl: '',
+		displayImageUrl: '',
+		bikeType: null,
+		frameSize: null,
+		hasReport: false
+	}
+
+	function toSafeNumber(value : any | null, fallback : number) : number {
+		if (value == null) return fallback
+		const parsed = parseFloat(`${value}`)
+		return isNaN(parsed) ? fallback : parsed
+	}
+
+	function toText(value : any | null) : string {
+		return value != null ? `${value}` : ''
+	}
+
+	function createAnyArray() : any[] {
+		const items : any[] = []
+		return items
+	}
+
+	function toJsonObject(value : any | null) : UTSJSONObject | null {
+		if (value == null) {
+			return null
+		}
+		const jsonText = JSON.stringify(value)
+		const parsed = JSON.parse(jsonText)
+		return parsed != null ? parsed as UTSJSONObject : null
+	}
+
+	function getJsonValue(source : UTSJSONObject | null, key : string) : any | null {
+		const current = source
+		if (current == null) {
+			return null
+		}
+		const value = current[key]
+		return value != null ? value : null
+	}
+
+	function getJsonText(source : UTSJSONObject | null, key : string, fallback : string) : string {
+		const value = getJsonValue(source, key)
+		if (value == null) {
+			return fallback
+		}
+		const text = toText(value)
+		return text.length > 0 ? text : fallback
+	}
+
+	function getJsonNumber(source : UTSJSONObject | null, key : string, fallback : number) : number {
+		const value = getJsonValue(source, key)
+		return value != null ? toSafeNumber(value, fallback) : fallback
+	}
+
+	function getJsonNullableText(source : UTSJSONObject | null, key : string) : string | null {
+		const value = getJsonValue(source, key)
+		if (value == null) {
+			return null
+		}
+		const text = toText(value)
+		return text.length > 0 ? text : null
+	}
+
+	function getJsonArray(source : UTSJSONObject | null, key : string) : any[] {
+		const value = getJsonValue(source, key)
+		if (value == null) {
+			return createAnyArray()
+		}
+		const jsonText = JSON.stringify(value)
+		const parsed = JSON.parse(jsonText)
+		return parsed != null ? parsed as any[] : createAnyArray()
+	}
+
+	function toAnyArray(value : any | null) : any[] {
+		if (value == null) {
+			return createAnyArray()
+		}
+		const jsonText = JSON.stringify(value)
+		const parsed = JSON.parse(jsonText)
+		return parsed != null ? parsed as any[] : createAnyArray()
+	}
+
+	function padNumber(value : number) : string {
+		if (value < 10) return `0${value}`
+		return `${value}`
+	}
+
+	function clampNumber(value : number, min : number, max : number) : number {
+		if (value < min) return min
+		if (value > max) return max
+		return value
+	}
+
+	function normalizeBike(raw : any) : LabBikeCard {
+		const source = toJsonObject(raw)
+		const imageUrl = getJsonText(source, 'imageUrl', '')
+		const bikeTypeValue = getJsonValue(source, 'bikeType')
+		return {
+			id: getJsonNumber(source, 'id', 0),
+			brand: getJsonNullableText(source, 'brand'),
+			model: getJsonNullableText(source, 'model'),
+			remark: getJsonNullableText(source, 'remark'),
+			imageUrl: imageUrl,
+			displayImageUrl: resolveAssetUrl(imageUrl),
+			bikeType: bikeTypeValue != null ? toSafeNumber(bikeTypeValue, 0) : null,
+			frameSize: getJsonNullableText(source, 'frameSize'),
+			hasReport: getJsonValue(source, 'hasReport') == true
+		}
+	}
+
+	function syncSelectedBikeByIndex(index : number) {
+		if (bikeList.value.length == 0) {
+			selectedBikeIndex.value = 0
+			selectedBikeId.value = 0
+			return
+		}
+		let nextIndex = index
+		if (nextIndex < 0) {
+			nextIndex = bikeList.value.length - 1
+		}
+		if (nextIndex >= bikeList.value.length) {
+			nextIndex = 0
+		}
+		selectedBikeIndex.value = nextIndex
+		selectedBikeId.value = bikeList.value[nextIndex].id
+	}
+
+	function restoreSelectedBikeIndex() {
+		if (bikeList.value.length == 0) {
+			syncSelectedBikeByIndex(0)
+			return
+		}
+		if (selectedBikeId.value > 0) {
+			for (let i = 0; i < bikeList.value.length; i++) {
+				if (bikeList.value[i].id == selectedBikeId.value) {
+					syncSelectedBikeByIndex(i)
+					return
+				}
+			}
+		}
+		syncSelectedBikeByIndex(0)
+	}
+
+	function ensureLoggedIn() : boolean {
+		const user = getUserInfo()
+		return user != null && user.phone != null && user.phone.length > 0
+	}
+
+	async function loadBodyProfile() {
+		try {
+			const data = await getLatestUserBody()
+			const bodyData = toJsonObject(data)
+			if (getJsonValue(bodyData, 'id') != null) {
+				hasBodyProfile.value = true
+				const flexibilityScoreValue = getJsonValue(bodyData, 'flexibilityScore')
+				const flexibilityValue = getJsonValue(bodyData, 'flexibility')
+				if (flexibilityScoreValue != null) {
+					flexibilityScore.value = toText(flexibilityScoreValue)
+				} else if (flexibilityValue != null) {
+					flexibilityScore.value = toText(flexibilityValue)
+				} else {
+					flexibilityScore.value = '--'
+				}
+			} else {
+				hasBodyProfile.value = false
+				flexibilityScore.value = '--'
+			}
+		} catch (e) {
+			console.error('[Lab] body profile load failed', e)
+			hasBodyProfile.value = false
+			flexibilityScore.value = '--'
+		}
+	}
+
+	async function loadBikeCount() {
+		try {
+			const data = await getMyGarage()
+			let list = toAnyArray(data)
+			if (list.length == 0) {
+				const dataObject = toJsonObject(data)
+				list = getJsonArray(dataObject, 'list')
+			}
+			const normalized : LabBikeCard[] = []
+			for (let i = 0; i < list.length; i++) {
+				const bike = normalizeBike(list[i])
+				if (bike.id > 0) {
+					normalized.push(bike)
+				}
+			}
+			bikeList.value = normalized
+			bikeCount.value = normalized.length
+			restoreSelectedBikeIndex()
+		} catch (e) {
+			console.error('[Lab] bike load failed', e)
+			bikeList.value = []
+			bikeCount.value = 0
+			selectedBikeIndex.value = 0
+			selectedBikeId.value = 0
+		}
+	}
+
+	function formatHistoryTime(source : string) : string {
+		if (source.length == 0) return '--'
+		const date = new Date(source)
+		if (isNaN(date.getTime())) {
+			return source.replace('T', ' ').substring(0, 16)
+		}
+		const year = `${date.getFullYear()}`
+		const month = padNumber(date.getMonth() + 1)
+		const day = padNumber(date.getDate())
+		const hour = padNumber(date.getHours())
+		const minute = padNumber(date.getMinutes())
+		return `${year}-${month}-${day} ${hour}:${minute}`
+	}
+
+	async function loadDynamicSummary() {
+		try {
+			const countData = await getDynamicFittingCount()
+			if (typeof countData === 'number' || typeof countData === 'string') {
+				reportCount.value = toSafeNumber(countData, 0)
+			} else {
+				const countObject = toJsonObject(countData)
+				const countValue = getJsonValue(countObject, 'count')
+				reportCount.value = countValue != null ? toSafeNumber(countValue, 0) : toSafeNumber(countData, 0)
+			}
+		} catch (e) {
+			console.error('[Lab] dynamic count load failed', e)
+			reportCount.value = 0
+		}
+
+		try {
+			const data = await getDynamicFittingSessions(1, 3)
+			const dataObject = toJsonObject(data)
+			const list = getJsonArray(dataObject, 'content')
+			const nextList : LabHistoryItem[] = []
+			for (let i = 0; i < list.length; i++) {
+				const item = toJsonObject(list[i])
+				const status = getJsonNumber(item, 'status', 1)
+				const sessionTime = getJsonText(item, 'sessionTime', '')
+				const createTime = getJsonText(item, 'createTime', '')
+				const timeText = sessionTime.length > 0 ? sessionTime : createTime
+				nextList.push({
+					id: getJsonNumber(item, 'id', 0),
+					type: 'dynamic',
+					icon: '📹',
+					title: status == 2 ? '动态视觉分析报告' : status == 3 ? '动态视觉分析失败' : '动态视觉分析进行中',
+					time: formatHistoryTime(timeText),
+					status: status
+				})
+			}
+			historyList.value = nextList
+		} catch (e) {
+			console.error('[Lab] recent dynamic history load failed', e)
+			historyList.value = []
+		}
+	}
+
+	async function initLabData() {
+		if (!ensureLoggedIn()) {
+			hasBodyProfile.value = false
+			flexibilityScore.value = '--'
+			bikeCount.value = 0
+			reportCount.value = 0
+			bikeList.value = []
+			selectedBikeIndex.value = 0
+			selectedBikeId.value = 0
+			historyList.value = []
+			return
+		}
+
+		await loadBodyProfile()
+		await loadBikeCount()
+		await loadDynamicSummary()
+	}
+
+	function getVisibleBike(offset : number) : LabBikeCard {
+		if (bikeList.value.length == 0) {
+			return emptyBikeCard
+		}
+		let index = selectedBikeIndex.value + offset
+		while (index < 0) {
+			index += bikeList.value.length
+		}
+		while (index >= bikeList.value.length) {
+			index -= bikeList.value.length
+		}
+		return bikeList.value[index]
+	}
+
+	function getStackDirection() : number {
+		return stackDirection.value
+	}
+
+	function getSecondStackOffset() : number {
+		return getStackDirection()
+	}
+
+	function getThirdStackOffset() : number {
+		return getStackDirection() * 2
+	}
+
+	const topStackBike = computed(() : LabBikeCard => getVisibleBike(0))
+	const secondStackBike = computed(() : LabBikeCard => getVisibleBike(getSecondStackOffset()))
+	const thirdStackBike = computed(() : LabBikeCard => getVisibleBike(getThirdStackOffset()))
+
+	function getDragProgress() : number {
+		return clampNumber(Math.abs(dragX.value) / 110.0, 0, 1)
+	}
+
+	function getTopStackClass() : string {
+		if (isStackResetting.value) {
+			return 'bike-select-card stack-card stack-card-top stack-card-resetting'
+		}
+		if (isStackDragging.value) {
+			return 'bike-select-card stack-card stack-card-top stack-card-dragging'
+		}
+		if (isStackAnimating.value) {
+			return 'bike-select-card stack-card stack-card-top stack-card-animating'
+		}
+		return 'bike-select-card stack-card stack-card-top'
+	}
+
+	function getTopStackStyle() : any {
+		const angle = isStackAnimating.value ? 0 : clampNumber(dragX.value / 26.0, -7, 7)
+		const lift = Math.abs(dragX.value) > 12 ? -2 : 0
+		return {
+			transform: `translateX(${dragX.value}px) translateY(${dragY.value + lift}px) rotate(${angle}deg) scale(1)`,
+			opacity: 1
+		}
+	}
+
+	function getSecondStackStyle() : any {
+		const progress = getDragProgress()
+		const direction = getStackDirection()
+		const x = direction * 10 * (1 - progress)
+		const y = 16 * (1 - progress)
+		const scale = 0.94 + progress * 0.06
+		const angle = direction * 3 * (1 - progress)
+		const opacity = 0.78 + progress * 0.22
+		return {
+			transform: `translateX(${x}px) translateY(${y}px) rotate(${angle}deg) scale(${scale})`,
+			opacity: opacity
+		}
+	}
+
+	function getThirdStackStyle() : any {
+		const progress = getDragProgress()
+		const direction = getStackDirection()
+		const x = direction * -8 + direction * progress * 5
+		const y = 30 - progress * 12
+		const scale = 0.89 + progress * 0.04
+		const angle = direction * -4 + direction * progress * 2
+		const opacity = 0.5 + progress * 0.12
+		return {
+			transform: `translateX(${x}px) translateY(${y}px) rotate(${angle}deg) scale(${scale})`,
+			opacity: opacity
+		}
+	}
+
+	function hasTouchPoint(event : TouchEvent) : boolean {
+		return event.touches.length > 0 || event.changedTouches.length > 0
+	}
+
+	function getTouchClientX(event : TouchEvent, fallback : number) : number {
+		if (event.touches.length > 0) {
+			return event.touches[0].clientX
+		}
+		if (event.changedTouches.length > 0) {
+			return event.changedTouches[0].clientX
+		}
+		return fallback
+	}
+
+	function getTouchClientY(event : TouchEvent, fallback : number) : number {
+		if (event.touches.length > 0) {
+			return event.touches[0].clientY
+		}
+		if (event.changedTouches.length > 0) {
+			return event.changedTouches[0].clientY
+		}
+		return fallback
+	}
+
+	function resetStackDrag() {
+		stackMotionId.value = stackMotionId.value + 1
+		isStackDragging.value = false
+		isStackAnimating.value = false
+		isStackResetting.value = false
+		stackDirection.value = 1
+		dragLock.value = ''
+		dragX.value = 0
+		dragY.value = 0
+	}
+
+	function finishStackSwipe(direction : number, motionId : number) {
+		if (motionId != stackMotionId.value) {
+			return
+		}
+		const offset = direction > 0 ? 1 : -1
+		isStackResetting.value = true
+		isStackAnimating.value = false
+		isStackDragging.value = false
+		syncSelectedBikeByIndex(selectedBikeIndex.value + offset)
+		stackDirection.value = 1
+		dragLock.value = ''
+		dragX.value = 0
+		dragY.value = 0
+		setTimeout(() => {
+			if (motionId != stackMotionId.value) {
+				return
+			}
+			isStackResetting.value = false
+		}, 40)
+	}
+
+	function animateStackSwipe(direction : number) {
+		stackMotionId.value = stackMotionId.value + 1
+		const motionId = stackMotionId.value
+		isStackDragging.value = false
+		isStackResetting.value = false
+		isStackAnimating.value = true
+		stackDirection.value = direction > 0 ? 1 : -1
+		dragX.value = direction * 620
+		dragY.value = direction > 0 ? 10 : -10
+		setTimeout(() => {
+			finishStackSwipe(direction, motionId)
+		}, 230)
+	}
+
+	function switchStackNext() {
+		if (bikeList.value.length <= 1 || isStackAnimating.value || isStackResetting.value) {
+			return
+		}
+		animateStackSwipe(1)
+	}
+
+	function handleStackTouchStart(event : TouchEvent) {
+		if (bikeList.value.length <= 1 || isStackAnimating.value || isStackResetting.value) {
+			return
+		}
+		if (!hasTouchPoint(event)) {
+			return
+		}
+		touchStartX.value = getTouchClientX(event, 0)
+		touchStartY.value = getTouchClientY(event, 0)
+		isStackDragging.value = true
+		dragLock.value = ''
+		dragX.value = 0
+		dragY.value = 0
+	}
+
+	function handleStackTouchMove(event : TouchEvent) {
+		if (!isStackDragging.value || isStackAnimating.value) {
+			return
+		}
+		if (!hasTouchPoint(event)) {
+			return
+		}
+		const currentX = getTouchClientX(event, touchStartX.value)
+		const currentY = getTouchClientY(event, touchStartY.value)
+		const dx = currentX - touchStartX.value
+		const dy = currentY - touchStartY.value
+		const absX = Math.abs(dx)
+		const absY = Math.abs(dy)
+
+		if (dragLock.value.length == 0) {
+			if (absY > 12 && absY > absX * 1.25) {
+				dragLock.value = 'vertical'
+				return
+			}
+			if (absX > 8 && absX > absY) {
+				dragLock.value = 'horizontal'
+				stackDirection.value = 1
+			}
+		}
+
+		if (dragLock.value != 'horizontal') {
+			return
+		}
+
+		event.stopPropagation()
+		event.preventDefault()
+		stackDirection.value = 1
+		dragX.value = clampNumber(dx, -26, 230)
+		dragY.value = clampNumber(dy, -14, 14)
+	}
+
+	function handleStackTouchEnd() {
+		if (!isStackDragging.value) {
+			return
+		}
+		if (dragLock.value == 'horizontal' && dragX.value > 72 && bikeList.value.length > 1) {
+			animateStackSwipe(1)
+			return
+		}
+		resetStackDrag()
+	}
+
+	function handleStackTouchCancel() {
+		if (isStackAnimating.value || isStackResetting.value) {
+			return
+		}
+		if (isStackDragging.value) {
+			resetStackDrag()
+		}
+	}
+
+	function getBikeName(bike : LabBikeCard) : string {
+		const brand = bike.brand != null ? bike.brand : ''
+		const model = bike.model != null ? bike.model : ''
+		const fullName = `${brand} ${model}`.trim()
+		return fullName.length > 0 ? fullName : '未命名单车'
+	}
+
+	function getBikeTypeLabel(type : number | null) : string {
+		if (type == 1) return '公路'
+		if (type == 2) return '山地'
+		if (type == 3) return 'Gravel'
+		if (type == 4) return '城市'
+		if (type == 5) return 'TT'
+		return '单车'
+	}
+
+	function getBikeMeta(bike : LabBikeCard) : string {
+		const parts : string[] = []
+		if (bike.frameSize != null && bike.frameSize.length > 0) {
+			parts.push(bike.frameSize + ' 尺码')
+		}
+		parts.push(getBikeTypeLabel(bike.bikeType))
+		if (bike.hasReport) {
+			parts.push('已有报告')
+		}
+		return parts.join(' · ')
+	}
+
+	function goToStatic() {
+		if (!hasBodyProfile.value) {
+			uni.showToast({ title: '请先完成身体图谱录入', icon: 'none' })
+			return
+		}
+		if (selectedBikeId.value <= 0) {
+			uni.showToast({ title: '请先选择一辆分析车辆', icon: 'none' })
+			return
+		}
+		uni.showToast({ title: '功能开发中', icon: 'none' })
+	}
+
+	function goToStaticHistory() {
+		uni.showToast({ title: '功能开发中', icon: 'none' })
+	}
+
+	function goToDynamic() {
+		if (!ensureLoggedIn()) {
+			uni.navigateTo({ url: '/pages/login/login' })
+			return
+		}
+		if (!hasBodyProfile.value) {
+			uni.showToast({ title: '请先完成身体图谱录入', icon: 'none' })
+			return
+		}
+		if (selectedBikeId.value <= 0) {
+			uni.showToast({ title: '请先选择一辆分析车辆', icon: 'none' })
+			return
+		}
+		uni.navigateTo({ url: `/pages/dynamicSession/dynamicSession?bikeId=${selectedBikeId.value}` })
+	}
+
+	function goToDynamicHistory() {
+		if (!ensureLoggedIn()) {
+			uni.navigateTo({ url: '/pages/login/login' })
+			return
+		}
+		uni.navigateTo({ url: '/pages/dynamicHistory/dynamicHistory' })
+	}
+
+	function goToRealtime() {
+		uni.showToast({ title: '功能开发中', icon: 'none' })
+	}
+
+	function goToBodyProfile() {
+		if (!ensureLoggedIn()) {
+			uni.navigateTo({ url: '/pages/login/login' })
+			return
+		}
+		uni.navigateTo({ url: '/pages/bodyProfile/bodyProfile' })
+	}
+
+	function goToGarage() {
+		if (!ensureLoggedIn()) {
+			uni.navigateTo({ url: '/pages/login/login' })
+			return
+		}
+		uni.navigateTo({ url: '/pages/garage/garage' })
+	}
+
+	function goToArchives() {
+		goToDynamicHistory()
+	}
+
+	function viewHistory(item : LabHistoryItem) {
+		if (item.status == 2) {
+			uni.navigateTo({
+				url: `/pages/dynamicReport/dynamicReport?sessionId=${item.id}`
+			})
+			return
+		}
+
+		uni.navigateTo({
+			url: `/pages/dynamicSubmitted/dynamicSubmitted?id=${item.id}&status=${item.status}`
+		})
+	}
+
+	onShow(() => {
+		initLabData()
+	})
+</script>
+
+<style>
+	.app-soft-card {
+		background-color: #FFFFFF;
+		border-radius: 8px;
+		border-width: 1px;
+		border-color: #FFFFFF;
+		border-style: solid;
+		box-shadow: 0 18px 48px rgba(53, 55, 41, 0.08);
+	}
+
+	.lab-page {
+		height: 100%;
+		background: #F3F2ED;
+	}
+
+	.lab-scroll {
+		height: 100%;
+	}
+
+	.lab-shell {
+		padding: 0 16px 28px;
+	}
+
+	.lab-hero {
+		position: relative;
+		overflow: hidden;
+		margin: 0 -16px 18px;
+		padding: 0 16px 24px;
+		border-bottom-left-radius: 10px;
+		border-bottom-right-radius: 10px;
+		background-color: #304236;
+	}
+
+	.lab-hero-glow {
+		position: absolute;
+		z-index: 0;
+		border-radius: 50%;
+	}
+
+	.lab-hero-glow-left {
+		top: -26px;
+		left: -52px;
+		width: 160px;
+		height: 160px;
+		background-color: transparent;
+	}
+
+	.lab-hero-glow-right {
+		right: -46px;
+		bottom: 32px;
+		width: 180px;
+		height: 180px;
+		background-color: transparent;
+	}
+
+	.lab-hero-grid {
+		position: absolute;
+		z-index: 0;
+		top: 0;
+		right: 0;
+		bottom: 0;
+		left: 0;
+		opacity: 0;
+	}
+
+	.lab-hero-top {
+		position: relative;
+		z-index: 2;
+		margin-bottom: 22px;
+	}
+
+	.lab-kicker {
+		font-size: 11px;
+		font-weight: 700;
+		color: #E8DCC5;
+		letter-spacing: 2px;
+		margin-bottom: 10px;
+	}
+
+	.lab-title {
+		font-size: 32px;
+		line-height: 40px;
+		font-weight: 700;
+		color: #FFFFFF;
+		margin-bottom: 10px;
+	}
+
+	.lab-subtitle {
+		font-size: 14px;
+		line-height: 23px;
+		color: #F1F4EE;
+		margin-bottom: 16px;
+	}
+
+	.lab-status {
+		align-self: flex-start;
+		flex-direction: row;
+		align-items: center;
+		padding: 10px 14px;
+		border-radius: 6px;
+		background-color: #405548;
+		border-width: 1px;
+		border-color: #627769;
+		border-style: solid;
+	}
+
+	.status-dot {
+		width: 9px;
+		height: 9px;
+		border-radius: 50%;
+		background: #7BE14F;
+		margin-right: 8px;
+		box-shadow: 0 0 10px rgba(123, 225, 79, 0.9);
+	}
+
+	.status-text {
+		font-size: 12px;
+		color: #FFFFFF;
+		font-weight: 600;
+	}
+
+	.lab-summary-board {
+		position: relative;
+		z-index: 2;
+		flex-direction: row;
+		justify-content: space-between;
+	}
+
+	.summary-card {
+		width: 32%;
+		padding: 18px 12px;
+		border-radius: 8px;
+		background-color: #405548;
+		border-width: 1px;
+		border-color: #65796B;
+		border-style: solid;
+	}
+
+	.summary-label {
+		font-size: 11px;
+		color: #E7EEE7;
+		margin-bottom: 10px;
+	}
+
+	.summary-value {
+		font-size: 26px;
+		font-weight: 700;
+		color: #FFFFFF;
+		margin-bottom: 4px;
+	}
+
+	.summary-note {
+		font-size: 11px;
+		color: #DCE6DC;
+	}
+
+	.mission-card {
+		flex-direction: row;
+		align-items: center;
+		justify-content: space-between;
+		padding: 18px;
+		margin-bottom: 18px;
+	}
+
+	.mission-copy {
+		flex: 1;
+		padding-right: 14px;
+	}
+
+	.mission-kicker {
+		font-size: 11px;
+		font-weight: 700;
+		color: #6A7C63;
+		letter-spacing: 2px;
+		margin-bottom: 6px;
+	}
+
+	.mission-title {
+		font-size: 18px;
+		font-weight: 700;
+		color: #2B2A29;
+		margin-bottom: 6px;
+	}
+
+	.mission-desc {
+		font-size: 13px;
+		line-height: 20px;
+		color: #787673;
+	}
+
+	.mission-action {
+		padding: 12px 16px;
+		border-radius: 6px;
+		background-color: #5C6E58;
+	}
+
+	.mission-action-text {
+		font-size: 14px;
+		font-weight: 700;
+		color: #FFFFFF;
+	}
+
+	.bike-selector-wrap {
+		margin-bottom: 18px;
+	}
+
+	.selector-head {
+		flex-direction: row;
+		align-items: center;
+		justify-content: space-between;
+		margin-bottom: 12px;
+	}
+
+	.selector-kicker {
+		font-size: 11px;
+		font-weight: 700;
+		color: #6A7C63;
+		letter-spacing: 2px;
+		margin-bottom: 4px;
+	}
+
+	.selector-title {
+		font-size: 21px;
+		font-weight: 700;
+		color: #2B2A29;
+	}
+
+	.selector-manage {
+		height: 34px;
+		padding: 0 14px;
+		border-radius: 8px;
+		background-color: #FFFFFF;
+		border-width: 1px;
+		border-color: rgba(92, 110, 88, 0.12);
+		border-style: solid;
+		align-items: center;
+		justify-content: center;
+	}
+
+	.selector-manage-text {
+		font-size: 13px;
+		font-weight: 700;
+		color: #5C6E58;
+	}
+
+	.bike-carousel-shell {
+		position: relative;
+		height: 214px;
+		overflow: hidden;
+	}
+
+	.bike-select-card {
+		position: relative;
+		height: 156px;
+		flex-direction: row;
+		border-radius: 8px;
+		background-color: #FFFFFF;
+		border-width: 1px;
+		border-color: rgba(43, 42, 41, 0.08);
+		border-style: solid;
+		overflow: hidden;
+		box-shadow: 0 18px 34px rgba(43, 42, 41, 0.14);
+	}
+
+	.stack-card {
+		position: absolute;
+		left: 10px;
+		right: 10px;
+		top: 12px;
+		transition: all 0.24s;
+	}
+
+	.stack-card-top {
+		z-index: 5;
+	}
+
+	.stack-card-second {
+		z-index: 4;
+		background-color: #FBFBF8;
+		box-shadow: 0 12px 24px rgba(43, 42, 41, 0.1);
+	}
+
+	.stack-card-third {
+		z-index: 3;
+		background-color: #F1F4EF;
+		box-shadow: 0 8px 18px rgba(43, 42, 41, 0.08);
+	}
+
+	.stack-card-dragging {
+		transition: none;
+	}
+
+	.stack-card-resetting {
+		transition: none;
+	}
+
+	.stack-card-animating {
+		transition: all 0.22s;
+	}
+
+	.bike-photo-stage {
+		position: relative;
+		width: 144px;
+		height: 156px;
+		background-color: #FFFFFF;
+		align-items: center;
+		justify-content: center;
+		padding: 14px 12px;
+	}
+
+	.bike-select-image {
+		width: 100%;
+		height: 100%;
+	}
+
+	.bike-select-empty {
+		width: 100%;
+		height: 100%;
+		border-radius: 8px;
+		background-color: #F7F6F1;
+		align-items: center;
+		justify-content: center;
+	}
+
+	.bike-select-empty-text {
+		font-size: 18px;
+		font-weight: 700;
+		color: #A09A8D;
+		letter-spacing: 2px;
+	}
+
+	.bike-select-info {
+		flex: 1;
+		height: 156px;
+		justify-content: center;
+		padding: 16px 42px 16px 4px;
+		background-color: transparent;
+		border-left-width: 1px;
+		border-left-color: rgba(92, 110, 88, 0.08);
+		border-left-style: solid;
+	}
+
+	.bike-select-name {
+		font-size: 17px;
+		line-height: 22px;
+		font-weight: 700;
+		color: #2B2A29;
+		margin-bottom: 6px;
+	}
+
+	.bike-select-meta {
+		font-size: 12px;
+		line-height: 17px;
+		color: #787673;
+		margin-bottom: 11px;
+	}
+
+	.bike-select-status {
+		flex-direction: row;
+		align-items: center;
+		align-self: flex-start;
+		padding: 5px 9px;
+		border-radius: 8px;
+		background-color: #F2F6EF;
+	}
+
+	.bike-stack-edge {
+		position: absolute;
+		top: 0;
+		width: 38px;
+		height: 156px;
+		z-index: 8;
+		align-items: center;
+		justify-content: center;
+	}
+
+	.bike-stack-edge-right {
+		right: 0;
+	}
+
+	.bike-stack-edge-text {
+		font-size: 28px;
+		line-height: 32px;
+		font-weight: 400;
+		color: rgba(43, 42, 41, 0.42);
+	}
+
+	.selected-pulse-dot {
+		width: 8px;
+		height: 8px;
+		border-radius: 4px;
+		background-color: #7BE14F;
+		margin-right: 7px;
+		box-shadow: 0 0 10px rgba(123, 225, 79, 0.8);
+	}
+
+	.bike-select-status-text {
+		font-size: 11px;
+		font-weight: 700;
+		color: #5C6E58;
+	}
+
+	.selector-counter {
+		position: absolute;
+		right: 18px;
+		top: 174px;
+		padding: 5px 9px;
+		border-radius: 8px;
+		background-color: rgba(244, 246, 241, 0.96);
+		z-index: 9;
+	}
+
+	.selector-counter-text {
+		font-size: 11px;
+		font-weight: 700;
+		color: #5C6E58;
+	}
+
+	.bike-selector-empty {
+		flex-direction: row;
+		align-items: center;
+		padding: 16px;
+	}
+
+	.bike-selector-empty-icon {
+		width: 64px;
+		height: 64px;
+		border-radius: 8px;
+		background-color: #EEF3EC;
+		align-items: center;
+		justify-content: center;
+		margin-right: 14px;
+	}
+
+	.bike-selector-empty-icon-text {
+		font-size: 15px;
+		font-weight: 700;
+		color: #5C6E58;
+		letter-spacing: 1px;
+	}
+
+	.bike-selector-empty-copy {
+		flex: 1;
+		padding-right: 12px;
+	}
+
+	.bike-selector-empty-title {
+		font-size: 16px;
+		font-weight: 700;
+		color: #2B2A29;
+		margin-bottom: 5px;
+	}
+
+	.bike-selector-empty-desc {
+		font-size: 12px;
+		line-height: 18px;
+		color: #787673;
+	}
+
+	.bike-selector-empty-action {
+		height: 38px;
+		padding: 0 14px;
+		border-radius: 8px;
+		background-color: #5C6E58;
+		align-items: center;
+		justify-content: center;
+	}
+
+	.bike-selector-empty-action-text {
+		font-size: 13px;
+		font-weight: 700;
+		color: #FFFFFF;
+	}
+
+	.section-header {
+		flex-direction: row;
+		align-items: center;
+		justify-content: space-between;
+		margin-bottom: 14px;
+	}
+
+	.section-header.compact {
+		margin-top: 4px;
+	}
+
+	.section-kicker {
+		font-size: 11px;
+		font-weight: 700;
+		color: #6A7C63;
+		letter-spacing: 2px;
+		margin-bottom: 4px;
+	}
+
+	.section-title {
+		font-size: 21px;
+		font-weight: 700;
+		color: #2B2A29;
+	}
+
+	.section-more {
+		font-size: 13px;
+		color: #6A7C63;
+		font-weight: 600;
+	}
+
+	.engine-stack {
+		margin-bottom: 18px;
+	}
+
+	.engine-card {
+		margin-bottom: 12px;
+		padding: 20px;
+		border-radius: 8px;
+		box-shadow: 0 16px 38px rgba(46, 47, 36, 0.08);
+	}
+
+	.engine-card:last-child {
+		margin-bottom: 0;
+	}
+
+	.static-card {
+		background-color: #344738;
+	}
+
+	.dynamic-card {
+		background-color: #FFFFFF;
+		border-width: 1px;
+		border-color: rgba(111, 155, 205, 0.18);
+		border-style: solid;
+	}
+
+	.live-card {
+		background-color: #FFFFFF;
+		border-width: 1px;
+		border-color: rgba(218, 153, 117, 0.18);
+		border-style: solid;
+	}
+
+	.engine-head {
+		flex-direction: row;
+		align-items: center;
+		justify-content: space-between;
+		margin-bottom: 16px;
+	}
+
+	.engine-label-wrap {
+		flex: 1;
+	}
+
+	.engine-chip {
+		align-self: flex-start;
+		padding: 5px 10px;
+		border-radius: 6px;
+		background-color: #506353;
+		font-size: 10px;
+		font-weight: 700;
+		color: #F4F7F2;
+		letter-spacing: 1px;
+		margin-bottom: 10px;
+	}
+
+	.dynamic-card .engine-chip,
+	.live-card .engine-chip {
+		background-color: #EEF3EC;
+		color: #6A7C63;
+	}
+
+	.engine-name {
+		font-size: 22px;
+		font-weight: 700;
+		color: #FFFFFF;
+	}
+
+	.dynamic-card .engine-name,
+	.live-card .engine-name {
+		color: #2B2A29;
+	}
+
+	.engine-history {
+		padding: 8px 10px;
+		border-radius: 6px;
+		background-color: #506353;
+	}
+
+	.dynamic-card .engine-history,
+	.live-card .engine-history {
+		background-color: #EEF3EC;
+	}
+
+	.engine-history-text {
+		font-size: 12px;
+		font-weight: 600;
+		color: #FFFFFF;
+	}
+
+	.dynamic-card .engine-history-text,
+	.live-card .engine-history-text {
+		color: #6A7C63;
+	}
+
+	.engine-body {
+		flex-direction: row;
+		align-items: center;
+	}
+
+	.engine-visual {
+		position: relative;
+		width: 88px;
+		height: 88px;
+		border-radius: 8px;
+		background-color: #506353;
+		border-width: 1px;
+		border-color: #65796B;
+		border-style: solid;
+		align-items: center;
+		justify-content: center;
+		margin-right: 16px;
+		overflow: hidden;
+	}
+
+	.engine-ring {
+		position: absolute;
+		width: 58px;
+		height: 58px;
+		border-radius: 29px;
+		border-width: 1px;
+		border-color: rgba(255, 255, 255, 0.28);
+		border-style: solid;
+	}
+
+	.engine-scan {
+		position: absolute;
+		width: 72px;
+		height: 72px;
+		border-radius: 36px;
+		border-width: 2px;
+		border-color: transparent;
+		border-top-color: rgba(255, 255, 255, 0.62);
+		border-style: solid;
+	}
+
+	.soft-blue {
+		background: rgba(90, 135, 191, 0.12);
+		border-color: rgba(90, 135, 191, 0.16);
+	}
+
+	.alert {
+		background: rgba(217, 98, 72, 0.1);
+		border-color: rgba(217, 98, 72, 0.12);
+	}
+
+	.pulse {
+		position: absolute;
+		width: 56px;
+		height: 56px;
+		border-radius: 28px;
+		background: rgba(217, 98, 72, 0.18);
+	}
+
+	.engine-visual-icon {
+		font-size: 34px;
+		position: relative;
+		z-index: 2;
+	}
+
+	.engine-copy {
+		flex: 1;
+	}
+
+	.engine-title {
+		font-size: 17px;
+		line-height: 24px;
+		font-weight: 700;
+		color: #FFFFFF;
+		margin-bottom: 8px;
+	}
+
+	.dynamic-card .engine-title,
+	.live-card .engine-title {
+		color: #2B2A29;
+	}
+
+	.engine-desc {
+		font-size: 13px;
+		line-height: 21px;
+		color: #EEF4EC;
+		margin-bottom: 12px;
+	}
+
+	.dynamic-card .engine-desc,
+	.live-card .engine-desc {
+		color: #787673;
+	}
+
+	.engine-foot {
+		flex-direction: row;
+		align-items: center;
+		justify-content: space-between;
+	}
+
+	.engine-foot-label {
+		font-size: 11px;
+		color: #DDE8DC;
+	}
+
+	.dynamic-card .engine-foot-label,
+	.live-card .engine-foot-label {
+		color: #9A958A;
+	}
+
+	.engine-foot-cta {
+		font-size: 13px;
+		font-weight: 700;
+		color: #FFFFFF;
+	}
+
+	.dynamic-card .engine-foot-cta {
+		color: #356792;
+	}
+
+	.live-card .engine-foot-cta {
+		color: #B56C4D;
+	}
+
+	.archive-card {
+		flex-direction: row;
+		align-items: center;
+		justify-content: space-between;
+		padding: 18px;
+		margin-bottom: 18px;
+	}
+
+	.archive-main {
+		flex: 1;
+		flex-direction: row;
+		align-items: center;
+		padding-right: 12px;
+	}
+
+	.archive-icon-wrap {
+		width: 56px;
+		height: 56px;
+		border-radius: 6px;
+		background: linear-gradient(135deg, #F4EADB 0%, #E8DBC2 100%);
+		align-items: center;
+		justify-content: center;
+		margin-right: 14px;
+	}
+
+	.archive-icon {
+		font-size: 28px;
+	}
+
+	.archive-copy {
+		flex: 1;
+	}
+
+	.archive-title {
+		font-size: 18px;
+		font-weight: 700;
+		color: #2B2A29;
+		margin-bottom: 6px;
+	}
+
+	.archive-desc {
+		font-size: 13px;
+		line-height: 20px;
+		color: #787673;
+	}
+
+	.archive-link {
+		font-size: 13px;
+		font-weight: 700;
+		color: #6A7C63;
+	}
+
+	.history-board {
+		padding: 8px 0;
+	}
+
+	.empty-state {
+		padding: 34px 22px;
+		align-items: center;
+	}
+
+	.empty-icon-wrap {
+		width: 78px;
+		height: 78px;
+		border-radius: 8px;
+		background: rgba(92, 110, 88, 0.08);
+		align-items: center;
+		justify-content: center;
+		margin-bottom: 14px;
+	}
+
+	.empty-icon {
+		font-size: 36px;
+	}
+
+	.empty-title {
+		font-size: 17px;
+		font-weight: 700;
+		color: #2B2A29;
+		margin-bottom: 8px;
+	}
+
+	.empty-desc {
+		font-size: 13px;
+		line-height: 20px;
+		color: #787673;
+		text-align: center;
+	}
+
+	.history-item {
+		flex-direction: row;
+		align-items: center;
+		padding: 14px 18px;
+	}
+
+	.history-badge {
+		width: 46px;
+		height: 46px;
+		border-radius: 6px;
+		align-items: center;
+		justify-content: center;
+		margin-right: 14px;
+	}
+
+	.history-badge.static {
+		background: rgba(92, 110, 88, 0.1);
+	}
+
+	.history-badge.dynamic {
+		background: rgba(86, 132, 181, 0.12);
+	}
+
+	.history-badge-icon {
+		font-size: 22px;
+	}
+
+	.history-copy {
+		flex: 1;
+	}
+
+	.history-title {
+		font-size: 15px;
+		font-weight: 700;
+		color: #2B2A29;
+		margin-bottom: 4px;
+	}
+
+	.history-time {
+		font-size: 12px;
+		color: #908C82;
+	}
+
+	.history-arrow {
+		font-size: 20px;
+		color: #B5B0A5;
+	}
+</style>

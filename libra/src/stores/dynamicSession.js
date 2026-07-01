@@ -23,7 +23,7 @@ export const useDynamicSessionStore = defineStore('dynamicSession', () => {
             front: null,
             back: null,
             painLevels: [],
-            id: null,
+            sessionId: null,
             isSubmitting: false
         };
     };
@@ -79,7 +79,7 @@ export const useDynamicSessionStore = defineStore('dynamicSession', () => {
             console.log(payload);
             const res = await submitDynamicSession(payload);
             const data = res.data || res;
-            sessionData.value.id = data.id;
+            sessionData.value.sessionId = data.id;
             showToast('分析提交成功，云端已同步', 'success');
             return data;
         } catch (error) {
@@ -94,7 +94,7 @@ export const useDynamicSessionStore = defineStore('dynamicSession', () => {
     // 清空
     const clearSession = () => {
         const bikeId = sessionData.value.bikeId;
-        sessionData.value = { bikeId, side: null, front: null, back: null, painLevels: [], id: null, isSubmitting: false };
+        sessionData.value = { bikeId, side: null, front: null, back: null, painLevels: [], sessionId: null, isSubmitting: false };
     };
 
     return { sessionData, initSession, saveCapture, isEmpty, clearSession, submit };

@@ -10,6 +10,7 @@ import com.starrysky.aries.membership.repository.UserMembershipRepository;
 import com.starrysky.aries.sms.service.SmsService;
 import com.starrysky.aries.user.repository.UserRepository;
 import com.starrysky.aries.user.schema.UserRequest;
+import com.starrysky.aries.user.schema.UserResponse;
 import com.starrysky.aries.util.Constant;
 import com.starrysky.aries.util.EncryptUtil;
 import jakarta.annotation.Resource;
@@ -60,6 +61,24 @@ public class UserService {
     private ApplicationEventPublisher eventPublisher;
     @Resource
     private HttpServletRequest request;
+
+    public UserResponse.Profile getProfile(Long userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new BizException("用户不存在"));
+        return toProfile(user);
+    }
+
+    private UserResponse.Profile toProfile(User user) {
+        return new UserResponse.Profile(
+                user.getId(),
+                user.getPhone(),
+                user.getName(),
+                user.getIntroduction(),
+                user.getAvatar(),
+                user.getBirthday(),
+                user.getGender(),
+                user.getLocation());
+    }
 
     /**
      * 注册和登录，用户手机短信注册和登录

@@ -1,0 +1,1352 @@
+import {
+	analyzeVideo as nativeAnalyzeVideo,
+	captureSnapshot as nativeCaptureSnapshot,
+	getPluginInfo as getNativePosePluginInfo
+} from '@/uni_modules/uni-mediapipe-pose'
+import type { NativePosePluginInfo } from '@/uni_modules/uni-mediapipe-pose/utssdk/interface.uts'
+
+type LandmarkPoint = {
+	x : number
+	y : number
+	z : number
+	visibility : number
+	presence : number
+}
+
+type PoseSideIndexes = {
+	ear : number
+	shoulder : number
+	elbow : number
+	wrist : number
+	hip : number
+	knee : number
+	ankle : number
+	heel : number
+	toe : number
+}
+
+const SIDE_INDEXES : PoseSideIndexes = {
+	ear: 7,
+	shoulder: 11,
+	elbow: 13,
+	wrist: 15,
+	hip: 23,
+	knee: 25,
+	ankle: 27,
+	heel: 29,
+	toe: 31
+}
+
+const RIGHT_INDEXES : PoseSideIndexes = {
+	ear: 8,
+	shoulder: 12,
+	elbow: 14,
+	wrist: 16,
+	hip: 24,
+	knee: 26,
+	ankle: 28,
+	heel: 30,
+	toe: 32
+}
+
+let cachedPluginInfo : NativePosePluginInfo | null = null
+
+function createAnyArray() : any[] {
+	const items : any[] = []
+	return items
+}
+
+function createStringArray() : string[] {
+	const items : string[] = []
+	return items
+}
+
+function roundScale(value : number, scale : number) : number {
+	return Math.round(value * scale) / scale
+}
+
+function roundOne(value : number) : number {
+	return roundScale(value, 10)
+}
+
+function roundThree(value : number) : number {
+	return roundScale(value, 1000)
+}
+
+function clampDuration(value : number) : number {
+	if (value < 6) return 6
+	if (value > 30) return 30
+	return value
+}
+
+function toSafeNumber(value : any | null, fallback : number = 0) : number {
+	if (value == null) {
+		return fallback
+	}
+	const parsed = parseFloat(`${value}`)
+	return isNaN(parsed) ? fallback : parsed
+}
+
+function cleanNum(value : any | null, fallback : number = 0) : number {
+	return roundOne(toSafeNumber(value, fallback))
+}
+
+function toJsonObject(value : any | null) : UTSJSONObject | null {
+	if (value == null) {
+		return null
+	}
+	const jsonText = JSON.stringify(value)
+	const parsed = JSON.parse(jsonText)
+	return parsed != null ? parsed as UTSJSONObject : null
+}
+
+function getJsonNumber(source : UTSJSONObject | null, key : string, fallback : number = 0) : number {
+	const current = source
+	if (current == null) {
+		return fallback
+	}
+	const value = current[key]
+	if (value == null) {
+		return fallback
+	}
+	return toSafeNumber(value, fallback)
+}
+
+function getJsonString(source : UTSJSONObject | null, key : string, fallback : string) : string {
+	const current = source
+	if (current == null) {
+		return fallback
+	}
+	const value = current[key]
+	return value != null ? `${value}` : fallback
+}
+
+function getJsonObject(source : UTSJSONObject | null, key : string) : UTSJSONObject | null {
+	const current = source
+	if (current == null) {
+		return null
+	}
+	const value = current[key]
+	return value != null ? toJsonObject(value) : null
+}
+
+function getJsonArray(source : UTSJSONObject | null, key : string) : any[] {
+	const current = source
+	if (current == null) {
+		return createAnyArray()
+	}
+	const value = current[key]
+	if (value == null) {
+		return createAnyArray()
+	}
+	const jsonText = JSON.stringify(value)
+	const parsed = JSON.parse(jsonText)
+	return parsed != null ? parsed as any[] : createAnyArray()
+}
+
+function cloneStringList(source : string[]) : string[] {
+	const items = createStringArray()
+	for (let i = 0; i < source.length; i++) {
+		items.push(source[i])
+	}
+	return items
+}
+
+function clonePluginInfo(info : NativePosePluginInfo) : NativePosePluginInfo {
+	return {
+		ready: info.ready,
+		provider: info.provider,
+		platform: info.platform,
+		modelAssetPath: info.modelAssetPath,
+		supportedModes: cloneStringList(info.supportedModes),
+		reason: info.reason
+	}
+}
+
+function createFallbackPluginInfo(reason : string) : NativePosePluginInfo {
+	const supportedModes = createStringArray()
+	return {
+		ready: false,
+		provider: 'MediaPipe Pose Landmarker',
+		platform: 'unknown',
+		modelAssetPath: 'pose_landmarker_lite.task',
+		supportedModes: supportedModes,
+		reason: reason
+	}
+}
+
+function toErrorText(error : any | null, fallback : string) : string {
+	if (error == null) {
+		return fallback
+	}
+	const message = `${error}`
+	return message.length > 0 ? message : fallback
+}
+
+function getPluginInfoSafe() : NativePosePluginInfo {
+	const current = cachedPluginInfo
+	if (current != null) {
+		return clonePluginInfo(current)
+	}
+	try {
+		cachedPluginInfo = getNativePosePluginInfo()
+	} catch (e) {
+		console.error('[DynamicNativeBridge] get plugin info failed', e)
+		cachedPluginInfo = createFallbackPluginInfo(toErrorText(e, 'Native plugin is unavailable'))
+	}
+	const resolved = cachedPluginInfo
+	return resolved != null ? clonePluginInfo(resolved) : createFallbackPluginInfo('Native plugin is unavailable')
+}
+
+function resolveNativePosePluginReady() : boolean {
+	return getPluginInfoSafe().ready == true
+}
+
+function resolveNativePoseProviderName() : string {
+	const info = getPluginInfoSafe()
+	return info != null && info.provider != null ? `${info.provider}` : 'MediaPipe Pose Landmarker'
+}
+
+function resolveNativePoseStatusText() : string {
+	const info = getPluginInfoSafe()
+	if (info != null && info.ready == true) {
+		return 'Android native MediaPipe Pose is ready'
+	}
+	const reason = info != null && info.reason != null ? `${info.reason}` : 'native plugin unavailable'
+	return `Native pose plugin unavailable: ${reason}`
+}
+
+function getLandmark(landmarks : any[], index : number) : LandmarkPoint | null {
+	if (landmarks == null || index < 0 || index >= landmarks.length) {
+		return null
+	}
+	const raw = toJsonObject(landmarks[index])
+	if (raw == null) {
+		return null
+	}
+	return {
+		x: getJsonNumber(raw, 'x', 0),
+		y: getJsonNumber(raw, 'y', 0),
+		z: getJsonNumber(raw, 'z', 0),
+		visibility: getJsonNumber(raw, 'visibility', 0),
+		presence: getJsonNumber(raw, 'presence', 0)
+	}
+}
+
+function clonePoint(point : LandmarkPoint | null) : LandmarkPoint | null {
+	if (point == null) {
+		return null
+	}
+	return {
+		x: roundThree(point.x),
+		y: roundThree(point.y),
+		z: roundThree(point.z),
+		visibility: roundThree(point.visibility),
+		presence: roundThree(point.presence)
+	}
+}
+
+function calculateAngle(a : LandmarkPoint | null, b : LandmarkPoint | null, c : LandmarkPoint | null, width : number, height : number) : number {
+	if (a == null || b == null || c == null) {
+		return 0
+	}
+	const radians = Math.atan2((c.y - b.y) * height, (c.x - b.x) * width) -
+		Math.atan2((a.y - b.y) * height, (a.x - b.x) * width)
+	let angle = Math.abs(radians * 180.0 / Math.PI)
+	if (angle > 180.0) {
+		angle = 360.0 - angle
+	}
+	return angle
+}
+
+function calculateTorsoAngle(a : LandmarkPoint | null, b : LandmarkPoint | null, width : number, height : number) : number {
+	if (a == null || b == null) {
+		return 0
+	}
+	const dy = Math.abs(a.y - b.y) * height
+	const dx = Math.abs(a.x - b.x) * width
+	return Math.atan2(dy, dx) * 180.0 / Math.PI
+}
+
+function calculateReachAngle(shoulder : LandmarkPoint | null, hip : LandmarkPoint | null, wrist : LandmarkPoint | null, width : number, height : number) : number {
+	if (shoulder == null || hip == null || wrist == null) {
+		return 0
+	}
+	const torsoX = (hip.x - shoulder.x) * width
+	const torsoY = (hip.y - shoulder.y) * height
+	const armX = (wrist.x - shoulder.x) * width
+	const armY = (wrist.y - shoulder.y) * height
+	const dot = torsoX * armX + torsoY * armY
+	const torsoLen = Math.sqrt(torsoX * torsoX + torsoY * torsoY)
+	const armLen = Math.sqrt(armX * armX + armY * armY)
+	if (torsoLen < 0.0001 || armLen < 0.0001) {
+		return 0
+	}
+	let cosValue = dot / (torsoLen * armLen)
+	if (cosValue > 1) cosValue = 1
+	if (cosValue < -1) cosValue = -1
+	return Math.acos(cosValue) * 180.0 / Math.PI
+}
+
+function distancePx(a : LandmarkPoint | null, b : LandmarkPoint | null, width : number, height : number) : number {
+	if (a == null || b == null) {
+		return 0
+	}
+	const dx = (a.x - b.x) * width
+	const dy = (a.y - b.y) * height
+	return Math.sqrt(dx * dx + dy * dy)
+}
+
+function averageVisibility5(
+	first : LandmarkPoint | null,
+	second : LandmarkPoint | null,
+	third : LandmarkPoint | null,
+	fourth : LandmarkPoint | null,
+	fifth : LandmarkPoint | null
+) : number {
+	let total = 0.0
+	let count = 0
+	if (first != null) {
+		total += first.visibility
+		count++
+	}
+	if (second != null) {
+		total += second.visibility
+		count++
+	}
+	if (third != null) {
+		total += third.visibility
+		count++
+	}
+	if (fourth != null) {
+		total += fourth.visibility
+		count++
+	}
+	if (fifth != null) {
+		total += fifth.visibility
+		count++
+	}
+	return count > 0 ? total / count : 0
+}
+
+function averageVisibility8(
+	first : LandmarkPoint | null,
+	second : LandmarkPoint | null,
+	third : LandmarkPoint | null,
+	fourth : LandmarkPoint | null,
+	fifth : LandmarkPoint | null,
+	sixth : LandmarkPoint | null,
+	seventh : LandmarkPoint | null,
+	eighth : LandmarkPoint | null
+) : number {
+	let total = 0.0
+	let count = 0
+	if (first != null) {
+		total += first.visibility
+		count++
+	}
+	if (second != null) {
+		total += second.visibility
+		count++
+	}
+	if (third != null) {
+		total += third.visibility
+		count++
+	}
+	if (fourth != null) {
+		total += fourth.visibility
+		count++
+	}
+	if (fifth != null) {
+		total += fifth.visibility
+		count++
+	}
+	if (sixth != null) {
+		total += sixth.visibility
+		count++
+	}
+	if (seventh != null) {
+		total += seventh.visibility
+		count++
+	}
+	if (eighth != null) {
+		total += eighth.visibility
+		count++
+	}
+	return count > 0 ? total / count : 0
+}
+
+function resolveSideScore(landmarks : any[], indexes : PoseSideIndexes, width : number, height : number) : number {
+	const shoulder = getLandmark(landmarks, indexes.shoulder)
+	const elbow = getLandmark(landmarks, indexes.elbow)
+	const hip = getLandmark(landmarks, indexes.hip)
+	const knee = getLandmark(landmarks, indexes.knee)
+	const ankle = getLandmark(landmarks, indexes.ankle)
+	const visibilityScore = averageVisibility5(shoulder, elbow, hip, knee, ankle)
+	const geometryScore =
+		distancePx(shoulder, elbow, width, height) +
+		distancePx(hip, knee, width, height) +
+		distancePx(knee, ankle, width, height)
+	return visibilityScore * 1000.0 + geometryScore
+}
+
+function resolveSideIndexes(landmarks : any[], width : number, height : number, lastSide : string) : PoseSideIndexes {
+	const leftScore = resolveSideScore(landmarks, SIDE_INDEXES, width, height)
+	const rightScore = resolveSideScore(landmarks, RIGHT_INDEXES, width, height)
+	let isLeft = leftScore >= rightScore
+	if (lastSide == 'left' && rightScore < leftScore * 1.1) {
+		isLeft = true
+	}
+	if (lastSide == 'right' && leftScore < rightScore * 1.1) {
+		isLeft = false
+	}
+	return isLeft ? SIDE_INDEXES : RIGHT_INDEXES
+}
+
+function calculateTrackingIndex(hip : LandmarkPoint | null, knee : LandmarkPoint | null, ankle : LandmarkPoint | null, pelvisWidth : number, width : number, height : number) : number {
+	if (hip == null || knee == null || ankle == null || pelvisWidth < 0.001) {
+		return 0
+	}
+	const sx = hip.x * width
+	const sy = hip.y * height
+	const ex = ankle.x * width
+	const ey = ankle.y * height
+	const kx = knee.x * width
+	const ky = knee.y * height
+	const numerator = Math.abs((ex - sx) * (sy - ky) - (sx - kx) * (ey - sy))
+	const denominator = Math.sqrt((ex - sx) * (ex - sx) + (ey - sy) * (ey - sy))
+	if (denominator <= 0) {
+		return 0
+	}
+	const deviationPx = numerator / denominator
+	return (deviationPx / (pelvisWidth * width)) * 100.0
+}
+
+function calculateFlare(shoulder : LandmarkPoint | null, wrist : LandmarkPoint | null, elbow : LandmarkPoint | null, width : number, height : number) : number {
+	if (shoulder == null || wrist == null || elbow == null) {
+		return 0
+	}
+	const sx = shoulder.x * width
+	const sy = shoulder.y * height
+	const wx = wrist.x * width
+	const wy = wrist.y * height
+	const ex = elbow.x * width
+	const ey = elbow.y * height
+	const numerator = Math.abs((wx - sx) * (sy - ey) - (sx - ex) * (wy - sy))
+	const denominator = Math.sqrt((wx - sx) * (wx - sx) + (wy - sy) * (wy - sy))
+	return denominator > 0 ? numerator / denominator : 0
+}
+
+function applySmoothing(cache : UTSJSONObject, key : string, nextValue : number, factor : number = 0.8) : number {
+	if (cache[key] == null) {
+		cache[key] = nextValue
+		return roundOne(nextValue)
+	}
+	const previous = toSafeNumber(cache[key], nextValue)
+	const smoothed = (nextValue * (1.0 - factor)) + (previous * factor)
+	cache[key] = smoothed
+	return roundOne(smoothed)
+}
+
+function getMaxValue(values : number[]) : number {
+	let maxValue = 0.0
+	for (let i = 0; i < values.length; i++) {
+		if (values[i] > maxValue || i == 0) {
+			maxValue = values[i]
+		}
+	}
+	return maxValue
+}
+
+function getMinValue(values : number[]) : number {
+	let minValue = 0.0
+	for (let i = 0; i < values.length; i++) {
+		if (values[i] < minValue || i == 0) {
+			minValue = values[i]
+		}
+	}
+	return minValue
+}
+
+function getMaxAbsValue(values : number[]) : number {
+	let maxValue = 0.0
+	for (let i = 0; i < values.length; i++) {
+		const current = Math.abs(values[i])
+		if (current > maxValue || i == 0) {
+			maxValue = current
+		}
+	}
+	return maxValue
+}
+
+function getAverageValue(values : number[]) : number {
+	if (values.length == 0) {
+		return 0
+	}
+	let total = 0.0
+	for (let i = 0; i < values.length; i++) {
+		total += values[i]
+	}
+	return total / values.length
+}
+
+function getVarianceValue(values : number[]) : number {
+	if (values.length == 0) {
+		return 0
+	}
+	return getMaxValue(values) - getMinValue(values)
+}
+
+function estimateCadenceRpm(timestamps : number[], ankleYCoords : number[]) : number {
+	if (timestamps.length <= 10 || ankleYCoords.length <= 10) {
+		return 0
+	}
+	const minY = getMinValue(ankleYCoords)
+	const maxY = getMaxValue(ankleYCoords)
+	const midY = (minY + maxY) / 2.0
+	let crosses = 0
+	for (let i = 1; i < ankleYCoords.length; i++) {
+		if (ankleYCoords[i - 1] < midY && ankleYCoords[i] >= midY) {
+			crosses++
+		}
+	}
+	const durationMs = timestamps[timestamps.length - 1] - timestamps[0]
+	const durationMinutes = durationMs / 60000.0
+	return durationMinutes > 0 ? Math.round(crosses / durationMinutes) : 0
+}
+
+function captureSnapshotSafe(videoPath : string, timestampMs : number) : string | null {
+	if (!resolveNativePosePluginReady() || videoPath.length == 0 || timestampMs < 0) {
+		return null
+	}
+	try {
+		return nativeCaptureSnapshot({
+			videoPath: videoPath,
+			timestampMs: timestampMs,
+			quality: 72,
+			maxWidth: 720
+		})
+	} catch (e) {
+		console.error('[DynamicNativeBridge] capture snapshot failed', e)
+		return null
+	}
+}
+
+function buildQualityInfo(rawResult : UTSJSONObject | null, viewVisibilityScores : number[]) : any {
+	const detectedFrameCount = getJsonNumber(rawResult, 'detectedFrameCount', 0)
+	const expectedFrameCount = getJsonNumber(rawResult, 'expectedFrameCount', detectedFrameCount)
+	const coverageRatio = expectedFrameCount > 0 ? detectedFrameCount / expectedFrameCount : 0
+	const avgVisibility = getAverageValue(viewVisibilityScores)
+	return {
+		fullBodyInFrame: coverageRatio >= 0.6 && avgVisibility >= 0.45,
+		tiltedCamera: false,
+		severeOcclusion: coverageRatio < 0.35 || avgVisibility < 0.3,
+		detectedFrameCount: detectedFrameCount,
+		expectedFrameCount: expectedFrameCount,
+		coverageRatio: roundOne(coverageRatio * 100),
+		avgVisibility: roundOne(avgVisibility),
+		durationSec: roundOne(getJsonNumber(rawResult, 'durationMs', 0) / 1000.0)
+	}
+}
+
+function buildSampleMeta(rawResult : UTSJSONObject | null) : any {
+	const intervalMs = getJsonNumber(rawResult, 'intervalMs', 83)
+	return {
+		provider: getJsonString(rawResult, 'provider', resolveNativePoseProviderName()),
+		mode: resolveNativePosePluginReady() ? 'native' : 'mock',
+		fps: intervalMs > 0
+			? roundOne(1000.0 / intervalMs)
+			: 12,
+		intervalMs: intervalMs,
+		durationSec: roundOne(getJsonNumber(rawResult, 'durationMs', 0) / 1000.0),
+		width: getJsonNumber(rawResult, 'width', 0),
+		height: getJsonNumber(rawResult, 'height', 0),
+		modelAssetPath: getJsonString(rawResult, 'modelAssetPath', 'pose_landmarker_lite.task')
+	}
+}
+
+function buildSideCapture(rawResult : UTSJSONObject | null, videoPath : string) : any {
+	const width = Math.max(1, getJsonNumber(rawResult, 'width', 1))
+	const height = Math.max(1, getJsonNumber(rawResult, 'height', 1))
+	const rawFrames = getJsonArray(rawResult, 'frames')
+	const frameData : any[] = []
+	const timestamps : number[] = []
+	const ankleYCoords : number[] = []
+	const visibilityScores : number[] = []
+	let lastSide = 'left'
+	let bdcVal = -1.0
+	let tdcVal = 999.0
+	let ankleAtBdc = 0.0
+	let bdcTs = -1
+	let tdcTs = -1
+	let kopsOffset = 0.0
+	let maxFootRefX = -999.0
+	let minFootRefX = 999.0
+	let torsoSum = 0.0
+
+	for (let i = 0; i < rawFrames.length; i++) {
+		const rawFrame = toJsonObject(rawFrames[i])
+		const landmarks = getJsonArray(rawFrame, 'landmarks')
+		if (landmarks.length < 33) {
+			continue
+		}
+
+		const indexes = resolveSideIndexes(landmarks, width, height, lastSide)
+		lastSide = indexes == SIDE_INDEXES ? 'left' : 'right'
+		const ear = getLandmark(landmarks, indexes.ear)
+		const shoulder = getLandmark(landmarks, indexes.shoulder)
+		const elbow = getLandmark(landmarks, indexes.elbow)
+		const wrist = getLandmark(landmarks, indexes.wrist)
+		const hip = getLandmark(landmarks, indexes.hip)
+		const knee = getLandmark(landmarks, indexes.knee)
+		const ankle = getLandmark(landmarks, indexes.ankle)
+		const heel = getLandmark(landmarks, indexes.heel)
+		const toe = getLandmark(landmarks, indexes.toe)
+
+		const rawKnee = calculateAngle(hip, knee, ankle, width, height)
+		const rawHip = calculateAngle(shoulder, hip, knee, width, height)
+		const rawAnkle = calculateAngle(knee, ankle, toe, width, height)
+		const rawTorso = calculateTorsoAngle(shoulder, hip, width, height)
+		const rawReach = calculateReachAngle(shoulder, hip, wrist, width, height)
+		const currentAnkleAtBdc = roundOne(rawAnkle - 90.0)
+		const ankleY = ankle != null ? toSafeNumber(ankle.y, 0) : 0
+		const timestampMs = Math.round(getJsonNumber(rawFrame, 'timestampMs', 0))
+
+		if (rawKnee <= 0 || rawHip <= 0 || rawTorso <= 0) {
+			continue
+		}
+
+		const isFacingRight = shoulder != null && hip != null ? shoulder.x > hip.x : true
+		const footRefX = heel != null && toe != null ? (heel.x * 0.3) + (toe.x * 0.7) : 0
+		const tibiaLenPx = distancePx(knee, ankle, width, height)
+		let currentKopsOffset = 0.0
+
+		if (isFacingRight) {
+			currentKopsOffset = tibiaLenPx > 5 ? roundOne((((knee != null ? knee.x : 0) - footRefX) * width) / tibiaLenPx * 100.0) : 0.0
+			if (footRefX > maxFootRefX) {
+				maxFootRefX = footRefX
+				const rawPx = ((knee != null ? knee.x : 0) - footRefX) * width
+				kopsOffset = tibiaLenPx > 5 ? roundOne(rawPx / tibiaLenPx * 100.0) : 0.0
+			}
+		} else {
+			currentKopsOffset = tibiaLenPx > 5 ? roundOne(((footRefX - (knee != null ? knee.x : 0)) * width) / tibiaLenPx * 100.0) : 0.0
+			if (footRefX < minFootRefX) {
+				minFootRefX = footRefX
+				const rawPx = (footRefX - (knee != null ? knee.x : 0)) * width
+				kopsOffset = tibiaLenPx > 5 ? roundOne(rawPx / tibiaLenPx * 100.0) : 0.0
+			}
+		}
+
+		if (rawKnee > bdcVal) {
+			bdcVal = roundOne(rawKnee)
+			ankleAtBdc = currentAnkleAtBdc
+			bdcTs = timestampMs
+		}
+		if (rawHip < tdcVal) {
+			tdcVal = roundOne(rawHip)
+			tdcTs = timestampMs
+		}
+
+		torsoSum += rawTorso
+		timestamps.push(timestampMs)
+		ankleYCoords.push(ankleY)
+		visibilityScores.push(averageVisibility5(shoulder, hip, knee, ankle, toe))
+
+		frameData.push({
+			fIdx: frameData.length,
+			ts: timestampMs,
+			pts: {
+				EAR: clonePoint(ear),
+				SHOULDER: clonePoint(shoulder),
+				WRIST: clonePoint(wrist),
+				ELBOW: clonePoint(elbow),
+				HIP: clonePoint(hip),
+				KNEE: clonePoint(knee),
+				ANKLE: clonePoint(ankle),
+				HEEL: clonePoint(heel),
+				TOE: clonePoint(toe)
+			},
+			metrics: {
+				kneeAngle: roundOne(rawKnee),
+				hipAngle: roundOne(rawHip),
+				ankleAngle: roundOne(rawAnkle),
+				torsoAngle: roundOne(rawTorso),
+				reachAngle: rawReach > 0 ? roundOne(rawReach) : null,
+				ankleAtBdc: currentAnkleAtBdc,
+				kopsOffset: currentKopsOffset,
+				ankleY: roundThree(ankleY)
+			}
+		})
+	}
+
+	if (frameData.length == 0 || bdcVal < 0 || tdcVal >= 999) {
+		throw new Error('鏈娴嬪埌娓呮櫚鐨勪晶闈㈠姩浣滐紝璇风‘淇濋獞鎵嬪畬鏁村叆闀滃苟淇濇寔渚у闀滃ご')
+	}
+
+	const snapshots = {} as UTSJSONObject
+	const bdcSnapshot = captureSnapshotSafe(videoPath, bdcTs)
+	const tdcSnapshot = captureSnapshotSafe(videoPath, tdcTs)
+	if (bdcSnapshot != null) snapshots['bdc'] = bdcSnapshot
+	if (tdcSnapshot != null) snapshots['tdc'] = tdcSnapshot
+
+	return {
+		summary: {
+			maxKnee: cleanNum(bdcVal, -1),
+			minHip: cleanNum(tdcVal, 999),
+			avgTorso: frameData.length > 0 ? roundOne(torsoSum / frameData.length) : 0,
+			ankleAtBdc: cleanNum(ankleAtBdc, 0),
+			kopsOffset: cleanNum(kopsOffset, 0),
+			cadenceRpm: estimateCadenceRpm(timestamps, ankleYCoords),
+			frameCount: frameData.length
+		},
+		triggerMetrics: {
+			bdcVal: cleanNum(bdcVal, -1),
+			tdcVal: cleanNum(tdcVal, 999),
+			ankleAtBdc: cleanNum(ankleAtBdc, 0)
+		},
+		snapshots: snapshots,
+		frameData: frameData,
+		qualityInfo: buildQualityInfo(rawResult, visibilityScores),
+		sampleMeta: buildSampleMeta(rawResult)
+	}
+}
+
+function buildFrontCapture(rawResult : UTSJSONObject | null, videoPath : string) : any {
+	const width = Math.max(1, getJsonNumber(rawResult, 'width', 1))
+	const height = Math.max(1, getJsonNumber(rawResult, 'height', 1))
+	const rawFrames = getJsonArray(rawResult, 'frames')
+	const frameData : any[] = []
+	const visibilityScores : number[] = []
+	const smoother = {} as UTSJSONObject
+	let kExtVal = -1.0
+	let maxWobbleVal = 0.0
+	let maxTiltVal = 0.0
+	let kExtTs = -1
+	let maxWobbleTs = -1
+	let maxTiltTs = -1
+
+	for (let i = 0; i < rawFrames.length; i++) {
+		const rawFrame = toJsonObject(rawFrames[i])
+		const landmarks = getJsonArray(rawFrame, 'landmarks')
+		if (landmarks.length < 33) {
+			continue
+		}
+
+		const leftShoulder = getLandmark(landmarks, 11)
+		const rightShoulder = getLandmark(landmarks, 12)
+		const leftElbow = getLandmark(landmarks, 13)
+		const rightElbow = getLandmark(landmarks, 14)
+		const leftWrist = getLandmark(landmarks, 15)
+		const rightWrist = getLandmark(landmarks, 16)
+		const leftHip = getLandmark(landmarks, 23)
+		const rightHip = getLandmark(landmarks, 24)
+		const leftKneePoint = getLandmark(landmarks, 25)
+		const rightKneePoint = getLandmark(landmarks, 26)
+		const leftAnkle = getLandmark(landmarks, 27)
+		const rightAnkle = getLandmark(landmarks, 28)
+
+		const leftKneeRaw = calculateAngle(leftHip, leftKneePoint, leftAnkle, width, height)
+		const rightKneeRaw = calculateAngle(rightHip, rightKneePoint, rightAnkle, width, height)
+		const shoulderTiltRaw = calculateTorsoAngle(leftShoulder, rightShoulder, width, height)
+		const hipTiltRaw = calculateTorsoAngle(leftHip, rightHip, width, height)
+		const pelvisWidth = Math.abs((leftHip != null ? leftHip.x : 0) - (rightHip != null ? rightHip.x : 0))
+		const leftWobbleRaw = calculateTrackingIndex(leftHip, leftKneePoint, leftAnkle, pelvisWidth, width, height)
+		const rightWobbleRaw = calculateTrackingIndex(rightHip, rightKneePoint, rightAnkle, pelvisWidth, width, height)
+		const shoulderWidthPx = Math.abs((leftShoulder != null ? leftShoulder.x : 0) - (rightShoulder != null ? rightShoulder.x : 0)) * width
+		const leftFlareRaw = shoulderWidthPx > 1
+			? (calculateFlare(leftShoulder, leftWrist, leftElbow, width, height) / shoulderWidthPx) * 100.0
+			: 0.0
+		const rightFlareRaw = shoulderWidthPx > 1
+			? (calculateFlare(rightShoulder, rightWrist, rightElbow, width, height) / shoulderWidthPx) * 100.0
+			: 0.0
+
+		const leftKnee = applySmoothing(smoother, 'front_left_knee', leftKneeRaw)
+		const rightKnee = applySmoothing(smoother, 'front_right_knee', rightKneeRaw)
+		const shoulderTilt = applySmoothing(smoother, 'front_shoulder_tilt', shoulderTiltRaw)
+		const hipTilt = applySmoothing(smoother, 'front_hip_tilt', hipTiltRaw)
+		const leftWobble = applySmoothing(smoother, 'front_left_wobble', leftWobbleRaw, 0.4)
+		const rightWobble = applySmoothing(smoother, 'front_right_wobble', rightWobbleRaw, 0.4)
+		const leftFlare = applySmoothing(smoother, 'front_left_flare', leftFlareRaw, 0.4)
+		const rightFlare = applySmoothing(smoother, 'front_right_flare', rightFlareRaw, 0.4)
+		const timestampMs = Math.round(getJsonNumber(rawFrame, 'timestampMs', 0))
+
+		frameData.push({
+			fIdx: frameData.length,
+			ts: timestampMs,
+			pts: {
+				L_SHOULDER: clonePoint(leftShoulder),
+				R_SHOULDER: clonePoint(rightShoulder),
+				L_HIP: clonePoint(leftHip),
+				R_HIP: clonePoint(rightHip),
+				L_KNEE: clonePoint(leftKneePoint),
+				R_KNEE: clonePoint(rightKneePoint),
+				L_ANKLE: clonePoint(leftAnkle),
+				R_ANKLE: clonePoint(rightAnkle)
+			},
+			metrics: {
+				leftKneeAngle: leftKnee,
+				rightKneeAngle: rightKnee,
+				shoulderTilt: shoulderTilt,
+				hipTilt: hipTilt,
+				leftKneeWobble: leftWobble,
+				rightKneeWobble: rightWobble,
+				leftElbowFlare: leftFlare,
+				rightElbowFlare: rightFlare
+			}
+		})
+
+		const currentKneeExt = Math.max(leftKnee, rightKnee)
+		if (currentKneeExt > kExtVal) {
+			kExtVal = currentKneeExt
+			kExtTs = timestampMs
+		}
+
+		const currentWobble = Math.max(Math.abs(leftWobble), Math.abs(rightWobble))
+		if (currentWobble > maxWobbleVal) {
+			maxWobbleVal = currentWobble
+			maxWobbleTs = timestampMs
+		}
+
+		const currentTilt = Math.max(Math.abs(shoulderTilt), Math.abs(hipTilt))
+		if (currentTilt > maxTiltVal) {
+			maxTiltVal = currentTilt
+			maxTiltTs = timestampMs
+		}
+
+		visibilityScores.push(averageVisibility8(
+			leftShoulder,
+			rightShoulder,
+			leftHip,
+			rightHip,
+			leftKneePoint,
+			rightKneePoint,
+			leftAnkle,
+			rightAnkle
+		))
+	}
+
+	if (frameData.length == 0) {
+		throw new Error('鏈娴嬪埌娓呮櫚鐨勬闈㈠姩浣滐紝璇风‘淇濋獞鎵嬪畬鏁村叆闀滃苟淇濇寔姝ｅ闀滃ご')
+	}
+
+	const leftKneeAngles : number[] = []
+	const rightKneeAngles : number[] = []
+	const shoulderTilts : number[] = []
+	const hipTilts : number[] = []
+	const leftKneeWobbles : number[] = []
+	const rightKneeWobbles : number[] = []
+	const leftElbowFlares : number[] = []
+	const rightElbowFlares : number[] = []
+
+	for (let i = 0; i < frameData.length; i++) {
+		const frameObject = toJsonObject(frameData[i])
+		const metrics = getJsonObject(frameObject, 'metrics')
+		leftKneeAngles.push(getJsonNumber(metrics, 'leftKneeAngle', 0))
+		rightKneeAngles.push(getJsonNumber(metrics, 'rightKneeAngle', 0))
+		shoulderTilts.push(getJsonNumber(metrics, 'shoulderTilt', 0))
+		hipTilts.push(getJsonNumber(metrics, 'hipTilt', 0))
+		leftKneeWobbles.push(getJsonNumber(metrics, 'leftKneeWobble', 0))
+		rightKneeWobbles.push(getJsonNumber(metrics, 'rightKneeWobble', 0))
+		leftElbowFlares.push(getJsonNumber(metrics, 'leftElbowFlare', 0))
+		rightElbowFlares.push(getJsonNumber(metrics, 'rightElbowFlare', 0))
+	}
+
+	const snapshots = {} as UTSJSONObject
+	const kExtSnapshot = captureSnapshotSafe(videoPath, kExtTs)
+	const maxWobbleSnapshot = captureSnapshotSafe(videoPath, maxWobbleTs)
+	const maxTiltSnapshot = captureSnapshotSafe(videoPath, maxTiltTs)
+	if (kExtSnapshot != null) snapshots['k_ext'] = kExtSnapshot
+	if (maxWobbleSnapshot != null) snapshots['max_wobble'] = maxWobbleSnapshot
+	if (maxTiltSnapshot != null) snapshots['max_tilt'] = maxTiltSnapshot
+
+	return {
+		summary: {
+			avgKnee_L: cleanNum(getAverageValue(leftKneeAngles), 0),
+			avgKnee_R: cleanNum(getAverageValue(rightKneeAngles), 0),
+			kneeVariance_L: cleanNum(getVarianceValue(leftKneeAngles), 0),
+			kneeVariance_R: cleanNum(getVarianceValue(rightKneeAngles), 0),
+			maxWobble_L: cleanNum(getMaxAbsValue(leftKneeWobbles), 0),
+			maxWobble_R: cleanNum(getMaxAbsValue(rightKneeWobbles), 0),
+			maxWobbleRatio: cleanNum(Math.max(getMaxAbsValue(leftKneeWobbles), getMaxAbsValue(rightKneeWobbles)), 0),
+			maxWobble: cleanNum(Math.max(getMaxAbsValue(leftKneeWobbles), getMaxAbsValue(rightKneeWobbles)), 0),
+			maxHipTilt: cleanNum(getMaxAbsValue(hipTilts), 0),
+			maxShoulderTilt: cleanNum(getMaxAbsValue(shoulderTilts), 0),
+			maxElbowFlare_L: cleanNum(getMaxValue(leftElbowFlares), 0),
+			maxElbowFlare_R: cleanNum(getMaxValue(rightElbowFlares), 0),
+			maxElbowFlare: cleanNum(Math.max(getMaxValue(leftElbowFlares), getMaxValue(rightElbowFlares)), 0),
+			frameCount: frameData.length
+		},
+		triggerMetrics: {
+			max_wobbleVal: cleanNum(maxWobbleVal, 0),
+			max_tiltVal: cleanNum(maxTiltVal, 0),
+			k_extVal: cleanNum(kExtVal, 0)
+		},
+		snapshots: snapshots,
+		frameData: frameData,
+		qualityInfo: buildQualityInfo(rawResult, visibilityScores),
+		sampleMeta: buildSampleMeta(rawResult)
+	}
+}
+
+function buildBackCapture(rawResult : UTSJSONObject | null, videoPath : string) : any {
+	const width = Math.max(1, getJsonNumber(rawResult, 'width', 1))
+	const height = Math.max(1, getJsonNumber(rawResult, 'height', 1))
+	const rawFrames = getJsonArray(rawResult, 'frames')
+	const frameData : any[] = []
+	const visibilityScores : number[] = []
+	const smoother = {} as UTSJSONObject
+	let maxSwayVal = 0.0
+	let maxDropVal = 0.0
+	let maxSwayTs = -1
+	let maxDropTs = -1
+
+	for (let i = 0; i < rawFrames.length; i++) {
+		const rawFrame = toJsonObject(rawFrames[i])
+		const landmarks = getJsonArray(rawFrame, 'landmarks')
+		if (landmarks.length < 33) {
+			continue
+		}
+
+		const leftShoulder = getLandmark(landmarks, 11)
+		const rightShoulder = getLandmark(landmarks, 12)
+		const leftHip = getLandmark(landmarks, 23)
+		const rightHip = getLandmark(landmarks, 24)
+		const leftKnee = getLandmark(landmarks, 25)
+		const rightKnee = getLandmark(landmarks, 26)
+		const leftAnkle = getLandmark(landmarks, 27)
+		const rightAnkle = getLandmark(landmarks, 28)
+
+		const hipCenterX = ((leftHip != null ? toSafeNumber(leftHip.x, 0) : 0) + (rightHip != null ? toSafeNumber(rightHip.x, 0) : 0)) / 2.0
+		const hipCenterY = ((leftHip != null ? toSafeNumber(leftHip.y, 0) : 0) + (rightHip != null ? toSafeNumber(rightHip.y, 0) : 0)) / 2.0
+		const shoulderCenterX = ((leftShoulder != null ? toSafeNumber(leftShoulder.x, 0) : 0) + (rightShoulder != null ? toSafeNumber(rightShoulder.x, 0) : 0)) / 2.0
+		const shoulderCenterY = ((leftShoulder != null ? toSafeNumber(leftShoulder.y, 0) : 0) + (rightShoulder != null ? toSafeNumber(rightShoulder.y, 0) : 0)) / 2.0
+
+		const pelvisWidth = Math.abs((leftHip != null ? leftHip.x : 0) - (rightHip != null ? rightHip.x : 0))
+		const pelvisWidthPx = pelvisWidth * width
+		const swayPx = Math.abs((leftHip != null ? leftHip.y : 0) - (rightHip != null ? rightHip.y : 0)) * height
+		const swayRaw = pelvisWidthPx > 1 ? (swayPx / pelvisWidthPx) * 100.0 : 0.0
+		const spineAngleRaw = Math.atan2(hipCenterY - shoulderCenterY, hipCenterX - shoulderCenterX) * 180.0 / Math.PI
+		const spineTiltRaw = Math.abs(spineAngleRaw - 90.0)
+		const leftDropRaw = pelvisWidth > 0.0001 ? (((leftHip != null ? leftHip.y : 0) - (rightHip != null ? rightHip.y : 0)) / pelvisWidth) * 100.0 : 0.0
+		const rightDropRaw = pelvisWidth > 0.0001 ? (((rightHip != null ? rightHip.y : 0) - (leftHip != null ? leftHip.y : 0)) / pelvisWidth) * 100.0 : 0.0
+		const shoulderDy = ((leftShoulder != null ? leftShoulder.y : 0) - (rightShoulder != null ? rightShoulder.y : 0)) * height
+		const shoulderDx = ((leftShoulder != null ? leftShoulder.x : 0) - (rightShoulder != null ? rightShoulder.x : 0)) * width
+		let shoulderAngleRaw = Math.atan2(shoulderDy, shoulderDx) * 180.0 / Math.PI
+		let shoulderTiltRaw = Math.abs(shoulderAngleRaw)
+		if (shoulderTiltRaw > 90) {
+			shoulderTiltRaw = 180.0 - shoulderTiltRaw
+		}
+
+		const pelvisSway = applySmoothing(smoother, 'back_pelvis_sway', swayRaw, 0.4)
+		const spineTilt = applySmoothing(smoother, 'back_spine_tilt', spineTiltRaw, 0.4)
+		const leftHipDrop = applySmoothing(smoother, 'back_left_drop', Math.max(0, leftDropRaw), 0.4)
+		const rightHipDrop = applySmoothing(smoother, 'back_right_drop', Math.max(0, rightDropRaw), 0.4)
+		const shoulderTilt = applySmoothing(smoother, 'back_shoulder_tilt', shoulderTiltRaw, 0.4)
+		const timestampMs = Math.round(getJsonNumber(rawFrame, 'timestampMs', 0))
+
+		frameData.push({
+			fIdx: frameData.length,
+			ts: timestampMs,
+			pts: {
+				L_SHOULDER: clonePoint(leftShoulder),
+				R_SHOULDER: clonePoint(rightShoulder),
+				L_HIP: clonePoint(leftHip),
+				R_HIP: clonePoint(rightHip),
+				L_KNEE: clonePoint(leftKnee),
+				R_KNEE: clonePoint(rightKnee),
+				L_ANKLE: clonePoint(leftAnkle),
+				R_ANKLE: clonePoint(rightAnkle)
+			},
+			metrics: {
+				pelvisSway: pelvisSway,
+				spineTilt: spineTilt,
+				leftHipDrop: leftHipDrop,
+				rightHipDrop: rightHipDrop,
+				shoulderTilt: shoulderTilt
+			}
+		})
+
+		if (pelvisSway > maxSwayVal) {
+			maxSwayVal = pelvisSway
+			maxSwayTs = timestampMs
+		}
+		const currentDrop = Math.max(leftHipDrop, rightHipDrop)
+		if (currentDrop > maxDropVal) {
+			maxDropVal = currentDrop
+			maxDropTs = timestampMs
+		}
+
+		visibilityScores.push(averageVisibility8(
+			leftShoulder,
+			rightShoulder,
+			leftHip,
+			rightHip,
+			leftKnee,
+			rightKnee,
+			leftAnkle,
+			rightAnkle
+		))
+	}
+
+	if (frameData.length == 0) {
+		throw new Error('鏈娴嬪埌娓呮櫚鐨勮儗闈㈠姩浣滐紝璇风‘淇濋獞鎵嬪畬鏁村叆闀滃苟淇濇寔鑳屽闀滃ご')
+	}
+
+	const pelvisSways : number[] = []
+	const spineTilts : number[] = []
+	const leftHipDrops : number[] = []
+	const rightHipDrops : number[] = []
+	const shoulderTilts : number[] = []
+	for (let i = 0; i < frameData.length; i++) {
+		const frameObject = toJsonObject(frameData[i])
+		const metrics = getJsonObject(frameObject, 'metrics')
+		pelvisSways.push(getJsonNumber(metrics, 'pelvisSway', 0))
+		spineTilts.push(getJsonNumber(metrics, 'spineTilt', 0))
+		leftHipDrops.push(getJsonNumber(metrics, 'leftHipDrop', 0))
+		rightHipDrops.push(getJsonNumber(metrics, 'rightHipDrop', 0))
+		shoulderTilts.push(getJsonNumber(metrics, 'shoulderTilt', 0))
+	}
+
+	const snapshots = {} as UTSJSONObject
+	const maxSwaySnapshot = captureSnapshotSafe(videoPath, maxSwayTs)
+	const maxDropSnapshot = captureSnapshotSafe(videoPath, maxDropTs)
+	if (maxSwaySnapshot != null) snapshots['max_sway'] = maxSwaySnapshot
+	if (maxDropSnapshot != null) snapshots['max_drop'] = maxDropSnapshot
+
+	return {
+		summary: {
+			maxPelvisSway: cleanNum(getMaxAbsValue(pelvisSways), 0),
+			maxSpineTilt: cleanNum(getMaxAbsValue(spineTilts), 0),
+			spineRockingVar: cleanNum(getVarianceValue(spineTilts), 0),
+			maxHipDrop_L: cleanNum(getMaxAbsValue(leftHipDrops), 0),
+			maxHipDrop_R: cleanNum(getMaxAbsValue(rightHipDrops), 0),
+			maxShoulderTilt: cleanNum(getMaxAbsValue(shoulderTilts), 0),
+			frameCount: frameData.length
+		},
+		triggerMetrics: {
+			max_swayVal: cleanNum(maxSwayVal, 0),
+			max_dropVal: cleanNum(maxDropVal, 0)
+		},
+		snapshots: snapshots,
+		frameData: frameData,
+		qualityInfo: buildQualityInfo(rawResult, visibilityScores),
+		sampleMeta: buildSampleMeta(rawResult)
+	}
+}
+
+async function buildNativeCapture(viewType : string, videoPath : string) : Promise<any> {
+	const rawJson = await nativeAnalyzeVideo({
+		videoPath: videoPath,
+		viewType: viewType,
+		inferenceIntervalMs: 83,
+		modelAssetPath: 'pose_landmarker_lite.task',
+		numPoses: 1,
+		minPoseDetectionConfidence: 0.6,
+		minPosePresenceConfidence: 0.6,
+		minTrackingConfidence: 0.6
+	})
+	const rawResult = toJsonObject(JSON.parse(rawJson))
+	if (viewType == 'side') {
+		return buildSideCapture(rawResult, videoPath)
+	}
+	if (viewType == 'front') {
+		return buildFrontCapture(rawResult, videoPath)
+	}
+	return buildBackCapture(rawResult, videoPath)
+}
+
+export function getDynamicViewTitle(viewType : string) : string {
+	if (viewType == 'side') return '渚ч潰'
+	if (viewType == 'front') return '姝ｉ潰'
+	if (viewType == 'back') return '鑳岄潰'
+	return '鏈煡瑙嗚'
+}
+
+export function isNativePosePluginReady() : boolean {
+	return resolveNativePosePluginReady()
+}
+
+export function getNativePoseProviderName() : string {
+	return resolveNativePoseProviderName()
+}
+
+export function getNativePoseStatusText() : string {
+	return resolveNativePoseStatusText()
+}
+
+export function createCapturePreviewMetrics(viewType : string, tick : number) : any {
+	const phase = tick / 5.0
+	if (viewType == 'side') {
+		return {
+			kneeAngle: roundOne(146 + Math.sin(phase) * 3.8),
+			hipAngle: roundOne(49 + Math.cos(phase) * 2.6),
+			torsoAngle: roundOne(44 + Math.sin(phase * 0.4) * 1.2),
+			ankleAtBdc: roundOne(17 + Math.cos(phase * 0.8) * 1.8),
+			kopsOffset: roundOne(2 + Math.sin(phase * 0.6) * 2.4)
+		}
+	}
+	if (viewType == 'front') {
+		return {
+			maxWobbleLeft: roundOne(8 + Math.abs(Math.sin(phase)) * 3.4),
+			maxWobbleRight: roundOne(9 + Math.abs(Math.cos(phase)) * 3.1),
+			maxTilt: roundOne(2.5 + Math.abs(Math.sin(phase * 0.7)) * 1.6),
+			maxElbowFlare: roundOne(9 + Math.abs(Math.cos(phase * 0.6)) * 2.4)
+		}
+	}
+	return {
+		maxPelvisSway: roundOne(5.8 + Math.abs(Math.sin(phase)) * 1.8),
+		maxSpineTilt: roundOne(2.3 + Math.abs(Math.cos(phase * 0.8)) * 1.3),
+		maxHipDrop: roundOne(4.1 + Math.abs(Math.sin(phase * 0.5)) * 1.4),
+		maxShoulderTilt: roundOne(2.1 + Math.abs(Math.cos(phase * 0.6)) * 1.0)
+	}
+}
+
+function buildMockCapture(viewType : string, durationSeconds : number) : any {
+	const safeDuration = clampDuration(durationSeconds)
+	const frameCount = safeDuration * 12
+	const frameData : any[] = []
+
+	if (viewType == 'side') {
+		let maxKnee = 0.0
+		let minHip = 999.0
+		let torsoTotal = 0.0
+		let ankleAtBdc = 0.0
+		let kopsOffsetPeak = 0.0
+		let ankleStdAccumulator = 0.0
+
+		for (let i = 0; i < frameCount; i++) {
+			const phase = i / 6.0
+			const kneeAngle = roundOne(146 + Math.sin(phase) * 4.1)
+			const hipAngle = roundOne(49 + Math.cos(phase) * 3.1)
+			const torsoAngle = roundOne(44 + Math.sin(phase * 0.35) * 1.4)
+			const ankleAngle = roundOne(104 + Math.cos(phase * 1.1) * 4.2)
+			const currentAnkleAtBdc = roundOne(17 + Math.cos(phase * 0.8) * 2.1)
+			const kopsOffset = roundOne(2 + Math.sin(phase * 0.6) * 2.8)
+
+			if (kneeAngle > maxKnee) {
+				maxKnee = kneeAngle
+				ankleAtBdc = currentAnkleAtBdc
+			}
+			if (hipAngle < minHip) {
+				minHip = hipAngle
+			}
+			if (Math.abs(kopsOffset) > Math.abs(kopsOffsetPeak)) {
+				kopsOffsetPeak = kopsOffset
+			}
+			torsoTotal += torsoAngle
+			ankleStdAccumulator += Math.abs(currentAnkleAtBdc - 17)
+
+			frameData.push({
+				frameIndex: i,
+				timeSec: roundOne(i / 12.0),
+				metrics: {
+					kneeAngle: kneeAngle,
+					hipAngle: hipAngle,
+					torsoAngle: torsoAngle,
+					reachAngle: roundOne(90 + Math.sin(phase * 0.75) * 3.2),
+					ankleAngle: ankleAngle,
+					ankleAtBdc: currentAnkleAtBdc,
+					kopsOffset: kopsOffset
+				}
+			})
+		}
+
+		return {
+			summary: {
+				avgTorso: roundOne(torsoTotal / frameCount),
+				minHip: roundOne(minHip),
+				maxKnee: roundOne(maxKnee),
+				ankleAtBdc: roundOne(ankleAtBdc),
+				kopsOffset: roundOne(kopsOffsetPeak),
+				ankleAnglePhaseStdDev: roundOne(ankleStdAccumulator / frameCount),
+				frameCount: frameCount
+			},
+			triggerMetrics: {
+				bdcVal: roundOne(maxKnee),
+				tdcVal: roundOne(minHip),
+				ankleAtBdc: roundOne(ankleAtBdc)
+			},
+			snapshots: {},
+			frameData: frameData,
+			qualityInfo: {
+				fullBodyInFrame: true,
+				tiltedCamera: false,
+				severeOcclusion: false,
+				durationSec: safeDuration
+			},
+			sampleMeta: {
+				provider: resolveNativePoseProviderName(),
+				mode: resolveNativePosePluginReady() ? 'native' : 'mock',
+				fps: 12,
+				durationSec: safeDuration
+			}
+		}
+	}
+
+	if (viewType == 'front') {
+		let maxWobbleLeft = 0.0
+		let maxWobbleRight = 0.0
+		let maxHipTilt = 0.0
+		let maxShoulderTilt = 0.0
+		let maxElbowFlareLeft = 0.0
+		let maxElbowFlareRight = 0.0
+		let maxKneeExtension = 0.0
+
+		for (let i = 0; i < frameCount; i++) {
+			const phase = i / 5.0
+			const kneeExtension = roundOne(144 + Math.abs(Math.sin(phase * 0.9)) * 4.5)
+			const wobbleLeft = roundOne(8 + Math.abs(Math.sin(phase)) * 3.6)
+			const wobbleRight = roundOne(9 + Math.abs(Math.cos(phase * 0.95)) * 3.2)
+			const hipTilt = roundOne(2.7 + Math.abs(Math.sin(phase * 0.6)) * 1.8)
+			const shoulderTilt = roundOne(2.2 + Math.abs(Math.cos(phase * 0.7)) * 1.4)
+			const elbowFlareLeft = roundOne(8.4 + Math.abs(Math.sin(phase * 0.55)) * 2.6)
+			const elbowFlareRight = roundOne(8.9 + Math.abs(Math.cos(phase * 0.52)) * 2.3)
+
+			if (kneeExtension > maxKneeExtension) maxKneeExtension = kneeExtension
+			if (wobbleLeft > maxWobbleLeft) maxWobbleLeft = wobbleLeft
+			if (wobbleRight > maxWobbleRight) maxWobbleRight = wobbleRight
+			if (hipTilt > maxHipTilt) maxHipTilt = hipTilt
+			if (shoulderTilt > maxShoulderTilt) maxShoulderTilt = shoulderTilt
+			if (elbowFlareLeft > maxElbowFlareLeft) maxElbowFlareLeft = elbowFlareLeft
+			if (elbowFlareRight > maxElbowFlareRight) maxElbowFlareRight = elbowFlareRight
+
+			frameData.push({
+				frameIndex: i,
+				timeSec: roundOne(i / 12.0),
+				metrics: {
+					leftKneeWobble: wobbleLeft,
+					rightKneeWobble: wobbleRight,
+					hipTilt: hipTilt,
+					shoulderTilt: shoulderTilt,
+					leftElbowFlare: elbowFlareLeft,
+					rightElbowFlare: elbowFlareRight
+				}
+			})
+		}
+
+		const maxWobble = roundOne(Math.max(maxWobbleLeft, maxWobbleRight))
+		const maxTilt = roundOne(Math.max(maxHipTilt, maxShoulderTilt))
+		const maxElbowFlare = roundOne(Math.max(maxElbowFlareLeft, maxElbowFlareRight))
+
+		return {
+			summary: {
+				maxWobble: maxWobble,
+				maxWobble_L: roundOne(maxWobbleLeft),
+				maxWobble_R: roundOne(maxWobbleRight),
+				maxTilt: maxTilt,
+				maxHipTilt: roundOne(maxHipTilt),
+				maxShoulderTilt: roundOne(maxShoulderTilt),
+				maxElbowFlare_L: roundOne(maxElbowFlareLeft),
+				maxElbowFlare_R: roundOne(maxElbowFlareRight),
+				maxElbowFlare: maxElbowFlare,
+				frameCount: frameCount
+			},
+			triggerMetrics: {
+				max_wobbleVal: maxWobble,
+				max_tiltVal: maxTilt,
+				k_extVal: maxKneeExtension
+			},
+			snapshots: {},
+			frameData: frameData,
+			qualityInfo: {
+				fullBodyInFrame: true,
+				tiltedCamera: false,
+				severeOcclusion: false,
+				durationSec: safeDuration
+			},
+			sampleMeta: {
+				provider: resolveNativePoseProviderName(),
+				mode: resolveNativePosePluginReady() ? 'native' : 'mock',
+				fps: 12,
+				durationSec: safeDuration
+			}
+		}
+	}
+
+	let maxPelvisSway = 0.0
+	let maxSpineTilt = 0.0
+	let maxHipDropLeft = 0.0
+	let maxHipDropRight = 0.0
+	let maxShoulderTilt = 0.0
+	let spineRockingVar = 0.0
+	let spineMin = 999.0
+	let spineMax = -999.0
+
+	for (let i = 0; i < frameCount; i++) {
+		const phase = i / 5.5
+		const pelvisSway = roundOne(5.8 + Math.abs(Math.sin(phase)) * 2.0)
+		const spineTilt = roundOne(2.3 + Math.abs(Math.cos(phase * 0.9)) * 1.4)
+		const leftHipDrop = roundOne(4.2 + Math.abs(Math.sin(phase * 0.5)) * 1.6)
+		const rightHipDrop = roundOne(4.0 + Math.abs(Math.cos(phase * 0.55)) * 1.5)
+		const shoulderTilt = roundOne(2.0 + Math.abs(Math.sin(phase * 0.45)) * 1.1)
+
+		if (pelvisSway > maxPelvisSway) maxPelvisSway = pelvisSway
+		if (spineTilt > maxSpineTilt) maxSpineTilt = spineTilt
+		if (leftHipDrop > maxHipDropLeft) maxHipDropLeft = leftHipDrop
+		if (rightHipDrop > maxHipDropRight) maxHipDropRight = rightHipDrop
+		if (shoulderTilt > maxShoulderTilt) maxShoulderTilt = shoulderTilt
+		if (spineTilt < spineMin) spineMin = spineTilt
+		if (spineTilt > spineMax) spineMax = spineTilt
+
+		frameData.push({
+			frameIndex: i,
+			timeSec: roundOne(i / 12.0),
+			metrics: {
+				pelvisSway: pelvisSway,
+				spineTilt: spineTilt,
+				leftHipDrop: leftHipDrop,
+				rightHipDrop: rightHipDrop,
+				shoulderTilt: shoulderTilt
+			}
+		})
+	}
+	spineRockingVar = roundOne(spineMax - spineMin)
+
+	return {
+		summary: {
+			maxPelvisSway: roundOne(maxPelvisSway),
+			maxSpineTilt: roundOne(maxSpineTilt),
+			maxHipDrop_L: roundOne(maxHipDropLeft),
+			maxHipDrop_R: roundOne(maxHipDropRight),
+			maxShoulderTilt: roundOne(maxShoulderTilt),
+			spineRockingVar: roundOne(spineRockingVar),
+			frameCount: frameCount
+		},
+		triggerMetrics: {
+			max_swayVal: roundOne(maxPelvisSway),
+			max_dropVal: roundOne(Math.max(maxHipDropLeft, maxHipDropRight))
+		},
+		snapshots: {},
+		frameData: frameData,
+		qualityInfo: {
+			fullBodyInFrame: true,
+			tiltedCamera: false,
+			severeOcclusion: false,
+			durationSec: safeDuration
+		},
+		sampleMeta: {
+			provider: resolveNativePoseProviderName(),
+			mode: resolveNativePosePluginReady() ? 'native' : 'mock',
+			fps: 12,
+			durationSec: safeDuration
+		}
+	}
+}
+
+export async function finalizeDynamicCapture(
+	viewType : string,
+	videoPath : string | null = null,
+	durationSeconds : number = 0
+) : Promise<any> {
+	if (videoPath != null && videoPath.length > 0) {
+		try {
+			return buildNativeCapture(viewType, videoPath)
+		} catch (e) {
+			const reason = toErrorText(e, 'Native pose analysis failed')
+			console.error('[DynamicNativeBridge] native analyze failed', reason)
+			throw new Error(reason)
+		}
+	}
+	return buildMockCapture(viewType, durationSeconds)
+}
+

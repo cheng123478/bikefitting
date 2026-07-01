@@ -6,6 +6,8 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.util.Optional;
@@ -40,8 +42,25 @@ public interface DynamicFittingSessionRepository extends JpaRepository<DynamicFi
      * @param pageable 分页参数
      * @return 分页数据
      */
-    @EntityGraph(attributePaths = {"userBike", "userBody"})
-    Page<DynamicFittingSession> findByUser_IdAndIsDeleted(Long userId, Integer isDeleted, Pageable pageable);
+    @Query(
+            value = """
+                    SELECT s
+                    FROM DynamicFittingSession s
+                    LEFT JOIN FETCH s.userBike ub
+                    LEFT JOIN FETCH ub.bikeModel
+                    LEFT JOIN FETCH s.userBody
+                    WHERE s.user.id = :userId AND s.isDeleted = :isDeleted
+                    ORDER BY s.createTime DESC
+                    """,
+            countQuery = """
+                    SELECT COUNT(s.id)
+                    FROM DynamicFittingSession s
+                    WHERE s.user.id = :userId AND s.isDeleted = :isDeleted
+                    """
+    )
+    Page<DynamicFittingSession> findByUserIdAndIsDeletedWithDetails(@Param("userId") Long userId,
+                                                                    @Param("isDeleted") Integer isDeleted,
+                                                                    Pageable pageable);
 
     /**
      * 使用 EntityGraph 一次性抓取关联数据，防止 N+1
@@ -53,7 +72,24 @@ public interface DynamicFittingSessionRepository extends JpaRepository<DynamicFi
      * @param pageable 分页参数
      * @return 分页数据
      */
-    @EntityGraph(attributePaths = {"userBike", "userBody"})
-    Page<DynamicFittingSession> findByUser_IdAndUserBike_IdAndIsDeleted(Long userId, Long bikeId,
-                                                                        Integer isDeleted, Pageable pageable);
+    @Query(
+            value = """
+                    SELECT s
+                    FROM DynamicFittingSession s
+                    LEFT JOIN FETCH s.userBike ub
+                    LEFT JOIN FETCH ub.bikeModel
+                    LEFT JOIN FETCH s.userBody
+                    WHERE s.user.id = :userId AND s.userBike.id = :bikeId AND s.isDeleted = :isDeleted
+                    ORDER BY s.createTime DESC
+                    """,
+            countQuery = """
+                    SELECT COUNT(s.id)
+                    FROM DynamicFittingSession s
+                    WHERE s.user.id = :userId AND s.userBike.id = :bikeId AND s.isDeleted = :isDeleted
+                    """
+    )
+    Page<DynamicFittingSession> findByUserIdAndBikeIdAndIsDeletedWithDetails(@Param("userId") Long userId,
+                                                                              @Param("bikeId") Long bikeId,
+                                                                              @Param("isDeleted") Integer isDeleted,
+                                                                              Pageable pageable);
 }

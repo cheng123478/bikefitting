@@ -1,0 +1,186 @@
+/**
+ * 用户会话状态 — 对应 Web libra/src/stores/user.js
+ */
+import { ref, computed } from 'vue'
+import { STORAGE_KEYS } from '@/config/constants.uts'
+import type { LoginResult, UserProfile } from '@/types/auth.uts'
+import { parseUserProfile } from '@/types/auth.uts'
+
+const userInfo = ref<UserProfile | null>(null)
+const accessToken = ref('')
+const refreshToken = ref('')
+const showAuthModal = ref(false)
+
+export const isLoggedIn = computed((): boolean => {
+	return userInfo.value != null && accessToken.value.length > 0
+})
+
+function isValidStored(val : string | null) : boolean {
+	if (val == null) {
+		return false
+	}
+	return val.length > 0 && val != 'undefined' && val != 'null'
+}
+
+type SyncPayload = {
+	syncUser : boolean
+	user : UserProfile | null
+	syncAccess : boolean
+	access : string | null
+	syncRefresh : boolean
+	refresh : string | null
+}
+
+function getStoredText(key : string) : string | null {
+	const value = uni.getStorageSync(key)
+	return value != null ? `${value}` : null
+}
+
+function syncStorage(payload : SyncPayload) {
+	const keyUserInfo : string = STORAGE_KEYS.USER_INFO
+	const keyAccessToken : string = STORAGE_KEYS.ACCESS_TOKEN
+	const keyRefreshToken : string = STORAGE_KEYS.REFRESH_TOKEN
+
+	if (payload.syncUser) {
+		const user = payload.user
+		if (user == null) {
+			userInfo.value = null
+			uni.removeStorageSync(keyUserInfo)
+		} else {
+			userInfo.value = user
+			uni.setStorageSync(keyUserInfo, JSON.stringify(user))
+		}
+	}
+
+	if (payload.syncAccess) {
+		const access = payload.access
+		accessToken.value = access != null ? access : ''
+		if (access != null && isValidStored(access)) {
+			uni.setStorageSync(keyAccessToken, access)
+		} else {
+			uni.removeStorageSync(keyAccessToken)
+		}
+	}
+
+	if (payload.syncRefresh) {
+		const refresh = payload.refresh
+		refreshToken.value = refresh != null ? refresh : ''
+		if (refresh != null && isValidStored(refresh)) {
+			uni.setStorageSync(keyRefreshToken, refresh)
+		} else {
+			uni.removeStorageSync(keyRefreshToken)
+		}
+	}
+}
+
+/** 从本地存储恢复登录态 */
+export function logout() {
+	syncStorage({
+		syncUser: true,
+		user: null,
+		syncAccess: true,
+		access: '',
+		syncRefresh: true,
+		refresh: ''
+	})
+}
+
+/** 从本地存储恢复登录态 */
+export function initUser() {
+	try {
+		const keyUserInfo : string = STORAGE_KEYS.USER_INFO
+		const keyAccessToken : string = STORAGE_KEYS.ACCESS_TOKEN
+		const keyRefreshToken : string = STORAGE_KEYS.REFRESH_TOKEN
+
+		const storedUser = getStoredText(keyUserInfo)
+		const storedAccess = getStoredText(keyAccessToken)
+		const storedRefresh = getStoredText(keyRefreshToken)
+		const userText = storedUser != null ? storedUser : ''
+		const accessText = storedAccess != null ? storedAccess : ''
+		const refreshText = storedRefresh != null ? storedRefresh : ''
+
+		if (isValidStored(userText)) {
+			const parsedUser = JSON.parse(userText)
+			if (parsedUser != null) {
+				userInfo.value = parseUserProfile(parsedUser)
+			}
+		}
+		if (isValidStored(accessText)) {
+			accessToken.value = accessText
+		}
+		if (isValidStored(refreshText)) {
+			refreshToken.value = refreshText
+		}
+	} catch (e) {
+		console.error('[UserStore] 恢复登录态失败', e)
+		logout()
+	}
+}
+
+/** 处理登录成功响应 */
+export function login(apiResponse : LoginResult) {
+	syncStorage({
+		syncUser: true,
+		user: apiResponse.user,
+		syncAccess: true,
+		access: apiResponse.accessToken,
+		syncRefresh: true,
+		refresh: apiResponse.refreshToken
+	})
+}
+
+/** 刷新令牌后更新会话 */
+export function refreshSession(newAccess : string, newRefresh : string, profile : UserProfile | null) {
+	if (profile != null) {
+		syncStorage({
+			syncUser: true,
+			user: profile,
+			syncAccess: true,
+			access: newAccess,
+			syncRefresh: true,
+			refresh: newRefresh,
+		})
+	} else {
+		syncStorage({
+			syncUser: false,
+			user: null,
+			syncAccess: true,
+			access: newAccess,
+			syncRefresh: true,
+			refresh: newRefresh
+		})
+	}
+}
+
+export function getAccessToken() : string {
+	return accessToken.value
+}
+
+export function getRefreshToken() : string {
+	return refreshToken.value
+}
+
+export function getUserInfo() : UserProfile | null {
+	return userInfo.value
+}
+
+export function setUserInfo(profile : UserProfile) {
+	syncStorage({
+		syncUser: true,
+		user: profile,
+		syncAccess: false,
+		access: null,
+		syncRefresh: false,
+		refresh: null
+	})
+}
+
+export function openAuthModal() {
+	showAuthModal.value = true
+}
+
+export function closeAuthModal() {
+	showAuthModal.value = false
+}
+
+export { userInfo, accessToken, refreshToken, showAuthModal }

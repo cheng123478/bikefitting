@@ -1,0 +1,804 @@
+<template>
+	<view class="security-page">
+		<view class="nav-bar" :style="navBarStyle">
+			<view class="back-btn" :style="navBackStyle" @click="goBack">
+				<text class="back-icon">‹</text>
+			</view>
+			<text class="nav-title" :style="navTitleStyle">账号安全</text>
+			<view class="nav-right" :style="navRightStyle"></view>
+		</view>
+
+		<scroll-view class="security-scroll" scroll-y="true" :show-scrollbar="false" :style="scrollStyle">
+			<view class="security-shell">
+				<view class="identity-card app-soft-card">
+					<view class="identity-row">
+						<view class="identity-mark">
+							<text class="identity-mark-text">安</text>
+						</view>
+						<view class="identity-copy">
+							<text class="identity-title">当前账号</text>
+							<text class="identity-phone">{{ maskedPhone }}</text>
+						</view>
+					</view>
+				</view>
+
+				<view class="security-card app-soft-card">
+					<view class="section-head">
+						<text class="section-title">设置或重置登录密码</text>
+						<text class="section-desc">验证码将发送至当前绑定手机号</text>
+					</view>
+
+					<view class="form-item">
+						<text class="form-label">短信验证码</text>
+						<view class="code-row">
+							<input class="form-input code-input" type="number" v-model="passwordCode" maxlength="6" placeholder="输入验证码" />
+							<view :class="codeButtonClass(passwordCodeBusy || passwordTimer > 0)" @click="sendPasswordCode">
+								<text :class="codeButtonTextClass(passwordCodeBusy || passwordTimer > 0)">{{ passwordCodeText }}</text>
+							</view>
+						</view>
+					</view>
+
+					<view class="form-item">
+						<text class="form-label">新密码</text>
+						<view class="password-row">
+							<input class="form-input password-input" :type="showNewPassword ? 'text' : 'password'" v-model="newPassword" maxlength="20" placeholder="6-20位，包含字母和数字" />
+							<view class="password-toggle" @click="toggleNewPassword">
+								<text class="password-toggle-text">{{ showNewPassword ? '隐藏' : '显示' }}</text>
+							</view>
+						</view>
+					</view>
+
+					<view class="form-item">
+						<text class="form-label">确认新密码</text>
+						<view class="password-row">
+							<input class="form-input password-input" :type="showConfirmPassword ? 'text' : 'password'" v-model="confirmPassword" maxlength="20" placeholder="再次输入新密码" />
+							<view class="password-toggle" @click="toggleConfirmPassword">
+								<text class="password-toggle-text">{{ showConfirmPassword ? '隐藏' : '显示' }}</text>
+							</view>
+						</view>
+					</view>
+
+					<view :class="submitButtonClass(passwordSubmitting)" @click="submitPasswordReset">
+						<text class="primary-btn-text">{{ passwordSubmitting ? '提交中...' : '确认修改密码' }}</text>
+					</view>
+				</view>
+
+				<view class="security-card app-soft-card">
+					<view class="section-head">
+						<text class="section-title">更换绑定手机号</text>
+						<text class="section-desc">新手机号验证通过后会替换当前绑定</text>
+					</view>
+
+					<view class="form-item">
+						<text class="form-label">新手机号</text>
+						<input class="form-input" type="number" v-model="newPhone" maxlength="11" placeholder="请输入新手机号" />
+					</view>
+
+					<view class="form-item">
+						<text class="form-label">当前登录密码</text>
+						<view class="password-row">
+							<input class="form-input password-input" :type="showPhonePassword ? 'text' : 'password'" v-model="phonePassword" maxlength="20" placeholder="请输入当前登录密码" />
+							<view class="password-toggle" @click="togglePhonePassword">
+								<text class="password-toggle-text">{{ showPhonePassword ? '隐藏' : '显示' }}</text>
+							</view>
+						</view>
+					</view>
+
+					<view class="form-item">
+						<text class="form-label">短信验证码</text>
+						<view class="code-row">
+							<input class="form-input code-input" type="number" v-model="phoneCode" maxlength="6" placeholder="输入验证码" />
+							<view :class="codeButtonClass(phoneCodeBusy || phoneTimer > 0)" @click="sendPhoneCode">
+								<text :class="codeButtonTextClass(phoneCodeBusy || phoneTimer > 0)">{{ phoneCodeText }}</text>
+							</view>
+						</view>
+					</view>
+
+					<view :class="submitButtonClass(phoneSubmitting)" @click="submitPhoneChange">
+						<text class="primary-btn-text">{{ phoneSubmitting ? '提交中...' : '更换手机号' }}</text>
+					</view>
+				</view>
+
+				<view class="danger-card app-soft-card">
+					<view class="section-head">
+						<text class="danger-title">注销账号</text>
+						<text class="section-desc">注销后账号进入7天冷静期，冷静期内重新登录可恢复</text>
+					</view>
+
+					<view :class="deleteConfirmed ? 'confirm-row confirm-row-active' : 'confirm-row'" @click="toggleDeleteConfirm">
+						<view :class="deleteConfirmed ? 'check-dot check-dot-active' : 'check-dot'">
+							<text class="check-dot-text">{{ deleteConfirmed ? '✓' : '' }}</text>
+						</view>
+						<text class="confirm-text">我已了解注销风险，并确认继续操作</text>
+					</view>
+
+					<view :class="dangerButtonClass(deleteSubmitting || !deleteConfirmed)" @click="requestDeleteAccount">
+						<text class="danger-btn-text">{{ deleteSubmitting ? '处理中...' : '申请注销账号' }}</text>
+					</view>
+				</view>
+			</view>
+		</scroll-view>
+	</view>
+</template>
+
+<script setup lang="uts">
+	import { computed, onUnmounted, ref } from 'vue'
+	import { getAppLayoutMetrics } from '@/utils/layout.uts'
+	import { isValidPhone } from '@/utils/validate.uts'
+	import { rsaEncrypt } from '@/utils/rsa.uts'
+	import { sendSmsCode, resetPasswordByCode, changeUserPhone, deleteUserAccount } from '@/api/auth.uts'
+	import { logout, setUserInfo, userInfo } from '@/store/user.uts'
+
+	const layout = getAppLayoutMetrics()
+	const navContentCenter = layout.statusBarHeight + layout.navBarContentHeight / 2 + 6
+	const navBarStyle = {
+		height: layout.navBarHeight + 'px',
+		paddingTop: layout.statusBarHeight + 'px',
+		boxSizing: 'border-box'
+	}
+	const navBackStyle = {
+		top: navContentCenter + 'px'
+	}
+	const navTitleStyle = {
+		top: navContentCenter + 'px'
+	}
+	const navRightStyle = {
+		top: navContentCenter + 'px'
+	}
+	const scrollStyle = {
+		top: layout.navBarHeight + 'px',
+		paddingBottom: layout.bottomSafeArea + 24 + 'px'
+	}
+
+	const passwordCode = ref('')
+	const newPassword = ref('')
+	const confirmPassword = ref('')
+	const showNewPassword = ref(false)
+	const showConfirmPassword = ref(false)
+	const passwordTimer = ref(0)
+	const passwordCodeBusy = ref(false)
+	const passwordSubmitting = ref(false)
+	let passwordTimerInterval : number = 0
+	let hasPasswordTimer = false
+
+	const newPhone = ref('')
+	const phonePassword = ref('')
+	const phoneCode = ref('')
+	const showPhonePassword = ref(false)
+	const phoneTimer = ref(0)
+	const phoneCodeBusy = ref(false)
+	const phoneSubmitting = ref(false)
+	let phoneTimerInterval : number = 0
+	let hasPhoneTimer = false
+
+	const deleteConfirmed = ref(false)
+	const deleteSubmitting = ref(false)
+
+	const currentPhone = computed((): string => {
+		const current = userInfo.value
+		if (current == null) {
+			return ''
+		}
+		return current.phone
+	})
+
+	const maskedPhone = computed((): string => {
+		const phone = currentPhone.value
+		if (phone.length < 11) {
+			return phone.length > 0 ? phone : '未登录'
+		}
+		return phone.substring(0, 3) + '****' + phone.substring(7)
+	})
+
+	const passwordCodeText = computed((): string => {
+		if (passwordCodeBusy.value) {
+			return '发送中'
+		}
+		return passwordTimer.value > 0 ? `${passwordTimer.value}s` : '获取验证码'
+	})
+
+	const phoneCodeText = computed((): string => {
+		if (phoneCodeBusy.value) {
+			return '发送中'
+		}
+		return phoneTimer.value > 0 ? `${phoneTimer.value}s` : '获取验证码'
+	})
+
+	function goBack() {
+		uni.navigateBack()
+	}
+
+	function showToast(title : string, icon : 'success' | 'loading' | 'none' | 'error') {
+		uni.showToast({ title: title, icon: icon, duration: 2500 })
+	}
+
+	function showToastDefault(title : string) {
+		showToast(title, 'none')
+	}
+
+	function trimText(value : string) : string {
+		return value.trim()
+	}
+
+	function isDigitChar(value : string) : boolean {
+		return value == '0' || value == '1' || value == '2' || value == '3' || value == '4' || value == '5' || value == '6' || value == '7' || value == '8' || value == '9'
+	}
+
+	function isLetterChar(value : string) : boolean {
+		const lower = value.toLowerCase()
+		return lower >= 'a' && lower <= 'z'
+	}
+
+	function isStrongPassword(value : string) : boolean {
+		if (value.length < 6 || value.length > 20) {
+			return false
+		}
+		let hasLetter = false
+		let hasDigit = false
+		for (let i = 0; i < value.length; i++) {
+			const ch = value.substring(i, i + 1)
+			if (isLetterChar(ch)) {
+				hasLetter = true
+			}
+			if (isDigitChar(ch)) {
+				hasDigit = true
+			}
+		}
+		return hasLetter && hasDigit
+	}
+
+	function codeButtonClass(disabled : boolean) : string {
+		return disabled ? 'code-btn code-btn-disabled' : 'code-btn'
+	}
+
+	function codeButtonTextClass(disabled : boolean) : string {
+		return disabled ? 'code-btn-text code-btn-text-disabled' : 'code-btn-text'
+	}
+
+	function submitButtonClass(disabled : boolean) : string {
+		return disabled ? 'primary-btn primary-btn-disabled' : 'primary-btn'
+	}
+
+	function dangerButtonClass(disabled : boolean) : string {
+		return disabled ? 'danger-btn danger-btn-disabled' : 'danger-btn'
+	}
+
+	function resetPasswordTimer() {
+		if (hasPasswordTimer) {
+			clearInterval(passwordTimerInterval)
+			hasPasswordTimer = false
+		}
+		passwordTimer.value = 0
+	}
+
+	function resetPhoneTimer() {
+		if (hasPhoneTimer) {
+			clearInterval(phoneTimerInterval)
+			hasPhoneTimer = false
+		}
+		phoneTimer.value = 0
+	}
+
+	function startPasswordTimer() {
+		resetPasswordTimer()
+		passwordTimer.value = 60
+		passwordTimerInterval = setInterval(() => {
+			passwordTimer.value--
+			if (passwordTimer.value <= 0) {
+				resetPasswordTimer()
+			}
+		}, 1000)
+		hasPasswordTimer = true
+	}
+
+	function startPhoneTimer() {
+		resetPhoneTimer()
+		phoneTimer.value = 60
+		phoneTimerInterval = setInterval(() => {
+			phoneTimer.value--
+			if (phoneTimer.value <= 0) {
+				resetPhoneTimer()
+			}
+		}, 1000)
+		hasPhoneTimer = true
+	}
+
+	function toggleNewPassword() {
+		showNewPassword.value = !showNewPassword.value
+	}
+
+	function toggleConfirmPassword() {
+		showConfirmPassword.value = !showConfirmPassword.value
+	}
+
+	function togglePhonePassword() {
+		showPhonePassword.value = !showPhonePassword.value
+	}
+
+	function toggleDeleteConfirm() {
+		deleteConfirmed.value = !deleteConfirmed.value
+	}
+
+	function ensureLoggedIn() : boolean {
+		if (currentPhone.value.length == 0) {
+			showToastDefault('请先登录')
+			return false
+		}
+		return true
+	}
+
+	function sendPasswordCode() {
+		if (!ensureLoggedIn() || passwordTimer.value > 0 || passwordCodeBusy.value) {
+			return
+		}
+		passwordCodeBusy.value = true
+		sendSmsCode(currentPhone.value).then((_res) => {
+			showToast('验证码已发送', 'success')
+			startPasswordTimer()
+			passwordCodeBusy.value = false
+		}).catch((_e) => {
+			passwordCodeBusy.value = false
+			// request 层已处理错误提示
+		})
+	}
+
+	function sendPhoneCode() {
+		if (!ensureLoggedIn() || phoneTimer.value > 0 || phoneCodeBusy.value) {
+			return
+		}
+		const targetPhone = trimText(newPhone.value)
+		if (!isValidPhone(targetPhone)) {
+			showToastDefault('请输入正确的新手机号')
+			return
+		}
+		if (targetPhone == currentPhone.value) {
+			showToastDefault('新手机号不能与当前手机号相同')
+			return
+		}
+
+		phoneCodeBusy.value = true
+		sendSmsCode(targetPhone).then((_res) => {
+			showToast('验证码已发送', 'success')
+			startPhoneTimer()
+			phoneCodeBusy.value = false
+		}).catch((_e) => {
+			phoneCodeBusy.value = false
+			// request 层已处理错误提示
+		})
+	}
+
+	function submitPasswordReset() {
+		if (!ensureLoggedIn() || passwordSubmitting.value) {
+			return
+		}
+		const code = trimText(passwordCode.value)
+		const password = trimText(newPassword.value)
+		const confirmed = trimText(confirmPassword.value)
+		if (code.length == 0) {
+			showToastDefault('请输入短信验证码')
+			return
+		}
+		if (!isStrongPassword(password)) {
+			showToastDefault('密码需为6-20位，且包含字母和数字')
+			return
+		}
+		if (password != confirmed) {
+			showToastDefault('两次密码输入不一致')
+			return
+		}
+		const encrypted = rsaEncrypt(password)
+		if (encrypted.length == 0) {
+			showToastDefault('密码加密失败')
+			return
+		}
+
+		passwordSubmitting.value = true
+		resetPasswordByCode(code, encrypted).then((_res) => {
+			showToast('密码已修改，请重新登录', 'success')
+			passwordCode.value = ''
+			newPassword.value = ''
+			confirmPassword.value = ''
+			logout()
+			setTimeout(() => {
+				uni.reLaunch({ url: '/pages/login/login' })
+			}, 1000)
+			passwordSubmitting.value = false
+		}).catch((_e) => {
+			passwordSubmitting.value = false
+			// request 层已处理错误提示
+		})
+	}
+
+	function submitPhoneChange() {
+		if (!ensureLoggedIn() || phoneSubmitting.value) {
+			return
+		}
+		const targetPhone = trimText(newPhone.value)
+		const code = trimText(phoneCode.value)
+		const password = trimText(phonePassword.value)
+		if (!isValidPhone(targetPhone)) {
+			showToastDefault('请输入正确的新手机号')
+			return
+		}
+		if (targetPhone == currentPhone.value) {
+			showToastDefault('新手机号不能与当前手机号相同')
+			return
+		}
+		if (password.length == 0) {
+			showToastDefault('请输入当前登录密码')
+			return
+		}
+		if (code.length == 0) {
+			showToastDefault('请输入短信验证码')
+			return
+		}
+		const encrypted = rsaEncrypt(password)
+		if (encrypted.length == 0) {
+			showToastDefault('密码加密失败')
+			return
+		}
+
+		phoneSubmitting.value = true
+		changeUserPhone(targetPhone, code, encrypted).then((_res) => {
+			const current = userInfo.value
+			if (current != null) {
+				setUserInfo({
+					id: current.id,
+					phone: targetPhone,
+					name: current.name,
+					introduction: current.introduction,
+					avatar: current.avatar,
+					birthday: current.birthday,
+					gender: current.gender,
+					location: current.location,
+					memberType: current.memberType
+				})
+			}
+			newPhone.value = ''
+			phonePassword.value = ''
+			phoneCode.value = ''
+			showToast('手机号已更换', 'success')
+			phoneSubmitting.value = false
+		}).catch((_e) => {
+			phoneSubmitting.value = false
+			// request 层已处理错误提示
+		})
+	}
+
+	function submitDeleteAccount() {
+		deleteSubmitting.value = true
+		deleteUserAccount().then((_res) => {
+			showToast('注销申请已提交', 'success')
+			logout()
+			setTimeout(() => {
+				uni.switchTab({ url: '/pages/index/index' })
+			}, 1000)
+			deleteSubmitting.value = false
+		}).catch((_e) => {
+			deleteSubmitting.value = false
+			// request 层已处理错误提示
+		})
+	}
+
+	function requestDeleteAccount() {
+		if (!ensureLoggedIn() || deleteSubmitting.value) {
+			return
+		}
+		if (!deleteConfirmed.value) {
+			showToastDefault('请先确认注销风险')
+			return
+		}
+		uni.showModal({
+			title: '确认注销',
+			content: '注销后账号将进入7天冷静期，期间重新登录可恢复账号。确定继续吗？',
+			confirmText: '确认注销',
+			cancelText: '取消',
+			confirmColor: '#B65B4B',
+			success: (res) => {
+				if (res.confirm) {
+					submitDeleteAccount()
+				}
+			}
+		})
+	}
+
+	onUnmounted(() => {
+		resetPasswordTimer()
+		resetPhoneTimer()
+	})
+</script>
+
+<style>
+	.security-page {
+		height: 100%;
+		background: #F3F2ED;
+	}
+
+	.nav-bar {
+		position: fixed;
+		top: 0;
+		left: 0;
+		right: 0;
+		background: rgba(243, 242, 237, 0.98);
+		box-sizing: border-box;
+		border-bottom: 1rpx solid rgba(43, 42, 41, 0.05);
+		z-index: 100;
+	}
+
+	.back-btn {
+		position: absolute;
+		left: 20rpx;
+		transform: translateY(-50%);
+		width: 88rpx;
+		height: 88rpx;
+		justify-content: center;
+	}
+
+	.back-icon {
+		font-size: 48rpx;
+		color: #2B2A29;
+	}
+
+	.nav-title {
+		position: absolute;
+		left: 50%;
+		transform: translate(-50%, -50%);
+		font-size: 32rpx;
+		font-weight: 700;
+		color: #2B2A29;
+	}
+
+	.nav-right {
+		position: absolute;
+		right: 24rpx;
+		transform: translateY(-50%);
+		min-width: 72rpx;
+	}
+
+	.security-scroll {
+		position: fixed;
+		left: 0;
+		right: 0;
+		bottom: 0;
+	}
+
+	.security-shell {
+		padding: 18px 16px 28px;
+	}
+
+	.app-soft-card {
+		background: rgba(255, 255, 255, 0.94);
+		border-radius: 8px;
+		border-width: 1px;
+		border-color: rgba(43, 42, 41, 0.06);
+		border-style: solid;
+	}
+
+	.identity-card {
+		padding: 16px;
+		margin-bottom: 14px;
+	}
+
+	.identity-row {
+		flex-direction: row;
+		align-items: center;
+	}
+
+	.identity-mark {
+		width: 44px;
+		height: 44px;
+		border-radius: 8px;
+		background-color: #5C6E58;
+		align-items: center;
+		justify-content: center;
+		margin-right: 12px;
+	}
+
+	.identity-mark-text {
+		font-size: 18px;
+		font-weight: 700;
+		color: #FFFFFF;
+	}
+
+	.identity-copy {
+		flex: 1;
+	}
+
+	.identity-title {
+		font-size: 13px;
+		color: #8A8882;
+		margin-bottom: 4px;
+	}
+
+	.identity-phone {
+		font-size: 20px;
+		font-weight: 700;
+		color: #2B2A29;
+	}
+
+	.security-card,
+	.danger-card {
+		padding: 16px;
+		margin-bottom: 14px;
+	}
+
+	.section-head {
+		margin-bottom: 14px;
+	}
+
+	.section-title {
+		font-size: 18px;
+		font-weight: 700;
+		color: #2B2A29;
+		margin-bottom: 6px;
+	}
+
+	.section-desc {
+		font-size: 13px;
+		line-height: 20px;
+		color: #8A8882;
+	}
+
+	.danger-title {
+		font-size: 18px;
+		font-weight: 700;
+		color: #B65B4B;
+		margin-bottom: 6px;
+	}
+
+	.form-item {
+		margin-bottom: 14px;
+	}
+
+	.form-label {
+		font-size: 14px;
+		font-weight: 700;
+		color: #5C6E58;
+		margin-bottom: 8px;
+	}
+
+	.form-input {
+		height: 46px;
+		font-size: 15px;
+		color: #2B2A29;
+		background-color: #F8F8F5;
+		border-radius: 8px;
+		padding: 0 12px;
+	}
+
+	.code-row,
+	.password-row {
+		flex-direction: row;
+		align-items: center;
+	}
+
+	.code-input,
+	.password-input {
+		flex: 1;
+	}
+
+	.code-btn {
+		width: 96px;
+		height: 46px;
+		border-radius: 8px;
+		background-color: rgba(92, 110, 88, 0.10);
+		border-width: 1px;
+		border-color: rgba(92, 110, 88, 0.18);
+		border-style: solid;
+		align-items: center;
+		justify-content: center;
+		margin-left: 8px;
+	}
+
+	.code-btn-disabled {
+		background-color: #F3F2ED;
+		border-color: rgba(43, 42, 41, 0.06);
+	}
+
+	.code-btn-text {
+		font-size: 13px;
+		font-weight: 700;
+		color: #5C6E58;
+	}
+
+	.code-btn-text-disabled {
+		color: #9A9892;
+	}
+
+	.password-toggle {
+		width: 52px;
+		height: 46px;
+		align-items: center;
+		justify-content: center;
+		margin-left: 8px;
+		border-radius: 8px;
+		background-color: #F8F8F5;
+	}
+
+	.password-toggle-text {
+		font-size: 13px;
+		font-weight: 700;
+		color: #5C6E58;
+	}
+
+	.primary-btn,
+	.danger-btn {
+		height: 48px;
+		border-radius: 8px;
+		align-items: center;
+		justify-content: center;
+	}
+
+	.primary-btn {
+		background-color: #5C6E58;
+		box-shadow: 0 10px 24px rgba(74, 93, 72, 0.18);
+	}
+
+	.primary-btn-disabled,
+	.danger-btn-disabled {
+		opacity: 0.62;
+	}
+
+	.primary-btn-text {
+		font-size: 15px;
+		font-weight: 700;
+		color: #FFFFFF;
+	}
+
+	.confirm-row {
+		flex-direction: row;
+		align-items: center;
+		padding: 12px;
+		border-radius: 8px;
+		background-color: #F8F8F5;
+		border-width: 1px;
+		border-color: rgba(182, 91, 75, 0.10);
+		border-style: solid;
+		margin-bottom: 14px;
+	}
+
+	.confirm-row-active {
+		background-color: rgba(182, 91, 75, 0.08);
+		border-color: rgba(182, 91, 75, 0.22);
+	}
+
+	.check-dot {
+		width: 22px;
+		height: 22px;
+		border-radius: 6px;
+		border-width: 1px;
+		border-color: rgba(43, 42, 41, 0.18);
+		border-style: solid;
+		align-items: center;
+		justify-content: center;
+		margin-right: 10px;
+	}
+
+	.check-dot-active {
+		background-color: #B65B4B;
+		border-color: #B65B4B;
+	}
+
+	.check-dot-text {
+		font-size: 14px;
+		font-weight: 700;
+		color: #FFFFFF;
+	}
+
+	.confirm-text {
+		flex: 1;
+		font-size: 13px;
+		line-height: 20px;
+		color: #5F5C56;
+	}
+
+	.danger-btn {
+		background-color: #B65B4B;
+	}
+
+	.danger-btn-text {
+		font-size: 15px;
+		font-weight: 700;
+		color: #FFFFFF;
+	}
+</style>

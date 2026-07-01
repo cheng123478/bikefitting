@@ -1,0 +1,92 @@
+/** 用户资料（对应后端 UserResponse.Profile） */
+export type UserProfile = {
+	id : number
+	phone : string
+	name : string | null
+	introduction : string | null
+	avatar : string | null
+	birthday : string | null
+	gender : number | null
+	location : string | null
+	memberType : string | null
+}
+
+/** 登录/刷新令牌响应（对应 UserResponse.LoginResult） */
+export type LoginResult = {
+	accessToken : string
+	refreshToken : string
+	user : UserProfile
+}
+
+/** 标准 API 响应外壳 */
+export type ApiResult = {
+	code : number
+	message : string
+	data : any | null
+}
+
+function toJsonObject(value : any | null) : UTSJSONObject {
+	if (value == null) {
+		return {} as UTSJSONObject
+	}
+	const jsonStr = JSON.stringify(value)
+	const parsed = JSON.parse(jsonStr)
+	return parsed != null ? parsed as UTSJSONObject : {} as UTSJSONObject
+}
+
+function getJsonValue(source : UTSJSONObject, key : string) : any | null {
+	const value = source[key]
+	return value != null ? value : null
+}
+
+function toText(value : any | null) : string {
+	return value != null ? `${value}` : ''
+}
+
+function toNullableText(value : any | null) : string | null {
+	const text = toText(value)
+	return text.length > 0 ? text : null
+}
+
+function toSafeNumber(value : any | null, fallback : number) : number {
+	if (value == null) {
+		return fallback
+	}
+	const parsed = parseFloat(`${value}`)
+	return isNaN(parsed) ? fallback : parsed
+}
+
+/** 通过 JSON 序列化安全转换类型（UTS 不支持双重 as 断言） */
+export function parseUserProfile(raw : any | null) : UserProfile {
+	const source = toJsonObject(raw)
+	const genderValue = getJsonValue(source, 'gender')
+	return {
+		id: toSafeNumber(getJsonValue(source, 'id'), 0),
+		phone: toText(getJsonValue(source, 'phone')),
+		name: toNullableText(getJsonValue(source, 'name')),
+		introduction: toNullableText(getJsonValue(source, 'introduction')),
+		avatar: toNullableText(getJsonValue(source, 'avatar')),
+		birthday: toNullableText(getJsonValue(source, 'birthday')),
+		gender: genderValue != null ? toSafeNumber(genderValue, 0) : null,
+		location: toNullableText(getJsonValue(source, 'location')),
+		memberType: toNullableText(getJsonValue(source, 'memberType'))
+	}
+}
+
+export function parseLoginResult(raw : any | null) : LoginResult {
+	const source = toJsonObject(raw)
+	return {
+		accessToken: toText(getJsonValue(source, 'accessToken')),
+		refreshToken: toText(getJsonValue(source, 'refreshToken')),
+		user: parseUserProfile(getJsonValue(source, 'user'))
+	}
+}
+
+export function parseApiResult(raw : any | null) : ApiResult {
+	const source = toJsonObject(raw)
+	return {
+		code: toSafeNumber(getJsonValue(source, 'code'), 0),
+		message: toText(getJsonValue(source, 'message')),
+		data: getJsonValue(source, 'data')
+	}
+}

@@ -1,0 +1,118 @@
+import { BASE_URL, BIZ_CODE } from '@/config/constants.uts'
+import { requestGet, requestPut } from '@/api/request.uts'
+import { getAccessToken } from '@/store/user.uts'
+import { parseApiResult, parseUserProfile } from '@/types/auth.uts'
+import type { ApiResult, UserProfile } from '@/types/auth.uts'
+
+export type UpdateUserProfilePayload = {
+	name : string
+	introduction : string
+	birthday : string | null
+	gender : number
+	location : string
+}
+
+function buildAuthHeader(token : string) : string {
+	if (token.startsWith('Bearer ')) {
+		return token
+	}
+	return 'Bearer ' + token
+}
+
+function createUploadHeader() : UTSJSONObject {
+	const header = {} as UTSJSONObject
+	const token = getAccessToken()
+	if (token.length > 0) {
+		header['Authorization'] = buildAuthHeader(token)
+	}
+	return header
+}
+
+function toJsonObject(value : any | null) : UTSJSONObject | null {
+	if (value == null) {
+		return null
+	}
+	const jsonText = JSON.stringify(value)
+	const parsed = JSON.parse(jsonText)
+	return parsed != null ? parsed as UTSJSONObject : null
+}
+
+function getJsonValue(source : UTSJSONObject | null, key : string) : any | null {
+	const current = source
+	if (current == null) {
+		return null
+	}
+	const value = current[key]
+	return value != null ? value : null
+}
+
+function toText(value : any | null) : string {
+	return value != null ? `${value}` : ''
+}
+
+function parseUploadResponse(dataText : string) : string {
+	const parsed = JSON.parse(dataText)
+	const apiRes : ApiResult = parseApiResult(parsed)
+	if (apiRes.code == BIZ_CODE.SUCCESS && apiRes.data != null) {
+		return toText(apiRes.data)
+	}
+	const message = apiRes.message.length > 0 ? apiRes.message : '澶村儚涓婁紶澶辫触'
+	throw new Error(message)
+}
+
+export function updateUserProfile(payload : UpdateUserProfilePayload) : Promise<any> {
+	const data = {} as UTSJSONObject
+	data['name'] = payload.name
+	data['introduction'] = payload.introduction
+	data['birthday'] = payload.birthday
+	data['gender'] = payload.gender
+	data['location'] = payload.location
+	return requestPut('/user/edit', data, null, false)
+}
+
+export function getCurrentUserProfile() : Promise<UserProfile> {
+	return new Promise<UserProfile>((resolve, reject) => {
+		requestGet('/user/profile', null, false).then((data : any) => {
+			try {
+				resolve(parseUserProfile(data))
+			} catch (e) {
+				reject(e)
+			}
+		}).catch((err) => {
+			reject(err)
+		})
+	})
+}
+
+export function uploadUserAvatar(filePath : string) : Promise<string> {
+	return new Promise<string>((resolve, reject) => {
+		uni.uploadFile({
+			url: BASE_URL + '/user/avatar',
+			filePath: filePath,
+			name: 'file',
+			header: createUploadHeader(),
+			success: (res : any) => {
+				try {
+					const resObject = toJsonObject(res)
+					const statusValue = getJsonValue(resObject, 'statusCode')
+					const statusCode = statusValue != null ? parseInt(toText(statusValue)) : 0
+					if (statusCode >= 400) {
+						reject(new Error('澶村儚涓婁紶澶辫触 (' + statusCode + ')'))
+						return
+					}
+					const dataText = toText(getJsonValue(resObject, 'data'))
+					if (dataText.length == 0) {
+						reject(new Error('澶村儚涓婁紶鍝嶅簲涓虹┖'))
+						return
+					}
+					resolve(parseUploadResponse(dataText))
+				} catch (e) {
+					reject(e)
+				}
+			},
+			fail: (err : any) => {
+				reject(err)
+			}
+		})
+	})
+}

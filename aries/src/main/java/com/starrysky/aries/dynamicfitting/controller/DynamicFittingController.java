@@ -74,7 +74,7 @@ public class DynamicFittingController {
      * @return 会话详情
      */
     @GetMapping("/sessions/{id}")
-    public ResponseResult<Map<String, Object>> getSessionDetail(@PathVariable("id") Long id) {
+    public ResponseResult<DynamicFittingSessionVO> getSessionDetail(@PathVariable("id") Long id) {
         return ResponseResult.success(dynamicFittingService.getSessionDetail(id));
     }
 

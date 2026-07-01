@@ -1,0 +1,11 @@
+/**
+ * 瀹為獙瀹ょ浉鍏?API
+ */
+import { requestGet } from '@/api/request.uts'
+
+/**
+ * 鑾峰彇鐥涙劅閫夐」鍒楄〃
+ */
+export function getPainOptions() : Promise<any> {
+	return requestGet('/lab/pain-options', null, false)
+}

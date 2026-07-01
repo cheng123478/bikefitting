@@ -1,0 +1,4 @@
+/** 中国大陆手机号校验 — 与 Web AuthModal 一致 */
+export function isValidPhone(phone : string) : boolean {
+	return /^1[3-9]\d{9}$/.test(phone)
+}

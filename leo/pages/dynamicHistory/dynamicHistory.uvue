@@ -1,0 +1,755 @@
+<template>
+	<view class="history-page">
+		<view class="nav-bar" :style="navBarStyle">
+			<view class="back-btn" :style="navBackStyle" @click="goBack">
+				<text class="back-icon">&lt;</text>
+			</view>
+			<text class="nav-title" :style="navTitleStyle">动态历史</text>
+			<view class="nav-right" :style="navRightStyle">
+				<text class="nav-count">{{ getTotalCountText() }}</text>
+			</view>
+		</view>
+
+		<scroll-view
+			class="content-scroll"
+			scroll-y="true"
+			:show-scrollbar="false"
+			:style="contentScrollStyle"
+			:refresher-enabled="true"
+			:refresher-triggered="refreshing"
+			@refresherrefresh="handleRefresh"
+		>
+			<view class="page-shell">
+				<view class="summary-panel">
+					<view class="summary-copy">
+						<text class="summary-kicker">DYNAMIC FITTING</text>
+						<text class="summary-title">动态报告记录</text>
+						<text class="summary-desc">查看分析进度、打开报告，并管理历史采集任务。</text>
+					</view>
+					<view class="summary-metric">
+						<text class="summary-num">{{ totalCount }}</text>
+						<text class="summary-label">条记录</text>
+					</view>
+				</view>
+
+				<view v-if="loading" class="state-card">
+					<text class="loading-title">正在加载历史记录...</text>
+				</view>
+
+				<view v-else-if="sessionList.length > 0" class="session-list">
+					<view v-for="item in sessionList" :key="item.id" class="session-card">
+						<view class="session-topline">
+							<text class="session-time">{{ formatDateTime(item.sessionTime, item.createTime) }}</text>
+							<view class="status-pill" :class="getStatusClass(item.status)">
+								<text class="status-pill-text">{{ getStatusText(item.status) }}</text>
+							</view>
+						</view>
+
+						<text class="session-bike">{{ item.bikeName }}</text>
+						<text v-if="item.remark.length > 0" class="session-remark">{{ item.remark }}</text>
+
+						<view class="tag-row">
+							<text v-if="containsView(item.viewTypes, 'side')" class="mini-tag">侧面</text>
+							<text v-if="containsView(item.viewTypes, 'front')" class="mini-tag">正面</text>
+							<text v-if="containsView(item.viewTypes, 'back')" class="mini-tag">背面</text>
+							<text v-if="item.matchScore.length > 0" class="mini-tag accent-tag">匹配度 {{ item.matchScore }}</text>
+						</view>
+
+						<view v-if="item.painLabels.length > 0" class="tag-row pain-row">
+							<text v-for="label in item.painLabels" :key="label" class="pain-tag">{{ label }}</text>
+						</view>
+
+						<view class="session-actions">
+							<view class="action-btn primary-btn" @click="openSession(item)">
+								<text class="action-btn-text primary-text">{{ getPrimaryActionText(item.status) }}</text>
+							</view>
+							<view class="action-btn ghost-btn" @click="confirmDelete(item)">
+								<text class="action-btn-text ghost-text">删除记录</text>
+							</view>
+						</view>
+					</view>
+
+					<view v-if="hasMore" class="load-more-wrap">
+						<view class="load-more-btn" @click="handleLoadMore">
+							<text class="load-more-text">{{ loadingMore ? '加载中...' : '加载更多' }}</text>
+						</view>
+					</view>
+				</view>
+
+				<view v-else class="state-card empty-card">
+					<view class="empty-icon-wrap">
+						<text class="empty-icon">AI</text>
+					</view>
+					<text class="empty-title">还没有动态记录</text>
+					<text class="empty-desc">从动态分析开始录制后，完成的任务会自动出现在这里。</text>
+					<view class="primary-entry" @click="goToDynamicHome">
+						<text class="primary-entry-text">开始分析</text>
+					</view>
+				</view>
+			</view>
+		</scroll-view>
+	</view>
+</template>
+
+<script setup lang="uts">
+	import { ref } from 'vue'
+	import { deleteDynamicFittingSession, getDynamicFittingSessions } from '@/api/dynamicFitting.uts'
+	import { getUserInfo } from '@/store/user.uts'
+	import { getAppLayoutMetrics } from '@/utils/layout.uts'
+
+	type DynamicSessionCard = {
+		id : number
+		bikeName : string
+		remark : string
+		status : number
+		sessionTime : string
+		createTime : string
+		viewTypes : string
+		painLabels : string[]
+		matchScore : string
+	}
+
+	const layout = getAppLayoutMetrics()
+	const navContentCenter = layout.statusBarHeight + layout.navBarContentHeight / 2
+	const navBarStyle = {
+		height: layout.navBarHeight + 'px',
+		paddingTop: layout.statusBarHeight + 'px',
+		boxSizing: 'border-box'
+	}
+	const navBackStyle = {
+		top: navContentCenter + 'px'
+	}
+	const navTitleStyle = {
+		top: navContentCenter + 'px'
+	}
+	const navRightStyle = {
+		top: navContentCenter + 'px'
+	}
+	const contentScrollStyle = {
+		top: layout.navBarHeight + 'px',
+		paddingBottom: layout.bottomSafeArea + 28 + 'px'
+	}
+
+	const pageNo = ref(1)
+	const pageSize = 10
+	const loading = ref(true)
+	const refreshing = ref(false)
+	const loadingMore = ref(false)
+	const hasMore = ref(false)
+	const totalCount = ref(0)
+	const sessionList = ref<DynamicSessionCard[]>([])
+
+	function toSafeNumber(value : any, fallback : number) : number {
+		if (value == null) return fallback
+		const parsed = parseFloat(`${value}`)
+		return isNaN(parsed) ? fallback : parsed
+	}
+
+	function toText(value : any) : string {
+		return `${value}`
+	}
+
+	function createAnyArray() : any[] {
+		const items : any[] = []
+		return items
+	}
+
+	function toJsonObject(value : any | null) : UTSJSONObject | null {
+		if (value == null) {
+			return null
+		}
+		const jsonText = JSON.stringify(value)
+		const parsed = JSON.parse(jsonText)
+		return parsed != null ? parsed as UTSJSONObject : null
+	}
+
+	function getJsonValue(source : UTSJSONObject | null, key : string) : any | null {
+		const current = source
+		if (current == null) {
+			return null
+		}
+		const value = current[key]
+		return value != null ? value : null
+	}
+
+	function getJsonText(source : UTSJSONObject | null, key : string, fallback : string) : string {
+		const value = getJsonValue(source, key)
+		return value != null ? toText(value) : fallback
+	}
+
+	function getJsonNumber(source : UTSJSONObject | null, key : string, fallback : number) : number {
+		const value = getJsonValue(source, key)
+		return value != null ? toSafeNumber(value, fallback) : fallback
+	}
+
+	function getJsonArray(source : UTSJSONObject | null, key : string) : any[] {
+		const value = getJsonValue(source, key)
+		if (value == null) {
+			return createAnyArray()
+		}
+		const jsonText = JSON.stringify(value)
+		const parsed = JSON.parse(jsonText)
+		return parsed != null ? parsed as any[] : createAnyArray()
+	}
+
+	function padNumber(value : number) : string {
+		if (value < 10) return `0${value}`
+		return `${value}`
+	}
+
+	function getTotalCountText() : string {
+		return totalCount.value > 0 ? `${totalCount.value}` : ''
+	}
+
+	function ensureLoggedIn() : boolean {
+		const user = getUserInfo()
+		if (user == null || user.phone == null || user.phone.length == 0) {
+			uni.navigateTo({ url: '/pages/login/login' })
+			return false
+		}
+		return true
+	}
+
+	function normalizeSession(raw : any) : DynamicSessionCard {
+		const source = toJsonObject(raw)
+		const painLabels : string[] = []
+		const rawPainLabels = getJsonArray(source, 'painLabels')
+		for (let i = 0; i < rawPainLabels.length; i++) {
+			painLabels.push(toText(rawPainLabels[i]))
+		}
+
+		return {
+			id: getJsonNumber(source, 'id', 0),
+			bikeName: getJsonText(source, 'bikeName', '未命名车辆'),
+			remark: getJsonText(source, 'remark', ''),
+			status: getJsonNumber(source, 'status', 1),
+			sessionTime: getJsonText(source, 'sessionTime', ''),
+			createTime: getJsonText(source, 'createTime', ''),
+			viewTypes: getJsonText(source, 'viewTypes', '').toLowerCase(),
+			painLabels: painLabels,
+			matchScore: getJsonText(source, 'matchScore', '')
+		}
+	}
+
+	async function loadSessions(reset : boolean = false) {
+		if (reset) {
+			pageNo.value = 1
+			loading.value = true
+		}
+
+		try {
+			const data = await getDynamicFittingSessions(pageNo.value, pageSize)
+			const dataObject = toJsonObject(data)
+			const list = getJsonArray(dataObject, 'content')
+			const normalized : DynamicSessionCard[] = []
+			for (let i = 0; i < list.length; i++) {
+				normalized.push(normalizeSession(list[i]))
+			}
+
+			if (reset) {
+				sessionList.value = normalized
+			} else {
+				for (let i = 0; i < normalized.length; i++) {
+					sessionList.value.push(normalized[i])
+				}
+			}
+
+			totalCount.value = getJsonNumber(dataObject, 'totalElements', sessionList.value.length)
+			hasMore.value = sessionList.value.length < totalCount.value
+		} catch (e) {
+			console.error('[DynamicHistory] session list load failed', e)
+			uni.showToast({
+				title: '加载记录失败',
+				icon: 'none'
+			})
+		} finally {
+			loading.value = false
+			refreshing.value = false
+			loadingMore.value = false
+		}
+	}
+
+	function handleRefresh() {
+		refreshing.value = true
+		loadSessions(true)
+	}
+
+	function handleLoadMore() {
+		if (!hasMore.value || loadingMore.value) {
+			return
+		}
+		loadingMore.value = true
+		pageNo.value = pageNo.value + 1
+		loadSessions(false)
+	}
+
+	function containsView(viewTypes : string, target : string) : boolean {
+		return viewTypes.indexOf(target) >= 0
+	}
+
+	function getStatusText(status : number) : string {
+		if (status == 2) return '已完成'
+		if (status == 3) return '失败'
+		return '分析中'
+	}
+
+	function getStatusClass(status : number) : string {
+		if (status == 2) return 'status-ok'
+		if (status == 3) return 'status-failed'
+		return 'status-pending'
+	}
+
+	function getPrimaryActionText(status : number) : string {
+		if (status == 2) return '查看报告'
+		if (status == 3) return '查看状态'
+		return '查看进度'
+	}
+
+	function openSession(item : DynamicSessionCard) {
+		if (item.status == 2) {
+			uni.navigateTo({
+				url: `/pages/dynamicReport/dynamicReport?sessionId=${item.id}`
+			})
+			return
+		}
+
+		const encodedBikeName = encodeURIComponent(item.bikeName)
+		uni.navigateTo({
+			url: `/pages/dynamicSubmitted/dynamicSubmitted?id=${item.id}&status=${item.status}&bikeName=${encodedBikeName}`
+		})
+	}
+
+	async function deleteSession(id : number) {
+		try {
+			await deleteDynamicFittingSession(id)
+			uni.showToast({
+				title: '已删除',
+				icon: 'success'
+			})
+			loadSessions(true)
+		} catch (e) {
+			console.error('[DynamicHistory] delete failed', e)
+			uni.showToast({
+				title: '删除失败',
+				icon: 'none'
+			})
+		}
+	}
+
+	function confirmDelete(item : DynamicSessionCard) {
+		uni.showModal({
+			title: '删除记录',
+			content: `确认删除 ${item.bikeName} 的动态分析记录？`,
+			success: (res : any) => {
+				const result = toJsonObject(res)
+				if (getJsonValue(result, 'confirm') == true) {
+					deleteSession(item.id)
+				}
+			}
+		})
+	}
+
+	function formatDateTime(sessionTime : string, createTime : string) : string {
+		const source = sessionTime.length > 0 ? sessionTime : createTime
+		if (source.length == 0) return '--'
+		const date = new Date(source)
+		if (isNaN(date.getTime())) return source.replace('T', ' ').substring(0, 16)
+		const year = `${date.getFullYear()}`
+		const month = padNumber(date.getMonth() + 1)
+		const day = padNumber(date.getDate())
+		const hour = padNumber(date.getHours())
+		const minute = padNumber(date.getMinutes())
+		return `${year}-${month}-${day} ${hour}:${minute}`
+	}
+
+	function goToDynamicHome() {
+		uni.switchTab({
+			url: '/pages/lab/lab'
+		})
+	}
+
+	function goBack() {
+		const pages = getCurrentPages()
+		if (pages.length > 1) {
+			uni.navigateBack({
+				delta: 1,
+				fail: () => {
+					uni.switchTab({ url: '/pages/lab/lab' })
+				}
+			})
+		} else {
+			uni.switchTab({ url: '/pages/lab/lab' })
+		}
+	}
+
+	onShow(() => {
+		if (!ensureLoggedIn()) {
+			return
+		}
+		loadSessions(true)
+	})
+</script>
+
+<style scoped>
+	.history-page {
+		height: 100%;
+		background: #F3F2ED;
+		font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+	}
+
+	text {
+		font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+		letter-spacing: 0;
+	}
+
+	.nav-bar {
+		position: fixed;
+		top: 0;
+		left: 0;
+		right: 0;
+		background: rgba(243, 242, 237, 0.98);
+		box-sizing: border-box;
+		border-bottom: 1rpx solid rgba(43, 42, 41, 0.05);
+		z-index: 100;
+	}
+
+	.back-btn {
+		position: absolute;
+		left: 20rpx;
+		width: 72rpx;
+		height: 72rpx;
+		transform: translateY(-50%);
+		align-items: center;
+		justify-content: center;
+	}
+
+	.back-icon {
+		font-size: 40rpx;
+		font-weight: 700;
+		color: #2B2A29;
+	}
+
+	.nav-title {
+		position: absolute;
+		left: 50%;
+		transform: translate(-50%, -50%);
+		font-size: 32rpx;
+		font-weight: 700;
+		color: #2B2A29;
+		font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+	}
+
+	.nav-right {
+		position: absolute;
+		right: 24rpx;
+		min-width: 72rpx;
+		transform: translateY(-50%);
+		align-items: flex-end;
+	}
+
+	.nav-count {
+		font-size: 22rpx;
+		color: #7B766B;
+	}
+
+	.content-scroll {
+		position: fixed;
+		left: 0;
+		right: 0;
+		bottom: 0;
+		box-sizing: border-box;
+	}
+
+	.page-shell {
+		padding: 20rpx 28rpx 0;
+	}
+
+	.summary-panel,
+	.state-card,
+	.session-card {
+		background: #FFFFFF;
+		border-width: 1rpx;
+		border-color: rgba(43, 42, 41, 0.06);
+		border-style: solid;
+		box-shadow: 0 12rpx 28rpx rgba(43, 42, 41, 0.05);
+	}
+
+	.summary-panel {
+		margin-bottom: 20rpx;
+		padding: 28rpx 28rpx;
+		border-radius: 24rpx;
+		flex-direction: row;
+		align-items: center;
+		justify-content: space-between;
+	}
+
+	.summary-copy {
+		flex: 1;
+		padding-right: 24rpx;
+	}
+
+	.summary-kicker {
+		font-size: 18rpx;
+		font-weight: 700;
+		color: #7A8C75;
+		margin-bottom: 8rpx;
+	}
+
+	.summary-title {
+		font-size: 36rpx;
+		line-height: 1.22;
+		font-weight: 700;
+		color: #2B2A29;
+		margin-bottom: 8rpx;
+	}
+
+	.summary-desc {
+		font-size: 24rpx;
+		line-height: 1.5;
+		color: #7D776E;
+	}
+
+	.summary-metric {
+		width: 132rpx;
+		height: 112rpx;
+		border-radius: 22rpx;
+		background: #EEF3EE;
+		align-items: center;
+		justify-content: center;
+	}
+
+	.summary-num {
+		font-size: 42rpx;
+		line-height: 46rpx;
+		font-weight: 800;
+		color: #314B38;
+	}
+
+	.summary-label {
+		margin-top: 4rpx;
+		font-size: 20rpx;
+		color: #6F806B;
+	}
+
+	.tag-row,
+	.session-actions {
+		flex-direction: row;
+		flex-wrap: wrap;
+	}
+
+	.mini-tag,
+	.pain-tag {
+		margin-right: 12rpx;
+		margin-bottom: 10rpx;
+		padding: 9rpx 16rpx;
+		border-radius: 999rpx;
+		font-size: 22rpx;
+	}
+
+	.mini-tag {
+		background: #F4F2ED;
+		color: #625E56;
+	}
+
+	.accent-tag {
+		background: rgba(90, 133, 191, 0.1);
+		color: #356792;
+	}
+
+	.pain-tag {
+		background: rgba(193, 140, 126, 0.12);
+		color: #A56A5D;
+	}
+
+	.loading-title {
+		font-size: 28rpx;
+		font-weight: 700;
+		color: #2B2A29;
+	}
+
+	.state-card,
+	.session-card {
+		padding: 28rpx;
+		margin-bottom: 20rpx;
+		border-radius: 24rpx;
+	}
+
+	.session-card {
+		position: relative;
+	}
+
+	.session-topline {
+		flex-direction: row;
+		align-items: center;
+		justify-content: space-between;
+		margin-bottom: 14rpx;
+	}
+
+	.session-time {
+		font-size: 22rpx;
+		color: #8B857B;
+	}
+
+	.session-bike {
+		font-size: 36rpx;
+		line-height: 1.24;
+		font-weight: 800;
+		color: #2B2A29;
+		margin-bottom: 14rpx;
+	}
+
+	.session-remark {
+		font-size: 24rpx;
+		line-height: 1.55;
+		color: #746F65;
+		margin-bottom: 14rpx;
+	}
+
+	.status-pill {
+		padding: 9rpx 18rpx;
+		border-radius: 999rpx;
+	}
+
+	.status-pending {
+		background: rgba(212, 175, 55, 0.12);
+	}
+
+	.status-ok {
+		background: rgba(92, 110, 88, 0.1);
+	}
+
+	.status-failed {
+		background: rgba(193, 140, 126, 0.12);
+	}
+
+	.status-pill-text {
+		font-size: 21rpx;
+		font-weight: 700;
+	}
+
+	.status-pending .status-pill-text {
+		color: #B48B00;
+	}
+
+	.status-ok .status-pill-text {
+		color: #5C6E58;
+	}
+
+	.status-failed .status-pill-text {
+		color: #A56A5D;
+	}
+
+	.pain-row {
+		margin-top: 0;
+		margin-bottom: 12rpx;
+	}
+
+	.session-actions {
+		margin-top: 14rpx;
+		padding-top: 18rpx;
+		border-top-width: 1rpx;
+		border-top-color: rgba(43, 42, 41, 0.06);
+		border-top-style: solid;
+		align-items: center;
+		justify-content: space-between;
+	}
+
+	.action-btn {
+		height: 64rpx;
+		border-radius: 18rpx;
+		align-items: center;
+		justify-content: center;
+	}
+
+	.primary-btn {
+		flex: 1;
+		background: linear-gradient(135deg, #5C6E58 0%, #425541 100%);
+	}
+
+	.ghost-btn {
+		width: 150rpx;
+		margin-left: 16rpx;
+		background: #F7F4EE;
+	}
+
+	.action-btn-text {
+		font-size: 24rpx;
+		font-weight: 700;
+	}
+
+	.primary-text {
+		color: #FFFFFF;
+	}
+
+	.ghost-text {
+		color: #756F65;
+	}
+
+	.load-more-wrap {
+		padding-bottom: 22rpx;
+	}
+
+	.load-more-btn {
+		padding: 18rpx 20rpx;
+		border-radius: 24rpx;
+		background: rgba(255, 255, 255, 0.92);
+		border-width: 1rpx;
+		border-color: rgba(92, 110, 88, 0.12);
+		border-style: solid;
+		align-items: center;
+		justify-content: center;
+	}
+
+	.load-more-text {
+		font-size: 24rpx;
+		font-weight: 700;
+		color: #5C6E58;
+	}
+
+	.empty-card {
+		align-items: center;
+	}
+
+	.empty-icon-wrap {
+		width: 132rpx;
+		height: 132rpx;
+		border-radius: 32rpx;
+		background: rgba(92, 110, 88, 0.08);
+		align-items: center;
+		justify-content: center;
+		margin-bottom: 22rpx;
+	}
+
+	.empty-icon {
+		font-size: 32rpx;
+		font-weight: 700;
+		color: #989284;
+	}
+
+	.empty-title {
+		font-size: 36rpx;
+		font-weight: 700;
+		color: #2B2A29;
+		margin-bottom: 12rpx;
+	}
+
+	.empty-desc {
+		font-size: 24rpx;
+		line-height: 1.72;
+		color: #857F73;
+		text-align: center;
+		margin-bottom: 26rpx;
+	}
+
+	.primary-entry {
+		padding: 18rpx 28rpx;
+		border-radius: 24rpx;
+		background: linear-gradient(135deg, #5C6E58 0%, #425541 100%);
+	}
+
+	.primary-entry-text {
+		font-size: 28rpx;
+		font-weight: 700;
+		color: #FFFFFF;
+	}
+</style>

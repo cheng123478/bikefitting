@@ -1,0 +1,712 @@
+<template>
+	<view v-if="showAuthModal" class="modal-overlay" @click="onOverlayClick">
+		<view class="modal-content" @click.stop="">
+			<view class="modal-glow modal-glow-left"></view>
+			<view class="modal-glow modal-glow-right"></view>
+			<text class="close-btn" @click="close">×</text>
+
+			<scroll-view class="modal-scroll" scroll-y="true">
+				<view class="modal-header">
+					<text class="modal-kicker">RIDETRACE ACCESS</text>
+					<text class="modal-title">连接你的骑行身份</text>
+					<text class="modal-desc">登录后同步身体图谱、车辆资产和历史报告，继续你的调适流程。</text>
+				</view>
+
+				<view class="auth-tabs">
+					<view class="tab" :class="{ active: activeTab === 'login' }" @click="switchTab('login')">
+						<text class="tab-text" :class="{ 'tab-text-active': activeTab === 'login' }">登录</text>
+					</view>
+					<view class="tab" :class="{ active: activeTab === 'register' }" @click="switchTab('register')">
+						<text class="tab-text" :class="{ 'tab-text-active': activeTab === 'register' }">注册</text>
+					</view>
+				</view>
+
+				<!-- 登录 -->
+				<view v-if="activeTab === 'login'" class="auth-form">
+					<text class="form-title">欢迎回来</text>
+
+					<view class="input-field-group">
+						<text class="input-icon icon-phone"></text>
+						<input
+							class="input-field"
+							type="number"
+							v-model="loginPhone"
+							placeholder="请输入手机号"
+							maxlength="11"
+							placeholder-class="input-placeholder"
+						/>
+					</view>
+
+					<view v-if="loginMode === 'password'" class="input-field-group">
+						<text class="input-icon icon-lock"></text>
+						<input
+							class="input-field input-field-password"
+							:type="showPassword ? 'text' : 'password'"
+							v-model="loginPassword"
+							placeholder="输入密码"
+							placeholder-class="input-placeholder"
+						/>
+						<text class="password-toggle icon-eye" @click="showPassword = !showPassword"></text>
+					</view>
+
+					<view v-else class="input-field-group code-group">
+						<text class="input-icon icon-shield"></text>
+						<input
+							class="input-field input-field-code"
+							type="number"
+							v-model="loginCode"
+							placeholder="输入验证码"
+							maxlength="6"
+							placeholder-class="input-placeholder"
+						/>
+						<button
+							class="get-code-btn"
+							:class="{ 'get-code-btn-disabled': timer > 0 || !phoneValid(loginPhone) }"
+							:disabled="timer > 0 || !phoneValid(loginPhone)"
+							@click="sendCode('login')"
+						>
+							{{ timer > 0 ? timer + 's 后重发' : '获取验证码' }}
+						</button>
+					</view>
+
+					<view class="form-options">
+						<text class="link-text" @click="toggleLoginMode">
+							{{ loginMode === 'password' ? '切换验证码登录' : '切换密码登录' }}
+						</text>
+						<text class="link-text" @click="onForgotPassword">忘记密码?</text>
+					</view>
+
+					<view class="agreement-section" @click="isAgreed = !isAgreed">
+						<view class="checkmark" :class="{ checked: isAgreed }">
+							<text v-if="isAgreed" class="check-icon">✓</text>
+						</view>
+						<view class="agreement-text-wrap">
+							<text class="agreement-text">我已阅读并同意</text>
+							<text class="agreement-link" @click.stop="openAgreement">《用户协议》</text>
+							<text class="agreement-text">和</text>
+							<text class="agreement-link" @click.stop="openPrivacy">《隐私政策》</text>
+						</view>
+					</view>
+
+					<button class="btn-primary" :class="{ 'btn-primary-disabled': isLoading }" :disabled="isLoading" @click="handleLogin">
+						{{ isLoading ? '登录中...' : '立即登录' }}
+					</button>
+				</view>
+
+				<!-- 注册 -->
+				<view v-else class="auth-form">
+					<text class="form-title">加入 BikeFit Pro</text>
+
+					<view class="input-field-group">
+						<text class="input-icon icon-phone"></text>
+						<input
+							class="input-field"
+							type="number"
+							v-model="registerPhone"
+							placeholder="请输入手机号"
+							maxlength="11"
+							placeholder-class="input-placeholder"
+						/>
+					</view>
+
+					<view class="input-field-group code-group">
+						<text class="input-icon icon-shield"></text>
+						<input
+							class="input-field input-field-code"
+							type="number"
+							v-model="registerCode"
+							placeholder="输入短信验证码"
+							maxlength="6"
+							placeholder-class="input-placeholder"
+						/>
+						<button
+							class="get-code-btn"
+							:class="{ 'get-code-btn-disabled': timer > 0 || !phoneValid(registerPhone) }"
+							:disabled="timer > 0 || !phoneValid(registerPhone)"
+							@click="sendCode('register')"
+						>
+							{{ timer > 0 ? timer + 's 后重发' : '获取验证码' }}
+						</button>
+					</view>
+
+					<view class="agreement-section" @click="isAgreed = !isAgreed">
+						<view class="checkmark" :class="{ checked: isAgreed }">
+							<text v-if="isAgreed" class="check-icon">✓</text>
+						</view>
+						<view class="agreement-text-wrap">
+							<text class="agreement-text">我已阅读并同意</text>
+							<text class="agreement-link" @click.stop="openAgreement">《用户协议》</text>
+							<text class="agreement-text">和</text>
+							<text class="agreement-link" @click.stop="openPrivacy">《隐私政策》</text>
+						</view>
+					</view>
+
+					<button class="btn-primary" :class="{ 'btn-primary-disabled': isLoading }" :disabled="isLoading" @click="handleRegister">
+						{{ isLoading ? '注册中...' : '注册并登录' }}
+					</button>
+				</view>
+			</scroll-view>
+		</view>
+	</view>
+</template>
+
+<script setup lang="uts">
+	import { ref, onUnmounted } from 'vue'
+	import { isValidPhone } from '@/utils/validate.uts'
+	import { rsaEncrypt } from '@/utils/rsa.uts'
+	import { sendSmsCode, registerUser, loginByPassword } from '@/api/auth.uts'
+	import { login as saveLogin, showAuthModal, closeAuthModal } from '@/store/user.uts'
+	import type { LoginResult } from '@/types/auth.uts'
+
+	const activeTab = ref('login')
+	const loginMode = ref('password')
+	const showPassword = ref(false)
+	const timer = ref(0)
+	let timerInterval : number = 0
+	let resetFormTimer : number = 0
+	let hasTimer = false
+
+	const isLoading = ref(false)
+	const isAgreed = ref(false)
+
+	const loginPhone = ref('')
+	const loginPassword = ref('')
+	const loginCode = ref('')
+	const registerPhone = ref('')
+	const registerCode = ref('')
+
+	function phoneValid(phone : string) : boolean {
+		return isValidPhone(phone)
+	}
+
+	function showToast(title : string, icon : 'success' | 'loading' | 'none' | 'error') {
+		uni.showToast({ title: title, icon: icon, duration: 2500 })
+	}
+
+	function showToastDefault(title : string) {
+		showToast(title, 'none')
+	}
+
+	function resetTimer() {
+		if (hasTimer) {
+			clearInterval(timerInterval)
+			hasTimer = false
+		}
+		timer.value = 0
+	}
+
+	function clearResetFormTimer() {
+		if (resetFormTimer > 0) {
+			clearTimeout(resetFormTimer)
+			resetFormTimer = 0
+		}
+	}
+
+	function resetForm() {
+		loginPhone.value = ''
+		loginPassword.value = ''
+		loginCode.value = ''
+		registerPhone.value = ''
+		registerCode.value = ''
+		showPassword.value = false
+		isAgreed.value = false
+		isLoading.value = false
+		resetTimer()
+	}
+
+	function startCountdown() {
+		resetTimer()
+		timer.value = 60
+		timerInterval = setInterval(() => {
+			timer.value--
+			if (timer.value <= 0) {
+				resetTimer()
+			}
+		}, 1000)
+		hasTimer = true
+	}
+
+	function close() {
+		closeAuthModal()
+		clearResetFormTimer()
+		resetFormTimer = setTimeout(() => {
+			resetForm()
+			resetFormTimer = 0
+		}, 300)
+	}
+
+	function onOverlayClick() {
+		close()
+	}
+
+	function switchTab(tab : string) {
+		activeTab.value = tab
+		resetTimer()
+	}
+
+	function toggleLoginMode() {
+		loginMode.value = loginMode.value === 'password' ? 'sms' : 'password'
+	}
+
+	function onForgotPassword() {
+		showToastDefault('请联系客服或通过 Web 端重置密码')
+	}
+
+	function openAgreement() {
+		showToastDefault('用户协议页面开发中')
+	}
+
+	function openPrivacy() {
+		showToastDefault('隐私政策页面开发中')
+	}
+
+	function sendCode(type : string) {
+		const phoneNum = type === 'login' ? loginPhone.value : registerPhone.value
+		if (!isValidPhone(phoneNum)) {
+			showToastDefault('请输入正确的手机号码')
+			return
+		}
+		if (timer.value > 0) {
+			return
+		}
+
+		sendSmsCode(phoneNum).then((_res) => {
+			showToast('验证码已发送', 'success')
+			startCountdown()
+		}).catch((_e) => {
+			// 错误已由 request 层提示
+		})
+	}
+
+	function onLoginSuccess(result : LoginResult, message : string) {
+		saveLogin(result)
+		showToast(message, 'success')
+		isLoading.value = false
+		close()
+	}
+
+	function handleLogin() {
+		if (loginPhone.value.length == 0) {
+			showToastDefault('请输入手机号')
+			return
+		}
+		if (!isValidPhone(loginPhone.value)) {
+			showToastDefault('请输入正确的手机号码')
+			return
+		}
+
+		if (loginMode.value === 'password') {
+			if (loginPassword.value.length == 0) {
+				showToastDefault('请输入密码')
+				return
+			}
+		} else {
+			if (loginCode.value.length == 0) {
+				showToastDefault('请先获取验证码')
+				return
+			}
+		}
+
+		if (!isAgreed.value) {
+			showToastDefault('请勾选阅读并同意《用户协议》和《隐私政策》')
+			return
+		}
+
+		isLoading.value = true
+		if (loginMode.value === 'password') {
+			const encrypted = rsaEncrypt(loginPassword.value)
+			if (encrypted.length == 0) {
+				showToastDefault('密码加密失败')
+				isLoading.value = false
+				return
+			}
+			loginByPassword(loginPhone.value, encrypted).then((result : LoginResult) => {
+				onLoginSuccess(result, '登录成功')
+			}).catch((_e) => {
+				isLoading.value = false
+			})
+		} else {
+			registerUser(loginPhone.value, loginCode.value).then((result : LoginResult) => {
+				onLoginSuccess(result, '登录成功')
+			}).catch((_e) => {
+				isLoading.value = false
+			})
+		}
+	}
+
+	function handleRegister() {
+		if (registerPhone.value.length == 0) {
+			showToastDefault('请输入手机号')
+			return
+		}
+		if (!isValidPhone(registerPhone.value)) {
+			showToastDefault('请输入正确的手机号码')
+			return
+		}
+		if (registerCode.value.length == 0) {
+			showToastDefault('请先获取验证码')
+			return
+		}
+		if (!isAgreed.value) {
+			showToastDefault('请勾选阅读并同意《用户协议》和《隐私政策》')
+			return
+		}
+
+		isLoading.value = true
+		registerUser(registerPhone.value, registerCode.value).then((result : LoginResult) => {
+			onLoginSuccess(result, '注册成功')
+		}).catch((_e) => {
+			isLoading.value = false
+		})
+	}
+
+	onUnmounted(() => {
+		resetTimer()
+		clearResetFormTimer()
+	})
+</script>
+
+<style>
+	.modal-overlay {
+		position: fixed;
+		top: 0;
+		left: 0;
+		right: 0;
+		bottom: 0;
+		background-color: rgba(43, 42, 41, 0.6);
+		align-items: center;
+		justify-content: center;
+		padding: 24px;
+		z-index: 999;
+	}
+
+	.modal-content {
+		width: 100%;
+		max-width: 440px;
+		background: linear-gradient(180deg, #FFFDF8 0%, #F8F4EB 100%);
+		border-radius: 28px;
+		padding: 44px 24px 24px 24px;
+		position: relative;
+		overflow: hidden;
+		border-width: 1px;
+		border-color: rgba(255, 255, 255, 0.72);
+		border-style: solid;
+		box-shadow: 0 28px 72px rgba(43, 42, 41, 0.2);
+	}
+
+	.modal-glow {
+		position: absolute;
+		border-radius: 50%;
+	}
+
+	.modal-glow-left {
+		top: -56px;
+		left: -42px;
+		width: 160px;
+		height: 160px;
+		background: rgba(92, 110, 88, 0.08);
+	}
+
+	.modal-glow-right {
+		top: 42px;
+		right: -48px;
+		width: 138px;
+		height: 138px;
+		background: rgba(214, 190, 151, 0.14);
+	}
+
+	.modal-scroll {
+		max-height: 520px;
+	}
+
+	.modal-header {
+		margin-bottom: 24px;
+		position: relative;
+		z-index: 1;
+	}
+
+	.modal-kicker {
+		font-size: 11px;
+		font-weight: 700;
+		color: #6A7C63;
+		letter-spacing: 2px;
+		margin-bottom: 8px;
+	}
+
+	.modal-title {
+		font-size: 26px;
+		font-weight: 700;
+		color: #2B2A29;
+		line-height: 34px;
+		margin-bottom: 8px;
+	}
+
+	.modal-desc {
+		font-size: 13px;
+		line-height: 21px;
+		color: #7C786D;
+	}
+
+	.close-btn {
+		position: absolute;
+		top: 14px;
+		right: 16px;
+		font-size: 28px;
+		color: #787673;
+		width: 36px;
+		height: 36px;
+		text-align: center;
+		line-height: 36px;
+		z-index: 10;
+		background: rgba(255, 255, 255, 0.56);
+		border-radius: 18px;
+	}
+
+	.auth-tabs {
+		flex-direction: row;
+		margin-bottom: 24px;
+		padding: 4px;
+		background: rgba(92, 110, 88, 0.08);
+		border-radius: 16px;
+	}
+
+	.tab {
+		flex: 1;
+		align-items: center;
+		padding-top: 12px;
+		padding-bottom: 12px;
+		border-radius: 12px;
+	}
+
+	.tab.active {
+		background: #FFFFFF;
+		box-shadow: 0 8px 18px rgba(47, 48, 36, 0.08);
+	}
+
+	.tab-text {
+		font-size: 16px;
+		color: #787673;
+		font-weight: 600;
+		text-align: center;
+	}
+
+	.tab-text-active {
+		color: #5C6E58;
+		font-weight: 700;
+	}
+
+	.auth-form {
+		flex-direction: column;
+	}
+
+	.form-title {
+		font-size: 24px;
+		color: #2B2A29;
+		text-align: left;
+		margin-bottom: 20px;
+		font-weight: 700;
+	}
+
+	.input-field-group {
+		position: relative;
+		margin-bottom: 16px;
+	}
+
+	.input-field {
+		width: 100%;
+		height: 54px;
+		padding-left: 48px;
+		padding-right: 16px;
+		border-width: 1px;
+		border-color: rgba(102, 110, 94, 0.14);
+		border-style: solid;
+		background-color: rgba(255, 255, 255, 0.86);
+		border-radius: 16px;
+		font-size: 16px;
+		color: #2B2A29;
+	}
+
+	.input-placeholder {
+		color: #A9A396;
+		font-size: 15px;
+	}
+
+	.input-field-password {
+		padding-right: 44px;
+	}
+
+	.input-field-code {
+		padding-right: 120px;
+	}
+
+	.input-icon {
+		position: absolute;
+		left: 16px;
+		top: 17px;
+		width: 18px;
+		height: 18px;
+		z-index: 2;
+	}
+
+	.icon-phone {
+		border-width: 2px;
+		border-color: #6C695F;
+		border-style: solid;
+		border-radius: 3px;
+		width: 12px;
+		height: 16px;
+		left: 18px;
+		top: 18px;
+	}
+
+	.icon-lock {
+		border-width: 2px;
+		border-color: #6C695F;
+		border-style: solid;
+		border-radius: 2px;
+		width: 14px;
+		height: 10px;
+		left: 17px;
+		top: 20px;
+	}
+
+	.icon-shield {
+		border-width: 2px;
+		border-color: #6C695F;
+		border-style: solid;
+		border-radius: 2px 2px 4px 4px;
+		width: 14px;
+		height: 14px;
+		left: 17px;
+		top: 18px;
+	}
+
+	.password-toggle {
+		position: absolute;
+		right: 14px;
+		top: 18px;
+		width: 20px;
+		height: 14px;
+		z-index: 2;
+	}
+
+	.icon-eye {
+		border-width: 2px;
+		border-color: #787673;
+		border-style: solid;
+		border-radius: 10px;
+		width: 18px;
+		height: 12px;
+	}
+
+	.code-group {
+		position: relative;
+	}
+
+	.get-code-btn {
+		position: absolute;
+		right: 6px;
+		top: 6px;
+		background: linear-gradient(135deg, #5C6E58 0%, #465945 100%);
+		border-width: 0;
+		color: #FFFFFF;
+		font-size: 13px;
+		font-weight: 600;
+		padding-left: 14px;
+		padding-right: 14px;
+		height: 42px;
+		line-height: 42px;
+		border-radius: 12px;
+	}
+
+	.get-code-btn-disabled {
+		background: #D6D1C7;
+		color: #8E887C;
+	}
+
+	.form-options {
+		flex-direction: row;
+		justify-content: space-between;
+		margin-bottom: 24px;
+	}
+
+	.link-text {
+		font-size: 14px;
+		color: #6C695F;
+		font-weight: 500;
+	}
+
+	.agreement-section {
+		flex-direction: row;
+		align-items: flex-start;
+		margin-bottom: 24px;
+		padding-left: 4px;
+		padding-right: 4px;
+	}
+
+	.checkmark {
+		width: 18px;
+		height: 18px;
+		border-radius: 6px;
+		background-color: #EEE9E0;
+		border-width: 1px;
+		border-color: #D9D1C4;
+		border-style: solid;
+		margin-right: 10px;
+		margin-top: 1px;
+		flex-shrink: 0;
+		align-items: center;
+		justify-content: center;
+	}
+
+	.checkmark.checked {
+		background-color: #5C6E58;
+		border-color: #5C6E58;
+	}
+
+	.check-icon {
+		color: #FFFFFF;
+		font-size: 12px;
+		font-weight: 700;
+		line-height: 18px;
+		text-align: center;
+	}
+
+	.agreement-text-wrap {
+		flex: 1;
+		flex-direction: row;
+		flex-wrap: wrap;
+		align-items: center;
+	}
+
+	.agreement-text {
+		font-size: 13px;
+		color: #787673;
+		line-height: 20px;
+	}
+
+	.agreement-link {
+		font-size: 13px;
+		color: #5C6E58;
+		font-weight: 500;
+		line-height: 20px;
+	}
+
+	.btn-primary {
+		width: 100%;
+		height: 52px;
+		line-height: 52px;
+		background: linear-gradient(135deg, #5C6E58 0%, #415440 100%);
+		color: #FFFFFF;
+		border-radius: 18px;
+		border-width: 0;
+		font-size: 16px;
+		font-weight: 700;
+		text-align: center;
+		box-shadow: 0 14px 28px rgba(54, 67, 51, 0.18);
+	}
+
+	.btn-primary-disabled {
+		opacity: 0.65;
+	}
+</style>

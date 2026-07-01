@@ -68,7 +68,7 @@
         <label>所在城市</label>
         <div class="input-group icon-input">
           <i class="fas fa-map-marker-alt input-icon"></i>
-          <input type="text" v-model="userForm.city" class="zen-input" placeholder="例如：杭州">
+          <input type="text" v-model="userForm.location" class="zen-input" placeholder="例如：杭州">
         </div>
       </div>
 
@@ -90,8 +90,7 @@
 import { reactive, ref, onMounted, computed } from 'vue';
 import { useUserStore } from '@/stores/user.js';
 import { showToast } from '@/utils/toast.js';
-import { updateUserProfile, uploadAvatar } from '@/api/profile.js';
-import { STORAGE_KEYS } from '@/config/constants';
+import { getCurrentUserProfile, updateUserProfile, uploadAvatar } from '@/api/profile.js';
 
 const emit = defineEmits(['switch-tab']);
 const userStore = useUserStore();
@@ -101,7 +100,7 @@ const defaultAvatar = '/src/assets/image/default-avatar.png';
 const userForm = reactive({
   name: '',
   phone: '',
-  city: '',
+  location: '',
   introduction: '',
   avatar: '',
   gender: 0,
@@ -120,6 +119,30 @@ const getConstellation = (dateStr) => {
   return s.substr(month * 2 - (day < arr[month - 1] ? 2 : 0), 2) + "座";
 };
 
+const applyProfile = (profile) => {
+  if (!profile) return;
+  userStore.setUserInfo(profile);
+  Object.assign(userForm, {
+    name: profile.name || '',
+    phone: profile.phone || '',
+    avatar: profile.avatar || '',
+    location: profile.location || '',
+    introduction: profile.introduction || '',
+    gender: profile.gender !== undefined && profile.gender !== null ? profile.gender : 0,
+    birthday: profile.birthday || ''
+  });
+};
+
+const syncProfileFromServer = async () => {
+  if (!userStore.isLoggedIn) return;
+  try {
+    const profile = await getCurrentUserProfile();
+    applyProfile(profile);
+  } catch (error) {
+    console.warn('Failed to sync latest profile', error);
+  }
+};
+
 const handleAvatarChange = async (e) => {
   const file = e.target.files[0];
   if (!file) return;
@@ -128,11 +151,10 @@ const handleAvatarChange = async (e) => {
   formData.append('file', file);
 
   try {
-    const res = await uploadAvatar(formData);
-    userForm.avatar = res;
-    // 同步更新 Store
-    userStore.userInfo.avatar = res;
-    localStorage.setItem(STORAGE_KEYS.USER_INFO, JSON.stringify(userStore.userInfo));
+    const avatar = await uploadAvatar(formData);
+    userForm.avatar = avatar;
+    userStore.setUserInfo({ ...userStore.userInfo, avatar });
+    await syncProfileFromServer();
     showToast('头像更新成功', 'success');
   } catch (error) {
     showToast('头像上传失败', 'error');
@@ -144,9 +166,16 @@ const updateProfile = async () => {
 
   try {
     isSubmitting.value = true;
-    await updateUserProfile(userForm);
-    userStore.setUserInfo({ ...userStore.userInfo, ...userForm });
-    localStorage.setItem(STORAGE_KEYS.USER_INFO, JSON.stringify(userStore.userInfo));
+    const payload = {
+      name: userForm.name,
+      introduction: userForm.introduction,
+      birthday: userForm.birthday || null,
+      gender: userForm.gender,
+      location: userForm.location
+    };
+    await updateUserProfile(payload);
+    userStore.setUserInfo({ ...userStore.userInfo, ...payload });
+    await syncProfileFromServer();
     showToast('个人资料已保存', 'success');
   } catch (error) {
     // handled by request interceptor
@@ -157,16 +186,9 @@ const updateProfile = async () => {
 
 onMounted(() => {
   if (userStore.userInfo) {
-    Object.assign(userForm, {
-      name: userStore.userInfo.name || '',
-      phone: userStore.userInfo.phone || '',
-      avatar: userStore.userInfo.avatar || '',
-      city: userStore.userInfo.city || '',
-      introduction: userStore.userInfo.introduction || '',
-      gender: userStore.userInfo.gender !== undefined ? userStore.userInfo.gender : 0,
-      birthday: userStore.userInfo.birthday || ''
-    });
+    applyProfile(userStore.userInfo);
   }
+  syncProfileFromServer();
 });
 </script>
 

@@ -1,0 +1,45 @@
+{
+    "name" : "leo",
+    "appid" : "__UNI__5245763",
+    "description" : "",
+    "versionName" : "1.0.1",
+    "versionCode" : "101",
+    "uni-app-x" : {},
+    "quickapp" : {},
+    "mp-weixin" : {
+        "appid" : "",
+        "setting" : {
+            "urlCheck" : false
+        },
+        "usingComponents" : true
+    },
+    "mp-alipay" : {
+        "usingComponents" : true
+    },
+    "mp-baidu" : {
+        "usingComponents" : true
+    },
+    "mp-toutiao" : {
+        "usingComponents" : true
+    },
+    "uniStatistics" : {
+        "enable" : false
+    },
+    "vueVersion" : "3",
+    "app" : {
+        "distribute" : {
+            "android" : {
+                "usesCleartextTraffic" : true,
+                "minSdkVersion" : 24
+            },
+            "icons" : {
+                "android" : {
+                    "hdpi" : "static/appicons/icon-hdpi.png",
+                    "xhdpi" : "static/appicons/icon-xhdpi.png",
+                    "xxhdpi" : "static/appicons/icon-xxhdpi.png",
+                    "xxxhdpi" : "static/appicons/icon-xxxhdpi.png"
+                }
+            }
+        }
+    }
+}

@@ -1,0 +1,1717 @@
+<template>
+	<view class="capture-page">
+		<view class="stage-nav" :style="navBarStyle">
+			<view class="stage-back" :style="navBackStyle" @click="goBack">
+				<text class="stage-back-icon">&lt;</text>
+			</view>
+			<text class="stage-title" :style="navTitleStyle">VIDEO ANALYZER</text>
+		</view>
+
+		<scroll-view class="stage-scroll" scroll-y="true" :show-scrollbar="false" :style="contentScrollStyle">
+			<view class="stage-shell">
+				<view class="stage-board">
+					<view class="stage-video-shell" :style="stageVideoShellStyle">
+						<video
+							id="dynamic-capture-preview-video"
+							class="stage-video"
+							:src="selectedVideoPath"
+							:controls="false"
+							:show-center-play-btn="false"
+							:show-play-btn="false"
+							:show-fullscreen-btn="true"
+							@timeupdate="handleVideoTimeUpdate"
+							@ended="handleVideoEnded"
+							object-fit="contain"
+						/>
+
+						<view v-if="selectedVideoPath.length == 0" class="stage-empty">
+							<text class="stage-empty-desc">{{ captureGuideText }}</text>
+						</view>
+
+						<view v-if="playbackHudVisible" class="pose-overlay">
+							<view
+								v-for="(segmentKey, segmentIndex) in visibleSegmentKeys"
+								:key="'segment-' + segmentIndex"
+								class="pose-segment"
+								:style="getSegmentStyle(segmentKey)"
+							></view>
+							<view
+								v-for="(pointName, pointIndex) in visiblePointNames"
+								:key="'point-' + pointIndex"
+								class="pose-point"
+								:style="getPointStyle(pointName)"
+							></view>
+						</view>
+
+						<view v-if="analyzing" class="stage-analysis-card">
+							<text class="stage-analysis-title">Aries 引擎解析视频中（0.5倍速）...</text>
+							<view class="stage-analysis-bar">
+								<view class="stage-analysis-fill"></view>
+							</view>
+						</view>
+					</view>
+
+					<view v-if="selectedVideoPath.length > 0" class="transport-card">
+						<view class="transport-play" @click="toggleVideoPlayback">
+							<text class="transport-play-icon">{{ videoPlaying ? '||' : '▶' }}</text>
+						</view>
+						<view class="transport-progress">
+							<view class="transport-track">
+								<view class="transport-track-fill" :style="playbackProgressFillStyle"></view>
+								<view class="transport-track-thumb" :style="playbackProgressThumbStyle"></view>
+							</view>
+						</view>
+						<text class="transport-time">{{ playbackPositionText }}</text>
+					</view>
+
+					<view class="action-row">
+						<view class="stage-action stage-action-primary" :class="analyzing ? 'stage-action-disabled' : ''" @click="chooseVideo">
+							<text class="stage-action-primary-text">{{ selectedVideoPath.length > 0 ? '重新选择视频' : '录制 / 选择视频' }}</text>
+						</view>
+						<view
+							v-if="!analysisSaved"
+							class="stage-action stage-action-ghost"
+							:class="selectedVideoPath.length == 0 || analyzing ? 'stage-action-disabled' : ''"
+							@click="analyzeSelectedVideo"
+						>
+							<text class="stage-action-ghost-text">{{ analyzing ? '分析中...' : '开始本机分析' }}</text>
+						</view>
+						<view v-if="analysisSaved" class="stage-action stage-action-ghost" @click="finishAndReturn">
+							<text class="stage-action-ghost-text">返回会话</text>
+						</view>
+						<view v-if="!nativeReady" class="stage-action stage-action-ghost" @click="saveMockCapture">
+							<text class="stage-action-ghost-text">使用调试数据</text>
+						</view>
+					</view>
+
+				</view>
+
+				<view v-if="analysisSaved" class="metric-section">
+					<view class="metric-section-head">
+						<view class="metric-section-head-main">
+							<text class="metric-section-kicker">POSE METRICS</text>
+							<text class="metric-section-title">同步指标面板</text>
+						</view>
+						<text class="metric-section-tip">{{ analysisSaved ? '指标条已放到视频下方，更适合手机竖屏。' : '先完成视频分析，再同步显示角度。' }}</text>
+					</view>
+
+					<view class="metric-grid">
+						<view class="metric-card">
+							<view class="metric-card-head">
+								<text class="metric-card-label">{{ getMetricCardTitle(0) }}</text>
+								<text class="metric-card-target">目标 {{ getMetricCardTarget(0) }}</text>
+							</view>
+							<view class="metric-card-row">
+								<text class="metric-row-label">实时</text>
+								<text class="metric-row-value">{{ getMetricCardCurrentValue(0) }}</text>
+							</view>
+							<view class="metric-card-row">
+								<text class="metric-row-label">极限</text>
+								<text class="metric-row-value">{{ getMetricCardExtremeValue(0) }}</text>
+							</view>
+						</view>
+						<view class="metric-card">
+							<view class="metric-card-head">
+								<text class="metric-card-label">{{ getMetricCardTitle(1) }}</text>
+								<text class="metric-card-target">目标 {{ getMetricCardTarget(1) }}</text>
+							</view>
+							<view class="metric-card-row">
+								<text class="metric-row-label">实时</text>
+								<text class="metric-row-value">{{ getMetricCardCurrentValue(1) }}</text>
+							</view>
+							<view class="metric-card-row">
+								<text class="metric-row-label">极限</text>
+								<text class="metric-row-value">{{ getMetricCardExtremeValue(1) }}</text>
+							</view>
+						</view>
+						<view class="metric-card">
+							<view class="metric-card-head">
+								<text class="metric-card-label">{{ getMetricCardTitle(2) }}</text>
+								<text class="metric-card-target">目标 {{ getMetricCardTarget(2) }}</text>
+							</view>
+							<view class="metric-card-row">
+								<text class="metric-row-label">实时</text>
+								<text class="metric-row-value">{{ getMetricCardCurrentValue(2) }}</text>
+							</view>
+							<view class="metric-card-row">
+								<text class="metric-row-label">极限</text>
+								<text class="metric-row-value">{{ getMetricCardExtremeValue(2) }}</text>
+							</view>
+						</view>
+						<view class="metric-card">
+							<view class="metric-card-head">
+								<text class="metric-card-label">{{ getMetricCardTitle(3) }}</text>
+								<text class="metric-card-target">目标 {{ getMetricCardTarget(3) }}</text>
+							</view>
+							<view class="metric-card-row">
+								<text class="metric-row-label">实时</text>
+								<text class="metric-row-value">{{ getMetricCardCurrentValue(3) }}</text>
+							</view>
+							<view class="metric-card-row">
+								<text class="metric-row-label">极限</text>
+								<text class="metric-row-value">{{ getMetricCardExtremeValue(3) }}</text>
+							</view>
+						</view>
+						<view v-if="viewType == 'side'" class="metric-card">
+							<view class="metric-card-head">
+								<text class="metric-card-label">{{ getMetricCardTitle(4) }}</text>
+								<text class="metric-card-target">目标 {{ getMetricCardTarget(4) }}</text>
+							</view>
+							<view class="metric-card-row">
+								<text class="metric-row-label">实时</text>
+								<text class="metric-row-value">{{ getMetricCardCurrentValue(4) }}</text>
+							</view>
+							<view class="metric-card-row">
+								<text class="metric-row-label">极限</text>
+								<text class="metric-row-value">{{ getMetricCardExtremeValue(4) }}</text>
+							</view>
+						</view>
+						<view v-if="viewType == 'side'" class="metric-card">
+							<view class="metric-card-head">
+								<text class="metric-card-label">{{ getMetricCardTitle(5) }}</text>
+								<text class="metric-card-target">目标 {{ getMetricCardTarget(5) }}</text>
+							</view>
+							<view class="metric-card-row">
+								<text class="metric-row-label">实时</text>
+								<text class="metric-row-value">{{ getMetricCardCurrentValue(5) }}</text>
+							</view>
+							<view class="metric-card-row">
+								<text class="metric-row-label">极限</text>
+								<text class="metric-row-value">{{ getMetricCardExtremeValue(5) }}</text>
+							</view>
+						</view>
+					</view>
+
+					<text class="metric-footer-note">{{ analysisStatusText }}</text>
+					<text class="metric-footer-note metric-footer-note-muted">{{ providerStatus }}</text>
+				</view>
+			</view>
+		</scroll-view>
+	</view>
+</template>
+
+<script setup lang="uts">
+	import { computed, ref } from 'vue'
+	import { initDynamicSession, saveDynamicCapture } from '@/store/dynamicSession.uts'
+	import {
+		finalizeDynamicCapture,
+		getDynamicViewTitle,
+		getNativePoseStatusText,
+		isNativePosePluginReady
+	} from '@/utils/dynamicNativeBridge.uts'
+	import { getAppLayoutMetrics } from '@/utils/layout.uts'
+
+	const layout = getAppLayoutMetrics()
+	const navContentCenter = layout.statusBarHeight + layout.navBarContentHeight / 2
+	const navBarStyle = {
+		height: layout.navBarHeight + 'px',
+		paddingTop: layout.statusBarHeight + 'px',
+		boxSizing: 'border-box'
+	}
+	const navBackStyle = {
+		top: navContentCenter + 'px'
+	}
+	const navTitleStyle = {
+		top: navContentCenter + 'px'
+	}
+	const contentScrollStyle = {
+		top: layout.navBarHeight + 'px',
+		paddingBottom: layout.bottomSafeArea + 28 + 'px'
+	}
+
+	const viewType = ref('side')
+	const bikeId = ref(0)
+	const nativeReady = isNativePosePluginReady()
+	const providerStatus = getNativePoseStatusText()
+	const selectedVideoPath = ref('')
+	const selectedVideoName = ref('')
+	const selectedVideoDuration = ref(0)
+	const selectedVideoSize = ref(0)
+	const selectedVideoWidth = ref(0)
+	const selectedVideoHeight = ref(0)
+	const analyzing = ref(false)
+	const analysisSaved = ref(false)
+	const latestCaptureResult = ref<any | null>(null)
+	const playbackMs = ref(0)
+	const playbackDurationMs = ref(0)
+	const videoPlaying = ref(false)
+	const videoPlaybackRate = 0.5
+	const windowInfo = uni.getWindowInfo()
+	const stageWidthPx = Math.max(220, windowInfo.windowWidth - layout.pageHorizontalPadding * 2 - 24)
+	let latestCaptureObjectCache : UTSJSONObject | null = null
+	let latestSummaryCache : UTSJSONObject | null = null
+	let latestSampleMetaCache : UTSJSONObject | null = null
+	let latestFrameDataCache : any[] = []
+	let activeFrameCacheMs = -1
+	let activeFrameCache : UTSJSONObject | null = null
+	let activeMetricsCache : UTSJSONObject | null = null
+	let activePointsCache : UTSJSONObject | null = null
+	let autoPlaybackTimer = 0
+
+	const sidePointNames : string[] = ['EAR', 'SHOULDER', 'ELBOW', 'WRIST', 'HIP', 'KNEE', 'ANKLE', 'HEEL', 'TOE']
+	const torsoPointNames : string[] = ['L_SHOULDER', 'R_SHOULDER', 'L_HIP', 'R_HIP', 'L_KNEE', 'R_KNEE', 'L_ANKLE', 'R_ANKLE']
+	const sideSegmentKeys : string[] = [
+		'EAR:SHOULDER',
+		'SHOULDER:ELBOW',
+		'ELBOW:WRIST',
+		'SHOULDER:HIP',
+		'HIP:KNEE',
+		'KNEE:ANKLE',
+		'ANKLE:HEEL',
+		'HEEL:TOE'
+	]
+	const torsoSegmentKeys : string[] = [
+		'L_SHOULDER:R_SHOULDER',
+		'L_SHOULDER:L_HIP',
+		'R_SHOULDER:R_HIP',
+		'L_HIP:R_HIP',
+		'L_HIP:L_KNEE',
+		'R_HIP:R_KNEE',
+		'L_KNEE:L_ANKLE',
+		'R_KNEE:R_ANKLE'
+	]
+
+	const captureGuideText = computed(() : string => {
+		if (viewType.value == 'side') {
+			return '侧面视角用于计算膝角、髋角、躯干俯角、踝角代理和 KOPS 代理。镜头尽量与车身正侧平齐。'
+		}
+		if (viewType.value == 'front') {
+			return '正面视角用于观察膝轨迹、髋肩倾斜和肘部外张。镜头与车把中心对齐，避免斜拍。'
+		}
+		return '背面视角用于观察骨盆横摆、脊柱侧倾、肩部高低和左右髋下沉。镜头尽量置于车后正中。'
+	})
+
+	const selectedDurationText = computed(() : string => {
+		if (selectedVideoDuration.value <= 0) {
+			return '--'
+		}
+		return `${selectedVideoDuration.value}s`
+	})
+
+	const selectedResolutionText = computed(() : string => {
+		if (selectedVideoWidth.value <= 0 || selectedVideoHeight.value <= 0) {
+			return '--'
+		}
+		return `${selectedVideoWidth.value} x ${selectedVideoHeight.value}`
+	})
+
+	const selectedFileSizeText = computed(() : string => {
+		if (selectedVideoSize.value <= 0) {
+			return '--'
+		}
+		const size = selectedVideoSize.value
+		if (size >= 1024 * 1024) {
+			return `${(size / 1024 / 1024).toFixed(1)} MB`
+		}
+		return `${Math.round(size / 1024)} KB`
+	})
+
+	const analysisStatusText = computed(() : string => {
+		if (!analysisSaved.value || latestCaptureResult.value == null) {
+			return '尚未生成分析结果'
+		}
+		return '本次视频已完成姿态解析，结果已写入当前会话草稿。后续可以继续补齐其他视角，再统一提交。'
+	})
+
+	function getLatestSummaryObject() : UTSJSONObject | null {
+		if (!analysisSaved.value || latestCaptureResult.value == null) {
+			return null
+		}
+		return latestSummaryCache
+	}
+
+	function createAnyArray() : any[] {
+		const items : any[] = []
+		return items
+	}
+
+	function toJsonArray(value : any | null) : any[] {
+		if (value == null) {
+			return createAnyArray()
+		}
+		const jsonText = JSON.stringify(value)
+		const parsed = JSON.parse(jsonText)
+		return parsed != null ? parsed as any[] : createAnyArray()
+	}
+
+	function getLatestCaptureObject() : UTSJSONObject | null {
+		if (!analysisSaved.value || latestCaptureResult.value == null) {
+			return null
+		}
+		return latestCaptureObjectCache
+	}
+
+	function getLatestSampleMetaObject() : UTSJSONObject | null {
+		if (!analysisSaved.value || latestCaptureResult.value == null) {
+			return null
+		}
+		return latestSampleMetaCache
+	}
+
+	function getLatestFrameDataArray() : any[] {
+		if (!analysisSaved.value || latestCaptureResult.value == null) {
+			return createAnyArray()
+		}
+		return latestFrameDataCache
+	}
+
+	function resolveCaptureFps() : number {
+		const sampleMeta = getLatestSampleMetaObject()
+		const fps = getJsonNumber(sampleMeta, 'fps', 12)
+		return fps > 0 ? fps : 12
+	}
+
+	function resolveFrameTimestampMs(frame : any, index : number) : number {
+		const frameObject = toJsonObject(frame)
+		const directTimestamp = getJsonNumber(frameObject, 'ts', -1)
+		if (directTimestamp >= 0) {
+			return Math.round(directTimestamp)
+		}
+		const timeSec = getJsonNumber(frameObject, 'timeSec', -1)
+		if (timeSec >= 0) {
+			return Math.round(timeSec * 1000)
+		}
+		const frameIndex = getJsonNumber(frameObject, 'frameIndex', -1)
+		if (frameIndex >= 0) {
+			return Math.round(frameIndex * 1000 / resolveCaptureFps())
+		}
+		const fallbackIndex = getJsonNumber(frameObject, 'fIdx', index)
+		return Math.round(fallbackIndex * 1000 / resolveCaptureFps())
+	}
+
+	function resolveFrameSeriesDurationMs() : number {
+		const frames = getLatestFrameDataArray()
+		if (frames.length == 0) {
+			return 0
+		}
+		return resolveFrameTimestampMs(frames[frames.length - 1], frames.length - 1)
+	}
+
+	function resolvePlaybackDurationMs() : number {
+		if (playbackDurationMs.value > 0) {
+			return playbackDurationMs.value
+		}
+		if (selectedVideoDuration.value > 0) {
+			return selectedVideoDuration.value * 1000
+		}
+		return resolveFrameSeriesDurationMs()
+	}
+
+	function resolveActiveFrameIndex() : number {
+		const frames = getLatestFrameDataArray()
+		if (frames.length == 0) {
+			return -1
+		}
+		const targetMs = playbackMs.value
+		let bestIndex = 0
+		let bestDistance = Math.abs(resolveFrameTimestampMs(frames[0], 0) - targetMs)
+		for (let i = 1; i < frames.length; i++) {
+			const distance = Math.abs(resolveFrameTimestampMs(frames[i], i) - targetMs)
+			if (distance < bestDistance) {
+				bestDistance = distance
+				bestIndex = i
+			}
+		}
+		return bestIndex
+	}
+
+	function syncActiveFrameCache() {
+		if (!analysisSaved.value) {
+			activeFrameCacheMs = -1
+			activeFrameCache = null
+			activeMetricsCache = null
+			activePointsCache = null
+			return
+		}
+		const targetMs = playbackMs.value
+		if (activeFrameCacheMs == targetMs) {
+			return
+		}
+		activeFrameCacheMs = targetMs
+		activeFrameCache = null
+		activeMetricsCache = null
+		activePointsCache = null
+		const frames = getLatestFrameDataArray()
+		const activeIndex = resolveActiveFrameIndex()
+		if (activeIndex < 0 || activeIndex >= frames.length) {
+			return
+		}
+		const frameValue = frames[activeIndex]
+		if (frameValue == null) {
+			return
+		}
+		const frameText = JSON.stringify(frameValue)
+		const frameParsed = JSON.parse(frameText)
+		if (frameParsed == null) {
+			return
+		}
+		const frameObject = frameParsed as UTSJSONObject
+		activeFrameCache = frameObject
+
+		const metricsValue = frameObject['metrics']
+		if (metricsValue != null) {
+			const metricsText = JSON.stringify(metricsValue)
+			const metricsParsed = JSON.parse(metricsText)
+			activeMetricsCache = metricsParsed != null ? metricsParsed as UTSJSONObject : null
+		}
+
+		const pointsValue = frameObject['pts']
+		if (pointsValue != null) {
+			const pointsText = JSON.stringify(pointsValue)
+			const pointsParsed = JSON.parse(pointsText)
+			activePointsCache = pointsParsed != null ? pointsParsed as UTSJSONObject : null
+		}
+	}
+
+	function getActiveFrameObject() : UTSJSONObject | null {
+		syncActiveFrameCache()
+		return activeFrameCache
+	}
+
+	function getActiveMetricsObject() : UTSJSONObject | null {
+		syncActiveFrameCache()
+		return activeMetricsCache
+	}
+
+	function formatDurationMs(valueMs : number) : string {
+		if (valueMs <= 0) {
+			return '00:00'
+		}
+		const totalSeconds = Math.floor(valueMs / 1000)
+		const minutes = Math.floor(totalSeconds / 60)
+		const seconds = totalSeconds % 60
+		const minutesText = minutes < 10 ? `0${minutes}` : `${minutes}`
+		const secondsText = seconds < 10 ? `0${seconds}` : `${seconds}`
+		return `${minutesText}:${secondsText}`
+	}
+
+	function getMetricText(source : UTSJSONObject | null, key : string, unit : string) : string {
+		if (source == null) {
+			return '--'
+		}
+		const value = getJsonValue(source, key)
+		if (value == null) {
+			return '--'
+		}
+		return `${value}${unit}`
+	}
+
+	function formatMetricNumber(value : number, unit : string) : string {
+		const rounded = Math.round(value * 10.0) / 10.0
+		return `${rounded}${unit}`
+	}
+
+	function getFrameMetricExtremeText(metricKey : string, unit : string, useAbsolute : boolean = false) : string {
+		const frames = getLatestFrameDataArray()
+		if (frames.length == 0) {
+			return '--'
+		}
+		let hasValue = false
+		let extreme = 0.0
+		for (let i = 0; i < frames.length; i++) {
+			const frameObject = toJsonObject(frames[i])
+			const metrics = toJsonObject(getJsonValue(frameObject, 'metrics'))
+			const currentValue = getJsonValue(metrics, metricKey)
+			if (currentValue == null) {
+				continue
+			}
+			let metricValue = toSafeNumber(currentValue, 0)
+			if (useAbsolute) {
+				metricValue = Math.abs(metricValue)
+			}
+			if (!hasValue || metricValue > extreme) {
+				extreme = metricValue
+				hasValue = true
+			}
+		}
+		return hasValue ? formatMetricNumber(extreme, unit) : '--'
+	}
+
+	function getSummaryMetricValue(key : string, unit : string) : string {
+		const summary = getLatestSummaryObject()
+		if (summary == null) {
+			return '--'
+		}
+		const value = getJsonValue(summary, key)
+		if (value == null) {
+			return '--'
+		}
+		return `${value}${unit}`
+	}
+
+	function resolveVideoAspectRatio() : number {
+		if (selectedVideoWidth.value > 0 && selectedVideoHeight.value > 0) {
+			return selectedVideoWidth.value / selectedVideoHeight.value
+		}
+		return 16.0 / 9.0
+	}
+
+	function resolveStageVideoHeightPx() : number {
+		const aspectRatio = resolveVideoAspectRatio()
+		const isPortraitVideo = aspectRatio < 0.82
+		let height = stageWidthPx / aspectRatio
+		let minHeight = 220
+		let maxHeight = 360
+		if (isPortraitVideo) {
+			minHeight = 360
+			maxHeight = Math.min(560, Math.round(windowInfo.windowHeight * 0.6))
+		} else if (aspectRatio < 1.15) {
+			minHeight = 280
+			maxHeight = 420
+		}
+		if (height < minHeight) {
+			height = minHeight
+		}
+		if (height > maxHeight) {
+			height = maxHeight
+		}
+		return Math.round(height)
+	}
+
+	function resolveRenderedVideoRect() : UTSJSONObject {
+		const shellWidth = stageWidthPx
+		const shellHeight = resolveStageVideoHeightPx()
+		const videoAspect = resolveVideoAspectRatio()
+		const shellAspect = shellWidth / shellHeight
+
+		let rectWidth = shellWidth
+		let rectHeight = shellHeight
+		let offsetLeft = 0.0
+		let offsetTop = 0.0
+
+		if (videoAspect > shellAspect) {
+			rectWidth = shellWidth
+			rectHeight = shellWidth / videoAspect
+			offsetTop = (shellHeight - rectHeight) / 2.0
+		} else {
+			rectHeight = shellHeight
+			rectWidth = shellHeight * videoAspect
+			offsetLeft = (shellWidth - rectWidth) / 2.0
+		}
+
+		return {
+			left: offsetLeft,
+			top: offsetTop,
+			width: rectWidth,
+			height: rectHeight
+		} as UTSJSONObject
+	}
+
+	function getActivePointsObject() : UTSJSONObject | null {
+		syncActiveFrameCache()
+		return activePointsCache
+	}
+
+	function getNamedPoint(pointName : string) : UTSJSONObject | null {
+		const points = getActivePointsObject()
+		if (points == null) {
+			return null
+		}
+		const pointValue = getJsonValue(points, pointName)
+		return toJsonObject(pointValue)
+	}
+
+	function hasNamedPoint(pointName : string) : boolean {
+		const point = getNamedPoint(pointName)
+		if (point == null) {
+			return false
+		}
+		const xValue = getJsonValue(point, 'x')
+		const yValue = getJsonValue(point, 'y')
+		return xValue != null && yValue != null
+	}
+
+	function resolvePointPosition(pointName : string) : UTSJSONObject | null {
+		const point = getNamedPoint(pointName)
+		if (point == null) {
+			return null
+		}
+		const rect = resolveRenderedVideoRect()
+		const left = getJsonNumber(rect, 'left', 0)
+		const top = getJsonNumber(rect, 'top', 0)
+		const width = getJsonNumber(rect, 'width', stageWidthPx)
+		const height = getJsonNumber(rect, 'height', resolveStageVideoHeightPx())
+		const x = getJsonNumber(point, 'x', -1)
+		const y = getJsonNumber(point, 'y', -1)
+		if (x < 0 || y < 0) {
+			return null
+		}
+		return {
+			x: left + x * width,
+			y: top + y * height
+		} as UTSJSONObject
+	}
+
+	function getPointStyle(pointName : string) : any {
+		const pointPosition = resolvePointPosition(pointName)
+		if (pointPosition == null) {
+			return {
+				left: '-1000px',
+				top: '-1000px'
+			}
+		}
+		return {
+			left: `${getJsonNumber(pointPosition, 'x', 0)}px`,
+			top: `${getJsonNumber(pointPosition, 'y', 0)}px`
+		}
+	}
+
+	function parseSegmentStart(segmentKey : string) : string {
+		const separatorIndex = segmentKey.indexOf(':')
+		return separatorIndex >= 0 ? segmentKey.substring(0, separatorIndex) : segmentKey
+	}
+
+	function parseSegmentEnd(segmentKey : string) : string {
+		const separatorIndex = segmentKey.indexOf(':')
+		return separatorIndex >= 0 ? segmentKey.substring(separatorIndex + 1) : segmentKey
+	}
+
+	function hasSegment(segmentKey : string) : boolean {
+		return hasNamedPoint(parseSegmentStart(segmentKey)) && hasNamedPoint(parseSegmentEnd(segmentKey))
+	}
+
+	function getSegmentStyle(segmentKey : string) : any {
+		const startPosition = resolvePointPosition(parseSegmentStart(segmentKey))
+		const endPosition = resolvePointPosition(parseSegmentEnd(segmentKey))
+		if (startPosition == null || endPosition == null) {
+			return {
+				left: '-1000px',
+				top: '-1000px',
+				width: '0px'
+			}
+		}
+		const startX = getJsonNumber(startPosition, 'x', 0)
+		const startY = getJsonNumber(startPosition, 'y', 0)
+		const endX = getJsonNumber(endPosition, 'x', 0)
+		const endY = getJsonNumber(endPosition, 'y', 0)
+		const dx = endX - startX
+		const dy = endY - startY
+		const length = Math.sqrt(dx * dx + dy * dy)
+		const midX = (startX + endX) / 2.0
+		const midY = (startY + endY) / 2.0
+		const angle = Math.atan2(dy, dx) * 180.0 / Math.PI
+
+		return {
+			left: `${midX - length / 2.0}px`,
+			top: `${midY - 2}px`,
+			width: `${length}px`,
+			transform: `rotate(${angle}deg)`
+		}
+	}
+
+	const analysisMetricOneLabel = computed(() : string => {
+		if (viewType.value == 'side') return '膝角'
+		if (viewType.value == 'front') return '膝轨迹'
+		return '骨盆横摆'
+	})
+
+	const analysisMetricTwoLabel = computed(() : string => {
+		if (viewType.value == 'side') return '髋角'
+		if (viewType.value == 'front') return '身体侧倾'
+		return '脊柱侧偏'
+	})
+
+	const analysisMetricThreeLabel = computed(() : string => {
+		if (viewType.value == 'side') return '躯干角'
+		if (viewType.value == 'front') return '肘外张'
+		return '高低肩'
+	})
+
+	const analysisMetricOneValue = computed(() : string => {
+		const summary = getLatestSummaryObject()
+		if (summary == null) {
+			return ''
+		}
+		if (viewType.value == 'side') return `${getJsonText(summary, 'maxKnee', '--')}°`
+		if (viewType.value == 'front') return `${getJsonText(summary, 'maxWobble', '--')}%`
+		return `${getJsonText(summary, 'maxPelvisSway', '--')}%`
+	})
+
+	const analysisMetricTwoValue = computed(() : string => {
+		const summary = getLatestSummaryObject()
+		if (summary == null) {
+			return ''
+		}
+		if (viewType.value == 'side') return `${getJsonText(summary, 'minHip', '--')}°`
+		if (viewType.value == 'front') return `${getJsonText(summary, 'maxTilt', '--')}°`
+		return `${getJsonText(summary, 'maxSpineTilt', '--')}°`
+	})
+
+	const analysisMetricThreeValue = computed(() : string => {
+		const summary = getLatestSummaryObject()
+		if (summary == null) {
+			return ''
+		}
+		if (viewType.value == 'side') return `${getJsonText(summary, 'avgTorso', '--')}°`
+		if (viewType.value == 'front') return `${getJsonText(summary, 'maxElbowFlare', '--')}%`
+		return `${getJsonText(summary, 'maxShoulderTilt', '--')}°`
+	})
+
+	const playbackHudVisible = computed(() : boolean => {
+		return analysisSaved.value && selectedVideoPath.value.length > 0 && getLatestFrameDataArray().length > 0
+	})
+
+	const playbackPositionText = computed(() : string => {
+		return `${formatDurationMs(playbackMs.value)} / ${formatDurationMs(resolvePlaybackDurationMs())}`
+	})
+
+	const realtimeMetricOneLabel = computed(() : string => {
+		if (viewType.value == 'side') return '实时膝角'
+		if (viewType.value == 'front') return '左膝轨迹'
+		return '骨盆横摆'
+	})
+
+	const realtimeMetricTwoLabel = computed(() : string => {
+		if (viewType.value == 'side') return '实时髋角'
+		if (viewType.value == 'front') return '右膝轨迹'
+		return '脊柱侧偏'
+	})
+
+	const realtimeMetricThreeLabel = computed(() : string => {
+		if (viewType.value == 'side') return '实时躯干角'
+		if (viewType.value == 'front') return '髋侧倾'
+		return '左髋下沉'
+	})
+
+	const realtimeMetricFourLabel = computed(() : string => {
+		if (viewType.value == 'side') return '实时踝角'
+		if (viewType.value == 'front') return '肩侧倾'
+		return '右髋下沉'
+	})
+
+	const realtimeMetricOneValue = computed(() : string => {
+		const metrics = getActiveMetricsObject()
+		if (metrics == null) {
+			return ''
+		}
+		if (viewType.value == 'side') return getMetricText(metrics, 'kneeAngle', '°')
+		if (viewType.value == 'front') return getMetricText(metrics, 'leftKneeWobble', '%')
+		return getMetricText(metrics, 'pelvisSway', '%')
+	})
+
+	const realtimeMetricTwoValue = computed(() : string => {
+		const metrics = getActiveMetricsObject()
+		if (metrics == null) {
+			return ''
+		}
+		if (viewType.value == 'side') return getMetricText(metrics, 'hipAngle', '°')
+		if (viewType.value == 'front') return getMetricText(metrics, 'rightKneeWobble', '%')
+		return getMetricText(metrics, 'spineTilt', '°')
+	})
+
+	const realtimeMetricThreeValue = computed(() : string => {
+		const metrics = getActiveMetricsObject()
+		if (metrics == null) {
+			return ''
+		}
+		if (viewType.value == 'side') return getMetricText(metrics, 'torsoAngle', '°')
+		if (viewType.value == 'front') return getMetricText(metrics, 'hipTilt', '°')
+		return getMetricText(metrics, 'leftHipDrop', '%')
+	})
+
+	const realtimeMetricFourValue = computed(() : string => {
+		const metrics = getActiveMetricsObject()
+		if (metrics == null) {
+			return ''
+		}
+		if (viewType.value == 'side') return getMetricText(metrics, 'ankleAngle', '°')
+		if (viewType.value == 'front') return getMetricText(metrics, 'shoulderTilt', '°')
+		return getMetricText(metrics, 'rightHipDrop', '%')
+	})
+
+	function resolveMetricTarget(metricKey : string) : string {
+		if (viewType.value == 'side') {
+			if (metricKey == 'knee') return '140°-150°'
+			if (metricKey == 'hip') return '45°-55°'
+			if (metricKey == 'torso') return '40°-50°'
+			if (metricKey == 'reach') return '85°-95°'
+			if (metricKey == 'ankle') return '10°-25°'
+			if (metricKey == 'kops') return '<10%'
+		}
+		if (viewType.value == 'front') {
+			if (metricKey == 'leftKnee') return '0%-10%'
+			if (metricKey == 'rightKnee') return '0%-10%'
+			if (metricKey == 'hipTilt') return '0°-3°'
+			if (metricKey == 'shoulderTilt') return '0°-3°'
+		}
+		if (metricKey == 'pelvisSway') return '0%-8%'
+		if (metricKey == 'spineTilt') return '0°-4°'
+		if (metricKey == 'leftHipDrop') return '0%-6%'
+		if (metricKey == 'rightHipDrop') return '0%-6%'
+		return '--'
+	}
+
+	function getMetricCardTitle(index : number) : string {
+		if (viewType.value == 'side') {
+			if (index == 0) return '膝角 (伸展度)'
+			if (index == 1) return '髋角 (核心)'
+			if (index == 2) return '躯干前角 (Torso Pitch)'
+			if (index == 3) return '伸展角度 (Reach)'
+			if (index == 4) return '下死点跖屈代理 (Ankling / BDC)'
+			return '膝前后偏移代理 (KOPS Proxy)'
+		}
+		if (viewType.value == 'front') {
+			if (index == 0) return '左膝轨迹'
+			if (index == 1) return '右膝轨迹'
+			if (index == 2) return '髋侧倾'
+			return '肩侧倾'
+		}
+		if (index == 0) return '骨盆横摆'
+		if (index == 1) return '脊柱侧偏'
+		if (index == 2) return '左髋下沉'
+		return '右髋下沉'
+	}
+
+	function getMetricCardTarget(index : number) : string {
+		if (viewType.value == 'side') {
+			if (index == 0) return resolveMetricTarget('knee')
+			if (index == 1) return resolveMetricTarget('hip')
+			if (index == 2) return resolveMetricTarget('torso')
+			if (index == 3) return resolveMetricTarget('reach')
+			if (index == 4) return resolveMetricTarget('ankle')
+			return resolveMetricTarget('kops')
+		}
+		if (viewType.value == 'front') {
+			if (index == 0) return resolveMetricTarget('leftKnee')
+			if (index == 1) return resolveMetricTarget('rightKnee')
+			if (index == 2) return resolveMetricTarget('hipTilt')
+			return resolveMetricTarget('shoulderTilt')
+		}
+		if (index == 0) return resolveMetricTarget('pelvisSway')
+		if (index == 1) return resolveMetricTarget('spineTilt')
+		if (index == 2) return resolveMetricTarget('leftHipDrop')
+		return resolveMetricTarget('rightHipDrop')
+	}
+
+	function getMetricCardCurrentValue(index : number) : string {
+		if (viewType.value == 'side') {
+			const metrics = getActiveMetricsObject()
+			if (metrics == null) {
+				return '--'
+			}
+			if (index == 0) return getMetricText(metrics, 'kneeAngle', '°')
+			if (index == 1) return getMetricText(metrics, 'hipAngle', '°')
+			if (index == 2) return getMetricText(metrics, 'torsoAngle', '°')
+			if (index == 3) return getMetricText(metrics, 'reachAngle', '°')
+			if (index == 4) return getMetricText(metrics, 'ankleAtBdc', '°')
+			return getMetricText(metrics, 'kopsOffset', '%')
+		}
+		if (index == 0) {
+			return realtimeMetricOneValue.value.length > 0 ? realtimeMetricOneValue.value : '--'
+		}
+		if (index == 1) {
+			return realtimeMetricTwoValue.value.length > 0 ? realtimeMetricTwoValue.value : '--'
+		}
+		if (index == 2) {
+			return realtimeMetricThreeValue.value.length > 0 ? realtimeMetricThreeValue.value : '--'
+		}
+		return realtimeMetricFourValue.value.length > 0 ? realtimeMetricFourValue.value : '--'
+	}
+
+	function getMetricCardExtremeValue(index : number) : string {
+		if (!analysisSaved.value) {
+			return '--'
+		}
+		if (viewType.value == 'side') {
+			if (index == 0) return analysisMetricOneValue.value.length > 0 ? analysisMetricOneValue.value : '--'
+			if (index == 1) return analysisMetricTwoValue.value.length > 0 ? analysisMetricTwoValue.value : '--'
+			if (index == 2) return analysisMetricThreeValue.value.length > 0 ? analysisMetricThreeValue.value : '--'
+			if (index == 3) return getFrameMetricExtremeText('reachAngle', '°')
+			if (index == 4) return getSummaryMetricValue('ankleAtBdc', '°')
+			return getSummaryMetricValue('kopsOffset', '%')
+		}
+		if (viewType.value == 'front') {
+			if (index == 0) return getSummaryMetricValue('maxWobble_L', '%')
+			if (index == 1) return getSummaryMetricValue('maxWobble_R', '%')
+			if (index == 2) return getSummaryMetricValue('maxHipTilt', '°')
+			return getSummaryMetricValue('maxShoulderTilt', '°')
+		}
+		if (index == 0) return getSummaryMetricValue('maxPelvisSway', '%')
+		if (index == 1) return getSummaryMetricValue('maxSpineTilt', '°')
+		if (index == 2) return getSummaryMetricValue('maxHipDrop_L', '%')
+		return getSummaryMetricValue('maxHipDrop_R', '%')
+	}
+
+	const stageVideoShellStyle = computed(() : any => {
+		return {
+			height: `${resolveStageVideoHeightPx()}px`
+		}
+	})
+
+	const playbackProgressPercent = computed(() : number => {
+		const durationMs = resolvePlaybackDurationMs()
+		if (durationMs <= 0) {
+			return 0
+		}
+		let percent = playbackMs.value * 100.0 / durationMs
+		if (percent < 0) {
+			percent = 0
+		}
+		if (percent > 100) {
+			percent = 100
+		}
+		return percent
+	})
+
+	const playbackProgressFillStyle = computed(() : any => {
+		return {
+			width: `${playbackProgressPercent.value}%`
+		}
+	})
+
+	const playbackProgressThumbStyle = computed(() : any => {
+		return {
+			left: `${playbackProgressPercent.value}%`
+		}
+	})
+
+	const visiblePointNames = computed(() : string[] => {
+		if (viewType.value == 'side') {
+			return sidePointNames
+		}
+		return torsoPointNames
+	})
+
+	const visibleSegmentKeys = computed(() : string[] => {
+		if (viewType.value == 'side') {
+			return sideSegmentKeys
+		}
+		return torsoSegmentKeys
+	})
+
+	function resetActiveFrameCache() {
+		activeFrameCacheMs = -1
+		activeFrameCache = null
+		activeMetricsCache = null
+		activePointsCache = null
+	}
+
+	function clearAutoPlaybackTimer() {
+		if (autoPlaybackTimer > 0) {
+			clearTimeout(autoPlaybackTimer)
+			autoPlaybackTimer = 0
+		}
+	}
+
+	function clearCaptureCache() {
+		latestCaptureObjectCache = null
+		latestSummaryCache = null
+		latestSampleMetaCache = null
+		latestFrameDataCache = createAnyArray()
+		resetActiveFrameCache()
+	}
+
+	function updateCaptureCache(result : any | null) {
+		if (result == null) {
+			clearCaptureCache()
+			return
+		}
+		const resultObject = toJsonObject(result)
+		latestCaptureObjectCache = resultObject
+		if (resultObject == null) {
+			clearCaptureCache()
+			return
+		}
+		latestSummaryCache = toJsonObject(getJsonValue(resultObject, 'summary'))
+		latestSampleMetaCache = toJsonObject(getJsonValue(resultObject, 'sampleMeta'))
+		latestFrameDataCache = toJsonArray(getJsonValue(resultObject, 'frameData'))
+		resetActiveFrameCache()
+	}
+
+	function stopSlowPlayback() {
+		clearAutoPlaybackTimer()
+		videoPlaying.value = false
+		try {
+			const videoContext = uni.createVideoContext('dynamic-capture-preview-video')
+			if (videoContext != null) {
+				videoContext.pause()
+			}
+		} catch (e) {
+			console.warn('[DynamicCapture] stop playback failed', e)
+		}
+	}
+
+	function startPlaybackFromBeginning() {
+		if (selectedVideoPath.value.length == 0) {
+			return
+		}
+		stopSlowPlayback()
+		playbackMs.value = 0
+		resetActiveFrameCache()
+		clearAutoPlaybackTimer()
+		autoPlaybackTimer = setTimeout(() => {
+			try {
+				const videoContext = uni.createVideoContext('dynamic-capture-preview-video')
+				if (videoContext == null) {
+					return
+				}
+				videoContext.seek(0)
+				videoContext.playbackRate(videoPlaybackRate)
+				videoContext.play()
+				videoPlaying.value = true
+			} catch (e) {
+				videoPlaying.value = false
+				console.warn('[DynamicCapture] start playback failed', e)
+			} finally {
+				autoPlaybackTimer = 0
+			}
+		}, 120)
+	}
+
+	function resetAnalysisState() {
+		stopSlowPlayback()
+		analysisSaved.value = false
+		latestCaptureResult.value = null
+		clearCaptureCache()
+		playbackMs.value = 0
+		playbackDurationMs.value = 0
+		videoPlaying.value = false
+	}
+
+	function handleVideoTimeUpdate(event : any) {
+		const eventObject = toJsonObject(event)
+		const detail = toJsonObject(getJsonValue(eventObject, 'detail'))
+		let currentTimeSec = getJsonNumber(detail, 'currentTime', -1)
+		if (currentTimeSec < 0) {
+			currentTimeSec = getJsonNumber(eventObject, 'currentTime', 0)
+		}
+		playbackMs.value = Math.round(currentTimeSec * 1000)
+
+		let durationSec = getJsonNumber(detail, 'duration', -1)
+		if (durationSec < 0) {
+			durationSec = getJsonNumber(eventObject, 'duration', -1)
+		}
+		if (durationSec > 0) {
+			playbackDurationMs.value = Math.round(durationSec * 1000)
+		}
+		resetActiveFrameCache()
+	}
+
+	function handleVideoEnded() {
+		stopSlowPlayback()
+		playbackMs.value = resolvePlaybackDurationMs()
+		videoPlaying.value = false
+	}
+
+	function releasePageMemory() {
+		stopSlowPlayback()
+		clearAutoPlaybackTimer()
+		analyzing.value = false
+		analysisSaved.value = false
+		playbackMs.value = 0
+		playbackDurationMs.value = 0
+		selectedVideoPath.value = ''
+		selectedVideoName.value = ''
+		selectedVideoDuration.value = 0
+		selectedVideoSize.value = 0
+		selectedVideoWidth.value = 0
+		selectedVideoHeight.value = 0
+		latestCaptureResult.value = null
+		clearCaptureCache()
+	}
+
+	function toggleVideoPlayback() {
+		if (selectedVideoPath.value.length == 0) {
+			return
+		}
+		if (videoPlaying.value) {
+			stopSlowPlayback()
+			return
+		}
+		try {
+			const videoContext = uni.createVideoContext('dynamic-capture-preview-video')
+			if (videoContext == null) {
+				return
+			}
+			videoContext.playbackRate(videoPlaybackRate)
+			videoContext.play()
+			videoPlaying.value = true
+		} catch (e) {
+			stopSlowPlayback()
+			console.warn('[DynamicCapture] toggle playback failed', e)
+		}
+	}
+
+	function attachVideoSourceMeta(result : any) : any {
+		const resultObject = toJsonObject(result)
+		const currentSampleMeta = toJsonObject(getJsonValue(resultObject, 'sampleMeta'))
+		const sampleMeta = currentSampleMeta != null ? currentSampleMeta : {} as UTSJSONObject
+		const sourceVideo = {} as UTSJSONObject
+		sourceVideo['path'] = selectedVideoPath.value
+		sourceVideo['name'] = selectedVideoName.value
+		sourceVideo['durationSec'] = selectedVideoDuration.value
+		sourceVideo['width'] = selectedVideoWidth.value
+		sourceVideo['height'] = selectedVideoHeight.value
+		sourceVideo['size'] = selectedVideoSize.value
+		sampleMeta['sourceVideo'] = sourceVideo
+		if (resultObject != null) {
+			resultObject['sampleMeta'] = sampleMeta
+			return resultObject
+		}
+		return result
+	}
+
+	function extractFileName(path : string) : string {
+		if (path.length == 0) {
+			return ''
+		}
+		let normalized = ''
+		for (let i = 0; i < path.length; i++) {
+			const current = path.substring(i, i + 1)
+			normalized += current == '\\' ? '/' : current
+		}
+		const index = normalized.lastIndexOf('/')
+		return index >= 0 ? normalized.substring(index + 1) : normalized
+	}
+
+	function toJsonObject(value : any | null) : UTSJSONObject | null {
+		if (value == null) {
+			return null
+		}
+		const jsonText = JSON.stringify(value)
+		const parsed = JSON.parse(jsonText)
+		return parsed != null ? parsed as UTSJSONObject : null
+	}
+
+	function getJsonValue(source : UTSJSONObject | null, key : string) : any | null {
+		const current = source
+		if (current == null) {
+			return null
+		}
+		const value = current[key]
+		return value != null ? value : null
+	}
+
+	function getJsonText(source : UTSJSONObject | null, key : string, fallback : string) : string {
+		const value = getJsonValue(source, key)
+		return value != null ? `${value}` : fallback
+	}
+
+	function toSafeNumber(value : any | null, fallback : number) : number {
+		if (value == null) {
+			return fallback
+		}
+		const parsed = parseFloat(`${value}`)
+		return isNaN(parsed) ? fallback : parsed
+	}
+
+	function getJsonNumber(source : UTSJSONObject | null, key : string, fallback : number) : number {
+		const value = getJsonValue(source, key)
+		return value != null ? toSafeNumber(value, fallback) : fallback
+	}
+
+	function goBack() {
+		const pages = getCurrentPages()
+		if (pages.length > 1) {
+			uni.navigateBack({
+				delta: 1,
+				fail: () => {
+					uni.navigateTo({ url: '/pages/dynamicSession/dynamicSession' })
+				}
+			})
+		} else {
+			uni.navigateTo({ url: '/pages/dynamicSession/dynamicSession' })
+		}
+	}
+
+	function finishAndReturn() {
+		goBack()
+	}
+
+	function chooseVideo() {
+		if (analyzing.value) {
+			return
+		}
+		resetAnalysisState()
+		uni.chooseVideo({
+			sourceType: ['camera', 'album'],
+			camera: 'back',
+			compressed: false,
+			maxDuration: 30,
+			success: (res : any) => {
+				const result = toJsonObject(res)
+				selectedVideoPath.value = getJsonText(result, 'tempFilePath', '')
+				selectedVideoName.value = extractFileName(selectedVideoPath.value)
+				selectedVideoDuration.value = Math.round(getJsonNumber(result, 'duration', 0))
+				selectedVideoSize.value = Math.round(getJsonNumber(result, 'size', 0))
+				selectedVideoWidth.value = Math.round(getJsonNumber(result, 'width', 0))
+				selectedVideoHeight.value = Math.round(getJsonNumber(result, 'height', 0))
+				playbackMs.value = 0
+				playbackDurationMs.value = selectedVideoDuration.value > 0 ? selectedVideoDuration.value * 1000 : 0
+			},
+			fail: (err : any) => {
+				const errorObject = toJsonObject(err)
+				const message = getJsonText(errorObject, 'errMsg', '')
+				if (message.indexOf('cancel') >= 0) {
+					return
+				}
+				console.error('[DynamicCapture] choose video failed', err)
+				uni.showToast({
+					title: '视频选择失败',
+					icon: 'none'
+				})
+			}
+		})
+	}
+
+	async function analyzeSelectedVideo() {
+		if (analyzing.value) {
+			return
+		}
+		if (selectedVideoPath.value.length == 0) {
+			uni.showToast({
+				title: '请先录制或选择视频',
+				icon: 'none'
+			})
+			return
+		}
+
+		analyzing.value = true
+		uni.showLoading({
+			title: '分析中...',
+			mask: true
+		})
+		try {
+			const result = await finalizeDynamicCapture(
+				viewType.value,
+				selectedVideoPath.value,
+				selectedVideoDuration.value
+			)
+			const normalizedResult = attachVideoSourceMeta(result)
+			initDynamicSession(bikeId.value)
+			saveDynamicCapture(viewType.value, normalizedResult)
+			latestCaptureResult.value = normalizedResult
+			updateCaptureCache(normalizedResult)
+			analysisSaved.value = true
+			playbackMs.value = 0
+			playbackDurationMs.value = selectedVideoDuration.value > 0 ? selectedVideoDuration.value * 1000 : resolveFrameSeriesDurationMs()
+			uni.showToast({
+				title: '分析完成',
+				icon: 'success'
+			})
+			startPlaybackFromBeginning()
+		} catch (e) {
+			console.error('[DynamicCapture] analyze failed', e)
+			const errorText = `${e}`
+			uni.showModal({
+				title: '姿态分析失败',
+				content: errorText.length > 0 ? errorText : 'Unknown native pose error',
+				showCancel: false
+			})
+			return
+		} finally {
+			analyzing.value = false
+			uni.hideLoading()
+		}
+	}
+
+	async function saveMockCapture() {
+		if (analyzing.value) {
+			return
+		}
+		analyzing.value = true
+		try {
+			const result = await finalizeDynamicCapture(viewType.value, null, 8)
+			initDynamicSession(bikeId.value)
+			saveDynamicCapture(viewType.value, result)
+			latestCaptureResult.value = result
+			updateCaptureCache(result)
+			analysisSaved.value = true
+			playbackMs.value = 0
+			playbackDurationMs.value = resolveFrameSeriesDurationMs()
+			uni.showToast({
+				title: '分析完成',
+				icon: 'success'
+			})
+			startPlaybackFromBeginning()
+		} catch (e) {
+			console.error('[DynamicCapture] mock save failed', e)
+			uni.showToast({
+				title: '调试数据生成失败',
+				icon: 'none'
+			})
+		} finally {
+			analyzing.value = false
+		}
+	}
+
+	onLoad((query : any | null) => {
+		const params = toJsonObject(query)
+		const nextViewType = getJsonText(params, 'viewType', '')
+		if (nextViewType.length > 0) {
+			viewType.value = nextViewType
+		}
+		const nextBikeId = getJsonNumber(params, 'bikeId', 0)
+		if (nextBikeId > 0) {
+			bikeId.value = Math.round(nextBikeId)
+			if (bikeId.value > 0) {
+				initDynamicSession(bikeId.value)
+			}
+		}
+	})
+
+	onUnload(() => {
+		releasePageMemory()
+	})
+
+</script>
+
+<style scoped>
+	.capture-page {
+		height: 100%;
+		background: #141310;
+	}
+
+	.stage-nav {
+		position: fixed;
+		top: 0;
+		left: 0;
+		right: 0;
+		background: rgba(20, 19, 16, 0.98);
+		border-bottom: 1rpx solid rgba(255, 255, 255, 0.08);
+		z-index: 200;
+	}
+
+	.stage-back {
+		position: absolute;
+		left: 20rpx;
+		width: 72rpx;
+		height: 72rpx;
+		transform: translateY(-50%);
+		align-items: center;
+		justify-content: center;
+	}
+
+	.stage-back-icon {
+		font-size: 40rpx;
+		font-weight: 700;
+		color: #FFFFFF;
+	}
+
+	.stage-title {
+		position: absolute;
+		left: 50%;
+		transform: translate(-50%, -50%);
+		font-size: 24rpx;
+		font-weight: 700;
+		color: #F4C84A;
+		letter-spacing: 0;
+	}
+
+	.stage-scroll {
+		position: fixed;
+		left: 0;
+		right: 0;
+		bottom: 0;
+	}
+
+	.stage-shell {
+		padding: 12px 16px 24px;
+	}
+
+	.stage-board {
+		padding: 12px;
+		border-radius: 12px;
+		background: #1E1C18;
+		border: 1px solid rgba(255, 255, 255, 0.08);
+	}
+
+	.stage-video-shell {
+		position: relative;
+		border-radius: 12px;
+		overflow: hidden;
+		background: #0C0C0B;
+	}
+
+	.stage-video {
+		width: 100%;
+		height: 100%;
+		background: #0C0C0B;
+	}
+
+	.stage-empty {
+		position: absolute;
+		left: 0;
+		top: 0;
+		right: 0;
+		bottom: 0;
+		padding-left: 24px;
+		padding-right: 24px;
+		align-items: center;
+		justify-content: center;
+		background: rgba(10, 10, 10, 0.7);
+	}
+
+	.stage-empty-desc {
+		padding-left: 24rpx;
+		padding-right: 24rpx;
+		font-size: 13px;
+		line-height: 1.7;
+		color: rgba(255, 255, 255, 0.75);
+		text-align: center;
+	}
+
+	.pose-overlay {
+		position: absolute;
+		left: 0;
+		top: 0;
+		right: 0;
+		bottom: 0;
+	}
+
+	.pose-segment {
+		position: absolute;
+		height: 4px;
+		border-radius: 999px;
+		background: rgba(145, 214, 175, 0.82);
+	}
+
+	.pose-point {
+		position: absolute;
+		width: 16px;
+		height: 16px;
+		border-radius: 999px;
+		background: #F4C84A;
+		border-width: 3px;
+		border-style: solid;
+		border-color: rgba(255, 255, 255, 0.96);
+		transform: translate(-50%, -50%);
+	}
+
+	.stage-analysis-card {
+		position: absolute;
+		left: 50%;
+		bottom: 16px;
+		width: 72%;
+		padding: 12px 14px;
+		border-radius: 12px;
+		background: rgba(17, 17, 17, 0.82);
+		transform: translateX(-50%);
+	}
+
+	.stage-analysis-title {
+		font-size: 13px;
+		font-weight: 700;
+		color: #FFFFFF;
+	}
+
+	.stage-analysis-bar {
+		margin-top: 10px;
+		height: 4px;
+		border-radius: 999px;
+		background: rgba(255, 255, 255, 0.18);
+		overflow: hidden;
+	}
+
+	.stage-analysis-fill {
+		width: 58%;
+		height: 100%;
+		border-radius: 999px;
+		background: #F4C84A;
+	}
+
+	.transport-card {
+		margin-top: 12px;
+		padding: 12px;
+		border-radius: 999px;
+		background: #26231E;
+		flex-direction: row;
+		align-items: center;
+	}
+
+	.transport-play {
+		width: 40px;
+		height: 40px;
+		border-radius: 999px;
+		background: #5C6E58;
+		align-items: center;
+		justify-content: center;
+	}
+
+	.transport-play-icon {
+		font-size: 16px;
+		font-weight: 700;
+		color: #FFFFFF;
+	}
+
+	.transport-progress {
+		flex: 1;
+		margin-left: 12px;
+		margin-right: 12px;
+		justify-content: center;
+	}
+
+	.transport-track {
+		position: relative;
+		height: 4px;
+		border-radius: 999px;
+		background: rgba(255, 255, 255, 0.18);
+	}
+
+	.transport-track-fill {
+		position: absolute;
+		left: 0;
+		top: 0;
+		bottom: 0;
+		border-radius: 999px;
+		background: #F4C84A;
+	}
+
+	.transport-track-thumb {
+		position: absolute;
+		top: 50%;
+		width: 18px;
+		height: 18px;
+		margin-left: -9px;
+		margin-top: -9px;
+		border-radius: 999px;
+		background: #F4C84A;
+	}
+
+	.transport-time {
+		font-size: 12px;
+		font-weight: 700;
+		color: rgba(255, 255, 255, 0.86);
+	}
+
+	.action-row {
+		margin-top: 12px;
+	}
+
+	.stage-action {
+		margin-top: 10px;
+		border-radius: 10px;
+		padding: 13px 14px;
+		align-items: center;
+		justify-content: center;
+	}
+
+	.stage-action-primary {
+		background: #5C6E58;
+	}
+
+	.stage-action-ghost {
+		background: rgba(255, 255, 255, 0.08);
+	}
+
+	.stage-action-disabled {
+		opacity: 0.45;
+	}
+
+	.stage-action-primary-text {
+		font-size: 14px;
+		font-weight: 700;
+		color: #FFFFFF;
+	}
+
+	.stage-action-ghost-text {
+		font-size: 14px;
+		font-weight: 700;
+		color: #DDEDD7;
+	}
+
+	.metric-section {
+		margin-top: 14px;
+		padding: 14px 0 8px;
+		border-radius: 12px;
+		background: transparent;
+	}
+
+	.metric-section-head {
+		padding-left: 4px;
+		padding-right: 4px;
+	}
+
+	.metric-section-kicker {
+		font-size: 11px;
+		font-weight: 700;
+		color: rgba(255, 255, 255, 0.55);
+	}
+
+	.metric-section-title {
+		margin-top: 6px;
+		font-size: 20px;
+		font-weight: 700;
+		color: #FFFFFF;
+	}
+
+	.metric-section-tip {
+		display: none;
+		margin-top: 8px;
+		font-size: 13px;
+		line-height: 1.6;
+		color: rgba(255, 255, 255, 0.48);
+	}
+
+	.metric-grid {
+		margin-top: 14px;
+		flex-direction: row;
+		flex-wrap: wrap;
+		justify-content: space-between;
+	}
+
+	.metric-card {
+		margin-top: 10px;
+		width: 332rpx;
+		min-height: 144rpx;
+		padding: 14px 14px 12px;
+		border-radius: 12px;
+		background: linear-gradient(90deg, rgba(255, 210, 74, 0.18) 0px, rgba(255, 210, 74, 0.18) 6px, rgba(31, 31, 29, 0.86) 6px, rgba(7, 7, 7, 0.96) 100%);
+		border-width: 1px;
+		border-style: solid;
+		border-color: rgba(255, 255, 255, 0.06);
+		box-sizing: border-box;
+	}
+
+	.metric-card-head {
+		flex-direction: row;
+		align-items: flex-start;
+		justify-content: space-between;
+	}
+
+	.metric-card-label {
+		flex: 1;
+		padding-right: 10px;
+		font-size: 13px;
+		line-height: 1.4;
+		color: rgba(201, 220, 187, 0.78);
+	}
+
+	.metric-card-target {
+		font-size: 11px;
+		font-weight: 700;
+		color: #F4C84A;
+	}
+
+	.metric-card-row {
+		margin-top: 10px;
+		flex-direction: row;
+		align-items: center;
+		justify-content: space-between;
+	}
+
+	.metric-row-label {
+		font-size: 12px;
+		font-weight: 700;
+		color: rgba(255, 255, 255, 0.56);
+	}
+
+	.metric-row-value {
+		font-size: 22px;
+		font-weight: 700;
+		color: #FFFFFF;
+	}
+
+	.metric-footer-note {
+		margin-top: 14px;
+		padding-left: 4px;
+		padding-right: 4px;
+		font-size: 13px;
+		line-height: 1.6;
+		color: rgba(255, 255, 255, 0.58);
+	}
+
+	.metric-footer-note-muted {
+		color: rgba(255, 255, 255, 0.4);
+	}
+</style>

@@ -1,0 +1,59 @@
+export type SafeAreaInsets = {
+	top: number
+	right: number
+	bottom: number
+	left: number
+}
+
+export type AppLayoutMetrics = {
+	statusBarHeight: number
+	navBarContentHeight: number
+	navBarHeight: number
+	tabBarHeight: number
+	bottomSafeArea: number
+	tabPageBottomSpace: number
+	pageHorizontalPadding: number
+}
+
+function normalizeInset(value: number): number {
+	if (value < 0) {
+		return 0
+	}
+	return value
+}
+
+function buildSafeAreaInsets(top: number, right: number, bottom: number, left: number): SafeAreaInsets {
+	return {
+		top: normalizeInset(top),
+		right: normalizeInset(right),
+		bottom: normalizeInset(bottom),
+		left: normalizeInset(left)
+	}
+}
+
+function getSafeAreaInsets(): SafeAreaInsets {
+	const windowInfo = uni.getWindowInfo()
+	const insets = windowInfo.safeAreaInsets
+	return buildSafeAreaInsets(insets.top, insets.right, insets.bottom, insets.left)
+}
+
+export function getAppLayoutMetrics(): AppLayoutMetrics {
+	const windowInfo = uni.getWindowInfo()
+	const safeAreaInsets = getSafeAreaInsets()
+	const statusBarHeight = normalizeInset(windowInfo.statusBarHeight)
+	const navBarContentHeight = 44
+	const navBarHeight = statusBarHeight + navBarContentHeight
+	const tabBarHeight = 50
+	const bottomSafeArea = safeAreaInsets.bottom
+	const tabPageBottomSpace = 8
+
+	return {
+		statusBarHeight: statusBarHeight,
+		navBarContentHeight: navBarContentHeight,
+		navBarHeight: navBarHeight,
+		tabBarHeight: tabBarHeight,
+		bottomSafeArea: bottomSafeArea,
+		tabPageBottomSpace: tabPageBottomSpace,
+		pageHorizontalPadding: 16
+	}
+}

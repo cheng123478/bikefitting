@@ -1,0 +1,82 @@
+/**
+ * 鐢ㄦ埛韬綋妗ｆ鐩稿叧 API
+ * 鍙傝€?libra/src/api/userBody.js 缁撴瀯锛屼笌鍚庣瀹為檯鎺ュ彛瀵瑰簲
+ */
+import { requestDelete, requestGet, requestPost } from '@/api/request.uts'
+
+/**
+ * 鑾峰彇鐢ㄦ埛鏈€鏂扮殑韬綋妗ｆ锛堢敾鍍忔姤鍛婏級
+ * @returns 鐢ㄦ埛韬綋鏁版嵁
+ */
+export function getLatestUserBody() : Promise<any> {
+	return requestGet('/user-body/latest', null, false)
+}
+
+/**
+ * 淇濆瓨/鏇存柊韬綋妗ｆ
+ * @param data 韬綋娴嬮噺鏁版嵁
+ */
+export function saveUserBody(data : any) : Promise<any> {
+	const payload = data as UTSJSONObject
+	return requestPost('/user-body/save', payload, null, false)
+}
+
+/**
+ * 鑾峰彇鎴戠殑鐜板焦鍗曡溅鍒楄〃
+ */
+export function getMyGarage() : Promise<any> {
+	return requestGet('/user-bike/list/actived', null, false)
+}
+
+export function saveUserBike(data : UTSJSONObject) : Promise<any> {
+	return requestPost('/user-bike/save', data, null, false)
+}
+
+export function getUserBikeDetail(id : number) : Promise<any> {
+	return requestGet('/user-bike/' + id, null, false)
+}
+
+export function deleteUserBike(id : number) : Promise<any> {
+	return requestDelete('/user-bike/delete/' + id, null, false)
+}
+
+/**
+ * 鑾峰彇鐢ㄦ埛鐨勫湪褰硅溅杈嗘暟閲廫n */
+export function getActiveBikeCount() : Promise<any> {
+	return requestGet('/user-bike/count/active', null, false)
+}
+
+/**
+ * 鑾峰彇鐢ㄦ埛鏀惰棌鍒楄〃
+ */
+export function getUserFavorites() : Promise<any> {
+	return requestGet('/favorite/list', null, false)
+}
+
+/**
+ * 鑾峰彇闈欐€佹姤鍛婂垪琛╘n * @param page 椤电爜
+ * @param size 姣忛〉澶у皬
+ */
+export function getStaticFittingList(page : number = 0, size : number = 10) : Promise<any> {
+	return requestGet(`/static-fitting/history?page=${page}&size=${size}`, null, false)
+}
+
+/**
+ * 鑾峰彇闈欐€佹姤鍛婃暟閲廫n */
+export function getStaticFittingCount() : Promise<any> {
+	return requestGet('/static-fitting/count', null, false)
+}
+
+/**
+ * 鑾峰彇鍔ㄦ€佹姤鍛婂垪琛╘n * @param page 椤电爜
+ * @param size 姣忛〉澶у皬
+ */
+export function getDynamicFittingList(page : number = 0, size : number = 10) : Promise<any> {
+	return requestGet(`/dynamic-fitting/sessions?page=${page}&size=${size}`, null, false)
+}
+
+/**
+ * 鑾峰彇鍔ㄦ€佹姤鍛婃暟閲廫n */
+export function getDynamicFittingCount() : Promise<any> {
+	return requestGet('/dynamic-fitting/count', null, false)
+}

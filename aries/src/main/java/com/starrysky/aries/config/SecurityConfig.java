@@ -100,6 +100,7 @@ public class SecurityConfig {
 
         http.authenticationProvider(daoAuthenticationProvider)
                 .authenticationProvider(smsCodeAuthenticationProvider)
+                .cors(corsConfigurer -> {})
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/user/login", "/user/login/sms", "/user/login/wechat", "/user/refresh",
                                 "/error", "/sms/send", "/resource/**", 

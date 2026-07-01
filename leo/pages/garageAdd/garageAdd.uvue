@@ -1,0 +1,1547 @@
+<template>
+	<view class="garage-add-page">
+		<view class="nav-bar" :style="navBarStyle">
+			<view class="back-btn" :style="navBackStyle" @click="goBack">
+				<text class="back-icon">‹</text>
+			</view>
+			<text class="nav-title" :style="navTitleStyle">{{ navTitleText }}</text>
+			<view class="nav-right" :style="navRightStyle"></view>
+		</view>
+
+		<scroll-view class="garage-add-scroll" scroll-y="true" :show-scrollbar="false" :style="scrollStyle">
+			<view class="garage-add-shell">
+				<view class="intro-card app-soft-card">
+					<text class="intro-kicker">{{ introKickerText }}</text>
+					<text class="intro-title">{{ introTitleText }}</text>
+					<text class="intro-desc">{{ introDescText }}</text>
+				</view>
+
+				<view class="form-card app-soft-card">
+					<view class="section-head">
+						<text class="section-index">01</text>
+						<text class="section-title">基础信息</text>
+					</view>
+
+					<view v-if="!isEditMode" class="search-box">
+						<view class="search-row">
+							<input class="search-input" type="text" v-model="searchKeyword" maxlength="60" confirm-type="search" placeholder="输入品牌或型号，如 Giant TCR" @confirm="searchBikeModels" @input="handleSearchInput" />
+							<view :class="searching ? 'search-btn search-btn-disabled' : 'search-btn'" @click="searchBikeModels">
+								<image class="search-btn-icon" src="/static/icons/search.svg" mode="aspectFit" />
+							</view>
+						</view>
+						<view class="search-tools">
+							<view class="text-action" @click="enableManualEntry">
+								<text class="text-action-label">手动录入</text>
+							</view>
+						</view>
+
+						<view v-if="showSuggestions" class="suggestion-panel">
+							<view v-if="searching" class="suggestion-empty">
+								<text class="suggestion-empty-text">正在搜索车型库...</text>
+							</view>
+							<view v-else-if="modelSuggestions.length == 0" class="suggestion-empty">
+								<text class="suggestion-empty-text">未找到相关车型，可以手动录入</text>
+							</view>
+							<view v-else>
+								<view v-for="item in modelSuggestions" :key="getSuggestionKey(item)" class="suggestion-item" @click="selectModelGroup(item)">
+									<view class="suggestion-main">
+										<text class="suggestion-brand">{{ item.brand }}</text>
+										<text class="suggestion-model">{{ item.model }}</text>
+									</view>
+									<text v-if="item.brandCn.length > 0" class="suggestion-cn">{{ item.brandCn }}</text>
+								</view>
+							</view>
+						</view>
+
+						<view v-if="selectedModelTree.length > 0 && !isGeometryLocked" class="selection-panel">
+							<text class="selection-title">选择生产年份</text>
+							<view class="option-grid">
+								<view v-for="year in yearOptions" :key="year" :class="yearOptionClass(year)" @click="selectModelYear(year)">
+									<text :class="yearTextClass(year)">{{ year }}</text>
+								</view>
+							</view>
+							<view v-if="selectedYearLabel.length > 0" class="size-block">
+								<text class="selection-title">选择车架尺码</text>
+								<view class="option-grid">
+									<view v-for="size in sizeOptions" :key="size" :class="sizeOptionClass(size)" @click="selectModelSize(size)">
+										<text :class="sizeTextClass(size)">{{ size }}</text>
+									</view>
+								</view>
+							</view>
+						</view>
+					</view>
+
+					<view v-if="selectedBikeModelId != null" class="bike-preview-card">
+						<image
+							v-if="selectedBikeImageUrl.length > 0"
+							class="bike-preview-image"
+							:src="selectedBikeImageUrl"
+							mode="aspectFit"
+						/>
+						<view v-else class="bike-preview-empty">
+							<text class="bike-preview-empty-text">暂无车型图片</text>
+						</view>
+					</view>
+
+					<view class="form-item">
+						<text class="form-label">品牌 *</text>
+						<input :class="isGeometryLocked ? 'form-input locked-input' : 'form-input'" type="text" v-model="form.brand" maxlength="40" placeholder="例如 Giant / Trek" :disabled="isGeometryLocked" />
+					</view>
+
+					<view class="form-row">
+						<view class="form-col">
+							<text class="form-label">中文品牌</text>
+							<input :class="isGeometryLocked ? 'form-input locked-input' : 'form-input'" type="text" v-model="form.brandCn" maxlength="40" placeholder="例如 捷安特" :disabled="isGeometryLocked" />
+						</view>
+						<view class="form-col form-col-last">
+							<text class="form-label">年份</text>
+							<input :class="isGeometryLocked ? 'form-input locked-input' : 'form-input'" type="text" v-model="form.modelYear" maxlength="12" placeholder="例如 2024" :disabled="isGeometryLocked" />
+						</view>
+					</view>
+
+					<view class="form-row">
+						<view class="form-col">
+							<text class="form-label">型号 *</text>
+							<input :class="isGeometryLocked ? 'form-input locked-input' : 'form-input'" type="text" v-model="form.model" maxlength="60" placeholder="例如 TCR Advanced" :disabled="isGeometryLocked" />
+						</view>
+						<view class="form-col form-col-last">
+							<text class="form-label">尺码 *</text>
+							<input :class="isGeometryLocked ? 'form-input locked-input' : 'form-input'" type="text" v-model="form.size" maxlength="20" placeholder="例如 52 / M" :disabled="isGeometryLocked" />
+						</view>
+					</view>
+
+					<view class="form-item">
+						<text class="form-label">单车类型</text>
+						<view class="option-grid">
+							<view v-if="showBikeTypeOption(1)" :class="bikeTypeOptionClass(1)" @click="selectBikeType(1)">
+								<text :class="bikeTypeTextClass(1)">公路车</text>
+							</view>
+							<view v-if="showBikeTypeOption(2)" :class="bikeTypeOptionClass(2)" @click="selectBikeType(2)">
+								<text :class="bikeTypeTextClass(2)">山地车</text>
+							</view>
+							<view v-if="showBikeTypeOption(3)" :class="bikeTypeOptionClass(3)" @click="selectBikeType(3)">
+								<text :class="bikeTypeTextClass(3)">全地形</text>
+							</view>
+							<view v-if="showBikeTypeOption(4)" :class="bikeTypeOptionClass(4)" @click="selectBikeType(4)">
+								<text :class="bikeTypeTextClass(4)">城市车</text>
+							</view>
+							<view v-if="showBikeTypeOption(5)" :class="bikeTypeOptionClass(5)" @click="selectBikeType(5)">
+								<text :class="bikeTypeTextClass(5)">TT / 铁三</text>
+							</view>
+						</view>
+					</view>
+
+					<view class="form-item form-item-last">
+						<text class="form-label">备注</text>
+						<textarea class="form-textarea" v-model="form.remark" maxlength="80" placeholder="例如：主力爬坡车、训练车、通勤车"></textarea>
+					</view>
+				</view>
+
+				<view class="form-card app-soft-card">
+					<view class="section-head">
+						<text class="section-index">02</text>
+						<text class="section-title">车架几何</text>
+					</view>
+
+					<view class="form-row">
+						<view class="form-col">
+							<text class="form-label">Stack 堆高 *</text>
+							<input :class="isGeometryLocked ? 'form-input locked-input' : 'form-input'" type="number" v-model="form.stack" placeholder="mm" :disabled="isGeometryLocked" />
+						</view>
+						<view class="form-col form-col-last">
+							<text class="form-label">Reach 前伸 *</text>
+							<input :class="isGeometryLocked ? 'form-input locked-input' : 'form-input'" type="number" v-model="form.reach" placeholder="mm" :disabled="isGeometryLocked" />
+						</view>
+					</view>
+
+					<view class="form-row">
+						<view class="form-col">
+							<text class="form-label">立管角度</text>
+							<input :class="isGeometryLocked ? 'form-input locked-input' : 'form-input'" type="number" v-model="form.seatTubeAngle" placeholder="度" :disabled="isGeometryLocked" />
+						</view>
+						<view class="form-col form-col-last">
+							<text class="form-label">头管角度</text>
+							<input :class="isGeometryLocked ? 'form-input locked-input' : 'form-input'" type="number" v-model="form.headTubeAngle" placeholder="度" :disabled="isGeometryLocked" />
+						</view>
+					</view>
+
+					<view class="form-row">
+						<view class="form-col">
+							<text class="form-label">五通下沉</text>
+							<input :class="isGeometryLocked ? 'form-input locked-input' : 'form-input'" type="number" v-model="form.bbDrop" placeholder="mm" :disabled="isGeometryLocked" />
+						</view>
+						<view class="form-col form-col-last">
+							<text class="form-label">轴距</text>
+							<input :class="isGeometryLocked ? 'form-input locked-input' : 'form-input'" type="number" v-model="form.wheelBase" placeholder="mm" :disabled="isGeometryLocked" />
+						</view>
+					</view>
+
+					<view class="form-item form-item-last">
+						<text class="form-label">跨高</text>
+						<input :class="isGeometryLocked ? 'form-input locked-input' : 'form-input'" type="number" v-model="form.standOverHeight" placeholder="mm" :disabled="isGeometryLocked" />
+					</view>
+				</view>
+
+				<view class="form-card app-soft-card">
+					<view class="section-head">
+						<text class="section-index">03</text>
+						<text class="section-title">实车设定</text>
+					</view>
+
+					<view class="form-row">
+						<view class="form-col">
+							<text class="form-label">当前座高</text>
+							<input class="form-input" type="number" v-model="form.saddleHeight" placeholder="mm" />
+						</view>
+						<view class="form-col form-col-last">
+							<text class="form-label">曲柄长度</text>
+							<input class="form-input" type="number" v-model="form.crankLength" placeholder="mm" />
+						</view>
+					</view>
+
+					<view class="form-row">
+						<view class="form-col">
+							<text class="form-label">把立长度</text>
+							<input class="form-input" type="number" v-model="form.stemLength" placeholder="40-160mm" />
+						</view>
+						<view class="form-col form-col-last">
+							<text class="form-label">把立角度</text>
+							<input class="form-input" type="number" v-model="form.stemAngle" placeholder="-30 到 30" />
+						</view>
+					</view>
+
+					<view class="form-row">
+						<view class="form-col">
+							<text class="form-label">垫圈高度</text>
+							<input class="form-input" type="number" v-model="form.spacersHeight" placeholder="0-80mm" />
+						</view>
+						<view class="form-col form-col-last">
+							<text class="form-label">车把宽度</text>
+							<input class="form-input" type="number" v-model="form.handlebarWidth" placeholder="mm" />
+						</view>
+					</view>
+
+					<view class="form-row">
+						<view class="form-col">
+							<text class="form-label">车把落差</text>
+							<input class="form-input" type="number" v-model="form.handlebarDrop" placeholder="mm" />
+						</view>
+						<view class="form-col form-col-last">
+							<text class="form-label">座垫宽度</text>
+							<input class="form-input" type="number" v-model="form.saddleWidth" placeholder="mm" />
+						</view>
+					</view>
+
+					<view class="form-row">
+						<view class="form-col">
+							<text class="form-label">座垫后移</text>
+							<input class="form-input" type="number" v-model="form.saddleSetback" placeholder="mm" />
+						</view>
+						<view class="form-col form-col-last">
+							<text class="form-label">座垫角度</text>
+							<input class="form-input" type="number" v-model="form.saddleTilt" placeholder="度" />
+						</view>
+					</view>
+
+					<view class="form-item form-item-last">
+						<text class="form-label">锁踏类型</text>
+						<view class="option-grid">
+							<view v-for="item in pedalOptions" :key="item.value" :class="pedalOptionClass(item.value)" @click="selectPedalType(item.value)">
+								<text :class="pedalTextClass(item.value)">{{ item.label }}</text>
+							</view>
+						</view>
+					</view>
+				</view>
+			</view>
+		</scroll-view>
+
+		<view class="save-bar" :style="saveBarStyle">
+			<view :class="saving || loadingDetail ? 'save-btn save-btn-disabled' : 'save-btn'" @click="submitBike">
+				<text class="save-btn-text">{{ saveButtonText }}</text>
+			</view>
+		</view>
+	</view>
+</template>
+
+<script setup lang="uts">
+	import { computed, ref } from 'vue'
+	import { getUserBikeDetail, saveUserBike } from '@/api/user.uts'
+	import { searchModelNames, getBikeModelTree } from '@/api/bikeModel.uts'
+	import { getAppLayoutMetrics } from '@/utils/layout.uts'
+	import { resolveAssetUrl } from '@/utils/url.uts'
+
+	type BikeAddForm = {
+		brand : string
+		brandCn : string
+		model : string
+		modelYear : string
+		size : string
+		remark : string
+		stack : string
+		reach : string
+		seatTubeAngle : string
+		headTubeAngle : string
+		bbDrop : string
+		wheelBase : string
+		standOverHeight : string
+		crankLength : string
+		stemLength : string
+		stemAngle : string
+		spacersHeight : string
+		handlebarWidth : string
+		handlebarDrop : string
+		saddleWidth : string
+		saddleHeight : string
+		saddleSetback : string
+		saddleTilt : string
+		imageUrl : string
+	}
+
+	type NumberOption = {
+		label : string
+		value : number
+	}
+
+	type BikeModelSearchItem = {
+		brand : string
+		brandCn : string
+		model : string
+	}
+
+	type BikeModelTreeItem = {
+		id : number
+		brand : string
+		brandCn : string
+		model : string
+		modelYear : string
+		size : string
+		bikeType : number | null
+		stack : number | null
+		reach : number | null
+		seatTubeAngle : number | null
+		headTubeAngle : number | null
+		bbDrop : number | null
+		wheelBase : number | null
+		standOverHeight : number | null
+		imageUrl : string
+	}
+
+	const layout = getAppLayoutMetrics()
+	const navContentCenter = layout.statusBarHeight + layout.navBarContentHeight / 2 + 6
+	const navBarStyle = {
+		height: layout.navBarHeight + 'px',
+		paddingTop: layout.statusBarHeight + 'px',
+		boxSizing: 'border-box'
+	}
+	const navBackStyle = {
+		top: navContentCenter + 'px'
+	}
+	const navTitleStyle = {
+		top: navContentCenter + 'px'
+	}
+	const navRightStyle = {
+		top: navContentCenter + 'px'
+	}
+	const scrollStyle = {
+		top: layout.navBarHeight + 'px',
+		paddingBottom: layout.bottomSafeArea + 110 + 'px'
+	}
+	const saveBarStyle = {
+		paddingBottom: layout.bottomSafeArea + 12 + 'px'
+	}
+
+	const bikeTypes : NumberOption[] = [
+		{ label: '公路车', value: 1 },
+		{ label: '山地车', value: 2 },
+		{ label: '全地形', value: 3 },
+		{ label: '城市车', value: 4 },
+		{ label: 'TT / 铁三', value: 5 }
+	]
+	const pedalOptions : NumberOption[] = [
+		{ label: '不填写', value: 0 },
+		{ label: '平踏', value: 1 },
+		{ label: '公路锁踏', value: 2 },
+		{ label: '山地锁踏', value: 3 }
+	]
+	const unknownYearLabel = '未标注'
+
+	const saving = ref(false)
+	const loadingDetail = ref(false)
+	const isEditMode = ref(false)
+	const editingBikeId = ref<number | null>(null)
+	const searching = ref(false)
+	const showSuggestions = ref(false)
+	const isManualMode = ref(false)
+	const isGeometryLocked = ref(false)
+	const selectedBikeType = ref(1)
+	const selectedPedalType = ref(0)
+	const selectedBikeModelId = ref<number | null>(null)
+	const selectedYearLabel = ref('')
+	const selectedBikeImageUrl = ref('')
+	const searchKeyword = ref('')
+	const modelSuggestions = ref<BikeModelSearchItem[]>([])
+	const selectedModelTree = ref<BikeModelTreeItem[]>([])
+	const yearOptions = ref<string[]>([])
+	const sizeOptions = ref<string[]>([])
+	const form = ref<BikeAddForm>({
+		brand: '',
+		brandCn: '',
+		model: '',
+		modelYear: '',
+		size: '',
+		remark: '',
+		stack: '',
+		reach: '',
+		seatTubeAngle: '',
+		headTubeAngle: '',
+		bbDrop: '',
+		wheelBase: '',
+		standOverHeight: '',
+		crankLength: '',
+		stemLength: '',
+		stemAngle: '',
+		spacersHeight: '',
+		handlebarWidth: '',
+		handlebarDrop: '',
+		saddleWidth: '',
+		saddleHeight: '',
+		saddleSetback: '',
+		saddleTilt: '',
+		imageUrl: ''
+	})
+	let searchInputSerial = 0
+	let searchRequestSerial = 0
+
+	const navTitleText = computed(() : string => {
+		return isEditMode.value ? '编辑单车' : '新增单车'
+	})
+
+	const introKickerText = computed(() : string => {
+		return isEditMode.value ? 'BIKE EDIT' : 'MODEL SEARCH'
+	})
+
+	const introTitleText = computed(() : string => {
+		return isEditMode.value ? '编辑单车资料' : '录入一辆单车'
+	})
+
+	const introDescText = computed(() : string => {
+		if (isEditMode.value) {
+			return '已读取后端车库详情。官方车型几何保持锁定，可更新备注和实车设定；手动录入车型可继续调整基础几何。'
+		}
+		return '先搜索车型库，选择年份和尺码后会自动带出官方几何。未找到车型时可切换为手动录入。'
+	})
+
+	const saveButtonText = computed(() : string => {
+		if (loadingDetail.value) {
+			return '正在读取单车...'
+		}
+		if (saving.value) {
+			return '保存中...'
+		}
+		return isEditMode.value ? '保存修改' : '保存到车库'
+	})
+
+	function trimText(value : string) : string {
+		return value.trim()
+	}
+
+	function showError(title : string) {
+		uni.showToast({
+			title: title,
+			icon: 'none'
+		})
+	}
+
+	function toText(value : any | null) : string {
+		return value != null ? `${value}` : ''
+	}
+
+	function toJsonObject(value : any | null) : UTSJSONObject | null {
+		if (value == null) {
+			return null
+		}
+		const jsonText = JSON.stringify(value)
+		const parsed = JSON.parse(jsonText)
+		return parsed != null ? parsed as UTSJSONObject : null
+	}
+
+	function getJsonValue(source : UTSJSONObject | null, key : string) : any | null {
+		const current = source
+		if (current == null) {
+			return null
+		}
+		const value = current[key]
+		return value != null ? value : null
+	}
+
+	function toNumberOrNull(value : any | null) : number | null {
+		if (value == null) {
+			return null
+		}
+		const parsed = parseFloat(`${value}`)
+		return isNaN(parsed) ? null : parsed
+	}
+
+	function getJsonArray(value : any | null) : any[] {
+		if (value == null) {
+			const empty : any[] = []
+			return empty
+		}
+		const jsonText = JSON.stringify(value)
+		const parsed = JSON.parse(jsonText)
+		return parsed != null ? parsed as any[] : []
+	}
+
+	function toSearchItem(value : any | null) : BikeModelSearchItem {
+		const source = toJsonObject(value)
+		return {
+			brand: toText(getJsonValue(source, 'brand')),
+			brandCn: toText(getJsonValue(source, 'brandCn')),
+			model: toText(getJsonValue(source, 'model'))
+		}
+	}
+
+	function toTreeItem(value : any | null) : BikeModelTreeItem {
+		const source = toJsonObject(value)
+		const idValue = toNumberOrNull(getJsonValue(source, 'id'))
+		const bikeTypeValue = toNumberOrNull(getJsonValue(source, 'bikeType'))
+		return {
+			id: idValue != null ? Math.round(idValue) : 0,
+			brand: toText(getJsonValue(source, 'brand')),
+			brandCn: toText(getJsonValue(source, 'brandCn')),
+			model: toText(getJsonValue(source, 'model')),
+			modelYear: toText(getJsonValue(source, 'modelYear')),
+			size: toText(getJsonValue(source, 'size')),
+			bikeType: bikeTypeValue != null ? Math.round(bikeTypeValue) : null,
+			stack: toNumberOrNull(getJsonValue(source, 'stack')),
+			reach: toNumberOrNull(getJsonValue(source, 'reach')),
+			seatTubeAngle: toNumberOrNull(getJsonValue(source, 'seatTubeAngle')),
+			headTubeAngle: toNumberOrNull(getJsonValue(source, 'headTubeAngle')),
+			bbDrop: toNumberOrNull(getJsonValue(source, 'bbDrop')),
+			wheelBase: toNumberOrNull(getJsonValue(source, 'wheelBase')),
+			standOverHeight: toNumberOrNull(getJsonValue(source, 'standOverHeight')),
+			imageUrl: toText(getJsonValue(source, 'imageUrl'))
+		}
+	}
+
+	function requireText(value : string, label : string) : boolean {
+		if (trimText(value).length == 0) {
+			showError(label + '不能为空')
+			return false
+		}
+		return true
+	}
+
+	function isNumberText(value : string, label : string, required : boolean, positive : boolean) : boolean {
+		const text = trimText(value)
+		if (text.length == 0) {
+			if (required) {
+				showError(label + '不能为空')
+				return false
+			}
+			return true
+		}
+		const parsed = parseFloat(text)
+		if (isNaN(parsed)) {
+			showError(label + '必须为有效数字')
+			return false
+		}
+		if (positive && parsed <= 0) {
+			showError(label + '必须大于 0')
+			return false
+		}
+		return true
+	}
+
+	function isNumberInRange(value : string, label : string, min : number, max : number, unit : string) : boolean {
+		const text = trimText(value)
+		if (text.length == 0) {
+			return true
+		}
+		if (!isNumberText(value, label, false, false)) {
+			return false
+		}
+		const parsed = parseFloat(text)
+		if (parsed < min || parsed > max) {
+			showError(label + '应在 ' + min + '-' + max + unit)
+			return false
+		}
+		return true
+	}
+
+	function readInteger(value : string) : number | null {
+		const text = trimText(value)
+		if (text.length == 0) {
+			return null
+		}
+		return Math.round(parseFloat(text))
+	}
+
+	function readDouble(value : string) : number | null {
+		const text = trimText(value)
+		if (text.length == 0) {
+			return null
+		}
+		return parseFloat(text)
+	}
+
+	function putText(payload : UTSJSONObject, key : string, value : string) {
+		const text = trimText(value)
+		if (text.length > 0) {
+			payload[key] = text
+		}
+	}
+
+	function putNumber(payload : UTSJSONObject, key : string, value : number | null) {
+		if (value != null) {
+			payload[key] = value
+		}
+	}
+
+	function getSuggestionKey(item : BikeModelSearchItem) : string {
+		return item.brand + '-' + item.model
+	}
+
+	function getYearLabel(item : BikeModelTreeItem) : string {
+		return item.modelYear.length > 0 ? item.modelYear : unknownYearLabel
+	}
+
+	function stringArrayContains(items : string[], value : string) : boolean {
+		for (let i = 0; i < items.length; i++) {
+			if (items[i] == value) {
+				return true
+			}
+		}
+		return false
+	}
+
+	function rebuildYearOptions() {
+		const years : string[] = []
+		for (let i = 0; i < selectedModelTree.value.length; i++) {
+			const label = getYearLabel(selectedModelTree.value[i])
+			if (!stringArrayContains(years, label)) {
+				years.push(label)
+			}
+		}
+		yearOptions.value = years
+	}
+
+	function rebuildSizeOptions(yearLabel : string) {
+		const sizes : string[] = []
+		for (let i = 0; i < selectedModelTree.value.length; i++) {
+			const item = selectedModelTree.value[i]
+			if (getYearLabel(item) == yearLabel && item.size.length > 0 && !stringArrayContains(sizes, item.size)) {
+				sizes.push(item.size)
+			}
+		}
+		sizeOptions.value = sizes
+	}
+
+	function clearGeometryFields() {
+		form.value.stack = ''
+		form.value.reach = ''
+		form.value.seatTubeAngle = ''
+		form.value.headTubeAngle = ''
+		form.value.bbDrop = ''
+		form.value.wheelBase = ''
+		form.value.standOverHeight = ''
+		form.value.imageUrl = ''
+		selectedBikeImageUrl.value = ''
+	}
+
+	function clearModelSelection(clearIdentity : boolean) {
+		selectedBikeModelId.value = null
+		selectedModelTree.value = []
+		yearOptions.value = []
+		sizeOptions.value = []
+		selectedYearLabel.value = ''
+		isGeometryLocked.value = false
+		if (clearIdentity) {
+			form.value.brand = ''
+			form.value.brandCn = ''
+			form.value.model = ''
+			form.value.modelYear = ''
+			form.value.size = ''
+		} else {
+			form.value.modelYear = ''
+			form.value.size = ''
+		}
+		clearGeometryFields()
+	}
+
+	function setNumberText(value : number | null) : string {
+		if (value == null) {
+			return ''
+		}
+		if (Number.isInteger(value)) {
+			return `${value}`
+		}
+		return `${value}`
+	}
+
+	function setAnyNumberText(value : any | null) : string {
+		const parsed = toNumberOrNull(value)
+		return setNumberText(parsed)
+	}
+
+	function setFormTextFromSource(source : UTSJSONObject | null, key : string) : string {
+		return toText(getJsonValue(source, key))
+	}
+
+	function fillFormFromModelSource(modelSource : UTSJSONObject | null) : number {
+		if (modelSource == null) {
+			return 0
+		}
+		const modelIdValue = toNumberOrNull(getJsonValue(modelSource, 'id'))
+		if (modelIdValue != null && modelIdValue > 0) {
+			selectedBikeModelId.value = Math.round(modelIdValue)
+		}
+
+		const brandText = setFormTextFromSource(modelSource, 'brand')
+		const brandCnText = setFormTextFromSource(modelSource, 'brandCn')
+		const modelText = setFormTextFromSource(modelSource, 'model')
+		const modelYearText = setFormTextFromSource(modelSource, 'modelYear')
+		const sizeText = setFormTextFromSource(modelSource, 'size')
+		const imageText = setFormTextFromSource(modelSource, 'imageUrl')
+		if (brandText.length > 0) form.value.brand = brandText
+		if (brandCnText.length > 0) form.value.brandCn = brandCnText
+		if (modelText.length > 0) form.value.model = modelText
+		if (modelYearText.length > 0) form.value.modelYear = modelYearText
+		if (sizeText.length > 0) form.value.size = sizeText
+		if (form.value.imageUrl.length == 0 && imageText.length > 0) form.value.imageUrl = imageText
+
+		form.value.stack = setAnyNumberText(getJsonValue(modelSource, 'stack'))
+		form.value.reach = setAnyNumberText(getJsonValue(modelSource, 'reach'))
+		form.value.seatTubeAngle = setAnyNumberText(getJsonValue(modelSource, 'seatTubeAngle'))
+		form.value.headTubeAngle = setAnyNumberText(getJsonValue(modelSource, 'headTubeAngle'))
+		form.value.bbDrop = setAnyNumberText(getJsonValue(modelSource, 'bbDrop'))
+		form.value.wheelBase = setAnyNumberText(getJsonValue(modelSource, 'wheelBase'))
+		form.value.standOverHeight = setAnyNumberText(getJsonValue(modelSource, 'standOverHeight'))
+
+		const bikeTypeValue = toNumberOrNull(getJsonValue(modelSource, 'bikeType'))
+		if (bikeTypeValue != null && bikeTypeValue > 0) {
+			selectedBikeType.value = Math.round(bikeTypeValue)
+		}
+		const sourceTypeValue = toNumberOrNull(getJsonValue(modelSource, 'sourceType'))
+		return sourceTypeValue != null ? Math.round(sourceTypeValue) : 0
+	}
+
+	function fillFormFromSetupSource(setupSource : UTSJSONObject | null) {
+		if (setupSource == null) {
+			return
+		}
+		form.value.crankLength = setAnyNumberText(getJsonValue(setupSource, 'crankLength'))
+		form.value.stemLength = setAnyNumberText(getJsonValue(setupSource, 'stemLength'))
+		form.value.stemAngle = setAnyNumberText(getJsonValue(setupSource, 'stemAngle'))
+		form.value.spacersHeight = setAnyNumberText(getJsonValue(setupSource, 'spacersHeight'))
+		form.value.handlebarWidth = setAnyNumberText(getJsonValue(setupSource, 'handlebarWidth'))
+		form.value.handlebarDrop = setAnyNumberText(getJsonValue(setupSource, 'handlebarDrop'))
+		form.value.saddleWidth = setAnyNumberText(getJsonValue(setupSource, 'saddleWidth'))
+		form.value.saddleHeight = setAnyNumberText(getJsonValue(setupSource, 'saddleHeight'))
+		form.value.saddleSetback = setAnyNumberText(getJsonValue(setupSource, 'saddleSetback'))
+		form.value.saddleTilt = setAnyNumberText(getJsonValue(setupSource, 'saddleTilt'))
+		const pedalTypeValue = toNumberOrNull(getJsonValue(setupSource, 'pedalType'))
+		if (pedalTypeValue != null && pedalTypeValue > 0) {
+			selectedPedalType.value = Math.round(pedalTypeValue)
+		}
+	}
+
+	function fillFormFromDetail(detail : any | null) {
+		const source = toJsonObject(detail)
+		if (source == null) {
+			showError('未获取到单车详情')
+			return
+		}
+
+		form.value.brand = setFormTextFromSource(source, 'brand')
+		form.value.brandCn = setFormTextFromSource(source, 'brandCn')
+		form.value.model = setFormTextFromSource(source, 'model')
+		form.value.modelYear = setFormTextFromSource(source, 'modelYear')
+		form.value.remark = setFormTextFromSource(source, 'remark')
+		form.value.imageUrl = setFormTextFromSource(source, 'imageUrl')
+		const frameSizeText = setFormTextFromSource(source, 'frameSize')
+		if (frameSizeText.length > 0) {
+			form.value.size = frameSizeText
+		}
+
+		const topBikeTypeValue = toNumberOrNull(getJsonValue(source, 'bikeType'))
+		if (topBikeTypeValue != null && topBikeTypeValue > 0) {
+			selectedBikeType.value = Math.round(topBikeTypeValue)
+		}
+
+		selectedBikeModelId.value = null
+		const modelSource = toJsonObject(getJsonValue(source, 'bikeModelVO'))
+		const sourceType = fillFormFromModelSource(modelSource)
+		fillFormFromSetupSource(toJsonObject(getJsonValue(source, 'currentSetupVO')))
+
+		modelSuggestions.value = []
+		selectedModelTree.value = []
+		yearOptions.value = []
+		sizeOptions.value = []
+		selectedYearLabel.value = ''
+		showSuggestions.value = false
+		searching.value = false
+		isManualMode.value = sourceType == 2 || selectedBikeModelId.value == null
+		isGeometryLocked.value = selectedBikeModelId.value != null && !isManualMode.value
+		selectedBikeImageUrl.value = resolveAssetUrl(form.value.imageUrl)
+	}
+
+	async function loadBikeDetail(id : number) {
+		try {
+			loadingDetail.value = true
+			const data = await getUserBikeDetail(id)
+			fillFormFromDetail(data)
+		} catch (e) {
+			console.error('[GarageAdd] detail failed', e)
+			showError('获取单车详情失败')
+		} finally {
+			loadingDetail.value = false
+		}
+	}
+
+	function fillFromModel(item : BikeModelTreeItem) {
+		selectedBikeModelId.value = item.id
+		form.value.brand = item.brand
+		form.value.brandCn = item.brandCn
+		form.value.model = item.model
+		form.value.modelYear = item.modelYear
+		form.value.size = item.size
+		form.value.stack = setNumberText(item.stack)
+		form.value.reach = setNumberText(item.reach)
+		form.value.seatTubeAngle = setNumberText(item.seatTubeAngle)
+		form.value.headTubeAngle = setNumberText(item.headTubeAngle)
+		form.value.bbDrop = setNumberText(item.bbDrop)
+		form.value.wheelBase = setNumberText(item.wheelBase)
+		form.value.standOverHeight = setNumberText(item.standOverHeight)
+		form.value.imageUrl = item.imageUrl
+		selectedBikeImageUrl.value = resolveAssetUrl(item.imageUrl)
+		if (item.bikeType != null && item.bikeType > 0) {
+			selectedBikeType.value = item.bikeType
+		}
+		isManualMode.value = false
+		isGeometryLocked.value = true
+	}
+
+	async function searchBikeModelsByKeyword(rawKeyword : string, showEmptyTip : boolean) {
+		const keyword = trimText(rawKeyword)
+		if (keyword.length == 0) {
+			if (showEmptyTip) {
+				showError('请输入品牌或型号')
+			}
+			return
+		}
+		searchRequestSerial++
+		const currentRequestSerial = searchRequestSerial
+		try {
+			searching.value = true
+			showSuggestions.value = true
+			clearModelSelection(false)
+			const data = await searchModelNames(keyword)
+			if (currentRequestSerial != searchRequestSerial) {
+				return
+			}
+			const list = getJsonArray(data)
+			const parsed : BikeModelSearchItem[] = []
+			for (let i = 0; i < list.length; i++) {
+				const item = toSearchItem(list[i])
+				if (item.brand.length > 0 && item.model.length > 0) {
+					parsed.push(item)
+				}
+			}
+			modelSuggestions.value = parsed
+			isManualMode.value = parsed.length == 0
+		} catch (e) {
+			if (currentRequestSerial == searchRequestSerial) {
+				console.error('[GarageAdd] search failed', e)
+				showError('车型搜索失败')
+			}
+		} finally {
+			if (currentRequestSerial == searchRequestSerial) {
+				searching.value = false
+			}
+		}
+	}
+
+	async function selectModelGroup(item : BikeModelSearchItem) {
+		if (searching.value) {
+			return
+		}
+		try {
+			searching.value = true
+			showSuggestions.value = false
+			form.value.brand = item.brand
+			form.value.brandCn = item.brandCn
+			form.value.model = item.model
+			form.value.modelYear = ''
+			form.value.size = ''
+			clearGeometryFields()
+			const data = await getBikeModelTree(item.brand, item.model)
+			const list = getJsonArray(data)
+			const parsed : BikeModelTreeItem[] = []
+			for (let i = 0; i < list.length; i++) {
+				const treeItem = toTreeItem(list[i])
+				if (treeItem.id > 0) {
+					parsed.push(treeItem)
+				}
+			}
+			selectedModelTree.value = parsed
+			rebuildYearOptions()
+			sizeOptions.value = []
+			selectedYearLabel.value = ''
+			isManualMode.value = parsed.length == 0
+			if (parsed.length == 0) {
+				showError('该车型暂无尺码数据，请手动录入')
+			}
+		} catch (e) {
+			console.error('[GarageAdd] load tree failed', e)
+			showError('车型变体加载失败')
+		} finally {
+			searching.value = false
+		}
+	}
+
+	function handleSearchInput() {
+		const keyword = trimText(searchKeyword.value)
+		searchInputSerial++
+		const currentInputSerial = searchInputSerial
+		if (keyword.length == 0) {
+			modelSuggestions.value = []
+			showSuggestions.value = false
+			searching.value = false
+			return
+		}
+		setTimeout(() => {
+			if (currentInputSerial != searchInputSerial) {
+				return
+			}
+			searchBikeModelsByKeyword(keyword, false)
+		}, 360)
+	}
+
+	async function searchBikeModels() {
+		searchInputSerial++
+		searchBikeModelsByKeyword(searchKeyword.value, true)
+	}
+
+	function selectModelYear(year : string) {
+		selectedYearLabel.value = year
+		form.value.modelYear = year == unknownYearLabel ? '' : year
+		form.value.size = ''
+		selectedBikeModelId.value = null
+		isGeometryLocked.value = false
+		clearGeometryFields()
+		rebuildSizeOptions(year)
+	}
+
+	function selectModelSize(size : string) {
+		form.value.size = size
+		for (let i = 0; i < selectedModelTree.value.length; i++) {
+			const item = selectedModelTree.value[i]
+			if (getYearLabel(item) == selectedYearLabel.value && item.size == size) {
+				fillFromModel(item)
+				uni.showToast({
+					title: '已录入基础信息和官方几何',
+					icon: 'success'
+				})
+				return
+			}
+		}
+	}
+
+	function enableManualEntry() {
+		isManualMode.value = true
+		showSuggestions.value = false
+		modelSuggestions.value = []
+		clearModelSelection(false)
+		if (form.value.brand.length == 0 && searchKeyword.value.length > 0) {
+			form.value.brand = searchKeyword.value
+		}
+		uni.showToast({
+			title: '请手动填写车辆信息',
+			icon: 'none'
+		})
+	}
+
+	function resetSearch() {
+		isManualMode.value = false
+		searchKeyword.value = ''
+		modelSuggestions.value = []
+		showSuggestions.value = false
+		clearModelSelection(true)
+	}
+
+	function yearOptionClass(year : string) : string {
+		return selectedYearLabel.value == year ? 'option-item option-item-active' : 'option-item'
+	}
+
+	function yearTextClass(year : string) : string {
+		return selectedYearLabel.value == year ? 'option-text option-text-active' : 'option-text'
+	}
+
+	function sizeOptionClass(size : string) : string {
+		return form.value.size == size ? 'option-item option-item-active' : 'option-item'
+	}
+
+	function sizeTextClass(size : string) : string {
+		return form.value.size == size ? 'option-text option-text-active' : 'option-text'
+	}
+
+	function validateForm() : boolean {
+		if (!requireText(form.value.brand, '品牌')) return false
+		if (!requireText(form.value.model, '型号')) return false
+		if (!requireText(form.value.size, '尺码')) return false
+		if (!isNumberText(form.value.stack, 'Stack 堆高', true, true)) return false
+		if (!isNumberText(form.value.reach, 'Reach 前伸', true, true)) return false
+
+		if (!isNumberText(form.value.seatTubeAngle, '立管角度', false, false)) return false
+		if (!isNumberText(form.value.headTubeAngle, '头管角度', false, false)) return false
+		if (!isNumberText(form.value.bbDrop, '五通下沉', false, false)) return false
+		if (!isNumberText(form.value.wheelBase, '轴距', false, false)) return false
+		if (!isNumberText(form.value.standOverHeight, '跨高', false, false)) return false
+		if (!isNumberText(form.value.crankLength, '曲柄长度', false, false)) return false
+		if (!isNumberText(form.value.handlebarWidth, '车把宽度', false, false)) return false
+		if (!isNumberText(form.value.handlebarDrop, '车把落差', false, false)) return false
+		if (!isNumberText(form.value.saddleWidth, '座垫宽度', false, false)) return false
+		if (!isNumberText(form.value.saddleSetback, '座垫后移', false, false)) return false
+		if (!isNumberText(form.value.saddleTilt, '座垫角度', false, false)) return false
+
+		if (!isNumberInRange(form.value.stemLength, '把立长度', 40, 160, 'mm')) return false
+		if (!isNumberInRange(form.value.stemAngle, '把立角度', -30, 30, '°')) return false
+		if (!isNumberInRange(form.value.spacersHeight, '垫圈高度', 0, 80, 'mm')) return false
+		if (!isNumberText(form.value.saddleHeight, '当前座高', false, false)) return false
+		const saddleHeight = readInteger(form.value.saddleHeight)
+		if (saddleHeight != null && saddleHeight > 0 && saddleHeight < 400) {
+			showError('当前座高过小，请确认单位为 mm')
+			return false
+		}
+		return true
+	}
+
+	function buildPayload() : UTSJSONObject | null {
+		if (!validateForm()) {
+			return null
+		}
+		const payload = {} as UTSJSONObject
+		if (isEditMode.value && editingBikeId.value != null) {
+			payload['id'] = editingBikeId.value
+		}
+		putText(payload, 'brand', form.value.brand)
+		putText(payload, 'brandCn', form.value.brandCn)
+		putText(payload, 'model', form.value.model)
+		putText(payload, 'modelYear', form.value.modelYear)
+		putText(payload, 'size', form.value.size)
+		putText(payload, 'remark', form.value.remark)
+		putText(payload, 'imageUrl', form.value.imageUrl)
+		payload['bikeType'] = selectedBikeType.value
+		if (selectedBikeModelId.value != null) {
+			payload['bikeModelId'] = selectedBikeModelId.value
+		}
+
+		putNumber(payload, 'stack', readInteger(form.value.stack))
+		putNumber(payload, 'reach', readInteger(form.value.reach))
+		putNumber(payload, 'seatTubeAngle', readDouble(form.value.seatTubeAngle))
+		putNumber(payload, 'headTubeAngle', readDouble(form.value.headTubeAngle))
+		putNumber(payload, 'bbDrop', readInteger(form.value.bbDrop))
+		putNumber(payload, 'wheelBase', readInteger(form.value.wheelBase))
+		putNumber(payload, 'standOverHeight', readInteger(form.value.standOverHeight))
+
+		putNumber(payload, 'crankLength', readInteger(form.value.crankLength))
+		putNumber(payload, 'stemLength', readInteger(form.value.stemLength))
+		putNumber(payload, 'stemAngle', readDouble(form.value.stemAngle))
+		putNumber(payload, 'spacersHeight', readInteger(form.value.spacersHeight))
+		putNumber(payload, 'handlebarWidth', readInteger(form.value.handlebarWidth))
+		putNumber(payload, 'handlebarDrop', readInteger(form.value.handlebarDrop))
+		putNumber(payload, 'saddleWidth', readInteger(form.value.saddleWidth))
+		putNumber(payload, 'saddleHeight', readInteger(form.value.saddleHeight))
+		putNumber(payload, 'saddleSetback', readInteger(form.value.saddleSetback))
+		putNumber(payload, 'saddleTilt', readDouble(form.value.saddleTilt))
+		if (selectedPedalType.value > 0) {
+			payload['pedalType'] = selectedPedalType.value
+		}
+		return payload
+	}
+
+	function selectBikeType(value : number) {
+		if (isGeometryLocked.value) {
+			return
+		}
+		selectedBikeType.value = value
+	}
+
+	function selectPedalType(value : number) {
+		selectedPedalType.value = value
+	}
+
+	function showBikeTypeOption(value : number) : boolean {
+		if (!isGeometryLocked.value) {
+			return true
+		}
+		return selectedBikeType.value == value
+	}
+
+	function bikeTypeOptionClass(value : number) : string {
+		return selectedBikeType.value == value ? 'option-item option-item-active' : 'option-item'
+	}
+
+	function bikeTypeTextClass(value : number) : string {
+		return selectedBikeType.value == value ? 'option-text option-text-active' : 'option-text'
+	}
+
+	function pedalOptionClass(value : number) : string {
+		return selectedPedalType.value == value ? 'option-item option-item-active' : 'option-item'
+	}
+
+	function pedalTextClass(value : number) : string {
+		return selectedPedalType.value == value ? 'option-text option-text-active' : 'option-text'
+	}
+
+	function goBack() {
+		const pages = getCurrentPages()
+		if (pages.length > 1) {
+			uni.navigateBack({ delta: 1 })
+		} else {
+			uni.switchTab({ url: '/pages/profile/profile' })
+		}
+	}
+
+	async function submitBike() {
+		if (saving.value || loadingDetail.value) {
+			return
+		}
+		const payload = buildPayload()
+		if (payload == null) {
+			return
+		}
+		try {
+			saving.value = true
+			await saveUserBike(payload as UTSJSONObject)
+			uni.showToast({
+				title: isEditMode.value ? '修改已保存' : '已加入车库',
+				icon: 'success'
+			})
+			setTimeout(() => {
+				uni.navigateBack({ delta: 1 })
+			}, 800)
+		} catch (e) {
+			console.error('[GarageAdd] save failed', e)
+			showError('保存失败，请检查车辆信息')
+		} finally {
+			saving.value = false
+		}
+	}
+
+	onLoad((query : any | null) => {
+		const queryObject = toJsonObject(query)
+		const idValue = getJsonValue(queryObject, 'id')
+		if (idValue == null) {
+			return
+		}
+		const parsedId = toNumberOrNull(idValue)
+		if (parsedId == null || parsedId <= 0) {
+			showError('单车 ID 异常，无法编辑')
+			return
+		}
+		const bikeId = Math.round(parsedId)
+		isEditMode.value = true
+		editingBikeId.value = bikeId
+		loadBikeDetail(bikeId)
+	})
+</script>
+
+<style scoped>
+	.garage-add-page {
+		height: 100%;
+		background: #F3F2ED;
+	}
+
+	.nav-bar {
+		position: fixed;
+		top: 0;
+		left: 0;
+		right: 0;
+		background: rgba(243, 242, 237, 0.98);
+		box-sizing: border-box;
+		border-bottom: 1rpx solid rgba(43, 42, 41, 0.05);
+		z-index: 100;
+	}
+
+	.back-btn {
+		position: absolute;
+		left: 20rpx;
+		transform: translateY(-50%);
+		width: 88rpx;
+		height: 88rpx;
+		justify-content: center;
+	}
+
+	.back-icon {
+		font-size: 48rpx;
+		color: #2B2A29;
+	}
+
+	.nav-title {
+		position: absolute;
+		left: 50%;
+		transform: translate(-50%, -50%);
+		font-size: 32rpx;
+		font-weight: 700;
+		color: #2B2A29;
+	}
+
+	.nav-right {
+		position: absolute;
+		right: 24rpx;
+		transform: translateY(-50%);
+		min-width: 72rpx;
+	}
+
+	.garage-add-scroll {
+		position: fixed;
+		left: 0;
+		right: 0;
+		bottom: 0;
+		box-sizing: border-box;
+	}
+
+	.garage-add-shell {
+		padding: 18px 16px 0;
+	}
+
+	.app-soft-card {
+		background: rgba(255, 255, 255, 0.96);
+		border-radius: 8px;
+		border-width: 1px;
+		border-color: rgba(43, 42, 41, 0.06);
+		border-style: solid;
+	}
+
+	.intro-card {
+		padding: 18px 16px;
+		margin-bottom: 14px;
+	}
+
+	.intro-kicker {
+		font-size: 10px;
+		font-weight: 700;
+		color: #8A857A;
+		letter-spacing: 2px;
+		margin-bottom: 8px;
+	}
+
+	.intro-title {
+		font-size: 25px;
+		line-height: 32px;
+		font-weight: 700;
+		color: #2B2A29;
+		margin-bottom: 8px;
+	}
+
+	.intro-desc {
+		font-size: 13px;
+		line-height: 21px;
+		color: #787673;
+	}
+
+	.form-card {
+		padding: 16px;
+		margin-bottom: 14px;
+	}
+
+	.section-head {
+		flex-direction: row;
+		align-items: center;
+		margin-bottom: 12px;
+	}
+
+	.section-index {
+		width: 32px;
+		height: 24px;
+		border-radius: 6px;
+		background: #EEF1EB;
+		color: #5C6E58;
+		font-size: 12px;
+		font-weight: 700;
+		text-align: center;
+		line-height: 24px;
+		margin-right: 10px;
+	}
+
+	.section-title {
+		font-size: 17px;
+		font-weight: 700;
+		color: #2B2A29;
+	}
+
+	.form-item {
+		margin-bottom: 14px;
+	}
+
+	.form-item-last {
+		margin-bottom: 0;
+	}
+
+	.form-row {
+		flex-direction: row;
+		margin-bottom: 14px;
+	}
+
+	.form-col {
+		flex: 1;
+		margin-right: 10px;
+	}
+
+	.form-col-last {
+		margin-right: 0;
+	}
+
+	.form-label {
+		font-size: 13px;
+		font-weight: 700;
+		color: #6A7C63;
+		margin-bottom: 8px;
+	}
+
+	.form-input {
+		height: 42px;
+		font-size: 15px;
+		color: #2B2A29;
+		background: #F8F8F5;
+		border-radius: 8px;
+		padding: 0 12px;
+	}
+
+	.locked-input {
+		color: #787673;
+		background: #EFEFEA;
+	}
+
+	.bike-preview-card {
+		height: 180px;
+		border-radius: 8px;
+		background: #FFFFFF;
+		border-width: 1px;
+		border-color: rgba(92, 110, 88, 0.08);
+		border-style: solid;
+		align-items: center;
+		justify-content: center;
+		margin-bottom: 14px;
+		overflow: hidden;
+	}
+
+	.bike-preview-image {
+		width: 100%;
+		height: 100%;
+	}
+
+	.bike-preview-empty {
+		width: 100%;
+		height: 100%;
+		align-items: center;
+		justify-content: center;
+	}
+
+	.bike-preview-empty-text {
+		font-size: 13px;
+		color: #8A857A;
+	}
+
+	.search-box {
+		margin-bottom: 16px;
+		padding-bottom: 14px;
+		border-bottom: 1rpx solid rgba(61, 63, 45, 0.06);
+	}
+
+	.search-row {
+		flex-direction: row;
+		align-items: center;
+	}
+
+	.search-input {
+		flex: 1;
+		height: 42px;
+		font-size: 15px;
+		color: #2B2A29;
+		background: #F8F8F5;
+		border-radius: 8px;
+		padding: 0 12px;
+		margin-right: 6px;
+	}
+
+	.search-btn {
+		width: 42px;
+		height: 42px;
+		border-radius: 8px;
+		background: transparent;
+		align-items: center;
+		justify-content: center;
+	}
+
+	.search-btn-disabled {
+		opacity: 0.68;
+	}
+
+	.search-btn-icon {
+		width: 20px;
+		height: 20px;
+	}
+
+	.search-tools {
+		flex-direction: row;
+		justify-content: flex-end;
+		margin-top: 8px;
+	}
+
+	.text-action {
+		margin-right: 0;
+	}
+
+	.text-action-label {
+		font-size: 13px;
+		font-weight: 700;
+		color: #5C6E58;
+	}
+
+	.suggestion-panel {
+		margin-top: 12px;
+		border-radius: 8px;
+		overflow: hidden;
+		background: #FAFAF7;
+		border-width: 1px;
+		border-color: rgba(92, 110, 88, 0.08);
+		border-style: solid;
+	}
+
+	.suggestion-item {
+		padding: 13px 12px;
+		border-bottom: 1rpx solid rgba(61, 63, 45, 0.06);
+	}
+
+	.suggestion-main {
+		flex-direction: row;
+		align-items: center;
+		flex-wrap: wrap;
+		margin-bottom: 4px;
+	}
+
+	.suggestion-brand {
+		font-size: 14px;
+		font-weight: 700;
+		color: #5C6E58;
+		margin-right: 8px;
+	}
+
+	.suggestion-model {
+		font-size: 14px;
+		font-weight: 700;
+		color: #2B2A29;
+	}
+
+	.suggestion-cn {
+		font-size: 12px;
+		color: #8A857A;
+	}
+
+	.suggestion-empty {
+		padding: 16px 12px;
+		align-items: center;
+	}
+
+	.suggestion-empty-text {
+		font-size: 13px;
+		color: #8A857A;
+	}
+
+	.selection-panel {
+		margin-top: 12px;
+		padding: 12px;
+		border-radius: 8px;
+		background: #F4F6F1;
+	}
+
+	.selection-title {
+		font-size: 13px;
+		font-weight: 700;
+		color: #5C6E58;
+		margin-bottom: 8px;
+	}
+
+	.size-block {
+		margin-top: 8px;
+	}
+
+	.form-textarea {
+		height: 86px;
+		font-size: 15px;
+		line-height: 22px;
+		color: #2B2A29;
+		background: #F8F8F5;
+		border-radius: 8px;
+		padding: 10px 12px;
+	}
+
+	.option-grid {
+		flex-direction: row;
+		flex-wrap: wrap;
+	}
+
+	.option-item {
+		min-width: 128rpx;
+		height: 40px;
+		padding: 0 12px;
+		border-radius: 8px;
+		background: #F8F8F5;
+		border-width: 1px;
+		border-color: rgba(92, 110, 88, 0.08);
+		border-style: solid;
+		align-items: center;
+		justify-content: center;
+		margin-right: 8px;
+		margin-bottom: 8px;
+	}
+
+	.option-item-active {
+		background: #5C6E58;
+		border-color: #5C6E58;
+	}
+
+	.option-text {
+		font-size: 13px;
+		font-weight: 700;
+		color: #5C6E58;
+	}
+
+	.option-text-active {
+		color: #FFFFFF;
+	}
+
+	.save-bar {
+		position: fixed;
+		left: 0;
+		right: 0;
+		bottom: 0;
+		padding: 12px 16px;
+		background: rgba(243, 242, 237, 0.98);
+		border-top: 1rpx solid rgba(43, 42, 41, 0.05);
+		z-index: 120;
+	}
+
+	.save-btn {
+		width: 100%;
+		height: 54px;
+		border-radius: 8px;
+		background-color: #5C6E58;
+		align-items: center;
+		justify-content: center;
+		box-shadow: 0 10px 24px rgba(74, 93, 72, 0.18);
+	}
+
+	.save-btn-disabled {
+		opacity: 0.72;
+	}
+
+	.save-btn-text {
+		font-size: 16px;
+		font-weight: 700;
+		color: #FFFFFF;
+	}
+</style>

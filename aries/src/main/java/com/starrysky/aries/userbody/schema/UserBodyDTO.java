@@ -18,7 +18,6 @@ import java.time.LocalDate;
 @Setter
 @Getter
 public class UserBodyDTO {
-    @NotNull(message = "用户ID不能为空")
     private Long userId;
 
     @Past(message = "出生日期不能晚于今天")

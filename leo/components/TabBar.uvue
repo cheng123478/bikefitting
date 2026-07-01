@@ -1,0 +1,134 @@
+<template>
+	<view class="tab-bar" :style="tabBarStyle">
+		<view
+			v-for="item in tabItems"
+			:key="item.path"
+			class="tab-item"
+			@click="switchTab(item.path)"
+		>
+			<image
+				class="tab-icon"
+				:src="currentPath == item.path ? item.selectedIconPath : item.iconPath"
+				mode="aspectFit"
+			/>
+			<text class="tab-text" :class="{ 'tab-text-active': currentPath == item.path }">
+				{{ item.text }}
+			</text>
+		</view>
+	</view>
+</template>
+
+<script setup lang="uts">
+	import { ref, onMounted } from 'vue'
+	import { getAppLayoutMetrics } from '@/utils/layout.uts'
+
+	type TabBarItem = {
+		path: string
+		text: string
+		iconPath: string
+		selectedIconPath: string
+	}
+
+	const layout = getAppLayoutMetrics()
+	const currentPath = ref('')
+	const tabBarStyle = {
+		paddingBottom: layout.bottomSafeArea + 'px'
+	}
+
+	const tabItems: TabBarItem[] = [
+		{
+			path: 'pages/index/index',
+			text: '首页',
+			iconPath: '/static/tabbar/home.png',
+			selectedIconPath: '/static/tabbar/home-active.png'
+		},
+		{
+			path: 'pages/lab/lab',
+			text: '实验室',
+			iconPath: '/static/tabbar/lab-black-balanced.png',
+			selectedIconPath: '/static/tabbar/lab-green-balanced.png'
+		},
+		{
+			path: 'pages/profile/profile',
+			text: '我的',
+			iconPath: '/static/tabbar/profile.png',
+			selectedIconPath: '/static/tabbar/profile-active.png'
+		}
+	]
+
+	function normalizePath(path: string): string {
+		if (path.startsWith('/')) {
+			return path.substring(1)
+		}
+		return path
+	}
+
+	function syncCurrentPath() {
+		const pages = getCurrentPages()
+		if (pages.length == 0) {
+			currentPath.value = 'pages/index/index'
+			return
+		}
+
+		const currentPage = pages[pages.length - 1]
+		currentPath.value = normalizePath(currentPage.route)
+	}
+
+	function switchTab(path: string) {
+		if (currentPath.value == path) {
+			return
+		}
+
+		uni.switchTab({
+			url: '/' + path,
+			success: () => {
+				currentPath.value = path
+			}
+		})
+	}
+
+	onMounted(() => {
+		syncCurrentPath()
+	})
+</script>
+
+<style>
+	.tab-bar {
+		position: fixed;
+		left: 0;
+		right: 0;
+		bottom: 0;
+		height: 50px;
+		background-color: #FFFFFF;
+		border-top-width: 1px;
+		border-top-color: rgba(217, 209, 196, 0.72);
+		border-top-style: solid;
+		flex-direction: row;
+		z-index: 99;
+	}
+
+	.tab-item {
+		flex: 1;
+		height: 50px;
+		align-items: center;
+		justify-content: center;
+	}
+
+	.tab-icon {
+		width: 24px;
+		height: 24px;
+		margin-bottom: 2px;
+	}
+
+	.tab-text {
+		font-size: 11px;
+		line-height: 14px;
+		color: #787673;
+		text-align: center;
+	}
+
+	.tab-text-active {
+		color: #25CB71;
+		font-weight: 600;
+	}
+</style>
