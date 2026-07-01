@@ -65,6 +65,30 @@
 
         <!-- ================= C. 悬浮数据面板 ================= -->
         <div class="hud-metrics" v-if="isReady || isFileLoaded">
+          <!-- 置信度指示器：摄像头模式实时显示 -->
+          <div class="metric-card confidence-card" v-if="mode === 'camera'">
+            <div class="card-header">
+              <label>识别置信度</label>
+            </div>
+            <div class="confidence-bar-wrapper">
+              <div class="confidence-bar">
+                <div class="confidence-fill" :style="{ width: (avgConfidence * 100) + '%' }"
+                  :class="{
+                    'conf-high': avgConfidence >= 0.7,
+                    'conf-mid': avgConfidence >= 0.4 && avgConfidence < 0.7,
+                    'conf-low': avgConfidence < 0.4
+                  }"></div>
+              </div>
+              <span class="confidence-text" :class="{
+                'text-success': avgConfidence >= 0.7,
+                'text-warning': avgConfidence >= 0.4 && avgConfidence < 0.7,
+                'text-danger': avgConfidence < 0.4
+              }">{{ Math.round(avgConfidence * 100) }}%</span>
+            </div>
+            <div class="desc" v-if="avgConfidence < 0.4" style="color:#ff4d4f">画面质量不足，请调整光线/角度</div>
+            <div class="desc" v-else-if="avgConfidence < 0.7" style="color:var(--accent-gold)">置信度一般，建议优化拍摄条件</div>
+            <div class="desc" v-else style="color:#52c41a">画面质量良好</div>
+          </div>
           <!-- 侧面模式 -->
           <template v-if="viewType === 'side'">
             <div class="metric-card" :class="{ 'in-range': metrics.sideMaxKnee >= 145 && metrics.sideMaxKnee <= 155 }">
@@ -236,7 +260,7 @@
         </div>
 
         <!-- ================= D. 播放控制条 (仅上传模式显示) ================= -->
-        <div class="playback-controls glass-card" v-if="mode === 'upload' && isFileLoaded">
+        <div class="playback-controls glass-card" v-if="mode === 'upload' && isFileLoaded" :class="{ 'controls-locked': isProcessing }">
           <button class="btn-play" @click="togglePlayPause">
             <i class="fas" :class="isPlaying ? 'fa-pause' : 'fa-play'"></i>
           </button>
@@ -337,8 +361,11 @@ const isProcessing = ref(false);
 const analyzeProgress = ref(0);
 const bestSnapshots = ref({bdc: null, tdc: null});
 
-// 【新增】：用于“锁死”第一次分析完毕后的数据，防止回放时数据被污染
+// 【新增】：用于"锁死"第一次分析完毕后的数据，防止回放时数据被污染
 const finalRawData = ref(null);
+
+// 分析开始时间戳，用于计算实际耗时
+const analysisStartTime = ref(0);
 
 // --- 播放器与分析状态 ---
 const isPlaying = ref(false);
@@ -367,7 +394,8 @@ const {
   startCollection,
   stopCollection,
   setSnapshotCallback,
-  closePose
+  closePose,
+  avgConfidence
 } = usePoseEstimation(viewType);
 
 let camera = null;
@@ -410,6 +438,7 @@ const onTimeUpdate = () => {
 };
 
 const handleSeek = async () => {
+  if (isProcessing.value) return;
   if (videoRef.value) {
     videoRef.value.currentTime = currentTime.value;
     if (!isPlaying.value && isReady.value) {
@@ -420,6 +449,7 @@ const handleSeek = async () => {
 };
 
 const togglePlayPause = () => {
+  if (isProcessing.value) return;
   if (!videoRef.value) return;
   if (videoRef.value.paused) {
     videoRef.value.play();
@@ -601,7 +631,7 @@ const handleFileSelected = (event) => {
   videoRef.value.load();
 };
 
-const onVideoDataLoaded = () => {
+const onVideoDataLoaded = async () => {
   if (mode.value === 'upload') {
     videoDuration.value = videoRef.value.duration || 0;
 
@@ -613,9 +643,45 @@ const onVideoDataLoaded = () => {
 
     isFileLoaded.value = true;
 
-    // 开始深度分析
+    // 前置质量检查：快速采样3帧，检测关键点置信度
+    const checkPositions = [
+      videoDuration.value * 0.1,
+      videoDuration.value * 0.3,
+      videoDuration.value * 0.5
+    ];
+    const confidences = [];
+    for (const pos of checkPositions) {
+      videoRef.value.currentTime = pos;
+      await new Promise(resolve => {
+        const onSeeked = () => {
+          videoRef.value.removeEventListener('seeked', onSeeked);
+          resolve();
+        };
+        videoRef.value.addEventListener('seeked', onSeeked);
+      });
+      await sendFrame(videoRef.value);
+      // 等待 MediaPipe 处理完当前帧
+      await new Promise(r => setTimeout(r, 200));
+      confidences.push(avgConfidence.value);
+    }
+
+    const avgConf = confidences.reduce((a, b) => a + b, 0) / confidences.length;
+    if (avgConf < 0.4) {
+      showToast('无法清晰识别全身关键点，请确保骑行者全身在画面中且光线充足、无遮挡', 'error');
+      isFileLoaded.value = false;
+      videoRef.value.pause();
+      videoRef.value.src = '';
+      return;
+    }
+    if (avgConf < 0.6) {
+      showToast('画面关键点识别置信度偏低(约' + Math.round(avgConf * 100) + '%)，建议改善光线或调整拍摄角度以保证分析精度', 'warning');
+    }
+
+    // 重置到开头，开始深度分析
+    videoRef.value.currentTime = 0;
     isProcessing.value = true;
     isPlaying.value = true;
+    analysisStartTime.value = Date.now();
     startCollection(); // Hook 开启记录模式
 
     videoRef.value.playbackRate = ANALYSIS_SPEED;
@@ -1242,6 +1308,42 @@ onUnmounted(() => {
   line-height: 1.4;
 }
 
+/* 置信度卡片样式 */
+.confidence-card {
+  border-left: 3px solid rgba(82, 196, 26, 0.5);
+}
+.confidence-bar-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 2px;
+}
+.confidence-bar {
+  flex: 1;
+  height: 6px;
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 3px;
+  overflow: hidden;
+}
+.confidence-fill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.3s ease;
+}
+.confidence-fill.conf-high { background: #52c41a; }
+.confidence-fill.conf-mid { background: var(--accent-gold); }
+.confidence-fill.conf-low { background: #ff4d4f; }
+.confidence-text {
+  font-family: 'Lato', sans-serif;
+  font-weight: 800;
+  font-size: 0.9rem;
+  min-width: 36px;
+  text-align: right;
+}
+.confidence-text.text-success { color: #52c41a; }
+.confidence-text.text-warning { color: var(--accent-gold); }
+.confidence-text.text-danger { color: #ff4d4f; }
+
 .stage-controls {
   position: absolute;
   bottom: max(40px, env(safe-area-inset-bottom, 40px));
@@ -1290,6 +1392,13 @@ onUnmounted(() => {
 .btn-play:hover {
   background: var(--accent-gold);
   color: #000;
+}
+
+/* 分析中锁定播放控制条 */
+.playback-controls.controls-locked {
+  pointer-events: none;
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .scrubber-wrapper {

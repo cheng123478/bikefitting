@@ -40,6 +40,10 @@ public class DynamicFittingReportVO {
     // 建议列表
     private List<String> equipmentSuggestions;
 
+    // 疼痛关联分析
+    private String painAnalysis;
+    private List<String> painLabels;
+
     // 踩踏分析专属数据
     private PedalingData pedalingData;
 

@@ -23,4 +23,5 @@ public class DynamicFittingMetricVO {
     private String idealRange; // 理想范围: e.g., "140-150"
     private String advice; // 针对该指标的具体建议（调车方向）
     private String riderAdvice; // 针对骑车人自身动作纠正/习惯改善的建议
+    private Boolean painRelated; // 是否与用户反馈的疼痛部位相关
 }

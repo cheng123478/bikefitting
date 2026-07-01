@@ -54,6 +54,9 @@ export function usePoseEstimation(viewModeRef = 'side') {
         rightHipDrop: 0
     });
 
+    // 关键点平均置信度 (0.0~1.0)，用于画质检查
+    const avgConfidence = ref(0);
+
     const isCollecting = ref(false);
     const collectedData = ref({
         timestamps: [],
@@ -100,6 +103,12 @@ export function usePoseEstimation(viewModeRef = 'side') {
 
         const lm = results.poseLandmarks;
         const extract = (pt) => (pt ? { x: pt.x, y: pt.y, v: pt.visibility } : null);
+
+        // 计算关键点平均置信度（用于画质检查）
+        // 只需要躯干+下肢的核心关键点，不包含面部/手脚末端
+        const confidenceIndices = [11, 12, 23, 24, 25, 26, 27, 28];
+        const confidences = confidenceIndices.map(i => lm[i]?.visibility || 0);
+        avgConfidence.value = Math.round(confidences.reduce((a, b) => a + b, 0) / confidences.length * 100) / 100;
 
         const mode = getMode();
 
@@ -626,6 +635,6 @@ export function usePoseEstimation(viewModeRef = 'side') {
 
     return {
         initPose, closePose, sendFrame, isReady, error, keypoints, dualKeypoints, metrics,
-        startCollection, stopCollection, setSnapshotCallback
+        startCollection, stopCollection, setSnapshotCallback, avgConfidence
     };
 }

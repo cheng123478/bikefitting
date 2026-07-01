@@ -57,6 +57,67 @@ public class DynamicFittingService {
             "leftHipDrop", "rightHipDrop"
     );
 
+    /**
+     * 属于动作/习惯指导类的指标：不应列入"器材更换/调整建议"，只在"骑车习惯 & 动作纠正要点"中体现。
+     */
+    private static final Set<String> ACTION_ONLY_METRICS = Set.of(
+            "kneeAnglePhaseStdDev",
+            "hipAnglePhaseStdDev",
+            "ankleAnglePhaseStdDev",
+            "cadenceRpm",
+            "spineRockingVar"
+    );
+
+    /**
+     * 器材部位中文映射，用于生成合并后的器材建议标题。
+     * 未识别部位归入「综合调整」，避免所有建议都显示无意义的"调整建议"。
+     */
+    private static final Map<String, String> EQUIPMENT_PART_LABEL = Map.of(
+            "cleat", "锁片调整",
+            "seat", "座垫调整",
+            "handlebar", "车把/把立调整",
+            "crank", "综合调整",
+            "shoe", "锁鞋/鞋垫",
+            "saddle", "座垫调整",
+            "stem", "车把/把立调整",
+            "fitter", "综合调整"
+    );
+
+    /**
+     * 疼痛部位 → 关联指标映射表
+     * 用于报告中的疼痛关联分析，将用户反馈的疼痛部位自动关联到相关生物力学指标
+     */
+    private static final Map<String, Set<String>> PAIN_METRIC_MAP = new HashMap<>();
+    static {
+        PAIN_METRIC_MAP.put("knee_anterior", Set.of("maxKnee", "kopsOffset"));
+        PAIN_METRIC_MAP.put("knee_posterior", Set.of("maxKnee"));
+        PAIN_METRIC_MAP.put("knee_medial", Set.of("leftKneeWobble", "rightKneeWobble", "maxWobble"));
+        PAIN_METRIC_MAP.put("knee_lateral", Set.of("leftKneeWobble", "rightKneeWobble", "maxWobble"));
+        PAIN_METRIC_MAP.put("neck_pain", Set.of("avgTorso"));
+        PAIN_METRIC_MAP.put("shoulder_pain", Set.of("maxShoulderTilt", "maxElbowFlare"));
+        PAIN_METRIC_MAP.put("hand_numbness", Set.of("avgTorso", "maxElbowFlare"));
+        PAIN_METRIC_MAP.put("lower_back", Set.of("avgTorso", "pelvisSway", "maxPelvisSway"));
+        PAIN_METRIC_MAP.put("perineum_pain", Set.of("avgTorso", "kopsOffset"));
+        PAIN_METRIC_MAP.put("foot_numbness", Set.of("ankleAtBdc"));
+        PAIN_METRIC_MAP.put("achilles_pain", Set.of("ankleAtBdc"));
+    }
+
+    /** 疼痛部位中文描述 → 调车建议的映射 */
+    private static final Map<String, String> PAIN_ADJUSTMENT_HINTS = new HashMap<>();
+    static {
+        PAIN_ADJUSTMENT_HINTS.put("knee_anterior", "建议优先调整座高和坐垫前后位置");
+        PAIN_ADJUSTMENT_HINTS.put("knee_posterior", "建议优先检查座高是否过高，关注膝盖后方不适");
+        PAIN_ADJUSTMENT_HINTS.put("knee_medial", "建议检查锁片角度和鞋垫支撑，加强髋部控制训练");
+        PAIN_ADJUSTMENT_HINTS.put("knee_lateral", "建议检查锁片角度和鞋垫支撑，加强臀中肌力量");
+        PAIN_ADJUSTMENT_HINTS.put("neck_pain", "建议检查把立高度和长度，避免过度抬头或耸肩");
+        PAIN_ADJUSTMENT_HINTS.put("shoulder_pain", "建议检查车把宽度和握把姿势，放松上半身");
+        PAIN_ADJUSTMENT_HINTS.put("hand_numbness", "建议调整坐垫前后位置和把立高度，减少手部压力");
+        PAIN_ADJUSTMENT_HINTS.put("lower_back", "建议检查躯干俯角和骨盆稳定性，加强核心力量");
+        PAIN_ADJUSTMENT_HINTS.put("perineum_pain", "建议调整坐垫角度和前后位置，检查坐垫选择是否合适");
+        PAIN_ADJUSTMENT_HINTS.put("foot_numbness", "建议检查锁片位置和鞋底支撑，调整踩踏姿势");
+        PAIN_ADJUSTMENT_HINTS.put("achilles_pain", "建议检查锁片前后位置和坐垫高度，减少跟腱拉伸");
+    }
+
     @Resource
     private DynamicFittingSessionRepository sessionRepository;
     @Resource
@@ -329,16 +390,11 @@ public class DynamicFittingService {
             resultRepository.findBySession_Id(session.getId()).ifPresent(result -> {
                 vo.setMatchScore(result.getMatchScore());
 
-                // 提取精简卡片建议
+                // 提取精简卡片建议：与报告页保持一致，合并整理器材调整建议
                 if (org.springframework.util.StringUtils.hasText(result.getAdviceJson())) {
                     try {
                         List<DynamicFittingAdviceVO> advices = JSON.parseArray(result.getAdviceJson(), DynamicFittingAdviceVO.class);
-                        if (advices != null) {
-                            vo.setEquipmentSuggestions(advices.stream()
-                                    .map(a -> a.getAdviceContent() != null ? a.getAdviceContent() : a.getCode())
-                                    .distinct()
-                                    .collect(Collectors.toList()));
-                        }
+                        vo.setEquipmentSuggestions(buildEquipmentSuggestions(advices));
                     } catch (Exception e) {
                         log.warn("解析会话 {} 的 adviceJson 失败", session.getId());
                     }
@@ -398,6 +454,31 @@ public class DynamicFittingService {
         }
         reportVO.setStandardRanges(standardRanges);
 
+        // 疼痛关联分析：提取用户反馈的疼痛部位，生成分析文本
+        Set<String> painMetricKeys = new HashSet<>();
+        String painRaw = session.getPainLevels();
+        if (StringUtils.hasText(painRaw)) {
+            try {
+                List<String> painKeys = JSON.parseArray(painRaw, String.class);
+                if (painKeys != null && !painKeys.isEmpty()) {
+                    // 收集所有疼痛部位关联的指标 key
+                    for (String painKey : painKeys) {
+                        Set<String> related = PAIN_METRIC_MAP.get(painKey);
+                        if (related != null) {
+                            painMetricKeys.addAll(related);
+                        }
+                    }
+                    // 生成疼痛分析文本
+                    reportVO.setPainAnalysis(generatePainAnalysis(painKeys, overallSummary, standardRanges));
+                    reportVO.setPainLabels(painKeys.stream()
+                            .map(RidingPainType::getDescriptionByCode)
+                            .collect(Collectors.toList()));
+                }
+            } catch (Exception e) {
+                log.warn("解析会话 {} 的疼痛数据失败", sessionId);
+            }
+        }
+
         // 计算检测覆盖率
         Map<String, String> finalStandardRanges = standardRanges;
         int totalStandards = finalStandardRanges != null ? finalStandardRanges.size() : 0;
@@ -418,11 +499,11 @@ public class DynamicFittingService {
 
         if (overallSummary != null) {
             reportVO.setSideData(
-                    new DynamicFittingReportVO.ViewData(mapToMetricVO("side", overallSummary.get("side"), advices, standardRanges)));
+                    new DynamicFittingReportVO.ViewData(mapToMetricVO("side", overallSummary.get("side"), advices, standardRanges, painMetricKeys)));
             reportVO.setFrontData(
-                    new DynamicFittingReportVO.ViewData(mapToMetricVO("front", overallSummary.get("front"), advices, standardRanges)));
+                    new DynamicFittingReportVO.ViewData(mapToMetricVO("front", overallSummary.get("front"), advices, standardRanges, painMetricKeys)));
             reportVO.setBackData(
-                    new DynamicFittingReportVO.ViewData(mapToMetricVO("back", overallSummary.get("back"), advices, standardRanges)));
+                    new DynamicFittingReportVO.ViewData(mapToMetricVO("back", overallSummary.get("back"), advices, standardRanges, painMetricKeys)));
 
             // 提取被合成好的 PedalingData 数据并装配给前端
             if (overallSummary.containsKey("pedalingData")) {
@@ -434,15 +515,8 @@ public class DynamicFittingService {
             }
         }
 
-        // 器材/体能调整建议 (汇总所有建议，不只是 adjust)
-        if (advices != null) {
-            reportVO.setEquipmentSuggestions(advices.stream()
-                    .map(a -> a.getAdviceContent() != null ? a.getAdviceContent() : a.getCode())
-                    .distinct()
-                    .collect(Collectors.toList()));
-        } else {
-            reportVO.setEquipmentSuggestions(new ArrayList<>());
-        }
+        // 器材调整建议：仅保留真正需要调整器材的部位，按锁片/座垫/车把合并整理，避免与动作指导混淆
+        reportVO.setEquipmentSuggestions(buildEquipmentSuggestions(advices));
 
         return reportVO;
     }
@@ -551,89 +625,89 @@ public class DynamicFittingService {
             switch (metricKey) {
                 case "avgTorso":
                     return isLow
-                        ? "骑行时收紧核心、挺胸收腹，想象「肚脐贴向脊柱」的感觉，避免塌腰。"
-                        : "如果趴低后感到不适，可先加强胸椎灵活性和核心力量，再逐步降低姿势。";
+                        ? "收紧核心，挺胸收腹，避免塌腰。"
+                        : "逐步降低姿势前，先加强胸椎灵活性和核心力量。";
                 case "minHip":
                     return isLow
-                        ? "踏板到最高点时，有意识地「提膝」让大腿远离腹部，多做髋屈肌拉伸改善活动度。"
-                        : "练习单腿踩踏，感受踏板最高点时的髋关节控制，避免髋部晃动。";
+                        ? "踏板最高点时有意识提膝，多做髋屈肌拉伸。"
+                        : "练习单腿踩踏，感受踩踏顶部的髋关节控制。";
                 case "maxHip":
                     return isLow
-                        ? "骑行前做髋屈肌和股四头肌拉伸，改善髋关节活动范围，让踩踏更有力。"
-                        : "踏板最低点时保持骨盆水平、不要过度下沉，收紧臀部感受发力。";
+                        ? "骑行前做髋屈肌和股四头肌拉伸。"
+                        : "踏板最低点时保持骨盆水平，收紧臀部发力。";
                 case "maxKnee":
                     return isLow
-                        ? "练习「画圆」踩踏，想象用脚底画一个完整的圆，而不是单纯向下踩。"
-                        : "膝盖始终保持微曲、不锁死，用轻齿比练习高踏频，让踩踏更平顺。";
+                        ? "练习「画圆」踩踏，避免单纯向下踩。"
+                        : "膝盖保持微曲不锁死，用轻齿比练习高踏频。";
                 case "maxShoulder":
                     return isLow
-                        ? "肘部微曲、肩胛骨后收下沉，远离耳朵，避免耸肩。"
-                        : "保持肘部弯曲约 15-20°，让手臂像弹簧一样吸收路面震动。";
+                        ? "肘部微曲，肩胛骨后收下沉，避免耸肩。"
+                        : "肘部保持微曲，让手臂吸收路面震动。";
                 case "kopsOffset":
                     return isLow
-                        ? "踩踏时让膝盖主动「追踪」脚尖方向，感受大腿前侧（股四头肌）更早发力。"
-                        : "膝盖不要过度超过脚尖，感受臀部（臀大肌）主导发力，减轻膝盖压力。";
+                        ? "膝盖追踪脚尖方向，感受大腿前侧发力。"
+                        : "膝盖不过度超脚尖，用臀部主导发力。";
                 case "cadenceRpm":
                     return isLow
-                        ? "换更轻齿比，目标踏频 80-90 RPM，像缝纫机一样平顺踩踏。"
-                        : "收紧核心、适当增加齿比，让骨盆稳定不跳动，保持上身安静。";
+                        ? "换轻齿比，保持踏频 80-90 RPM。"
+                        : "收紧核心，增加齿比，保持骨盆稳定。";
                 case "ankleAtBdc":
                     return isLow
-                        ? "保持脚掌平稳，避免在踏板最低点时脚跟过度下坠，想象脚掌始终「平贴」踏板。"
-                        : "减少脚尖下压，让脚掌更平稳地通过最低点，避免脚踝反复晃动。";
+                        ? "脚掌平稳过渡，避免脚跟过度下坠。"
+                        : "减少脚尖下压，脚掌平稳通过最低点。";
                 case "ankleY":
                     return isLow
-                        ? "练习单腿踩踏，让脚踝在踏板上平滑过渡，减少上下抖动。"
-                        : "收紧核心，脚掌始终贴合踏板，避免脚踝反复抬起。";
+                        ? "练习单腿踩踏，让脚踝平滑过渡。"
+                        : "收紧核心，脚掌始终贴合踏板。";
                 case "maxWobble":
                     return isLow ? null
-                        : "膝盖保持「上下」直线运动，想象膝盖在一条轨道上滑动。多做臀中肌激活训练（如侧卧抬腿、弹力带螃蟹步）。";
+                        : "膝盖保持直线运动，做臀中肌激活训练（侧卧抬腿、弹力带螃蟹步）。";
                 case "maxTilt":
                     return isLow ? null
-                        : "身体在踩踏时左右晃动偏大。加强核心抗旋转训练（如平板支撑变式），骑行时有意识地保持骨盆水平。";
+                        : "加强核心抗旋转训练，骑行时保持骨盆水平。";
                 case "maxElbowFlare":
                     return isLow ? null
-                        : "手肘向外张开过多。有意识地将肘部「内收」靠近身体，让前臂自然下垂，减少风阻和肩膀紧张。";
+                        : "肘部内收靠近身体，前臂自然下垂。";
                 case "maxShoulderTilt":
                     return isLow ? null
-                        : "左右肩膀高度不一致。加强弱侧肩胛稳定训练，日常注意两侧对称发力，骑行时放松握把。";
+                        : "加强弱侧肩胛稳定训练，放松握把。";
                 case "maxHipTilt":
                     return isLow ? null
-                        : "骨盆在踩踏时左右倾斜偏大，说明核心抗侧倾能力不足或左右腿发力不均。练习单腿踩踏、加强臀中肌（侧卧抬腿）和核心抗侧倾训练。";
+                        : "练习单腿踩踏，加强臀中肌和核心抗侧倾训练。";
                 case "maxPelvisSway":
                     return isLow ? null
-                        : "骨盆在踩踏时左右晃动偏大。加强核心训练（平板支撑、死虫式），骑行时想象骨盆「坐稳」在坐垫上。";
+                        : "加强核心训练（平板支撑、死虫式），骑行时稳住骨盆。";
                 case "maxSpineTilt":
                     return isLow ? null
-                        : "脊柱中线左右偏移偏大，可能存在左右发力不均。加强核心对称性训练，若持续出现建议咨询物理治疗师排查长短腿。";
+                        : "注意左右对称发力，改善脊柱中线偏移。";
                 case "spineRockingVar":
                     return isLow ? null
-                        : "脊柱在踩踏中晃动幅度偏大。保持稳定踏频匀速踩踏，收紧核心，避免身体左右摇摆。";
+                        : "保持匀速踏频，收紧核心，避免身体摇摆。";
                 case "maxHipDrop":
                     return isLow ? null
-                        : "单侧骨盆在踩踏中下沉偏多，说明该侧臀中肌力量不足。加强弱侧的臀中肌训练，踩踏时有意识地保持骨盆水平。";
-                // 【修复 P14】稳定性指标
+                        : "加强弱侧臀中肌训练，踩踏时保持骨盆水平。";
+                // 稳定性指标
                 case "kneeAnglePhaseStdDev":
                     return isLow ? null
-                        : "踩踏节奏不够稳定，每圈膝角变化不一致。练习「画圆」踩踏和单腿训练，让每圈踩踏更均匀。";
+                        : "练习「画圆」踩踏和单腿训练，让每圈踩踏更均匀。";
                 case "hipAnglePhaseStdDev":
                     return isLow ? null
-                        : "髋角在踩踏中变化不够稳定。保持匀速踏频，配合髋屈肌拉伸，让髋部动作更平顺。";
+                        : "保持匀速踏频，配合髋屈肌拉伸。";
                 case "ankleAnglePhaseStdDev":
                     return isLow ? null
-                        : "脚踝在踩踏中姿态不够稳定。用轻齿比练高踏频，让脚掌与踏板保持稳定接触，减少脚踝多余动作。";
+                        : "用轻齿比练高踏频，保持脚掌稳定接触踏板。";
                 case "torsoAngleStdDev":
                     return isLow ? null
-                        : "上半身在踩踏中不够稳定。加强核心肌群训练，骑行时保持「肚脐贴脊柱」的收紧感。";
+                        : "加强核心训练，骑行时保持上半身稳定。";
                 case "shoulderTiltStdDev":
                     return isLow ? null
-                        : "肩膀在踩踏中晃动偏大。放松握把、肘部微曲，让下肢节奏主导踩踏，上半身保持放松。";
+                        : "放松握把，肘部微曲，上半身保持放松。";
                 case "hipTiltStdDev":
                     return isLow ? null
-                        : "骨盆侧倾波动偏大，稳定性不足。可尝试降低坐垫 2-3mm 测试，同时加强侧平板支撑训练。";
+                        : "尝试降低座高 2-3mm，加强侧平板支撑。";
                 case "pelvisSwayStdDev":
                     return isLow ? null
-                        : "骨盆摇摆波动偏大，稳定性不足。练习高踏频稳定训练，加强核心抗旋转能力。";
+                        : "练习高踏频稳定训练，加强核心抗旋转。";
                 default:
                     // 兜底：尝试匹配带 StdDev/CV/PhaseStdDev 后缀的稳定性指标
                     if (metricKey.endsWith("PhaseStdDev") || metricKey.endsWith("StdDev") || metricKey.endsWith("CV")) {
@@ -645,6 +719,51 @@ public class DynamicFittingService {
         } catch (NumberFormatException e) {
             return null;
         }
+    }
+
+    /**
+     * 构建合并后的器材调整建议。
+     * 过滤掉纯动作/习惯指导类指标（如相位一致性、踏频），并按器材部位（锁片/座垫/车把）合并，避免建议过于零散。
+     */
+    private List<String> buildEquipmentSuggestions(List<DynamicFittingAdviceVO> advices) {
+        if (advices == null || advices.isEmpty()) {
+            return new ArrayList<>();
+        }
+
+        // 识别 part → 中文标签；未识别但 adviceContent 有实质内容的，归入「综合调整】
+        Map<String, List<DynamicFittingAdviceVO>> grouped = new LinkedHashMap<>();
+        for (DynamicFittingAdviceVO a : advices) {
+            if (a.getMetric() != null && ACTION_ONLY_METRICS.contains(a.getMetric())) continue;
+
+            String content = a.getAdviceContent() != null ? a.getAdviceContent() : a.getCode();
+            if (!StringUtils.hasText(content)) continue;
+
+            String part = a.getPart();
+            String key = EQUIPMENT_PART_LABEL.containsKey(part) ? part : "fitter";
+            grouped.computeIfAbsent(key, k -> new ArrayList<>()).add(a);
+        }
+
+        List<String> result = new ArrayList<>();
+        // 保持常用部位的固定展示顺序
+        for (String part : List.of("cleat", "seat", "saddle", "handlebar", "stem", "shoe", "crank", "fitter")) {
+            List<DynamicFittingAdviceVO> list = grouped.get(part);
+            if (list == null || list.isEmpty()) continue;
+
+            String combined = list.stream()
+                    .map(a -> {
+                        String content = a.getAdviceContent() != null ? a.getAdviceContent() : a.getCode();
+                        if (!StringUtils.hasText(content)) return null;
+                        return content.replaceAll("[。；,]+$", "");
+                    })
+                    .filter(Objects::nonNull)
+                    .distinct()
+                    .collect(Collectors.joining("；"));
+
+            if (StringUtils.hasText(combined)) {
+                result.add("【" + EQUIPMENT_PART_LABEL.get(part) + "】" + combined + "。");
+            }
+        }
+        return result;
     }
 
     private double[] parseRange(String rangeText) {
@@ -696,16 +815,16 @@ public class DynamicFittingService {
 
         switch (metricKey) {
             case "maxHipTilt":
-                return "骨盆最大侧倾略超参考范围。这可能意味着踩踏时骨盆左右晃动偏大，会影响踩踏效率和腰部舒适度。建议先确认拍摄角度是否正面水平，若重复超范围，再检查：①座高是否过高；②坐垫支撑是否足够；③核心和臀中肌力量是否需加强。";
+                return "骨盆侧倾偏大。建议检查：①座高是否过高；②坐垫支撑是否足够。";
             case "ankleAtBdc":
                 return isLow
-                        ? "下死点脚踝角度低于参考范围，脚跟偏下沉。建议检查锁片前后位置、鞋底支撑，并注意踩踏时避免脚跟过度下坠。"
-                        : "下死点脚踝角度高于参考范围，脚尖下压偏多。建议检查锁片位置、鞋底支撑，并注意踩踏时避免过度用脚尖发力。";
+                        ? "脚跟偏下沉。建议检查锁片前后位置、鞋底支撑。"
+                        : "脚尖下压偏多。建议检查锁片前后位置、鞋底支撑。";
             case "maxShoulderTilt":
             case "maxTilt":
-                return "上身侧倾超出参考范围。建议先确认：①摄像头是否水平放置；②站位是否正面居中。排除拍摄因素后，再检查握把压力是否均匀、肩胛是否稳定、核心控制是否到位。";
+                return "上身侧倾偏大。建议检查：①摄像头是否水平；②握把压力是否均匀。排除拍摄因素后，再确认核心控制。";
             default:
-                return "该项超出当前参考范围。建议先复核拍摄角度和关键点识别质量，再结合骑行中的实际感受（如疼痛、不适）与专业 fitting 检查综合判断。";
+                return "该项超出参考范围。建议复核拍摄质量，结合骑行实际感受判断。";
         }
     }
 
@@ -719,13 +838,14 @@ public class DynamicFittingService {
     private List<DynamicFittingMetricVO> mapToMetricVO(Map<String, Object> metrics,
                                                        List<DynamicFittingAdviceVO> advices,
                                                        Map<String, String> standardRanges) {
-        return mapToMetricVO(null, metrics, advices, standardRanges);
+        return mapToMetricVO(null, metrics, advices, standardRanges, new HashSet<>());
     }
 
     private List<DynamicFittingMetricVO> mapToMetricVO(String viewType,
                                                        Map<String, Object> metrics,
                                                        List<DynamicFittingAdviceVO> advices,
-                                                       Map<String, String> standardRanges) {
+                                                       Map<String, String> standardRanges,
+                                                       Set<String> painMetricKeys) {
         if (metrics == null) {
             return Collections.emptyList();
         }
@@ -734,13 +854,13 @@ public class DynamicFittingService {
         List<DynamicFittingMetricVO> vos = new ArrayList<>();
         for (String key : resolveReportMetricOrder(viewType)) {
             if ("maxHipDrop".equals(key)) {
-                addHipDropMetricVO(vos, metrics, safeAdvices, standardRanges);
+                addHipDropMetricVO(vos, metrics, safeAdvices, standardRanges, painMetricKeys);
                 continue;
             }
             if (!metrics.containsKey(key)) {
                 continue;
             }
-            addSingleMetricVO(vos, key, metrics.get(key), safeAdvices, standardRanges);
+            addSingleMetricVO(vos, key, metrics.get(key), safeAdvices, standardRanges, painMetricKeys);
         }
         return vos;
     }
@@ -762,7 +882,8 @@ public class DynamicFittingService {
                                    String key,
                                    Object val,
                                    List<DynamicFittingAdviceVO> advices,
-                                   Map<String, String> standardRanges) {
+                                   Map<String, String> standardRanges,
+                                   Set<String> painMetricKeys) {
         DynamicFittingAdviceVO advice = advices.stream()
                 .filter(a -> key.equalsIgnoreCase(a.getMetric()))
                 .findFirst().orElse(null);
@@ -782,13 +903,15 @@ public class DynamicFittingService {
                 .idealRange(range)
                 .advice(adviceText)
                 .riderAdvice(riderAdvice)
+                .painRelated(painMetricKeys != null && painMetricKeys.contains(key))
                 .build());
     }
 
     private void addHipDropMetricVO(List<DynamicFittingMetricVO> vos,
                                     Map<String, Object> metrics,
                                     List<DynamicFittingAdviceVO> advices,
-                                    Map<String, String> standardRanges) {
+                                    Map<String, String> standardRanges,
+                                    Set<String> painMetricKeys) {
         if (!metrics.containsKey("hipDrop_L") && !metrics.containsKey("hipDrop_R")) {
             return;
         }
@@ -824,7 +947,83 @@ public class DynamicFittingService {
                 .idealRange(range)
                 .advice(adviceText)
                 .riderAdvice(riderAdvice)
+                .painRelated(painMetricKeys != null && painMetricKeys.contains("maxHipDrop"))
                 .build());
+    }
+
+    /**
+     * 生成疼痛关联分析文本
+     * 根据用户反馈的疼痛部位，自动关联相关生物力学指标，生成自然语言分析
+     *
+     * @param painKeys       疼痛部位编码列表
+     * @param overallSummary 各视角指标汇总数据
+     * @param standardRanges 标准范围映射
+     * @return 疼痛关联分析文本
+     */
+    private String generatePainAnalysis(List<String> painKeys,
+                                        Map<String, Map<String, Object>> overallSummary,
+                                        Map<String, String> standardRanges) {
+        if (painKeys == null || painKeys.isEmpty()) {
+            return null;
+        }
+
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < painKeys.size(); i++) {
+            String painKey = painKeys.get(i);
+            String painDesc = RidingPainType.getDescriptionByCode(painKey);
+            Set<String> relatedMetrics = PAIN_METRIC_MAP.get(painKey);
+            String hint = PAIN_ADJUSTMENT_HINTS.getOrDefault(painKey, "请关注相关指标");
+
+            if (relatedMetrics == null || relatedMetrics.isEmpty()) {
+                continue;
+            }
+
+            // 收集关联指标的异常值信息
+            List<String> detailParts = new ArrayList<>();
+            for (String metricKey : relatedMetrics) {
+                // 从 overallSummary 中查找该指标的值
+                Double metricVal = findMetricValue(overallSummary, metricKey);
+                if (metricVal == null) continue;
+
+                // 获取该指标的标准范围
+                String range = resolveIdealRange(metricKey, null, standardRanges);
+                String status = resolveStatusFromRange(metricVal, range);
+
+                // 只展示异常(WARNING)和需要调整(ADJUST)的指标
+                if ("WARNING".equals(status) || "ADJUST".equals(status)) {
+                    String label = getMetricLabel(metricKey);
+                    detailParts.add(String.format("%s偏%s(%.1f°，理想%s)", label,
+                            "WARNING".equals(status) ? "离" : "差", metricVal, range));
+                }
+            }
+
+            if (sb.length() > 0) {
+                sb.append("；");
+            }
+            if (detailParts.isEmpty()) {
+                sb.append(String.format("您反馈的%s，当前关联指标均在理想范围内，请继续保持当前设定", painDesc));
+            } else {
+                sb.append(String.format("您反馈的%s，可能与%s有关，%s",
+                        painDesc, String.join("和", detailParts), hint));
+            }
+        }
+        return sb.length() > 0 ? sb.toString() : null;
+    }
+
+    /**
+     * 从 overallSummary 中查找指定指标的值
+     */
+    private Double findMetricValue(Map<String, Map<String, Object>> overallSummary, String metricKey) {
+        if (overallSummary == null) return null;
+        for (Map<String, Object> viewMetrics : overallSummary.values()) {
+            if (viewMetrics != null && viewMetrics.containsKey(metricKey)) {
+                Object val = viewMetrics.get(metricKey);
+                if (val instanceof Number) {
+                    return ((Number) val).doubleValue();
+                }
+            }
+        }
+        return null;
     }
 
     /**

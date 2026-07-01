@@ -66,9 +66,12 @@
                       <p class="summary-hero-text">快速预览您的核心调整建议，如需查看关节角度与轨迹剖析，请点击“查看深度报告”。</p>
 
                       <!-- 详细清单 -->
-                      <div class="summary-text-list" v-if="selectedSession.equipmentSuggestions && selectedSession.equipmentSuggestions.length > 0">
-                        <p class="summary-text" v-for="(code, index) in selectedSession.equipmentSuggestions" :key="index">
-                          • {{ code }}
+                      <div class="summary-text-list" v-if="groupedEquipSuggestions.length">
+                        <p class="summary-text" v-for="(g, idx) in groupedEquipSuggestions" :key="idx">
+                          <template v-if="g.category && g.category !== '调整建议'">
+                            <strong>{{ g.category }}</strong>：
+                          </template>
+                          {{ g.content }}
                         </p>
                       </div>
                       <p class="summary-text" v-else>
@@ -141,6 +144,23 @@ const scoreRingStyle = computed(() => {
     strokeDasharray: circ,
     strokeDashoffset: circ - (score / 100) * circ
   };
+});
+
+// 过滤并分组器材建议，排除纯动作指导类内容
+const groupedEquipSuggestions = computed(() => {
+  const suggestions = props.selectedSession?.equipmentSuggestions || [];
+  return suggestions
+    .filter(text => {
+      const s = String(text);
+      return !s.includes('相位一致性') && !s.includes('踏频') && !s.includes('脊柱侧偏波动');
+    })
+    .map(text => {
+      const match = String(text).match(/^【(.+?)】(.+)$/);
+      if (match) {
+        return { category: match[1], content: match[2] };
+      }
+      return { category: '调整建议', content: text };
+    });
 });
 
 const handleViewReport = (session) => emit('viewReport', session);

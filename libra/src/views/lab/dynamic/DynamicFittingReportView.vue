@@ -51,6 +51,15 @@
           </div>
         </section>
 
+        <!-- 疼痛关联分析模块 (如果用户标记了疼痛) -->
+        <section v-if="report.painAnalysis" class="pain-analysis-section glass-card fade-up delay-1">
+          <div class="pain-section-header">
+            <span class="pain-icon">⚡</span>
+            <h2>疼痛关联分析</h2>
+          </div>
+          <div class="pain-analysis-text">{{ report.painAnalysis }}</div>
+        </section>
+
         <!-- [NEW] Pedaling Pro Analysis Section -->
         <PedalingAnalysisSection v-if="report.pedalingData" :data="report.pedalingData" />
 
@@ -71,7 +80,7 @@
               <div v-for="(group, gIdx) in getMetricGroups(viewType)" :key="gIdx" class="metric-group-wrapper">
                 <h4 v-if="group.title" class="group-title" style="margin-top: 5px; margin-bottom: 20px; font-size: 1.15rem; color: var(--primary-color);">{{ group.title }}</h4>
                 <div class="metric-grid">
-                  <div v-for="m in group.metrics" :key="m.label" class="m-card" :class="m.status">
+                  <div v-for="m in group.metrics" :key="m.label" class="m-card" :class="[m.status, { 'pain-related': m.painRelated }]">
                     <div class="m-head">
                       <span class="m-label">{{ m.label }}</span>
                       <span class="m-status-text" v-if="m.status !== 'OK'">{{ m.status }}</span>
@@ -87,8 +96,8 @@
                       </div>
                     </div>
                     <p v-if="getDescription(m.label)" class="m-desc-text">{{ getDescription(m.label) }}</p>
-                    <!-- 调车建议 -->
-                    <div class="m-advice bike-advice-box" v-if="m.advice && m.status !== 'OK'">
+                    <!-- 调车建议：纯动作指导类指标不显示器材调整建议 -->
+                    <div class="m-advice bike-advice-box" v-if="m.advice && m.status !== 'OK' && !isActionOnlyMetric(m.label)">
                       <i class="fas fa-wrench advice-icon bike-icon"></i>
                       <span>{{ m.advice }}</span>
                     </div>
@@ -140,10 +149,13 @@
 
         <!-- 4. Equipment & Actions -->
         <footer class="report-footer fade-up delay-4">
-          <div class="equip-card glass-card" v-if="report.equipmentSuggestions?.length">
+          <div class="equip-card glass-card" v-if="groupedEquipmentSuggestions.length">
             <h4><i class="fas fa-tools"></i> 器材更换/调整建议</h4>
-            <ul>
-              <li v-for="s in report.equipmentSuggestions" :key="s">{{ s }}</li>
+            <ul class="equip-list">
+              <li class="equip-item" v-for="(g, idx) in groupedEquipmentSuggestions" :key="idx">
+                <span class="equip-category-badge" v-if="g.category && g.category !== '调整建议'">{{ g.category }}</span>
+                <span class="equip-text">{{ g.content }}</span>
+              </li>
             </ul>
           </div>
 
@@ -270,6 +282,29 @@ const allRiderAdvices = computed(() => {
   });
   return advices;
 });
+
+// 器材建议按【分类】前缀分组展示，使器材调整清单更清晰
+// 同时过滤掉纯动作/习惯指导类指标（如相位一致性），避免与「骑车习惯 & 动作纠正要点」重复
+const groupedEquipmentSuggestions = computed(() => {
+  if (!report.value?.equipmentSuggestions) return [];
+  return report.value.equipmentSuggestions
+    .filter(text => {
+      const s = String(text);
+      return !s.includes('相位一致性') && !s.includes('踏频') && !s.includes('脊柱侧偏波动');
+    })
+    .map(text => {
+      const match = String(text).match(/^【(.+?)】(.+)$/);
+      if (match) {
+        return { category: match[1], content: match[2] };
+      }
+      return { category: '调整建议', content: text };
+    });
+});
+
+// 判断是否为纯动作/习惯指导类指标，这类指标不显示器材调车建议
+const isActionOnlyMetric = (label) => {
+  return label && label.includes('相位一致性');
+};
 
 const getScoreClass = (s) => {
   if (s >= 90) return 'text-success';
@@ -673,11 +708,61 @@ onUnmounted(() => {
 .m-card:hover { transform: translateY(-2px); box-shadow: 0 8px 25px rgba(92, 110, 88, 0.08); border-color: rgba(92, 110, 88, 0.2); }
 .m-card.ADJUST { background: linear-gradient(135deg, rgba(212, 175, 55, 0.05) 0%, rgba(212, 175, 55, 0.02) 100%); border-left: 5px solid var(--accent-gold); }
 .m-card.WARNING { background: linear-gradient(135deg, rgba(193, 140, 126, 0.06) 0%, rgba(193, 140, 126, 0.02) 100%); border-left: 5px solid var(--danger-color); }
+.m-card.ADJUST .m-status-text { background: rgba(212, 175, 55, 0.15); color: var(--accent-gold); }
+.m-card.WARNING .m-status-text { background: rgba(193, 140, 126, 0.15); color: var(--danger-color); }
+
+/* 疼痛关联指标高亮 */
+.m-card.pain-related {
+  border-left: 5px solid #ff7a45;
+  background: linear-gradient(135deg, rgba(255, 122, 69, 0.08) 0%, rgba(255, 122, 69, 0.02) 100%);
+  position: relative;
+  box-shadow: 0 0 14px rgba(255, 122, 69, 0.1);
+}
+.m-card.pain-related::after {
+  content: '与疼痛相关';
+  position: absolute;
+  top: 10px;
+  right: 12px;
+  font-size: 0.65rem;
+  background: #ff7a45;
+  color: #fff;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+}
+
+/* 疼痛关联分析模块 */
+.pain-analysis-section {
+  background: linear-gradient(135deg, rgba(255, 122, 69, 0.08) 0%, rgba(255, 122, 69, 0.02) 100%);
+  border: 1px solid rgba(255, 122, 69, 0.2);
+  padding: 24px 28px;
+  margin-bottom: 24px;
+}
+.pain-section-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+.pain-section-header h2 {
+  font-size: 1.15rem;
+  font-weight: 800;
+  color: #ff7a45;
+  margin: 0;
+}
+.pain-icon {
+  font-size: 1.3rem;
+}
+.pain-analysis-text {
+  font-size: 0.95rem;
+  line-height: 1.8;
+  color: rgba(255, 255, 255, 0.8);
+}
+
 .m-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px; }
 .m-label { font-size: 1rem; font-weight: 700; color: var(--text-main); }
 .m-status-text { font-size: 0.75rem; font-weight: 700; text-transform: uppercase; padding: 3px 10px; border-radius: 12px; }
-.m-card.ADJUST .m-status-text { background: rgba(212, 175, 55, 0.15); color: var(--accent-gold); }
-.m-card.WARNING .m-status-text { background: rgba(193, 140, 126, 0.15); color: var(--danger-color); }
 
 .m-vals { display: flex; gap: 40px; margin-bottom: 18px; }
 .v-group { display: flex; flex-direction: column; }
@@ -716,11 +801,14 @@ onUnmounted(() => {
 /* Footer */
 .report-footer { display: grid; gap: 30px; }
 .equip-card { padding: 30px; background: var(--bg-surface); border-radius: var(--radius-md); border: var(--border-glass); }
-.equip-card h4 { color: var(--primary-color); margin-bottom: 20px; font-size: 1.2rem; display: flex; align-items: center; gap: 10px; }
+.equip-card h4 { color: var(--primary-color); margin-bottom: 24px; font-size: 1.2rem; display: flex; align-items: center; gap: 10px; }
 .equip-card h4 i { font-size: 1.1rem; color: var(--accent-gold); }
-.equip-card ul { padding-left: 0; list-style: none; }
-.equip-card li { margin-bottom: 12px; font-size: 0.95rem; color: var(--text-body); display: flex; gap: 10px; align-items: flex-start; line-height: 1.5; }
-.equip-card li::before { content: '\2726'; color: var(--accent-gold); flex-shrink: 0; margin-top: 1px; }
+.equip-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 14px; }
+.equip-item { display: flex; align-items: flex-start; gap: 14px; padding: 16px 18px; background: rgba(92, 110, 88, 0.03); border-radius: 12px; border: 1px solid rgba(92, 110, 88, 0.08); transition: border-color 0.2s; }
+.equip-item:hover { border-color: rgba(92, 110, 88, 0.2); }
+.equip-category-badge { flex-shrink: 0; display: inline-flex; align-items: center; gap: 6px; padding: 5px 14px; background: var(--primary-color); color: #fff; border-radius: 20px; font-size: 0.8rem; font-weight: 700; white-space: nowrap; letter-spacing: 0.5px; }
+.equip-category-badge::before { content: '\2726'; font-size: 0.7rem; }
+.equip-text { flex: 1; font-size: 0.92rem; line-height: 1.7; color: var(--text-body); }
 .action-bar { display: flex; gap: 20px; justify-content: center; padding: 25px; background: var(--bg-surface); border-top: 1px solid rgba(92, 110, 88, 0.1); }
 
 /* Use global btn styles; only override scoped specifics */

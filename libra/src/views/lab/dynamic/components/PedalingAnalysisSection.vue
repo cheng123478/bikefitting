@@ -10,14 +10,10 @@
       <span v-if="data.bilateralConfidence === 'HIGH'" class="badge confidence-high">
         <i class="fas fa-check-circle"></i> 正面双侧实测
       </span>
-      <span v-else-if="data.bilateralConfidence === 'LOW'" class="badge confidence-low">
+      <span v-else-if="data.bilateralConfidence === 'LOW'" class="badge confidence-low tooltip-trigger">
         <i class="fas fa-exclamation-triangle"></i> 侧面单腿估算
+        <span v-if="data.analysisNote" class="tooltip-content">{{ data.analysisNote }}</span>
       </span>
-    </div>
-
-    <!-- 低可信度时显示说明 -->
-    <div v-if="data.bilateralConfidence === 'LOW' && data.analysisNote" class="data-note">
-      <i class="fas fa-info-circle"></i> {{ data.analysisNote }}
     </div>
 
     <!-- 1. Left/Right motion balance proxy -->
@@ -315,20 +311,48 @@ onUnmounted(() => {
 .confidence-high { background: rgba(82, 196, 26, 0.12) !important; color: #52c41a !important; }
 .confidence-low  { background: rgba(250, 173, 20, 0.12) !important; color: #faad14 !important; }
 
-.data-note {
-  display: flex;
-  align-items: flex-start;
-  gap: 10px;
-  padding: 12px 18px;
-  margin-bottom: 24px;
-  border-left: 3px solid var(--accent-gold);
-  background: rgba(212, 175, 55, 0.06);
-  border-radius: 0 8px 8px 0;
-  font-size: 0.88rem;
-  color: var(--text-muted);
-  line-height: 1.5;
+/* ── 侧面单腿估算 Tooltip ── */
+.tooltip-trigger {
+  position: relative;
+  cursor: help;
 }
-.data-note i { color: var(--accent-gold); margin-top: 2px; flex-shrink: 0; }
+.tooltip-content {
+  visibility: hidden;
+  opacity: 0;
+  position: absolute;
+  top: calc(100% + 10px);
+  left: 50%;
+  transform: translateX(-50%);
+  width: 320px;
+  padding: 14px 18px;
+  background: rgba(30, 30, 30, 0.92);
+  backdrop-filter: blur(8px);
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 0.82rem;
+  font-weight: 400;
+  letter-spacing: 0;
+  line-height: 1.6;
+  border-radius: 10px;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.25);
+  z-index: 100;
+  transition: opacity 0.2s ease, visibility 0.2s ease;
+  pointer-events: none;
+  white-space: normal;
+  text-align: left;
+}
+.tooltip-content::after {
+  content: '';
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  border: 6px solid transparent;
+  border-bottom-color: rgba(30, 30, 30, 0.92);
+}
+.tooltip-trigger:hover .tooltip-content {
+  visibility: visible;
+  opacity: 1;
+}
 
 .view-header { display: flex; align-items: center; gap: 15px; margin-bottom: 30px; border-bottom: 2px solid rgba(92, 110, 88, 0.1); padding-bottom: 15px;}
 .view-header h2 { font-size: 1.4rem; color: var(--text-main); display: flex; align-items: center; gap: 12px; margin: 0; }
