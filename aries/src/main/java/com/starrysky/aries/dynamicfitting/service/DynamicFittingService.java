@@ -323,9 +323,9 @@ public class DynamicFittingService {
     public Page<DynamicFittingSessionVO> getSessionsByUser(Long userId, Long bikeId, Pageable pageable) {
         Page<DynamicFittingSession> sessions;
         if (bikeId != null) {
-            sessions = sessionRepository.findByUser_IdAndUserBike_IdAndIsDeleted(userId, bikeId, 0, pageable);
+            sessions = sessionRepository.findByUserIdAndBikeIdAndIsDeletedWithDetails(userId, bikeId, 0, pageable);
         } else {
-            sessions = sessionRepository.findByUser_IdAndIsDeleted(userId, 0, pageable);
+            sessions = sessionRepository.findByUserIdAndIsDeletedWithDetails(userId, 0, pageable);
         }
         return sessions.map(this::convertToVO);
     }
